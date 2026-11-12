@@ -9,6 +9,8 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
+from g3o.common.date_signals import html_date_candidates
+
 NOISE_TAGS = ["script", "style", "noscript", "svg", "canvas", "iframe", "form"]
 STRUCTURAL_TAGS = ["header", "footer", "nav", "aside"]
 
@@ -78,6 +80,7 @@ class HtmlParts:
     chrome_text: str
     links: list[dict] = field(default_factory=list)
     email_links: list[str] = field(default_factory=list)
+    metadata_dates: list[dict] = field(default_factory=list)  # P15 A1 date candidates
 
 
 def extract_parts(soup: BeautifulSoup, base_url: str) -> HtmlParts:
@@ -85,15 +88,19 @@ def extract_parts(soup: BeautifulSoup, base_url: str) -> HtmlParts:
 
     Order matters: :func:`extract_text` decomposes the chrome and noise tags
     in place, so the chrome text and the links (which include nav and footer
-    links) are read first, from the intact soup. ``text`` is exactly what
+    links) are read first, from the intact soup, as are the P15 A1 date
+    candidates (JSON-LD lives in ``<script>``). ``text`` is exactly what
     :func:`extract_text` returns for the page.
     """
     chrome_text = extract_chrome_text(soup)
     links = extract_links(soup, base_url)
     email_links = extract_email_links(soup)
+    # P15 A1: read before extract_text, which removes the JSON-LD <script>s.
+    metadata_dates = html_date_candidates(soup)
     text = extract_text(soup)
     return HtmlParts(
-        text=text, chrome_text=chrome_text, links=links, email_links=email_links
+        text=text, chrome_text=chrome_text, links=links, email_links=email_links,
+        metadata_dates=metadata_dates,
     )
 
 

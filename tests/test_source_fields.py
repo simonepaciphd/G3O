@@ -229,7 +229,8 @@ def test_source_type_evidence_goes_through_t024(rules):
 
 
 def test_date_metadata_first():
-    d = sf.publication_date([sf.MetadataDate("2024-03-12", "metadata", "meta article:published_time"),
+    d = sf.publication_date([sf.MetadataDate("2024-03-12", "metadata", "meta article:published_time",
+                                             tag="article:published_time"),
                              sf.MetadataDate("2023", "web_address", "/2023/")],
                             ExtractedField(sf.DATE, "2020", P1, "12 March 2024"), SOURCES)
     assert (d.value, d.date_origin, d.provenance) == ("2024-03-12", "metadata", "from_metadata")
@@ -241,10 +242,13 @@ def test_date_web_address_when_no_metadata():
     assert (d.value, d.date_origin, d.provenance) == ("2024-03", "web_address", "from_metadata")
 
 
-def test_date_metadata_disagreement_is_unruled():
-    with pytest.raises(sf.UnruledError):
-        sf.publication_date([sf.MetadataDate("2024", "metadata", "a"), sf.MetadataDate("2023", "metadata", "b")],
-                            None, SOURCES)
+def test_date_metadata_disagreement_falls_through():
+    # A1.2 a (PI 2026-11-11): same tag, disagreeing values -> treated as absent.
+    tag = "citation_publication_date"
+    d = sf.publication_date([sf.MetadataDate("2024", "metadata", "a", tag=tag),
+                             sf.MetadataDate("2023", "metadata", "b", tag=tag)], None, SOURCES)
+    assert d.value == "not_documented"
+    assert d.detail["metadata_disagreed"] == {"tag": tag, "values": ["2023", "2024"]}
 
 
 def test_metadata_less_date_uses_quote_step():
@@ -275,7 +279,8 @@ def test_date_producer_absent_refuses():
 
 def test_date_format_checked():
     with pytest.raises(ValueError):
-        sf.publication_date([sf.MetadataDate("12/03/2024", "metadata", "x")], None, SOURCES)
+        sf.publication_date([sf.MetadataDate("12/03/2024", "metadata", "x", tag="citation_publication_date")],
+                            None, SOURCES)
 
 
 # ---------------------------------------------------------------------------
