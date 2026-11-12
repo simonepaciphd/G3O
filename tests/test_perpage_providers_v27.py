@@ -460,6 +460,49 @@ def test_missing_upstream_after_a_response_hold_still_stops_the_stage(tmp_path, 
     assert _held(run_dir, "INST-0000001")["held"][0]["stage"] == pp.EXTRACT_RESPONSE_FAILED
 
 
+class WrongShape(FakeExtractor):
+    """The first pass job of ``stage`` on ``page`` answers one array field with ``5`` (ruling 30 a):
+    a top-level field, or ``activity fields`` (every activity's ``fields``)."""
+
+    def __init__(self, world, stage, page, where):
+        super().__init__(world)
+        self.stage, self.page, self.where, self.left = stage, page, where, 1
+
+    def __call__(self, job):
+        result = super().__call__(job)
+        if job.metadata["stage"] != self.stage or job.metadata["page_id"] != self.page or not self.left:
+            return result
+        self.left -= 1
+        payload = json.loads(result.text)
+        if self.where == "activity fields":
+            assert payload["activities"]
+            for act in payload["activities"]:
+                act["fields"] = 5
+        else:
+            payload[self.where] = 5
+        return replace(result, text=json.dumps(payload))
+
+
+@pytest.mark.parametrize(("stage", "where"), [(PASS1, "quotes"), (PASS1, "links"), (PASS1, "activities"),
+                                              (PASS1, "activity fields"), (PASS2, "quotes"), (PASS2, "fields")])
+def test_wrong_shape_array_field_holds_that_institution(tmp_path, stage, where):
+    """Ruling 30 a: an array field of the wrong shape (``"quotes": 5``) is an ExtractContractError, so
+    the institution is held under C3 a (never a TypeError stage stop); the others complete."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    bad = WrongShape(world, stage, page, where)
+    ready, metrics = _run(run_dir, bound, instrument, insts, _providers(run_dir, bound, instrument, bad, FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert metrics.held == [inst]
+    assert [i.institution_id for i in ready] == ["INST-0000001", "INST-0000003"] == metrics.ready
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED and hold["page_id"] == page
+    assert hold["pass"] == ("pass1" if stage == PASS1 else "pass2")
+    assert hold["custom_id"] == _bad_job(bad, stage, page).custom_id
+    assert "ExtractContractError" in hold["error"] and "must be an array" in hold["error"]
+    assert _kinds(run_dir, inst).count("extract_rejected") == 1
+
+
 def test_response_failure_is_not_a_stage_stop():
     assert not issubclass(pp.ExtractorResponseFailed, pp.STAGE_STOPS)
     assert not issubclass(pp.ExtractorResponseFailed, (ValueError, RuntimeError))

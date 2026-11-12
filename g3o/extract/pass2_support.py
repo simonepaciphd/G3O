@@ -54,6 +54,7 @@ from g3o.extract.anthropic_client import (
 )
 from g3o.extract.parser_v27 import (
     ExtractContractError,
+    _array,
     _check_keys,
     _flags,
     _id_or_none,
@@ -648,7 +649,7 @@ def parse_pass2_result(result: ExtractorResult, page: Pass2Page, plan: Pass2Plan
 
     qtasks = {t.task_id: t for t in plan.quote_tasks}
     got_q: dict[str, ActivityQuote] = {}
-    for raw in payload["quotes"] or []:
+    for raw in _array(payload["quotes"], "quotes"):  # ruling 30 a: a wrong shape is a contract error
         _check_keys(raw, _QUOTE_KEYS, "quote")
         _id_or_none(raw["part_id"], "quote part_id")
         task = qtasks.get(_id_or_none(raw["task_id"], "quote task_id"))
@@ -677,7 +678,7 @@ def parse_pass2_result(result: ExtractorResult, page: Pass2Page, plan: Pass2Plan
 
     ftasks = {t.task_id: t for t in plan.field_tasks}
     got_f: dict[str, ActivityField] = {}
-    for raw in payload["fields"] or []:
+    for raw in _array(payload["fields"], "fields"):
         _check_keys(raw, _FIELD_KEYS, "field")
         _id_or_none(raw["part_id"], "field part_id")
         task = ftasks.get(_id_or_none(raw["task_id"], "field task_id"))
