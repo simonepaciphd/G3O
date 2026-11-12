@@ -3,7 +3,7 @@
 Signed rule (``items/core.source_language/rules/0``, codebook r15): "Pinned
 local language-ID library on stored text; same tag grammar as
 ``institution_search_languages``; ``mul`` when no language exceeds a set share."
-PI rulings 2026-11-11 (``agent-workspace/2026-11-10-build/RULINGS-overnight-2026-11-11.md``):
+PI rulings 2026-11-11 (A3.1 a, A3.2 a, 2 b; build rulings 21-25):
 
 - A3.1 a: lingua-language-detector, exact pin, offline.
 - A3.2 a: the leading language's share of characters on **main** text
