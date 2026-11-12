@@ -338,6 +338,15 @@ class BadResponse(FakeExtractor):
                                "end_turn", dict(USAGE))
 
 
+def _assert_not_archived(run_dir, insts, inst, page, hold):
+    """A C3 hold leaves the page's saved state in place: no archive folder, no pending marker, no
+    ``archived`` (or archive-failure) entry in the hold."""
+    spec = next(s for i in insts if i.institution_id == inst for s in i.pages if s.page.page_id == page)
+    pdir = pp._page_dir(run_dir, spec.page)
+    assert not (pdir / pp.PAGE_ARCHIVE_DIR).exists() and not (pdir / pp.PAGE_ARCHIVE_PENDING).exists()
+    assert "archived" not in hold and "archive_error" not in hold
+
+
 def _bad_job(bad, stage, page):
     return next(j for j in bad.jobs if j.metadata["page_id"] == page and j.metadata["stage"] == stage)
 
@@ -369,6 +378,7 @@ def test_bad_extractor_response_holds_that_institution_and_the_stage_goes_on(tmp
         assert kinds.count("extract_rejected") == 1 and "extract_failed" not in kinds
     # every extractor call counted once: a rejection entry cancels its recorded entry, never adds a call
     assert metrics.usage[inst]["extractor_calls"] == kinds.count("extract") + kinds.count("extract_failed")
+    _assert_not_archived(run_dir, insts, inst, page, hold)  # ruling 33 a is for C4 holds only
 
 
 @pytest.mark.parametrize(("stage", "page", "inst"), [(PASS1, "p1", "INST-0000001"), (PASS2, "b1", "INST-0000002")])
@@ -501,6 +511,7 @@ def test_wrong_shape_array_field_holds_that_institution(tmp_path, stage, where):
     assert hold["custom_id"] == _bad_job(bad, stage, page).custom_id
     assert "ExtractContractError" in hold["error"] and "must be an array" in hold["error"]
     assert _kinds(run_dir, inst).count("extract_rejected") == 1
+    _assert_not_archived(run_dir, insts, inst, page, hold)  # a C3 hold: the page state is not archived
 
 
 def test_response_failure_is_not_a_stage_stop():
