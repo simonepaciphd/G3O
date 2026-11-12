@@ -212,14 +212,33 @@ def test_unproduced_values_refusals_in_the_stage(tmp_path):
         pin.default_perpage_inputs(_run_dir(tmp_path / "again"), ROWS, SCRAPED, None, None)
 
 
+@pytest.mark.parametrize("column", ["institution_name", "country", "branch_of_government", "level_of_government"])
+def test_identity_drift_on_each_master_column_is_refused(tmp_path, column):
+    run_dir = _run_dir(tmp_path)
+    path = institution_dir(run_dir, I1) / "institution.json"
+    rec = json.loads(path.read_text(encoding="utf-8"))
+    path.write_text(json.dumps({**rec, column: "Other"}), encoding="utf-8")
+    # The builder is lazy: each refusal comes when the institution is reached (the check pass).
+    with pytest.raises(ValueError, match=rf"differs from the master row on \['{column}'\]"):
+        list(pin.build_perpage_inputs(run_dir, ROWS[:1], SCRAPED))
+
+
+def test_country_fields_come_from_their_intended_sources(tmp_path, monkeypatch):
+    """Ruling 38 a: ``PerPageInstitution.country`` is the stored identity block's country (the drift
+    check pins it to the master row) and ``PageInput.country`` the master row's, through
+    ``institution_record``. The two agree by construction, so the source of each is pinned by
+    giving the identity block a country the master row does not have."""
+    real = pin._identity
+    monkeypatch.setattr(pin, "_identity", lambda *a: {**real(*a), "country": "Identity Country"})
+    one = next(iter(pin.build_perpage_inputs(_run_dir(tmp_path), ROWS[:1], SCRAPED)))
+    assert one.country == one.institution["country"] == "Identity Country"
+    assert {s.page.country for s in one.pages} == {"Australia"} == {ROWS[0]["country"]}
+
+
 def test_identity_drift_duplicate_url_and_missing_uid_are_refused(tmp_path):
     run_dir = _run_dir(tmp_path)
     path = institution_dir(run_dir, I1) / "institution.json"
     rec = json.loads(path.read_text(encoding="utf-8"))
-    path.write_text(json.dumps({**rec, "institution_name": "Other"}), encoding="utf-8")
-    # The builder is lazy: each refusal comes when the institution is reached (the check pass).
-    with pytest.raises(ValueError, match=r"differs from the master row on \['institution_name'\]"):
-        list(pin.build_perpage_inputs(run_dir, ROWS[:1], SCRAPED))
     path.write_text(json.dumps({k: v for k, v in rec.items() if k != "institution_search_languages"}),
                     encoding="utf-8")
     with pytest.raises(MissingUpstreamError, match="institution_search_languages"):
