@@ -209,7 +209,7 @@ def test_unproduced_values_refusals_in_the_stage(tmp_path):
     with pytest.raises(sf.UnruledError):
         sf.text_source()
     with pytest.raises(MissingUpstreamError, match="T-025 follow provenance"):
-        pin.default_perpage_inputs(_run_dir(tmp_path / "again"), ROWS, SCRAPED, None, None)
+        pin.require_complete(pin.default_perpage_inputs(_run_dir(tmp_path / "again"), ROWS, SCRAPED, None, None))
 
 
 @pytest.mark.parametrize("column", ["institution_name", "country", "branch_of_government", "level_of_government"])

@@ -242,14 +242,14 @@ def require_complete(institutions: Iterable[pp.PerPageInstitution]) -> int:
 
 def default_perpage_inputs(run_dir: Path, sample: Sequence[Mapping[str, Any]], scraped: Mapping[str, Any],
                            bound: Any, instrument: Any) -> PerPageInputs:
-    """The v2.7 dispatch's default ``perpage_inputs`` (D1 a): build lazily, then refuse what is still missing.
+    """The v2.7 dispatch's default ``perpage_inputs`` (D1 a): the lazy :class:`PerPageInputs`.
 
-    The check is a first pass over the lazy inputs (no page text kept), so a
-    refusal comes before any paid call; the caller iterates again to code.
+    :func:`require_complete` is not run here: ``run_v27_dispatch`` runs it on the
+    output of whichever builder is used (PI ruling 40 a), as a first pass over
+    the lazy inputs (no page text kept) before any paid call, then iterates
+    again to code.
     """
-    institutions = build_perpage_inputs(run_dir, sample, scraped, bound, instrument)
-    require_complete(institutions)
-    return institutions
+    return build_perpage_inputs(run_dir, sample, scraped, bound, instrument)
 
 
 __all__ = ["IDENTITY_COLUMNS", "MISSING_PRODUCERS", "PageSourceFields", "PerPageInputs", "build_perpage_inputs",

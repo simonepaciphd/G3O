@@ -310,11 +310,13 @@ class V27Dispatch:
       scraped pages. ``None`` (the default, PI ruling D1 a): built from the stored
       scrape artifacts by
       :func:`g3o.run.presweep.perpage_inputs_v27.default_perpage_inputs`, which
-      still refuses (``MissingUpstreamError``, before any jev call) the values no
-      producer supplies yet (T-025 ``followed``, the T-015/T-022/T-024 row values).
-      While those producers are missing (``perpage_inputs_v27.MISSING_PRODUCERS``)
-      a run on the default is refused at entry (PI ruling 36 a). An injected callable wins (the D1 a seam, kept for tests); a missing upstream
-      value it leaves out still raises ``MissingUpstreamError`` in the per-page stage.
+      leaves ``None`` the values no producer supplies yet (T-025 ``followed``, the
+      T-015/T-022/T-024 row values). While those producers are missing
+      (``perpage_inputs_v27.MISSING_PRODUCERS``) a run on the default is refused at
+      entry (PI ruling 36 a). An injected callable wins (the D1 a seam, kept for
+      tests). Whichever builder is used, ``perpage_inputs_v27.require_complete``
+      refuses a ``None`` upstream value (``MissingUpstreamError``) before any paid
+      call (PI ruling 40 a); key coverage is still checked in the per-page stage.
     """
 
     settings: Any
@@ -465,11 +467,16 @@ def run_v27_dispatch(
     institutions = build_inputs(run_dir, sample, scraped, bound, instrument)
     if isinstance(institutions, Iterator):
         institutions = list(institutions)
+    # Ruling 40 a: whichever builder ran, refuse a missing upstream value before any paid call
+    # (a first pass that keeps no page text; it also counts the pages).
+    from g3o.run.presweep.perpage_inputs_v27 import require_complete
+
+    n_pages = require_complete(institutions)
     out: dict[str, Any] = into if into is not None else {}
     out.update({"pipeline_version": PIPELINE_V27, "instrument_id": bound.instrument_id})
     usage: dict[str, dict[str, int]] = {}
 
-    span = tel.stage_start(V27_PERPAGE_SPAN, counts_in=sum(len(i.pages) for i in institutions))
+    span = tel.stage_start(V27_PERPAGE_SPAN, counts_in=n_pages)
     ready, pm = run_perpage_v27(
         run_dir, institutions, ask_fn=v27.jev_ask_fn, providers=providers,
         page_config=bound.page_config, activity_config=bound.activity_config,

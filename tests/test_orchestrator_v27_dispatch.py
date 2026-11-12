@@ -470,14 +470,40 @@ def test_v27_dispatch_stops_at_the_first_x35_check_on_a_refusing_entry(tmp_path)
 
 def test_v27_dispatch_stops_on_a_missing_upstream_producer(tmp_path):
     run_dir, bound, instrument, world = _world_run(tmp_path)
+    dropped = []
 
     def drop_follow(insts):
         a = insts[0]
         spec = replace(a.pages[0], upstream=replace(a.pages[0].upstream, followed=None))
+        dropped.append(spec.page.page_id)
         return [replace(a, pages=[spec, *a.pages[1:]]), *insts[1:]]
-    with pytest.raises(pp.MissingUpstreamError, match="follow"):
-        orch.run_v27_dispatch(run_dir, [], None, _dispatch(world, inputs=WorldInputs(world, edit=drop_follow)))
+    # Ruling 40 a: require_complete runs on an injected builder's output too, so the refusal comes
+    # before any paid call (the post-coding refusal is covered on run_perpage_v27 directly, in
+    # test_e2e_perpage_v27).
+    jev, extract, entail = FakeJev(ANSWERS, RELATIONS, _fail_verdict), FakeExtractorS6(world), FakeEntail()
+    v27 = _dispatch(world, jev=jev, extract=extract, entail=entail, inputs=WorldInputs(world, edit=drop_follow))
+    with pytest.raises(pp.MissingUpstreamError, match="follow") as exc:
+        orch.run_v27_dispatch(run_dir, [], None, v27)
+    assert exc.value.missing == (f"{INSTS[0]}/{dropped[0]}",)
+    assert jev.calls == [] and extract.jobs == [] and entail.calls == []
+    assert not any((institution_dir(run_dir, i) / pp.WORK_DIR).exists() for i in INSTS)
     assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in INSTS)
+
+
+def test_require_complete_runs_on_injected_inputs_before_any_paid_call(tmp_path):
+    """Ruling 40 a: a None row value from an injected builder is refused before coding."""
+    run_dir, bound, instrument, world = _world_run(tmp_path)
+
+    def drop_codes(insts):
+        b = insts[1]
+        spec = replace(b.pages[0], upstream=replace(b.pages[0].upstream, codes=None))
+        return [insts[0], replace(b, pages=[spec, *b.pages[1:]]), *insts[2:]]
+    jev, extract, entail = FakeJev(ANSWERS, RELATIONS, _fail_verdict), FakeExtractorS6(world), FakeEntail()
+    v27 = _dispatch(world, jev=jev, extract=extract, entail=entail, inputs=WorldInputs(world, edit=drop_codes))
+    with pytest.raises(pp.MissingUpstreamError, match="row values"):
+        orch.run_v27_dispatch(run_dir, [], None, v27)
+    assert jev.calls == [] and extract.jobs == [] and entail.calls == []
+    assert not any((institution_dir(run_dir, i) / pp.WORK_DIR).exists() for i in INSTS)
 
 
 # ---------------------------------------------------------------------------
