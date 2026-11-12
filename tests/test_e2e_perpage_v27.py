@@ -939,6 +939,31 @@ def test_a51_resume_rewrites_nothing_and_matches(tmp_path):
     assert [sorted(i.sources.items()) for i in again] == [sorted(i.sources.items()) for i in ready]
 
 
+def test_a51_a_different_artifact_at_the_same_path_holds_the_institution(tmp_path):
+    """Ruling 8: different bytes at an artifact's path hold that institution only (not overwritten)."""
+    from g3o.persist import page_artifact as pa
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    insts = _produced_layout(insts)
+    rel = pa.page_artifact_relpath("INST-0000001", world.pages["p1"].url)
+    (run_dir / rel).parent.mkdir(parents=True, exist_ok=True)
+    (run_dir / rel).write_bytes(b"not the page artifact")
+    ready, metrics = _perpage(run_dir, bound, instrument, world, insts, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert "INST-0000001" in metrics.held and "INST-0000001" not in metrics.ready
+    assert metrics.ready  # the other institutions go on
+    assert (run_dir / rel).read_bytes() == b"not the page artifact"
+    held = json.loads((institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.HELD_FILE)
+                      .read_text(encoding="utf-8"))
+    assert "PageArtifactConflict" in json.dumps(held)
+
+
+def test_a51_artifact_format_is_recorded_in_the_instrument(tmp_path):
+    from g3o.persist import page_artifact as pa
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    conf = instrument["payload"]["extractor_configuration"]
+    assert conf["page_artifact_format"] == pa.PAGE_ARTIFACT_FORMAT
+    assert conf["page_artifact_separator_sha256"] == sha256_text(pa.CHROME_SEPARATOR)
+
+
 def test_a51_half_an_injected_layout_stops_the_stage(tmp_path):
     from dataclasses import replace
     run_dir, bound, instrument, world, insts = _setup(tmp_path)
