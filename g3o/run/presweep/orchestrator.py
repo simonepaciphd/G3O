@@ -24,7 +24,12 @@ from g3o.common.paths import require_layout
 from g3o.common.run_state import state_dir
 from g3o.discovery.serper_client import SerperOptions, set_live_mode
 from g3o.report.run_summary import render_run_summary_text, write_run_summary
-from g3o.run.presweep.config import PIPELINE_V27, PresweepConfig, refuse_v27_budget_settings
+from g3o.run.presweep.config import (
+    PIPELINE_V27,
+    V27_PRICED_STAGES,
+    PresweepConfig,
+    refuse_v27_budget_settings,
+)
 from g3o.run.presweep.planning import (
     plan_run,
     record_run_pipeline,
@@ -398,6 +403,9 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
 
 #: Summary / cost-report key of the v2.7 stages' raw usage (T-030 QA4 M1).
 V27_USAGE_KEY = "v27_unpriced_usage"
+#: Cost-report key and value stating what a v2.7 run's budget covers (PI ruling 1 a).
+V27_BUDGET_SCOPE_KEY = "budget_scope"
+V27_BUDGET_SCOPE = "stages_1_4"
 
 
 def _usage_totals(metrics: Any) -> dict[str, int]:
@@ -432,7 +440,9 @@ def run_v27_dispatch(
     stage (``SupportGateError``, ``MissingUpstreamError`` in the per-page stage,
     ``JevAccountError``, ...) propagate unchanged. Within-stage budget checks are
     not wired here (no ``cost_check_callback``): the cost monitor has no v2.7
-    stage pricing yet, so the config refuses every budget setting on a v2.7 run.
+    stage pricing yet, so a v2.7 run's ``budget_usd`` covers Stages 1-4 only
+    (PI ruling 1 a, 2026-11-11) and the config refuses preflight estimates for
+    any other stage.
     The two stages' raw token and call counts go under :data:`V27_USAGE_KEY`
     (``{"perpage_v27": ..., "stage6_v27": ...}``), unpriced; a stage that stops
     records none there (its journals on disk keep them).
@@ -545,6 +555,12 @@ def run_presweep(
     if config.pipeline_version == PIPELINE_V27:
         refuse_v27_budget_settings(config)
         v27 = _require_v27_dispatch(v27)
+        if config.budget_usd is not None:
+            logger.warning(
+                "pipeline_version='v2.7': budget_usd $%.4f is enforced on Stages 1-4 only; "
+                "the v2.7 per-page stage and v2.7 Stage 6 are unpriced (their raw usage is "
+                "reported under %s, outside total_usd)", config.budget_usd, V27_USAGE_KEY,
+            )
     elif v27 is not None:
         raise ValueError("v27 dispatch inputs were supplied but pipeline_version is "
                          f"{config.pipeline_version!r}")
@@ -596,14 +612,22 @@ def run_presweep(
     # Per-stage model overrides (review 2026-09-23: jev integration): each
     # stage's tokens are priced off its own model's rate row, not the run-wide
     # default. Stages not in the map fall back to ``config.model``.
+    # A v2.7 run (PI ruling 1 a) prices only the Stage 2/3 LLM stages it runs:
+    # its run-wide ``model`` is only the fallback of the v2.5 extract/validate
+    # stages it does not run, so it must not decide whether its budget is
+    # priceable (independent review of 1 a, MEDIUM). Its fallback rate row is
+    # the Stage 2 model's, as in the v2.7 preflight.
+    v27_run = config.pipeline_version == PIPELINE_V27
     stage_models = {
         stage: config.model_for_stage(stage)
         for stage in (
-            "classify_official_site",
-            STAGE_2_FALLBACK,
-            "classify_triage",
-            "extract",
-            "validate",
+            V27_PRICED_STAGES if v27_run else (
+                "classify_official_site",
+                STAGE_2_FALLBACK,
+                "classify_triage",
+                "extract",
+                "validate",
+            )
         )
     }
     monitor = CostMonitor(
@@ -611,7 +635,7 @@ def run_presweep(
         # The model this run submits selects its own rate row (review F2). Without
         # it the monitor priced every model as gpt-5-nano, so the budget it was
         # enforcing was not the budget of the run it was watching.
-        model=config.model,
+        model=config.model_for_stage("classify_official_site") if v27_run else config.model,
         preflight_stage_estimates=config.preflight_stage_estimates,
         stage_models=stage_models,
     )
@@ -1178,6 +1202,9 @@ def run_presweep(
                 # They are NOT in total_usd / llm_total_usd (no v2.7 stage
                 # pricing yet); None when no v2.7 stage finished.
                 cost_report[V27_USAGE_KEY] = summary.get(V27_USAGE_KEY)
+                # PI ruling 1 a: budget_usd, budget_exceeded and total_usd cover
+                # Stages 1-4 only on a v2.7 run.
+                cost_report[V27_BUDGET_SCOPE_KEY] = V27_BUDGET_SCOPE
             # Include preflight vs actual comparison if preflight was run
             if config.preflight_estimate_usd is not None and cost_report["total_usd"] is not None:
                 actual_usd = cost_report["total_usd"]
