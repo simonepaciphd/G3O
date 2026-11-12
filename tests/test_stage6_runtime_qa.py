@@ -16,6 +16,7 @@ import pytest
 
 from g3o.classify.jev_activity_code import GATE_RULE
 from g3o.common import attrition
+from g3o.common.independence import group_id as independence_group_id
 from g3o.common.instrument import canonical_json, sha256_text
 from g3o.common.jev_client import JevAnswer, JevResult
 from g3o.common.paths import institution_dir
@@ -436,6 +437,95 @@ def test_activity_confidence_reads_every_source_claim_of_the_activity(tmp_path, 
     assert _run(run_dir, bound, instrument, [a], e.FakeQuotes()).written == [A]
     merged = next(x for x in _storage(run_dir)["activities"].values() if x["observation_ids"] == ["o1", "o2"])
     assert merged["values"]["core.n_sources"] == 2 and merged["values"]["core.confidence"] == expected
+
+
+@pytest.mark.parametrize("same, expected", [(False, "high"), (True, "medium")])
+def test_independence_groups_produced_from_source_rows_when_not_injected(tmp_path, same, expected):
+    # PI A7.1 b / A7.2 a: no injected groups -> produced from syndication group + normalised URL
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    for sid in a.sources:
+        a.sources[sid]["values"]["core.syndication_group"] = f"sg-{sid}"
+    for sid in ("S1", "S2"):
+        a.sources[sid]["values"]["core.confidence"] = "medium"
+    if same:
+        a.sources["S2"]["values"]["core.syndication_group"] = "sg-S1"
+    a = replace(a, independence_groups=None)
+    assert _run(run_dir, bound, instrument, [a], e.FakeQuotes()).written == [A]
+    merged = next(x for x in _storage(run_dir)["activities"].values() if x["observation_ids"] == ["o1", "o2"])
+    assert merged["values"]["core.n_sources"] == 2 and merged["values"]["core.confidence"] == expected
+
+
+def test_independence_groups_refused_when_a_syndication_group_is_missing(tmp_path):
+    # A7.2 a: no URL-only fallback; the fixture rows' syndication group is a missing token
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    assert a.sources["S1"]["values"]["core.syndication_group"] == "not_documented"
+    metrics = _run(run_dir, bound, instrument, [replace(a, independence_groups=None)], e.FakeQuotes())
+    assert metrics.failed == [A] and not metrics.written
+    held = _held(run_dir)
+    assert "MissingUpstreamError" in held["error"] and "core.syndication_group" in held["error"]
+
+
+@pytest.mark.parametrize("joined, expected", [(False, "high"), (True, "medium")])
+def test_independence_groups_join_through_a_source_the_activity_does_not_cite(tmp_path, joined, expected):
+    # PI ruling A7 12 a: groups span all of the institution's source rows. The merged activity
+    # (o1, o2) cites S1 and S2, which share no key; S3 and S4 (cited by o3 / o4) share the p3 URL.
+    # With S3 sharing S1's syndication group and S4 sharing S2's, S1..S4 are one group.
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    syn = {"S1": "sg-A", "S2": "sg-B", "S3": "sg-A", "S4": "sg-B"} if joined else         {"S1": "sg-A", "S2": "sg-B", "S3": "sg-C", "S4": "sg-D"}
+    for sid, gid in syn.items():
+        a.sources[sid]["values"]["core.syndication_group"] = gid
+    for sid in ("S1", "S2"):
+        a.sources[sid]["values"]["core.confidence"] = "medium"
+    a = replace(a, independence_groups=None)
+    groups = rt.independence_groups_of(a)
+    assert (groups["S1"] == groups["S2"]) is joined
+    assert groups["S3"] == groups["S4"]
+    # PI ruling A7 27 (2026-11-12): the producer hashes this institution's id into the ig- id
+    members = ["S1", "S2", "S3", "S4"] if joined else ["S3", "S4"]
+    assert groups["S3"] == independence_group_id(a.institution_id, members)
+    assert _run(run_dir, bound, instrument, [a], e.FakeQuotes()).written == [A]
+    merged = next(x for x in _storage(run_dir)["activities"].values() if x["observation_ids"] == ["o1", "o2"])
+    assert merged["values"]["core.n_sources"] == 2 and merged["values"]["core.confidence"] == expected
+
+
+def test_injected_independence_groups_win_over_the_producer(tmp_path):
+    # PI ruling A7 14: an injected mapping is used as given. The producer would put S1 and S2 in
+    # different groups (-> high); the injected mapping joins them (-> medium).
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    for sid in a.sources:
+        a.sources[sid]["values"]["core.syndication_group"] = f"sg-{sid}"
+    for sid in ("S1", "S2"):
+        a.sources[sid]["values"]["core.confidence"] = "medium"
+    produced = rt.independence_groups_of(replace(a, independence_groups=None))
+    assert produced["S1"] != produced["S2"]
+    a = replace(a, independence_groups={sid: "g-same" for sid in a.sources})
+    assert _run(run_dir, bound, instrument, [a], e.FakeQuotes()).written == [A]
+    merged = next(x for x in _storage(run_dir)["activities"].values() if x["observation_ids"] == ["o1", "o2"])
+    assert merged["values"]["core.confidence"] == "medium"
+
+
+def test_independence_groups_refused_when_no_activity_is_published(tmp_path):
+    # PI ruling A7 13 a: one source with no syndication group holds the whole institution, even
+    # when the institution has source rows but no publishable activity.
+    run_dir, bound, instrument = e._setup(tmp_path)
+    b = e.Builder(run_dir, bound, instrument, B)
+    b.page("q9", ["A vendor mentions an unnamed assistant."])
+    sid = b.observation("n9", "q9", name="Unnamed assistant", activity_type="pilot_experiment", tool="Gizmo",
+                        quote="A vendor mentions an unnamed assistant.", verdict="ambiguous_attribution")
+    assert b.sources[sid]["values"]["core.syndication_group"] == "not_documented"
+    injected = b.institution()
+    metrics = _run(run_dir, bound, instrument, [replace(injected, independence_groups=None)], e.FakeQuotes())
+    assert metrics.failed == [B] and not metrics.written
+    held = _held(run_dir, B)
+    assert held["reasons"] == [rt.ENVELOPE_FAILED]
+    assert "MissingUpstreamError" in held["error"] and "core.syndication_group" in held["error"]
+    # Control (ruling 14): with the injected mapping the same institution publishes, with no activity row.
+    assert _run(run_dir, bound, instrument, [injected], e.FakeQuotes()).written == [B]
+    assert not _storage(run_dir, B)["activities"]
 
 
 class OutsideQuotes(e.FakeQuotes):

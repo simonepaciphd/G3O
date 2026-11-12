@@ -46,11 +46,14 @@ Producers and their signed rules:
   against the signed codes.
 - ``core.source_language`` (X27): pinned lingua on the stored main text,
   :mod:`g3o.common.language_id` (PI rulings A3.1 a, A3.2 a, 2 b, 2026-11-11).
-- ``core.syndication_group`` (X38), ``core.discovery_path``,
-  ``core.text_source``: no producer or no signed spelling/parameter exists;
-  each refuses explicitly (RC-D-025 P15). The archive-address test of
-  ``core.source_type`` rules/0 uses the versioned host list of
-  :mod:`g3o.common.archive_hosts` (PI ruling A2.1 a, 2026-11-11):
+- ``core.syndication_group`` (X38): the group id of the page's within-institution
+  near-duplicate component (:func:`syndication_group_for` over a
+  :func:`g3o.common.syndication.group_pages` grouping; PI A4.1 a, A4.2 a,
+  2026-11-11), or an upstream group id (:func:`syndication_group`).
+- ``core.discovery_path``, ``core.text_source``: no producer or no signed
+  spelling/parameter exists; each refuses explicitly (RC-D-025 P15). The
+  archive-address test of ``core.source_type`` rules/0 uses the versioned host
+  list of :mod:`g3o.common.archive_hosts` (PI ruling A2.1 a, 2026-11-11):
   :func:`source_archive_address`.
 
 Source confidence: the signed r14 rule ``items/core.confidence/rules/1``
@@ -427,14 +430,32 @@ def source_language_of_page(page: Any, *, vocab: SourceVocab | None = None) -> F
 
 
 def syndication_group(group_id: str | None, *, vocab: SourceVocab | None = None) -> FieldValue:
-    """X38 group id from a near-duplicate grouping; method parameters are unsigned, so only
-    an upstream group id is accepted."""
+    """X38 from an upstream group id (e.g. one :func:`syndication_group_for` already produced)."""
     v = vocab or default_vocab()
     if group_id is None or not group_id.strip():
         raise MissingUpstreamError(
-            "near-duplicate grouping (items/core.syndication_group/rules/0: method 'e.g. shingled "
-            "MinHash', threshold unsigned)", [SYNDICATION])
+            "near-duplicate grouping (items/core.syndication_group/rules/0; "
+            "g3o.common.syndication.group_pages over the institution's pages)", [SYNDICATION])
     return _fv(SYNDICATION, group_id, "upstream near-duplicate group", v)
+
+
+def syndication_group_for(grouping: Any, page_key: str, *, vocab: SourceVocab | None = None) -> FieldValue:
+    """X38 for one page from its institution's :class:`g3o.common.syndication.SyndicationGrouping`.
+
+    PI A4.1 a / A4.2 a (2026-11-11): 5-word shingles, Jaccard >= 0.8, connected
+    components within one institution. The grouping's parameters ride in ``detail``.
+    """
+    v = vocab or default_vocab()
+    if grouping is None:
+        raise MissingUpstreamError("near-duplicate grouping of the institution's pages "
+                                   "(g3o.common.syndication.group_pages)", [SYNDICATION])
+    try:
+        gid = grouping.group_of(page_key)
+    except KeyError as exc:
+        raise MissingUpstreamError(f"near-duplicate grouping has no page {page_key!r}",
+                                   [SYNDICATION]) from exc
+    return _fv(SYNDICATION, gid, f"near-duplicate group ({grouping.version})", v,
+               detail=grouping.detail(page_key))
 
 
 def discovery_path(*_: Any, **__: Any) -> FieldValue:
@@ -1071,5 +1092,5 @@ __all__ = [
     "source_access_date", "source_confidence_rule", "source_credibility", "source_language",
     "source_language_of_page",
     "source_on_official_domain", "source_snippet", "source_title", "source_type_evidence", "source_type_label",
-    "source_url", "source_values", "syndication_group", "text_source", "vocab_from_codebook",
+    "source_url", "source_values", "syndication_group", "syndication_group_for", "text_source", "vocab_from_codebook",
 ]
