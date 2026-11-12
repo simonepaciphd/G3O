@@ -431,7 +431,27 @@ def test_extra_round_pass1_request_asks_only_the_new_quote_tasks(tmp_path):
     assert [s.activity_id for s in inp.spans] == [aid("p1")]  # the first-round spans
     assert len(extract.jobs) == 2
 
-    # An extra round whose new codes need no quote makes no call (an R-003 page used to ask spans again).
-    none_needed = [dc_replace(new[0], chosen_value=next(iter(request_v27.default_rules().no_support_values)))]
-    providers.page_support(page, result, none_needed)
+    # An extra round whose new codes need no quote makes no call (an R-003 page used to ask spans
+    # again). The no-quote code is one of the page's pass-1 codes, so the round is a strict subset
+    # of ``full.codes``: the extra-round path, where quote_tasks_only leaves no task.
+    from g3o.common import support_check
+
+    rules = request_v27.default_rules()
+    # a no-quote value that is not set by a rule (those need a rule name, which a jev record lacks)
+    no_quote_value = sorted(rules.no_support_values - support_check.default_rules().rule_values)[0]
+    no_quote = dc_replace(new[0], chosen_value=no_quote_value)
+    nq_result = dc_replace(result, records=tuple(no_quote if r is new[0] else r for r in result.records))
+    nq_full = to_pass1_page(nq_result, page)
+    nq_code = (no_quote.item_id, no_quote.chunk_id, no_quote.chosen_value)
+    assert nq_code in {(c.item_id, c.chunk_id, c.value) for c in nq_full.codes} and len(nq_full.codes) > 1
+    assert not rules.needs_quote(no_quote.item_id, no_quote.chosen_value)
+    nq_plan = request_v27.select_requests(dc_replace(nq_full, codes=tuple(
+        c for c in nq_full.codes if (c.item_id, c.chunk_id, c.value) == nq_code)))
+    assert nq_plan.needs_request and not request_v27.quote_tasks_only(nq_plan).needs_request
+    providers.page_support(page, nq_result, [no_quote])
+    assert len(extract.jobs) == 2
+
+    # Separately, the empty-codes path: a record that is not among the page's pass-1 codes leaves the
+    # round with no code at all, which also makes no call.
+    providers.page_support(page, result, [no_quote])
     assert len(extract.jobs) == 2
