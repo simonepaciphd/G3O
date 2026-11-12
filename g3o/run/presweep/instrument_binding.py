@@ -22,6 +22,7 @@ from g3o.common.jev_record import load_classifier_rules
 from g3o.common.storage_fields import CODEBOOK_SHA256, FIELDS
 from g3o.extract import pass2_support, request_v27
 from g3o.extract.anthropic_client import ExtractorJob, build_params
+from g3o.persist import page_artifact
 
 
 @dataclass(frozen=True)
@@ -179,6 +180,9 @@ def _prepare(settings: RuntimeSettings) -> tuple[dict[str, Any], dict[str, Any],
             "archive_host_list": archive_hosts.setup_record(),
             # X27 source_language producer (PI A3.1 a, A3.2 a, 2 b; 2026-11-11)
             "language_id": language_id.configuration(),
+            # Per-page text artifact layout (PI ruling A5.1 a; recorded per the 2026-11-12 review).
+            "page_artifact_format": page_artifact.PAGE_ARTIFACT_FORMAT,
+            "page_artifact_separator_sha256": sha256_text(page_artifact.CHROME_SEPARATOR),
         },
         "chunker_version": "page_chunks-sha256:" + chunker_hash,
         "estimator_version": "estimator-sha256:" + sha256_text(canonical_json(asdict(estimator))),

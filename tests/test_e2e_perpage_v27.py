@@ -893,3 +893,82 @@ def test_pairs_checkpoint_of_another_kind_or_format_is_refused(tmp_path, damage)
     paths[0].write_text(canonical_json({**doc, **damage}), encoding="utf-8")
     with pytest.raises(ValueError, match="unsupported per-page checkpoint"):
         _perpage(run_dir, bound, instrument, world, insts, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+
+
+# --- PI ruling A5.1 a: the per-page producer writes the stored page artifact when none is injected
+
+
+def _produced_layout(insts):
+    from dataclasses import replace
+    return [replace(i, pages=[replace(s, upstream=replace(s.upstream, artifact_path=None, segments=None))
+                              for s in i.pages]) for i in insts]
+
+
+def test_a51_produced_page_artifact_reaches_storage_and_csvs(tmp_path):
+    from g3o.persist import page_artifact as pa
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    insts = _produced_layout(insts)
+    jev, ready, metrics, s6m = _full(run_dir, bound, instrument, world, insts)
+    assert metrics.ready == ["INST-0000001", "INST-0000002", "INST-0000003"] and not metrics.held
+    assert s6m.written == ["INST-0000001", "INST-0000002", "INST-0000003"] and not s6m.held
+    p1 = world.pages["p1"]
+    rel = pa.page_artifact_relpath("INST-0000001", p1.url)
+    data = (run_dir / rel).read_bytes()
+    assert data == (p1.text + pa.CHROME_SEPARATOR + CHROME + "\nada@example.gov").encode("utf-8")
+    p2 = world.pages["p2"]  # chrome not measured: main text only
+    assert (run_dir / pa.page_artifact_relpath("INST-0000001", p2.url)).read_bytes() == p2.text.encode("utf-8")
+    rows = [r for i in ready for r in i.sources.values()]
+    assert rows and all(r["page_artifact_path"].split("/")[-2] == pa.PAGE_ARTIFACT_DIR for r in rows)
+    for r in rows:
+        assert r["page_content_sha256"] == sha256_text((run_dir / r["page_artifact_path"]).read_bytes()
+                                                       .decode("utf-8"))
+    result, _ = _csvs(run_dir, insts)
+    assert result["integrity"]["is_valid"]
+
+
+def test_a51_resume_rewrites_nothing_and_matches(tmp_path):
+    from g3o.persist import page_artifact as pa
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    insts = _produced_layout(insts)
+    ready, _ = _perpage(run_dir, bound, instrument, world, insts, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    files = [f for f in sorted(run_dir.rglob(f"*{pa.PAGE_ARTIFACT_SUFFIX}")) if f.parent.name == pa.PAGE_ARTIFACT_DIR]
+    stamps = {f: (f.read_bytes(), f.stat().st_mtime_ns) for f in files}
+    assert files
+    again, _ = _perpage(run_dir, bound, instrument, world, insts, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert {f: (f.read_bytes(), f.stat().st_mtime_ns) for f in files} == stamps
+    assert [sorted(i.sources.items()) for i in again] == [sorted(i.sources.items()) for i in ready]
+
+
+def test_a51_a_different_artifact_at_the_same_path_holds_the_institution(tmp_path):
+    """Ruling 8: different bytes at an artifact's path hold that institution only (not overwritten)."""
+    from g3o.persist import page_artifact as pa
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    insts = _produced_layout(insts)
+    rel = pa.page_artifact_relpath("INST-0000001", world.pages["p1"].url)
+    (run_dir / rel).parent.mkdir(parents=True, exist_ok=True)
+    (run_dir / rel).write_bytes(b"not the page artifact")
+    ready, metrics = _perpage(run_dir, bound, instrument, world, insts, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert "INST-0000001" in metrics.held and "INST-0000001" not in metrics.ready
+    assert metrics.ready  # the other institutions go on
+    assert (run_dir / rel).read_bytes() == b"not the page artifact"
+    held = json.loads((institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.HELD_FILE)
+                      .read_text(encoding="utf-8"))
+    assert "PageArtifactConflict" in json.dumps(held)
+
+
+def test_a51_artifact_format_is_recorded_in_the_instrument(tmp_path):
+    from g3o.persist import page_artifact as pa
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    conf = instrument["payload"]["extractor_configuration"]
+    assert conf["page_artifact_format"] == pa.PAGE_ARTIFACT_FORMAT
+    assert conf["page_artifact_separator_sha256"] == sha256_text(pa.CHROME_SEPARATOR)
+
+
+def test_a51_half_an_injected_layout_stops_the_stage(tmp_path):
+    from dataclasses import replace
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    a = next(i for i in insts if i.institution_id == "INST-0000001")
+    spec = replace(a.pages[0], upstream=replace(a.pages[0].upstream, segments=None))
+    with pytest.raises(pp.MissingUpstreamError, match="page artifact"):
+        _perpage(run_dir, bound, instrument, world, [replace(a, pages=[spec, *a.pages[1:]])],
+                 FakeJev(ANSWERS, RELATIONS, _fail_verdict))
