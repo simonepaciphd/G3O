@@ -52,6 +52,18 @@ journal keeps a failed result (``extract_failed``) and rejects an unparsable one
 exception raised by the injected call itself is not a response and still leaves
 the stage.
 
+A pass-1 activity with no ``activity_name`` (the field absent, null, blank, or
+rejected by the parser) is a valid pass-1 answer, and nothing on the pass-1
+side changes. But where an activity-form X35 question for that activity is
+asked (it names the activity), the answer is treated as a bad pass-1 response
+(C4 a, same treatment as C3 a): ``ExtractorResponseFailed`` names the page's
+pass-1 request (the T-022 page request whose spans ``activity_input`` used), so
+the institution is held as pending and that response is rejected in the journal
+and asked again on the next run. The check is made before
+:func:`~g3o.common.support_check.entailment_question` is called; its own
+``ValueError`` is never caught. Page-form questions need no name and are
+unaffected.
+
 Binding (QA3 F3). The adapter declares the extractor model and the X35 model it
 runs on; both must equal the instrument's ``extractor_configuration``
 (``model``, ``x35_model``; RC-D-033 C1 a) and the bound runtime's settings, and
@@ -132,6 +144,8 @@ class _Adapter:
         self.rules = sc.default_rules()
         self._responses: dict[str, ExtractorResult] = {}
         self._page_request: dict[str, Pass1Extraction | None] = {}  # page id -> T-022 page request
+        #: page id -> the journaled pass-1 request (custom_id, params) behind ``_page_request`` (C4 a)
+        self._page_pass1: dict[str, dict[str, Any] | None] = {}
         self._pair_quotes: dict[str, dict[tuple[Any, ...], Any]] = {}  # page id -> pair quotes
         #: every parsed extractor answer, in call order (pass-1 links/date and pass-2 fields have
         #: consumers outside the per-page stage; nothing here stores them)
@@ -162,9 +176,14 @@ class _Adapter:
             self._responses.pop(_job_key(job), None)  # never reused as an answer
             raise ExtractorResponseFailed(name, request, f"ExtractContractError: {exc}") from exc
 
-    def _entailment(self, ev: CodeEvidence, sources: PageSources, activity_name: str | None) -> Entailment | None:
+    def _entailment(self, ev: CodeEvidence, sources: PageSources, activity_name: str | None,
+                    name_request: Mapping[str, Any] | None = None) -> Entailment | None:
         """X35 only where :func:`check_code` reads it: a labelled item whose value needs a quote and
-        whose quote matches the text it may come from (R-042)."""
+        whose quote matches the text it may come from (R-042).
+
+        An activity-form question for an activity pass 1 gave no ``activity_name`` raises
+        :class:`ExtractorResponseFailed` for ``name_request``, the pass-1 request that produced the
+        activity (C4 a)."""
         if ev.quote is None or not ev.quote.strip() or ev.item_id not in self.rules.entailment_labels:
             return None
         item = self.rules.items[ev.item_id]
@@ -173,30 +192,38 @@ class _Adapter:
         src = sc._quote_source(ev, item, sources)
         if src is None or not sc.match_quote(ev.quote, src).matched:
             return None
+        if (ev.activity_id is not None and self.rules.entailment_labels[ev.item_id]["frame"] != "page"
+                and (activity_name is None or not activity_name.strip())):
+            raise ExtractorResponseFailed(
+                "pass1", name_request, f"activity {ev.activity_id!r} has no activity_name, which the "
+                f"activity-form X35 question for {ev.item_id} needs (C4 a)")
         question = sc.entailment_question(ev.item_id, ev.value, part=ev.part, activity_name=activity_name,
                                           rules=self.rules)
         window, _located = sc.entailment_window(ev.quote, src)
         return self.entail_fn(question, window)
 
     def _check(self, rec: CoderRecord, quote: Any, sources: PageSources, *, activity_id: str | None = None,
-               linked: str | None = None, activity_name: str | None = None) -> SupportResult:
+               linked: str | None = None, activity_name: str | None = None,
+               name_request: Mapping[str, Any] | None = None) -> SupportResult:
         text = quote.quote if quote is not None and quote.quote and quote.quote.strip() else None
         ev = CodeEvidence(rec.item_id, str(rec.chosen_value), rec.chunk_id, part=rec.item_part,
                           probability=rec.chosen_answer_probability, quote=text,
                           quote_chunk_id=quote.chunk_id if text is not None else None,
                           activity_id=activity_id, linked_activity=linked)
-        ent = self._entailment(ev, sources, activity_name)
+        ent = self._entailment(ev, sources, activity_name, name_request)
         return sc.check_code(replace(ev, entailment=ent) if ent is not None else ev, sources, self.rules)
 
     # --- pass 1 --------------------------------------------------------------
 
-    def _pass1(self, p1: Any) -> tuple[Any, Pass1Extraction | None]:
+    def _pass1(self, p1: Any) -> tuple[Any, Pass1Extraction | None, dict[str, Any] | None]:
+        """The plan, the parsed answer and the journaled request (``custom_id``, ``params``)."""
         plan = request_v27.select_requests(p1)
         if not plan.needs_request:
-            return plan, None
-        ext = self._parsed("pass1", self.bound.pass1_job(p1, plan), lambda r: parse_pass1_result(r, p1, plan))
+            return plan, None, None
+        job = self.bound.pass1_job(p1, plan)
+        ext = self._parsed("pass1", job, lambda r: parse_pass1_result(r, p1, plan))
         self.extractions.append(ext)
-        return plan, ext
+        return plan, ext, {"custom_id": job.custom_id, "params": job.params}
 
     def page_support(self, page: PageInput, result: PageCodeResult,
                      records: Sequence[CoderRecord]) -> list[SupportResult]:
@@ -204,9 +231,10 @@ class _Adapter:
         wanted = {(r.item_id, r.chunk_id, r.chosen_value) for r in records}
         codes = tuple(c for c in full.codes if (c.item_id, c.chunk_id, c.value) in wanted)
         p1 = replace(full, codes=codes)
-        plan, ext = self._pass1(p1)
-        if codes == full.codes:  # every pass-1 code: T-022's page request (its spans feed activity_input)
-            self._page_request.setdefault(page.page_id, ext)
+        plan, ext, request = self._pass1(p1)
+        if codes == full.codes and page.page_id not in self._page_request:
+            # every pass-1 code: T-022's page request (its spans feed activity_input)
+            self._page_request[page.page_id], self._page_pass1[page.page_id] = ext, request
         quotes = sc.pass1_quotes(plan, ext) if ext is not None else {}
         sources = PageSources.from_page(p1)
         return [self._check(r, quotes.get((r.item_id, r.chunk_id)), sources) for r in records]
@@ -215,7 +243,8 @@ class _Adapter:
         if page.page_id not in self._page_request:  # resume: rebuild the page request from T-021
             first = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(
                 self.run_dir, page.institution_id, page.url)))
-            self._page_request[page.page_id] = self._pass1(to_pass1_page(first, page))[1]
+            _, self._page_request[page.page_id], self._page_pass1[page.page_id] = self._pass1(
+                to_pass1_page(first, page))
         ext = self._page_request[page.page_id]
         if ext is None or not ext.activities:
             return None
@@ -261,9 +290,10 @@ class _Adapter:
                          for a in full.activities)
             quotes = self._pass2(replace(full, activities=acts))
         sources = PageSources.from_page(inp.page)
-        names = self._names(inp)
+        names, name_request = self._names(inp), self._page_pass1.get(inp.page.page_id)
         return [self._check(r, quotes.get((a, r.item_id, r.item_part, r.chunk_id, str(r.chosen_value), None)),
-                            sources, activity_id=a, activity_name=names.get(a)) for a, r in records]
+                            sources, activity_id=a, activity_name=names.get(a), name_request=name_request)
+                for a, r in records]
 
     def pair_support(self, inp: ActivityPageInput, result: PageActivityResult) -> list[SupportResult]:
         pid = inp.page.page_id
@@ -275,7 +305,7 @@ class _Adapter:
                                       if k[1] in PAIR_ITEMS}
         quotes = self._pair_quotes[pid]
         sources = PageSources.from_page(inp.page)
-        names = self._names(inp)
+        names, name_request = self._names(inp), self._page_pass1.get(pid)
         out = []
         for pair in result.pairs:
             for rec in pair.records:
@@ -285,7 +315,8 @@ class _Adapter:
                        pair.linked_activity)
                 # the X35 activity form names the activity the pair code belongs to (its lhs)
                 out.append(self._check(rec, quotes.get(key), sources, activity_id=pair.activity_id,
-                                       linked=pair.linked_activity, activity_name=names.get(pair.activity_id)))
+                                       linked=pair.linked_activity, activity_name=names.get(pair.activity_id),
+                                       name_request=name_request))
         return out
 
 

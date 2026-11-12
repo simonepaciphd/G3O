@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -462,6 +463,124 @@ def test_missing_upstream_after_a_response_hold_still_stops_the_stage(tmp_path, 
 def test_response_failure_is_not_a_stage_stop():
     assert not issubclass(pp.ExtractorResponseFailed, pp.STAGE_STOPS)
     assert not issubclass(pp.ExtractorResponseFailed, (ValueError, RuntimeError))
+
+
+# ---------------------------------------------------------------------------
+# C4 a: a pass-1 activity with no activity_name, where an activity-form X35 question needs it
+# ---------------------------------------------------------------------------
+
+
+class NamelessActivity(FakeExtractor):
+    """The first ``times`` pass-1 jobs on ``page`` give its activities no ``activity_name``: the field
+    left out (``absent``), null, or whitespace only (the parser records both as an empty result)."""
+
+    def __init__(self, world, page, kind="absent", times=1):
+        super().__init__(world)
+        self.page, self.kind, self.left = page, kind, times
+
+    def __call__(self, job):
+        result = super().__call__(job)
+        if job.metadata["stage"] != PASS1 or job.metadata["page_id"] != self.page or not self.left:
+            return result
+        self.left -= 1
+        payload = json.loads(result.text)
+        name = field_name("core.activity_name")
+        for act in payload["activities"]:
+            if self.kind == "absent":
+                act["fields"] = [f for f in act["fields"] if f["field"] != name]
+            else:
+                for f in act["fields"]:
+                    if f["field"] == name:
+                        f["value"] = None if self.kind == "null" else "   "
+        return replace(result, text=json.dumps(payload))
+
+
+def _activity_form(questions):
+    """X35 questions in the activity form (the page form never names an activity)."""
+    rules = support_check.default_rules()
+    before = rules.entailment_activity_form.split("<activity name>", 1)[0].rsplit(">", 1)[-1]
+    assert before and before not in rules.entailment_page_form
+    return [q for q in questions if before in q]
+
+
+@pytest.mark.parametrize("kind", ["absent", "null", "blank"])
+def test_nameless_activity_holds_that_institution_and_the_stage_goes_on(tmp_path, kind):
+    """C4 a: an activity-form X35 question for an activity pass 1 gave no name holds that
+    institution as pending (the hold names the page's pass-1 request); the others complete."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    extract, entail = NamelessActivity(world, page, kind), FakeEntail()
+    ready, metrics = _run(run_dir, bound, instrument, insts, _providers(run_dir, bound, instrument, extract, entail),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert metrics.held == [inst]
+    assert [i.institution_id for i in ready] == ["INST-0000001", "INST-0000003"] == metrics.ready
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED and hold["page_id"] == page and hold["pass"] == "pass1"
+    assert hold["custom_id"] == _bad_job(extract, PASS1, page).custom_id
+    assert "activity_name" in hold["error"] and "C4 a" in hold["error"]
+    assert any(r["institution_id"] == inst and r["reason"] == pp.HELD_REASON
+               and r["detail"] == f"{page}:{pp.EXTRACT_RESPONSE_FAILED}" for r in attrition.read_records(run_dir))
+    kinds = _kinds(run_dir, inst)
+    assert kinds.count("extract_rejected") == 1 and "extract_failed" not in kinds
+    assert metrics.usage[inst]["extractor_calls"] == kinds.count("extract")
+    # page-form X35 questions (no name needed) still ran; none was asked with an empty name
+    questions = [q for q, _ in entail.calls]
+    assert len(_activity_form(questions)) < len(questions)
+    assert not any("  " in q for q in _activity_form(questions))
+
+
+def test_nameless_activity_is_asked_again_on_the_next_run(tmp_path):
+    """The held institution's pass-1 request is asked again live (its nameless response is rejected,
+    never replayed); with a named activity it completes, and a third run replays only."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    one = [i for i in insts if i.institution_id == inst]
+    bad = NamelessActivity(world, page)
+    ready, metrics = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, bad, FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not ready and metrics.held == [inst]
+    failed_job = _bad_job(bad, PASS1, page)
+
+    extract, entail = FakeExtractor(world), FakeEntail()
+    ready, metrics = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, extract, entail),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and not metrics.held
+    assert any(j.params == failed_job.params for j in extract.jobs)  # asked again, live
+    assert any("Bin rules" in q for q in _activity_form(q for q, _ in entail.calls))  # now named
+    assert not (institution_dir(run_dir, inst) / pp.WORK_DIR / pp.HELD_FILE).exists()
+    assert any(r["institution_id"] == inst and r["reason"] == pp.HELD_RELEASED
+               for r in attrition.read_records(run_dir))
+
+    again = FakeExtractor(world)
+    ready, _ = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, again, FakeEntail()),
+                    FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and again.jobs == []
+
+
+def test_missing_name_check_covers_the_activity_form_only(tmp_path, monkeypatch):
+    """Unit: a page-form X35 question needs no name; an activity-form one without a name raises
+    ``ExtractorResponseFailed`` for the given pass-1 request before ``entailment_question`` is called;
+    with no activity id (the page seam) the check does not apply and ``entailment_question``'s own
+    ``ValueError`` is left alone."""
+    adapter = ppv._Adapter(None, tmp_path, lambda job: pytest.fail("no extractor call"), FakeEntail())
+    monkeypatch.setattr(support_check, "_needs_quote", lambda *a: True)
+    monkeypatch.setattr(support_check, "_quote_source", lambda *a: "The council pilots a chatbot.")
+    monkeypatch.setattr(support_check, "match_quote", lambda q, s: type("M", (), {"matched": True})())
+    monkeypatch.setattr(support_check, "entailment_window", lambda q, s: (s, True))
+    request = {"custom_id": "cid-b1", "params": {"p": 1}}
+
+    def ev(item, value, activity_id="b1#a001"):
+        return support_check.CodeEvidence(item, value, "b1#p0", quote="chatbot", activity_id=activity_id)
+
+    assert adapter._entailment(ev("core.page_verdict", "confirms_activity"), None, None, request) is TRUE
+    for name in (None, "", "  "):
+        with pytest.raises(pp.ExtractorResponseFailed) as info:
+            adapter._entailment(ev("core.activity_type", "pilot_experiment"), None, name, request)
+        assert info.value.pass_name == "pass1" and info.value.request == request
+    assert adapter._entailment(ev("core.activity_type", "pilot_experiment"), None, "Bin rules", request) is TRUE
+    assert any("Bin rules" in q for q, _ in adapter.entail_fn.calls)
+    with pytest.raises(ValueError, match="activity form needs the activity name"):
+        adapter._entailment(ev("core.activity_type", "pilot_experiment", activity_id=None), None, None, request)
 
 
 # ---------------------------------------------------------------------------
