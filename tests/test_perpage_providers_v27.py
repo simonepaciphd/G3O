@@ -16,6 +16,8 @@ import pytest
 
 from g3o.classify import jev_page_code as jpc
 from g3o.common import attrition, support_check
+from g3o.common.cost_monitor import BudgetExceededError
+from g3o.common.jev_client import JevAccountError
 from g3o.common.paths import institution_dir
 from g3o.common.support_check import SupportGateError
 from g3o.extract.anthropic_client import ExtractorResult
@@ -306,29 +308,160 @@ def test_extra_round_asks_only_the_new_codes(tmp_path):
     assert {o.item_id: o.value for o in obs.final_outcomes.values()}["core.model_origin"] == "commercial"
 
 
-def test_failed_extractor_response_raises_and_is_asked_again(tmp_path):
-    """A failed response is not a missing quote: the parser's error leaves the stage; the journal
-    keeps it for accounting only, so the next run asks it again."""
-    run_dir, bound, instrument, world, insts = _world(tmp_path)
-    b = [i for i in insts if i.institution_id == "INST-0000002"]
+def _held(run_dir, inst):
+    return json.loads((institution_dir(run_dir, inst) / pp.WORK_DIR / pp.HELD_FILE).read_text(encoding="utf-8"))
 
-    class Failing(FakeExtractor):
-        def __call__(self, job):
-            self.jobs.append(job)
+
+def _kinds(run_dir, inst):
+    journal = (institution_dir(run_dir, inst) / pp.WORK_DIR / pp.JOURNAL).read_text(encoding="utf-8")
+    return [json.loads(x)["kind"] for x in journal.splitlines()]
+
+
+class BadResponse(FakeExtractor):
+    """The first ``times`` jobs of ``stage`` on ``page`` get a bad response: unparsable (not JSON),
+    outside the answer schema, or failed (``success`` false)."""
+
+    def __init__(self, world, stage, page, kind="not_json", times=1):
+        super().__init__(world)
+        self.stage, self.page, self.kind, self.left = stage, page, kind, times
+
+    def __call__(self, job):
+        if job.metadata["stage"] != self.stage or job.metadata["page_id"] != self.page or not self.left:
+            return super().__call__(job)
+        self.left -= 1
+        self.jobs.append(job)
+        if self.kind == "failed":
             return ExtractorResult(job.custom_id, False, None, {"type": "errored"}, usage=dict(USAGE))
-    failing = Failing(world)
-    with pytest.raises(RuntimeError, match="failed"):
-        _run(run_dir, bound, instrument, b, _providers(run_dir, bound, instrument, failing, FakeEntail()),
-             FakeJev(ANSWERS, RELATIONS))
-    assert len(failing.jobs) == 1
-    journal = (institution_dir(run_dir, "INST-0000002") / pp.WORK_DIR / pp.JOURNAL).read_text(encoding="utf-8")
-    assert [json.loads(x)["kind"] for x in journal.splitlines()].count("extract_failed") == 1
+        text = "not json {" if self.kind == "not_json" else json.dumps({"unexpected": []})
+        return ExtractorResult(job.custom_id, True, text, None, "fake-extractor-response", "msg-bad", "x-bad",
+                               "end_turn", dict(USAGE))
+
+
+def _bad_job(bad, stage, page):
+    return next(j for j in bad.jobs if j.metadata["page_id"] == page and j.metadata["stage"] == stage)
+
+
+@pytest.mark.parametrize(("stage", "page", "inst"), [(PASS1, "p1", "INST-0000001"), (PASS2, "b1", "INST-0000002")])
+@pytest.mark.parametrize("kind", ["not_json", "off_schema", "failed"])
+def test_bad_extractor_response_holds_that_institution_and_the_stage_goes_on(tmp_path, stage, page, inst, kind):
+    """C3 a / QA4 M3: a failed or unparsable pass-1/pass-2 response holds only its institution as
+    pending (never published); the later institutions complete."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    bad = BadResponse(world, stage, page, kind)
+    ready, metrics = _run(run_dir, bound, instrument, insts,
+                          _providers(run_dir, bound, instrument, bad, FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    others = [i for i in ("INST-0000001", "INST-0000002", "INST-0000003") if i != inst]
+    assert metrics.held == [inst]
+    assert [i.institution_id for i in ready] == others == metrics.ready
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED and hold["page_id"] == page
+    assert hold["pass"] == ("pass1" if stage == PASS1 else "pass2")
+    assert hold["custom_id"] == _bad_job(bad, stage, page).custom_id
+    assert ("ExtractContractError" in hold["error"]) == (kind != "failed")
+    assert any(r["institution_id"] == inst and r["reason"] == pp.HELD_REASON
+               and r["detail"] == f"{page}:{pp.EXTRACT_RESPONSE_FAILED}" for r in attrition.read_records(run_dir))
+    kinds = _kinds(run_dir, inst)
+    if kind == "failed":
+        assert kinds.count("extract_failed") == 1 and "extract_rejected" not in kinds
+    else:  # recorded, then rejected: kept for accounting only, never replayed as final
+        assert kinds.count("extract_rejected") == 1 and "extract_failed" not in kinds
+    # every extractor call counted once: a rejection entry cancels its recorded entry, never adds a call
+    assert metrics.usage[inst]["extractor_calls"] == kinds.count("extract") + kinds.count("extract_failed")
+
+
+@pytest.mark.parametrize(("stage", "page", "inst"), [(PASS1, "p1", "INST-0000001"), (PASS2, "b1", "INST-0000002")])
+@pytest.mark.parametrize("kind", ["not_json", "failed"])
+def test_bad_extractor_response_is_asked_again_on_the_next_run(tmp_path, stage, page, inst, kind):
+    """The held institution's bad request is asked again live on resume (not replayed) and, with a
+    good response, the institution completes and its hold is released."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    one = [i for i in insts if i.institution_id == inst]
+    bad = BadResponse(world, stage, page, kind)
+    ready, metrics = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, bad, FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not ready and metrics.held == [inst]
+    failed_job = _bad_job(bad, stage, page)
+
     extract = FakeExtractor(world)
-    ready, metrics = _run(run_dir, bound, instrument, b, _providers(run_dir, bound, instrument, extract, FakeEntail()),
-                          FakeJev(ANSWERS, RELATIONS))
-    assert [i.institution_id for i in ready] == ["INST-0000002"]
-    assert extract.jobs[0].params == failing.jobs[0].params  # asked again, live
-    assert metrics.usage["INST-0000002"]["extractor_calls"] == len(extract.jobs) + 1  # the failed one counted
+    ready, metrics = _run(run_dir, bound, instrument, one,
+                          _providers(run_dir, bound, instrument, extract, FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and not metrics.held
+    assert any(j.params == failed_job.params for j in extract.jobs)  # asked again, live
+    assert not (institution_dir(run_dir, inst) / pp.WORK_DIR / pp.HELD_FILE).exists()
+    assert any(r["institution_id"] == inst and r["reason"] == pp.HELD_RELEASED
+               for r in attrition.read_records(run_dir))
+    assert metrics.usage[inst]["extractor_calls"] == len(bad.jobs) + len(extract.jobs)
+
+    # A third run replays the good responses only: nothing is sent live.
+    again = FakeExtractor(world)
+    ready, _ = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, again, FakeEntail()),
+                    FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and again.jobs == []
+
+
+def test_rejected_response_is_not_replayed_by_a_reloaded_journal(tmp_path):
+    """``reject_extract`` cancels the recorded entry for every later load; a new response to the same
+    request is replayed after it."""
+    from g3o.extract.anthropic_client import ExtractorJob
+
+    path = tmp_path / "journal.jsonl"
+    job = ExtractorJob("cid-1", {"model": "m", "messages": []}, {})
+    prompt = {"extractor_model": "m"}
+    answers = iter([ExtractorResult("cid-1", True, "bad", None, usage=dict(USAGE)),
+                    ExtractorResult("cid-1", True, "good", None, usage=dict(USAGE))])
+    journal = rt.RequestJournal(path, {"s": 1})
+    wrap, _ = journal.seams(prompt)
+    assert wrap(lambda j: next(answers))(job).text == "bad"
+    request = {"custom_id": job.custom_id, "params": job.params}
+    assert journal.reject_extract(request, prompt, "ExtractContractError: answer is not JSON")
+    assert not journal.reject_extract(request, prompt, "twice")  # nothing recorded is left to reject
+    reloaded = rt.RequestJournal(path, {"s": 1})
+    wrap2, _ = reloaded.seams(prompt)
+    assert wrap2(lambda j: next(answers))(job).text == "good" and reloaded.live == 1
+    third = rt.RequestJournal(path, {"s": 1})
+    wrap3, _ = third.seams(prompt)
+    assert wrap3(lambda j: pytest.fail("asked again"))(job).text == "good" and third.replayed == 1
+    assert third.usage()["extractor_calls"] == 2 and third.usage()["extractor_input_tokens"] == 200
+
+
+@pytest.mark.parametrize("error", [JevAccountError("account stopped"), BudgetExceededError(2.0, 1.0, "perpage_v27"),
+                                   pp.MissingUpstreamError("simulated absent producer", ["p1"]),
+                                   RuntimeError("client connection reset")])
+def test_extractor_call_errors_still_stop_the_stage(tmp_path, error):
+    """A stage stop raised by the call (or any exception it raises: not a response) still stops."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+
+    class Raising(FakeExtractor):
+        def __call__(self, job):
+            raise error
+    with pytest.raises(type(error)):
+        _run(run_dir, bound, instrument, insts, _providers(run_dir, bound, instrument, Raising(world), FakeEntail()),
+             FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not any(r["reason"] == pp.HELD_REASON for r in attrition.read_records(run_dir))
+
+
+def test_missing_upstream_after_a_response_hold_still_stops_the_stage(tmp_path, monkeypatch):
+    """RC-D-033 C2 a is unchanged: a held bad response does not turn a later wiring gap into a hold."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    real = pp.produce_page
+
+    def missing(**kw):
+        if kw["spec"].page.institution_id == "INST-0000002":
+            raise pp.MissingUpstreamError("simulated absent producer", [kw["spec"].page.page_id])
+        return real(**kw)
+    monkeypatch.setattr(pp, "produce_page", missing)
+    with pytest.raises(pp.MissingUpstreamError, match="simulated absent"):
+        _run(run_dir, bound, instrument, insts,
+             _providers(run_dir, bound, instrument, BadResponse(world, PASS1, "p1"), FakeEntail()),
+             FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert _held(run_dir, "INST-0000001")["held"][0]["stage"] == pp.EXTRACT_RESPONSE_FAILED
+
+
+def test_response_failure_is_not_a_stage_stop():
+    assert not issubclass(pp.ExtractorResponseFailed, pp.STAGE_STOPS)
+    assert not issubclass(pp.ExtractorResponseFailed, (ValueError, RuntimeError))
 
 
 # ---------------------------------------------------------------------------

@@ -215,7 +215,12 @@ REPLAYED_KINDS = frozenset({"jev", "quote", "extract", "x35"})
 #: ``jev_incomplete``: a response with a request id that lacks the answer to a question it was
 #: asked (RC-D-030 Z1 b, a pooled Stage 6 rule: the question is held and asked again on the next
 #: run, never replayed). Only a journal built with ``retry_incomplete=True`` (Stage 6) writes it.
-ACCOUNTING_KINDS = frozenset({"jev_unidentified", "jev_incomplete", "extract_failed", "x35_failed"})
+#: ``extract_rejected`` (per-page stage, C3 a): a recorded extractor response the caller could not
+#: parse (:meth:`RequestJournal.reject_extract`); it cancels that ``extract`` entry, so the request
+#: is asked again on the next run, and carries the response so its tokens are counted once.
+EXTRACT_REJECTED = "extract_rejected"
+ACCOUNTING_KINDS = frozenset({"jev_unidentified", "jev_incomplete", "extract_failed", "x35_failed",
+                              EXTRACT_REJECTED})
 
 
 def _tokens(usage: Mapping[str, Any] | None, name: str) -> int:
@@ -276,14 +281,19 @@ class RequestJournal:
             self._elapsed.append(int(entry.get("elapsed_ms", 0)))
             if entry["kind"] in ACCOUNTING_KINDS:
                 self._accounting.append(entry)
+                if entry["kind"] == EXTRACT_REJECTED:
+                    self._recorded.pop(("extract", entry["key"], entry["n"]), None)
             else:
                 self._recorded[(entry["kind"], entry["key"], entry["n"])] = entry["response"]
         if not complete:  # unterminated or torn tail: repair before the next append
             write_atomic(self.path, b"".join(line + b"\n" for line in keep))
 
-    def _slot(self, kind: str, request: Any, extra: Mapping[str, Any] | None = None) -> tuple[str, str, int]:
+    def _key(self, request: Any, extra: Mapping[str, Any] | None = None) -> str:
         doc = {"setup": {**self.setup, **(extra or {})}, "request": request}
-        key = hashlib.sha256(canonical_json(doc).encode("utf-8")).hexdigest()
+        return hashlib.sha256(canonical_json(doc).encode("utf-8")).hexdigest()
+
+    def _slot(self, kind: str, request: Any, extra: Mapping[str, Any] | None = None) -> tuple[str, str, int]:
+        key = self._key(request, extra)
         n = self._seen.get((kind, key), 0)
         self._seen[(kind, key)] = n + 1
         return kind, key, n
@@ -299,6 +309,8 @@ class RequestJournal:
         self._elapsed.append(elapsed_ms)
         if slot[0] in ACCOUNTING_KINDS:
             self._accounting.append(entry)
+            if slot[0] == EXTRACT_REJECTED:
+                self._recorded.pop(("extract", slot[1], slot[2]), None)
         else:
             self._recorded[slot] = response
 
@@ -359,6 +371,24 @@ class RequestJournal:
             return answer
         return wrapped
 
+    def reject_extract(self, request: Mapping[str, Any], prompt: Mapping[str, Any], error: str) -> bool:
+        """Cancel the last recorded extractor response to ``request`` (C3 a, QA4 M3).
+
+        The per-page stage calls this when that response (``success`` true) did not
+        parse: an ``extract_rejected`` entry (accounting only, carrying the response
+        and ``error``) cancels the ``extract`` entry, here and on every later load, so
+        it is never replayed as final and the next run asks the request again. A
+        request with no recorded response in this process (e.g. a failed one, already
+        ``extract_failed``) is left alone: returns False.
+        """
+        key = self._key(dict(request), dict(prompt))
+        n = self._seen.get(("extract", key), 0) - 1
+        response = self._recorded.get(("extract", key, n))
+        if n < 0 or response is None:
+            return False
+        self._append((EXTRACT_REJECTED, key, n), {**response, "rejected_error": error}, 0)
+        return True
+
     def seams(self, prompt: Mapping[str, Any]) -> tuple[Any, Any]:
         """Wrappers that journal an extractor call and an X35 call under ``prompt`` (an extra key
         part, e.g. the models they run on): ``(wrap_extract, wrap_entail)``. Used by the per-page
@@ -392,7 +422,7 @@ class RequestJournal:
 
         ``input_tokens`` / ``output_tokens`` are jev tokens (complete, unidentified
         and incomplete responses); ``extractor_*`` are the quote step's extractor
-        calls (successful and failed results); ``x35_calls`` / ``x35_failed``
+        calls (successful, failed and rejected results); ``x35_calls`` / ``x35_failed``
         count X35 calls (their client reports no tokens here); ``request_ms`` is
         the summed call time. A quote step without seams is counted only as
         ``quote_responses``.
@@ -404,7 +434,7 @@ class RequestJournal:
             return [e["response"] for e in self._accounting if e["kind"] == kind]
 
         jev, unidentified, incomplete = recorded("jev"), accounted("jev_unidentified"), accounted("jev_incomplete")
-        extract = [*recorded("extract"), *accounted("extract_failed")]
+        extract = [*recorded("extract"), *accounted("extract_failed"), *accounted(EXTRACT_REJECTED)]
         return {"jev_responses": len(jev), "jev_unidentified": len(unidentified), "jev_incomplete": len(incomplete),
                 "quote_responses": len(recorded("quote")),
                 "input_tokens": sum(r["input_tokens"] for r in (*jev, *unidentified, *incomplete)),

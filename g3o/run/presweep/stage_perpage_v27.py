@@ -44,6 +44,15 @@ Rules carried here, not decided here:
   (``MissingUpstreamError``) is a wiring gap, not institution data: it stops
   the stage loudly (RC-D-033 C2 a). When a
   held institution is later ready, :data:`HELD_RELEASED` is recorded.
+- **Failed or unparsable extractor response (C3 a, QA4 M3).** A T-022 pass-1 or
+  T-032 pass-2 response that failed or broke the answer contract
+  (:class:`ExtractorResponseFailed`, raised by the provider adapters) holds that
+  institution as pending (stage :data:`EXTRACT_RESPONSE_FAILED` in ``held.json``,
+  the attrition ledger, ``PerPageMetrics.held``) and the stage goes on with the
+  next institution; nothing of it is published. The response is never replayed as
+  final: a failed one is journaled ``extract_failed`` and an unparsable one is
+  rejected in the journal (``extract_rejected``), both kept for accounting only,
+  so the next run asks the request again.
 - **Provider seams.** The support check (T-022 pass-1 quotes, T-032 pass-2
   quotes, X35 entailment and the T-024 check) and the T-022 activity spans are
   injected (:class:`PerPageProviders`); this module does not call them itself.
@@ -182,11 +191,31 @@ FOLLOW_PRODUCER = "T-025 follow provenance (followed / attempted page)"
 UNCARRIED_STAGE = "combined_value_uncarried"  # RC-D-030 Y3 b: per-institution hold
 #: a per-page producer refused or failed for one page (held.json names the error): per-institution hold
 PRODUCER_FAILED = "page_producer_failed"
+#: C3 a (QA4 M3): a pass-1/pass-2 extractor response failed or broke the answer contract (held.json
+#: names the pass, the request and the error): per-institution hold, asked again on the next run
+EXTRACT_RESPONSE_FAILED = "extract_response_failed"
 #: Errors that stop the whole stage; every other producer error holds its institution only.
 #: Both ``MissingUpstreamError`` classes subclass ``ValueError``; they are listed here so the
 #: per-institution ``ValueError`` handlers never swallow a wiring gap (RC-D-033 C2 a).
 STAGE_STOPS = (JevAccountError, stage_page_code.StageStopped, SupportGateError, Stage6QuoteNotApproved,
                BudgetExceededError, UnpricedModelError, MissingUpstreamError, SourceFieldsMissingUpstreamError)
+
+
+class ExtractorResponseFailed(Exception):
+    """A T-022 pass-1 / T-032 pass-2 extractor response failed or broke the answer contract (C3 a).
+
+    Raised by the provider adapters for one bad response only: an
+    ``ExtractorResult`` with ``success`` false or no text, or an answer the parser
+    refuses (:class:`~g3o.extract.parser_v27.ExtractContractError`). The per-page
+    stage holds that institution as pending and goes on (QA4 M3: a deterministic
+    contract-violating response no longer stops the stage on every resume).
+    ``request`` is the journaled extractor request (``custom_id``, ``params``),
+    or None when the caller has none; it is not a stage stop.
+    """
+
+    def __init__(self, pass_name: str, request: Mapping[str, Any] | None, detail: str) -> None:
+        super().__init__(f"{pass_name} extractor response failed: {detail}")
+        self.pass_name, self.request, self.detail = pass_name, request, detail
 
 
 class UncarriedCombinedValue(ConsolidationError):
@@ -880,7 +909,14 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                         break
                     metrics.failed_pages.append(page.page_id)
                     continue
-                _rounds_for_page(run_dir, st, ask, inst_providers, page_config, activity_config, metrics)
+                try:
+                    _rounds_for_page(run_dir, st, ask, inst_providers, page_config, activity_config, metrics)
+                except ExtractorResponseFailed as exc:  # C3 a: this institution is held as pending
+                    if exc.request is not None and hasattr(providers, "journal_prompt"):
+                        # never replayed as final: the next run asks the request again
+                        journal.reject_extract(exc.request, providers.journal_prompt, exc.detail)
+                    broken = _response_hold(page.page_id, exc)
+                    break
         finally:
             metrics.live_requests += journal.live
             metrics.replayed_requests += journal.replayed
@@ -938,6 +974,12 @@ def _producer_hold(page_id: str, exc: BaseException) -> dict[str, Any]:
     return {"page_id": page_id, "stage": PRODUCER_FAILED, "error": f"{type(exc).__name__}: {exc}"}
 
 
+def _response_hold(page_id: str, exc: ExtractorResponseFailed) -> dict[str, Any]:
+    request = exc.request or {}
+    return {"page_id": page_id, "stage": EXTRACT_RESPONSE_FAILED, "pass": exc.pass_name,
+            "custom_id": request.get("custom_id"), "error": exc.detail}
+
+
 def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | ReviewedPage]) -> Stage6Institution:
     pages, observations, records, within, quotes, provenance = [], [], [], [], [], []
     inputs: dict[str, ObservationInput] = {}
@@ -964,7 +1006,7 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 
 __all__ = [
-    "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
+    "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]

@@ -42,11 +42,15 @@ The seams:
 Failure semantics are the builders' own. A quote task with no usable quote
 (missing, empty, wrong part) is a record with no quote, so T-024 downgrades it
 (``downgraded_no_quote``) exactly as a fake that withholds a quote; a quote
-over the 200-character cap is kept whole and flagged by T-024. A failed or
-unparsable extractor response raises (``RuntimeError`` /
-:class:`~g3o.extract.parser_v27.ExtractContractError`) out of the per-page
-stage; the journal keeps a failed result for accounting only, so a re-run asks
-it again.
+over the 200-character cap is kept whole and flagged by T-024. A failed
+extractor response (``success`` false, or no text) or an unparsable one (the
+parser's :class:`~g3o.extract.parser_v27.ExtractContractError`) raises
+:class:`~g3o.run.presweep.stage_perpage_v27.ExtractorResponseFailed` (C3 a, QA4
+M3): the per-page stage holds that institution as pending and goes on. The
+journal keeps a failed result (``extract_failed``) and rejects an unparsable one
+(``extract_rejected``) for accounting only, so the next run asks it again. An
+exception raised by the injected call itself is not a response and still leaves
+the stage.
 
 Binding (QA3 F3). The adapter declares the extractor model and the X35 model it
 runs on; both must equal the instrument's ``extractor_configuration``
@@ -85,9 +89,13 @@ from g3o.common.paths import institution_dir
 from g3o.common.support_check import CodeEvidence, Entailment, PageSources, SupportResult
 from g3o.extract import pass2_support, request_v27
 from g3o.extract.anthropic_client import ExtractorJob, ExtractorResult
-from g3o.extract.parser_v27 import Pass1Extraction, parse_pass1_result
+from g3o.extract.parser_v27 import ExtractContractError, Pass1Extraction, parse_pass1_result
 from g3o.run.presweep import stage_activity_code, stage_page_code
-from g3o.run.presweep.stage_perpage_v27 import ACTIVITY_DIR, PerPageProviders
+from g3o.run.presweep.stage_perpage_v27 import (
+    ACTIVITY_DIR,
+    ExtractorResponseFailed,
+    PerPageProviders,
+)
 
 ExtractFn = Callable[[ExtractorJob], ExtractorResult]
 EntailFn = Callable[[str, str], Entailment]
@@ -140,6 +148,20 @@ class _Adapter:
             self._responses[key] = result
         return result
 
+    def _parsed(self, name: str, job: ExtractorJob, parse: Callable[[ExtractorResult], Any]) -> Any:
+        """The parsed answer to ``job``; a failed or unparsable response raises
+        :class:`ExtractorResponseFailed` (C3 a), never a bare parser error."""
+        result = self._call(job)
+        request = {"custom_id": job.custom_id, "params": job.params}
+        if not result.success or not result.text:
+            self._responses.pop(_job_key(job), None)
+            raise ExtractorResponseFailed(name, request, f"response {result.custom_id!r} failed: {result.error}")
+        try:
+            return parse(result)
+        except ExtractContractError as exc:
+            self._responses.pop(_job_key(job), None)  # never reused as an answer
+            raise ExtractorResponseFailed(name, request, f"ExtractContractError: {exc}") from exc
+
     def _entailment(self, ev: CodeEvidence, sources: PageSources, activity_name: str | None) -> Entailment | None:
         """X35 only where :func:`check_code` reads it: a labelled item whose value needs a quote and
         whose quote matches the text it may come from (R-042)."""
@@ -172,7 +194,7 @@ class _Adapter:
         plan = request_v27.select_requests(p1)
         if not plan.needs_request:
             return plan, None
-        ext = parse_pass1_result(self._call(self.bound.pass1_job(p1, plan)), p1, plan)
+        ext = self._parsed("pass1", self.bound.pass1_job(p1, plan), lambda r: parse_pass1_result(r, p1, plan))
         self.extractions.append(ext)
         return plan, ext
 
@@ -210,7 +232,8 @@ class _Adapter:
         plan = pass2_support.select_requests(p2)
         if not plan.needs_request:
             return {}
-        sup = pass2_support.parse_pass2_result(self._call(self.bound.pass2_job(p2, plan)), p2, plan)
+        sup = self._parsed("pass2", self.bound.pass2_job(p2, plan),
+                           lambda r: pass2_support.parse_pass2_result(r, p2, plan))
         self.extractions.append(sup)
         tasks = {t.task_id: t for t in plan.quote_tasks}
         out: dict[tuple[Any, ...], Any] = {}
