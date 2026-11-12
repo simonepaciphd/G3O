@@ -647,7 +647,7 @@ def independence_groups_of(inst: Stage6Institution) -> Mapping[str, str]:
     if inst.independence_groups is not None:
         return inst.independence_groups
     try:
-        return independence_groups_for_sources(inst.sources)
+        return independence_groups_for_sources(inst.sources, institution_id=inst.institution_id)
     except SourceFieldsMissingUpstreamError as exc:
         raise MissingUpstreamError(f"{INDEPENDENCE_PRODUCER}; {exc.producer}", exc.missing) from exc
 

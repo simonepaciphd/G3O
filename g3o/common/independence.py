@@ -33,8 +33,12 @@ Build choices (not ruled; pinned in :data:`INDEPENDENCE_VERSION`):
   institution, the injected seam's ``source id -> group`` shape; A4.2 a scopes
   syndication groups to one institution).
 - **Group id.** ``"ig-" + BLAKE2b-80`` of canonical JSON
-  ``[INDEPENDENCE_VERSION, sorted member source ids]``: independent of input
-  and iteration order, so a resume over the same sources gives the same ids.
+  ``[INDEPENDENCE_VERSION, institution_id, sorted member source ids]``:
+  independent of input and iteration order, so a resume over the same sources
+  gives the same ids. The institution id (required; PI ruling A7 27,
+  2026-11-12, as A4's ``sg-`` ids in :mod:`g3o.common.syndication`) is part of
+  the hash, so two institutions never share an ``ig-`` id, even for equal
+  source ids.
 """
 
 from __future__ import annotations
@@ -52,7 +56,7 @@ from g3o.common.source_fields import (
     default_vocab,
 )
 
-INDEPENDENCE_VERSION = "g3o.common.independence.v1"
+INDEPENDENCE_VERSION = "g3o.common.independence.v2"
 RULING = "PI A7.1 b + A7.2 a (2026-11-11); codebook items/core.confidence/rules/0"
 URL_KEY = "g3o.scrape.follow.same_url_key"
 GROUP_ID_PREFIX = "ig-"
@@ -67,8 +71,16 @@ def _url_key(url: str) -> str:
     return same_url_key(url)
 
 
-def group_id(member_ids: Any) -> str:
-    doc = json.dumps([INDEPENDENCE_VERSION, sorted(member_ids)], ensure_ascii=True, separators=(",", ":"))
+def _check_institution_id(institution_id: Any) -> str:
+    if not isinstance(institution_id, str) or not institution_id.strip():
+        raise ValueError(f"institution_id must be a non-empty string: {institution_id!r}")
+    return institution_id
+
+
+def group_id(institution_id: str, member_ids: Any) -> str:
+    """``ig-`` id of one institution's group; the institution id is part of the hash."""
+    inst = _check_institution_id(institution_id)
+    doc = json.dumps([INDEPENDENCE_VERSION, inst, sorted(member_ids)], ensure_ascii=True, separators=(",", ":"))
     return GROUP_ID_PREFIX + hashlib.blake2b(doc.encode("ascii"), digest_size=GROUP_ID_DIGEST_BYTES).hexdigest()
 
 
@@ -76,13 +88,15 @@ def _available(value: Any, missing: frozenset[str]) -> bool:
     return isinstance(value, str) and bool(value.strip()) and value not in missing
 
 
-def independence_groups(keys: Mapping[str, tuple[Any, Any]], *,
+def independence_groups(keys: Mapping[str, tuple[Any, Any]], *, institution_id: str,
                         vocab: SourceVocab | None = None) -> dict[str, str]:
     """``source id -> independence group id`` from ``source id -> (syndication_group, source_url)``.
 
     Connected components of "shares a syndication group or a normalised URL"
     (A7.1 b, transitive closure). Refuses (A7.2 a) when any source lacks either key.
+    ``institution_id`` (keyword-only, non-empty) is hashed into every group id.
     """
+    inst = _check_institution_id(institution_id)
     v = vocab or default_vocab()
     missing_tokens = frozenset(v.missing)
     ids = sorted(keys)
@@ -118,20 +132,20 @@ def independence_groups(keys: Mapping[str, tuple[Any, Any]], *,
         comps.setdefault(find(sid), []).append(sid)
     out: dict[str, str] = {}
     for members in comps.values():
-        gid = group_id(members)
+        gid = group_id(inst, members)
         for sid in members:
             out[sid] = gid
     return out
 
 
-def independence_groups_for_sources(sources: Mapping[str, Mapping[str, Any]], *,
+def independence_groups_for_sources(sources: Mapping[str, Mapping[str, Any]], *, institution_id: str,
                                     vocab: SourceVocab | None = None) -> dict[str, str]:
     """:func:`independence_groups` over Stage 6 source rows (``values`` with X38 and X28 url)."""
     keys = {}
     for sid, row in sources.items():
         values = row.get("values") or {}
         keys[sid] = (values.get(SYNDICATION), values.get(URL))
-    return independence_groups(keys, vocab=vocab)
+    return independence_groups(keys, institution_id=institution_id, vocab=vocab)
 
 
 __all__ = ["GROUP_ID_PREFIX", "INDEPENDENCE_VERSION", "PRODUCER", "RULING", "URL_KEY", "group_id",

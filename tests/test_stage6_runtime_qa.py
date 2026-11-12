@@ -16,6 +16,7 @@ import pytest
 
 from g3o.classify.jev_activity_code import GATE_RULE
 from g3o.common import attrition
+from g3o.common.independence import group_id as independence_group_id
 from g3o.common.instrument import canonical_json, sha256_text
 from g3o.common.jev_client import JevAnswer, JevResult
 from g3o.common.paths import institution_dir
@@ -482,6 +483,9 @@ def test_independence_groups_join_through_a_source_the_activity_does_not_cite(tm
     groups = rt.independence_groups_of(a)
     assert (groups["S1"] == groups["S2"]) is joined
     assert groups["S3"] == groups["S4"]
+    # PI ruling A7 27 (2026-11-12): the producer hashes this institution's id into the ig- id
+    members = ["S1", "S2", "S3", "S4"] if joined else ["S3", "S4"]
+    assert groups["S3"] == independence_group_id(a.institution_id, members)
     assert _run(run_dir, bound, instrument, [a], e.FakeQuotes()).written == [A]
     merged = next(x for x in _storage(run_dir)["activities"].values() if x["observation_ids"] == ["o1", "o2"])
     assert merged["values"]["core.n_sources"] == 2 and merged["values"]["core.confidence"] == expected
