@@ -116,3 +116,15 @@ def test_x35_model_is_pinned_in_the_instrument_and_a_different_one_is_refused(tm
     with pytest.raises(TypeError):
         binding.RuntimeSettings(jev_model="j", extractor_model="e", extractor_effort="low", extractor_max_tokens=1,
                                 reserved_tokens=0, reference_year=2026, approval_reference="a")
+
+
+def test_archive_host_list_version_is_recorded_in_the_instrument(tmp_path):
+    """PI ruling A2.1 a (2026-11-11): the archive-host list version is recorded in the setup."""
+    from g3o.common import archive_hosts
+
+    bound = binding.bind_runtime(tmp_path, settings())
+    payload = load_instrument(tmp_path / "final" / "instruments", bound.instrument_id)["payload"]
+    recorded = payload["extractor_configuration"]["archive_host_list"]
+    assert recorded == archive_hosts.setup_record()
+    assert recorded["version"] == "g3o.archive_hosts.v2" and recorded["strip_www"] is True
+    assert recorded["path_prefixes"] == {"archive.org": ["/details/"]} and "archive.fo" in recorded["hosts"]

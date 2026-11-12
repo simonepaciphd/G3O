@@ -46,8 +46,10 @@ Producers and their signed rules:
   against the signed codes.
 - ``core.source_language`` (X27), ``core.syndication_group`` (X38),
   ``core.discovery_path``, ``core.text_source``: no producer or no signed
-  spelling/parameter exists; each refuses explicitly (RC-D-025 P15). So does
-  the archive-host list.
+  spelling/parameter exists; each refuses explicitly (RC-D-025 P15). The
+  archive-address test of ``core.source_type`` rules/0 uses the versioned host
+  list of :mod:`g3o.common.archive_hosts` (PI ruling A2.1 a, 2026-11-11):
+  :func:`source_archive_address`.
 
 Source confidence: the signed r14 rule ``items/core.confidence/rules/1``
 (RC-D-025 A1, from the PI rule of 2026-11-07, widened by C7 a), plus the
@@ -72,6 +74,7 @@ from typing import Any
 
 from g3o.codebook.loader import Codebook, load_codebook
 from g3o.common import date_signals
+from g3o.common.archive_hosts import is_archive_address
 from g3o.common.support_check import (
     PAGE_VERDICT,
     SET_BY_RULE,
@@ -439,17 +442,30 @@ class SourceTyping:
     result: Any = None  # the full jev_page_code.PageCodeResult
 
 
+def source_archive_address(url: str) -> bool:
+    """Rule 0's archive-address test for a page URL (PI ruling A2.1 a, 2026-11-11).
+
+    Exact host match against :data:`g3o.common.archive_hosts.ARCHIVE_HOSTS`
+    (version :data:`~g3o.common.archive_hosts.ARCHIVE_HOST_LIST_VERSION`,
+    recorded in the run's instrument). A URL with no host raises ``ValueError``.
+    The result is the ``archive_address`` argument of :func:`route_source_type`.
+    """
+    return is_archive_address(url)
+
+
 def route_source_type(official: FieldValue, archive_address: bool | None) -> str | None:
     """The automatic type (``official_domain`` / ``archive_address``) or None (ask the question).
 
     Rule 0 (items/core.source_type/rules/0): official from the web domain (X37
     ``own_official`` or ``other_official``), archive from the address. The
-    archive-address test has no signed host list; the caller supplies it.
+    caller supplies the archive-address test result, from the page URL with
+    :func:`source_archive_address`; an absent result (None) still refuses.
     """
     if official.item_id != OFFICIAL:
         raise ValueError("route_source_type needs the core.source_on_official_domain value")
     if archive_address is None:
-        raise MissingUpstreamError("archive-address test (no signed archive host list)", [SOURCE_TYPE])
+        raise MissingUpstreamError("archive-address test result (source_archive_address of the page URL)",
+                                   [SOURCE_TYPE])
     own, other, _ = default_vocab().official_values
     if official.value in (own, other):
         return AUTO_OFFICIAL
@@ -1025,6 +1041,7 @@ __all__ = [
     "confidence_seam", "date_upper_bound", "default_vocab", "discovery_path", "missing_source_items",
     "has_deterministic_date", "page_has_metadata_date", "page_publication_date", "page_review_state",
     "publication_date", "residual_question_set", "select_deterministic_date", "route_source_type", "signed_credibility_map",
+    "source_archive_address",
     "source_access_date", "source_confidence_rule", "source_credibility", "source_language",
     "source_on_official_domain", "source_snippet", "source_title", "source_type_evidence", "source_type_label",
     "source_url", "source_values", "syndication_group", "text_source", "vocab_from_codebook",
