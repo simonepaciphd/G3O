@@ -58,7 +58,14 @@ Rules carried here, not decided here:
   moves that page's saved state (``page.json``, ``activity.json``, ``pairs.json``
   and the T-023 activity artifact) to ``<page dir>/archive/<NNN>/`` (archive,
   never delete), so the next run codes the page again from the new pass-1 answer
-  instead of resuming from state built on the rejected one.
+  instead of resuming from state built on the rejected one. The archive is all or
+  nothing across runs: a pending marker (:data:`PAGE_ARCHIVE_PENDING`) is written
+  first and moved last, and an ``OSError`` that survives the write retries (ruling
+  28 a) holds the institution (``held.json`` lists ``archived``, ``archive_left``
+  and ``archive_error``; attrition detail ``<page>:<stage>:``:data:`ARCHIVE_FAILED`)
+  instead of stopping the stage. The next run finishes that same archive before it
+  loads any of the page's state, and holds again (:data:`ARCHIVE_FAILED`) if it
+  still cannot.
 - **Provider seams.** The support check (T-022 pass-1 quotes, T-032 pass-2
   quotes, X35 entailment and the T-024 check) and the T-022 activity spans are
   injected (:class:`PerPageProviders`); this module does not call them itself.
@@ -205,6 +212,12 @@ EXTRACT_RESPONSE_FAILED = "extract_response_failed"
 PAGE_ARCHIVE_DIR = "archive"
 #: the per-page checkpoint files under the page dir (the T-023 activity artifact lives in ACTIVITY_DIR)
 PAGE_STATE_FILES = ("page.json", "activity.json", "pairs.json")
+#: written in the page dir before a C4 archive moves anything and moved into the archive folder last;
+#: while it is in the page dir the archive is incomplete and the page's saved state is never loaded
+PAGE_ARCHIVE_PENDING = "archive_pending.json"
+#: ruling 33 a with ruling 28 a: a page-state archive that a filesystem error left incomplete holds the
+#: institution (held.json lists what was moved, what was left and the error); the next run finishes it
+ARCHIVE_FAILED = "page_state_archive_failed"
 #: Errors that stop the whole stage; every other producer error holds its institution only.
 #: Both ``MissingUpstreamError`` classes subclass ``ValueError``; they are listed here so the
 #: per-institution ``ValueError`` handlers never swallow a wiring gap (RC-D-033 C2 a).
@@ -232,6 +245,22 @@ class ExtractorResponseFailed(Exception):
         super().__init__(f"{pass_name} extractor response failed: {detail}")
         self.pass_name, self.request, self.detail = pass_name, request, detail
         self.archive_page_state = archive_page_state
+
+
+class PageArchiveIncomplete(Exception):
+    """An ``OSError`` that survived the write retries stopped a page-state archive (ruling 33 a / 28 a).
+
+    ``archived`` are the paths already in the archive folder, ``left`` the ones
+    still at their live paths (both relative to the institution dir). The
+    pending marker (:data:`PAGE_ARCHIVE_PENDING`) stays in the page dir when it
+    was written, so no later run loads the page's state before the archive is
+    finished.
+    """
+
+    def __init__(self, archived: list[str], left: list[str], error: OSError) -> None:
+        super().__init__(f"page-state archive incomplete: {type(error).__name__}: {error}")
+        self.archived, self.left = archived, left
+        self.error = f"{type(error).__name__}: {error}"
 
 
 class UncarriedCombinedValue(ConsolidationError):
@@ -785,27 +814,56 @@ def _archive_page_state(run_dir: Path, page: PageInput) -> list[str]:
     artifact (either stored form, kept under ``activity_code_v27/`` in the archive
     folder) are moved; each call takes the next free ``NNN``. Returns the archived
     paths relative to the institution dir (empty when the page had no saved state).
+
+    All or nothing across runs (ruling 28 a): the folder is first recorded in
+    :data:`PAGE_ARCHIVE_PENDING` in the page dir, and that marker is moved into
+    the archive folder only after every file. An ``OSError`` that survives the
+    write retries raises :class:`PageArchiveIncomplete` (the caller holds the
+    institution); the marker stays, so :func:`_rounds_for_page` finishes this
+    same archive before it loads any state. A call with the marker present
+    resumes the recorded folder instead of taking a new ``NNN``.
     """
     inst_dir = institution_dir(run_dir, page.institution_id)
     pdir = _page_dir(run_dir, page)
+    marker = pdir / PAGE_ARCHIVE_PENDING
     art = stage_activity_code.artifact_path(inst_dir / ACTIVITY_DIR, page.page_id)
     moves = [(pdir / name, Path(name)) for name in PAGE_STATE_FILES]
     moves += [(p, Path(ACTIVITY_DIR) / p.name) for p in (gz_path(art), plain_path(art))]
     moves = [(src, rel) for src, rel in moves if src.exists()]
-    if not moves:
-        return []
+
+    def rel_inst(path: Path) -> str:
+        return path.relative_to(inst_dir).as_posix()
+
     root = pdir / PAGE_ARCHIVE_DIR
-    taken = {p.name for p in root.iterdir()} if root.is_dir() else set()
-    n = 1
-    while f"{n:03d}" in taken:
-        n += 1
-    dest = root / f"{n:03d}"
-    archived = []
-    for src, rel in moves:
-        target = dest / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        replace_with_retry(src, target)
-        archived.append(target.relative_to(inst_dir).as_posix())
+    archived: list[str] = []
+    try:
+        if marker.exists():  # an earlier archive of this page was left incomplete: finish that one
+            doc = json.loads(marker.read_bytes().decode("utf-8"))
+            if doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != "archive_pending":
+                raise ValueError(f"unsupported per-page checkpoint: {marker}")
+            dest = root / doc["archive"]
+        else:
+            if not moves:
+                return []
+            taken = {p.name for p in root.iterdir()} if root.is_dir() else set()
+            n = 1
+            while f"{n:03d}" in taken:
+                n += 1
+            dest = root / f"{n:03d}"
+            _atomic_write(marker, canonical_json({"format": CHECKPOINT_FORMAT, "kind": "archive_pending",
+                                                  "archive": dest.name}))
+        for src, rel in moves:
+            target = dest / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            replace_with_retry(src, target)
+            archived.append(rel_inst(target))
+        dest.mkdir(parents=True, exist_ok=True)
+        replace_with_retry(marker, dest / PAGE_ARCHIVE_PENDING)  # last: this archive is complete
+    except OSError as exc:
+        left = [rel_inst(src) for src, _ in moves if src.exists()]
+        if marker.exists():
+            left.append(rel_inst(marker))
+        raise PageArchiveIncomplete(archived, left, exc) from exc
     return archived
 
 
@@ -835,6 +893,10 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
                      metrics: PerPageMetrics) -> None:
     page = st.spec.page
     pdir = _page_dir(run_dir, page)
+    # ruling 33 a: an archive left incomplete (its marker is still here) is finished before any
+    # state is loaded; PageArchiveIncomplete holds the institution again
+    if (pdir / PAGE_ARCHIVE_PENDING).exists():
+        _archive_page_state(run_dir, page)
     page_ckpt = Checkpoint(pdir / "page.json", "page")
     saved = page_ckpt.load()
     if saved is None:
@@ -937,14 +999,18 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
         if hasattr(providers, "with_seams"):  # extractor and X35 calls journaled (usage, durable resume)
             inst_providers = providers.with_seams(*journal.seams(providers.journal_prompt))
         states = [_PageState(spec) for spec in inst.pages]
-        broken: dict[str, Any] | None = None  # a producer error for one page: this institution is held
+        held_path = inst_dir / WORK_DIR / HELD_FILE
+        # a producer error for one page: this institution is held. First, any page-state archive the
+        # last run's held.json names as failed (even before its marker was written) is finished.
+        broken: dict[str, Any] | None = _finish_failed_archives(run_dir, states, held_path)
+        to_code = states if broken is None else []
         try:
-            coded = stage_page_code.run_page_code_stage(run_dir, [s.spec.page for s in states], ask_fn=ask,
+            coded = stage_page_code.run_page_code_stage(run_dir, [s.spec.page for s in to_code], ask_fn=ask,
                                                         config=page_config, concurrency=1,
                                                         cost_check_callback=cost_check_callback)
             if coded.stopped_early:  # the cost check stopped T-021: uncoded pages are not failures
                 raise stage_page_code.StageStopped("page coding stopped by the cost check")
-            for st in states:
+            for st in to_code:
                 page = st.spec.page
                 if not artifact_exists(stage_page_code.artifact_path(run_dir, page.institution_id, page.url)):
                     try:
@@ -958,24 +1024,29 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                     continue
                 try:
                     _rounds_for_page(run_dir, st, ask, inst_providers, page_config, activity_config, metrics)
+                except PageArchiveIncomplete as exc:  # finishing an earlier archive failed again
+                    broken = _archive_hold(page.page_id, exc)
+                    break
                 except ExtractorResponseFailed as exc:  # C3 a: this institution is held as pending
                     if exc.request is not None and hasattr(providers, "journal_prompt"):
                         # never replayed as final: the next run asks the request again
                         journal.reject_extract(exc.request, providers.journal_prompt, exc.detail)
                     broken = _response_hold(page.page_id, exc)
                     if exc.archive_page_state:  # ruling 33 a: the next run codes the page again
-                        broken["archived"] = _archive_page_state(run_dir, page)
+                        try:
+                            broken["archived"] = _archive_page_state(run_dir, page)
+                        except PageArchiveIncomplete as aexc:  # ruling 28 a: held, never a crash
+                            broken.update(_archive_detail(aexc))
                     break
         finally:
             metrics.live_requests += journal.live
             metrics.replayed_requests += journal.replayed
             metrics.usage[inst.institution_id] = journal.usage()
-        held_path = inst_dir / WORK_DIR / HELD_FILE
         holds = [broken] if broken is not None else [h for st in states for h in st.holds]
         if holds:
             _atomic_write(held_path, canonical_json({"institution_id": inst.institution_id, "held": holds}))
             attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_REASON,
-                             detail=", ".join(f"{h['page_id']}:{h['stage']}" for h in holds))
+                             detail=", ".join(_hold_label(h) for h in holds))
             metrics.held.append(inst.institution_id)
             continue
         products: list[PageProduct | ReviewedPage] = []
@@ -1023,6 +1094,41 @@ def _producer_hold(page_id: str, exc: BaseException) -> dict[str, Any]:
     return {"page_id": page_id, "stage": PRODUCER_FAILED, "error": f"{type(exc).__name__}: {exc}"}
 
 
+def _archive_detail(exc: PageArchiveIncomplete) -> dict[str, Any]:
+    return {"archived": exc.archived, "archive_left": exc.left, "archive_error": exc.error}
+
+
+def _archive_hold(page_id: str, exc: PageArchiveIncomplete) -> dict[str, Any]:
+    return {"page_id": page_id, "stage": ARCHIVE_FAILED, **_archive_detail(exc)}
+
+
+def _hold_label(hold: Mapping[str, Any]) -> str:
+    label = f"{hold['page_id']}:{hold['stage']}"
+    if "archive_error" in hold and hold["stage"] != ARCHIVE_FAILED:
+        label += f":{ARCHIVE_FAILED}"
+    return label
+
+
+def _finish_failed_archives(run_dir: Path, states: Sequence[_PageState], held_path: Path) -> dict[str, Any] | None:
+    """Finish each page-state archive the last run's ``held.json`` names as failed (ruling 33 a).
+
+    This also covers a failure before the pending marker was written, when
+    nothing but ``held.json`` records that the page's state must not be used.
+    Returns the hold for the first page whose archive fails again, else None.
+    """
+    if not held_path.exists():
+        return None
+    previous = json.loads(held_path.read_bytes().decode("utf-8")).get("held", [])
+    failed = {h["page_id"] for h in previous if "archive_error" in h}
+    for st in states:
+        if st.spec.page.page_id in failed:
+            try:
+                _archive_page_state(run_dir, st.spec.page)
+            except PageArchiveIncomplete as exc:
+                return _archive_hold(st.spec.page.page_id, exc)
+    return None
+
+
 def _response_hold(page_id: str, exc: ExtractorResponseFailed) -> dict[str, Any]:
     request = exc.request or {}
     return {"page_id": page_id, "stage": EXTRACT_RESPONSE_FAILED, "pass": exc.pass_name,
@@ -1056,6 +1162,7 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 __all__ = [
     "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
-    "PAGE_ARCHIVE_DIR", "PAGE_STATE_FILES", "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
+    "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
+    "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]

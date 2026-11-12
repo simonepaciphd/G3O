@@ -678,6 +678,134 @@ def test_archive_page_state_moves_every_state_file_and_numbers_each_archive(tmp_
         assert not any((pdir / name).exists() for name in pp.PAGE_STATE_FILES)
 
 
+def _failing_moves(monkeypatch, fail):
+    """Patch the stage's ``replace_with_retry`` so the archive moves (target under an ``archive`` folder)
+    or the pending-marker writes for which ``fail(kind, n)`` is true raise ``PermissionError``, as after
+    exhausted retries; ``n`` counts the calls of that kind (1-based)."""
+    real = pp.replace_with_retry
+    seen = {"move": 0, "marker": 0}
+
+    def fake(src, dst):
+        kind = ("move" if pp.PAGE_ARCHIVE_DIR in dst.parts else
+                "marker" if dst.name == pp.PAGE_ARCHIVE_PENDING else None)
+        if kind is not None:
+            seen[kind] += 1
+            if fail(kind, seen[kind]):
+                raise PermissionError(13, "Access is denied", str(dst))
+        return real(src, dst)
+    monkeypatch.setattr(pp, "replace_with_retry", fake)
+
+
+def _spy_activity_code(monkeypatch):
+    from g3o.run.presweep import stage_activity_code
+    coded = []
+    real = stage_activity_code.run_stage
+
+    def spy(pages, *a, **kw):
+        pages = list(pages)
+        coded.extend(p.page.page_id for p in pages)
+        return real(pages, *a, **kw)
+    monkeypatch.setattr(stage_activity_code, "run_stage", spy)
+    return coded
+
+
+def test_c4_archive_failing_midway_holds_and_no_run_resumes_from_the_partial_state(tmp_path, monkeypatch):
+    """Ruling 33 a with 28 a: a PermissionError on the 2nd archive move is a hold, not a crash. The page's
+    pending marker stays, so the stale activity.json left at its live path is never loaded: a run whose
+    archive fails again holds again (ARCHIVE_FAILED) without coding the page, and the next run finishes the
+    same ``archive/001`` (no second folder) and codes the page again from the new pass-1 answer."""
+    from g3o.common.artifact_io import artifact_exists
+    from g3o.run.presweep import stage_activity_code
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    one = [i for i in insts if i.institution_id == inst]
+    spec = next(s for s in one[0].pages if s.page.page_id == page)
+    pdir = pp._page_dir(run_dir, spec.page)
+    inst_dir = institution_dir(run_dir, inst)
+    art = stage_activity_code.artifact_path(inst_dir / pp.ACTIVITY_DIR, page)
+    archive = pdir / pp.PAGE_ARCHIVE_DIR / "001"
+    marker = pdir / pp.PAGE_ARCHIVE_PENDING
+
+    with monkeypatch.context() as m:
+        _failing_moves(m, lambda kind, n: kind == "move" and n == 2)
+        ready, metrics = _run(run_dir, bound, instrument, one,
+                              _providers(run_dir, bound, instrument, NamelessActivity(world, page), FakeEntail()),
+                              FakeJev(ANSWERS, RELATIONS, _fail_verdict))  # no exception escapes
+    assert not ready and metrics.held == [inst]
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED and hold["page_id"] == page
+    assert hold["archive_error"].startswith("PermissionError")
+    rel = pdir.relative_to(inst_dir).as_posix()
+    assert hold["archived"] == [f"{rel}/{pp.PAGE_ARCHIVE_DIR}/001/page.json"]
+    assert f"{rel}/activity.json" in hold["archive_left"]
+    assert f"{rel}/{pp.PAGE_ARCHIVE_PENDING}" in hold["archive_left"]
+    assert any(r["institution_id"] == inst and r["reason"] == pp.HELD_REASON
+               and r["detail"] == f"{page}:{pp.EXTRACT_RESPONSE_FAILED}:{pp.ARCHIVE_FAILED}"
+               for r in attrition.read_records(run_dir))
+    # documented state: page.json archived, the rest still at the live paths behind the pending marker
+    assert marker.exists() and (archive / "page.json").exists() and not (pdir / "page.json").exists()
+    assert (pdir / "activity.json").exists() and artifact_exists(art)
+    stale_activity = json.loads((pdir / "activity.json").read_text(encoding="utf-8"))
+
+    coded = _spy_activity_code(monkeypatch)
+    with monkeypatch.context() as m:  # the archive still fails: held again, nothing of the page is loaded
+        _failing_moves(m, lambda kind, n: kind == "move")
+        loaded = []
+        real_load = pp.Checkpoint.load
+        m.setattr(pp.Checkpoint, "load", lambda self: loaded.append(self.path) or real_load(self))
+        ready, metrics = _run(run_dir, bound, instrument, one,
+                              _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+                              FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not ready and metrics.held == [inst]
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.ARCHIVE_FAILED and hold["archive_error"].startswith("PermissionError")
+    assert not any(p.parent == pdir for p in loaded) and page not in coded and marker.exists()
+
+    ready, metrics = _run(run_dir, bound, instrument, one,
+                          _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and not metrics.held
+    assert page in coded  # T-023 ran again on the new spans, not resumed from the stale activity.json
+    # the same archive folder was finished (marker moved in last); no second folder was taken
+    assert not marker.exists() and (archive / pp.PAGE_ARCHIVE_PENDING).exists()
+    assert json.loads((archive / "activity.json").read_text(encoding="utf-8")) == stale_activity
+    assert list((archive / pp.ACTIVITY_DIR).iterdir())
+    assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
+    assert json.loads((pdir / "activity.json").read_text(encoding="utf-8")) != stale_activity
+
+
+def test_c4_archive_failing_before_its_marker_is_finished_from_held_json(tmp_path, monkeypatch):
+    """The pending-marker write itself fails: nothing is moved and no marker exists, so the hold in
+    held.json (``archive_error``) is what the next run reads to archive the stale state before coding."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    one = [i for i in insts if i.institution_id == inst]
+    spec = next(s for s in one[0].pages if s.page.page_id == page)
+    pdir = pp._page_dir(run_dir, spec.page)
+
+    with monkeypatch.context() as m:
+        _failing_moves(m, lambda kind, n: kind == "marker")
+        ready, metrics = _run(run_dir, bound, instrument, one,
+                              _providers(run_dir, bound, instrument, NamelessActivity(world, page), FakeEntail()),
+                              FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not ready and metrics.held == [inst]
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["archived"] == [] and hold["archive_error"].startswith("PermissionError")
+    assert not (pdir / pp.PAGE_ARCHIVE_PENDING).exists() and not (pdir / pp.PAGE_ARCHIVE_DIR).exists()
+    stale_activity = json.loads((pdir / "activity.json").read_text(encoding="utf-8"))
+
+    coded = _spy_activity_code(monkeypatch)
+    ready, metrics = _run(run_dir, bound, instrument, one,
+                          _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and not metrics.held
+    assert page in coded
+    archive = pdir / pp.PAGE_ARCHIVE_DIR / "001"
+    assert json.loads((archive / "activity.json").read_text(encoding="utf-8")) == stale_activity
+    assert not (pdir / pp.PAGE_ARCHIVE_PENDING).exists()
+
+
 def test_missing_name_check_covers_the_activity_form_only(tmp_path, monkeypatch):
     """Unit: a page-form X35 question needs no name; an activity-form one without a name raises
     ``ExtractorResponseFailed`` for the given pass-1 request before ``entailment_question`` is called;
