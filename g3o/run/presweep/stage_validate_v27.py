@@ -73,12 +73,10 @@ from g3o.classify.jev_activity_code import NOT_COVERED
 from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE
 from g3o.classify.questions.v27 import load_set
 from g3o.common import attrition
-from g3o.common.cost_monitor import BudgetExceededError, UnpricedModelError
 from g3o.common.instrument import canonical_json
-from g3o.common.jev_client import JevAccountError, JevAnswer, JevResult
+from g3o.common.jev_client import JevAnswer, JevResult
 from g3o.common.jev_record import CoderRecord
 from g3o.common.paths import institution_dir
-from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
 from g3o.common.source_fields import aggregation_value, default_vocab
 from g3o.common.storage import METADATA_ITEMS, table_fields
 from g3o.common.storage_fields import FIELDS
@@ -86,7 +84,6 @@ from g3o.common.support_check import (
     CodeEvidence,
     Entailment,
     PageSources,
-    SupportGateError,
     SupportResult,
     check_code,
 )
@@ -115,6 +112,8 @@ from g3o.validate.consolidate_v27 import (
 )
 from g3o.validate.stage6_quote import Stage6QuoteStep
 from g3o.validate.stage6_v27 import (
+    MISSING_UPSTREAM,
+    STAGE6_STOPS,
     AskFn,
     InputQuote,
     ObservationRecord,
@@ -122,7 +121,6 @@ from g3o.validate.stage6_v27 import (
     QuoteFn,
     Stage6Config,
     Stage6Quote,
-    Stage6QuoteNotApproved,
     Stage6QuoteRequest,
     Stage6Result,
     observation_pool_order,
@@ -140,12 +138,14 @@ HELD_RELEASED = "stage6_held_released"  # appended when a held institution is la
 ENVELOPE_FAILED = "stage6_envelope_failed"  # the storage envelope / artifacts of one institution failed
 EXECUTOR_FAILED = "stage6_executor_failed"  # the T-026 executor refused or failed for one institution
 #: Errors that stop the whole stage (an account stop, an unapproved quote prompt, a support-gate
-#: refusal, a spend stop), in the executor and in the envelope build alike.
-STAGE_STOPS = (JevAccountError, Stage6QuoteNotApproved, SupportGateError, BudgetExceededError, UnpricedModelError)
-#: Both ``MissingUpstreamError`` classes (each a ``ValueError``, neither a subclass of the other).
-#: Raised inside the executor they stop the stage, as in the per-page stage (B1 a, RC-D-033 C2 a);
-#: raised while building the envelope they hold that institution only (:data:`ENVELOPE_FAILED`).
-MISSING_UPSTREAM = (MissingUpstreamError, SourceFieldsMissingUpstreamError)
+#: refusal, a spend stop), in the executor and in the envelope build alike. One tuple with the
+#: executor's (:data:`g3o.validate.stage6_v27.STAGE6_STOPS`), which re-raises it inside
+#: ``ask_fn``, ``quote_fn`` and the combiner.
+STAGE_STOPS = STAGE6_STOPS
+#: :data:`MISSING_UPSTREAM` (from :mod:`g3o.validate.stage6_v27`): both ``MissingUpstreamError``
+#: classes. Raised inside the executor (``ask_fn``, ``quote_fn``, the combiner, or here around it)
+#: they stop the stage, as in the per-page stage (B1 a, RC-D-033 C2 a); raised while building
+#: the envelope they hold that institution only (:data:`ENVELOPE_FAILED`).
 #: Per-institution outcomes of the envelope build and artifact writes (B3): refusals
 #: (``ConsolidationError``, ``ValueError`` including both ``MissingUpstreamError`` classes, the
 #: R1 refusals among them, and pydantic validation errors), ``RuntimeError``, and ``OSError`` from
@@ -787,8 +787,9 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     continues with the next one. Any other executor exception (a programming
     error such as ``TypeError``, ``KeyError`` or ``AttributeError``) stops the
     stage. ``MissingUpstreamError`` (either class, :data:`MISSING_UPSTREAM`)
-    raised inside the executor is a wiring gap, not institution data: it stops
-    the stage, as in the per-page stage (B1 a). Raised while building the
+    raised inside the executor (from ``ask_fn``, ``quote_fn`` or the combiner
+    included) is a wiring gap, not institution data: it stops the stage, as in
+    the per-page stage (B1 a). Raised while building the
     envelope (the expected R1 refusals, absent independence groups or
     uncertainty flags) it stays a per-institution :data:`ENVELOPE_FAILED` hold.
     The envelope build and artifact writes hold only :data:`ENVELOPE_HOLDS`
