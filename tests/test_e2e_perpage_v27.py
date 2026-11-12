@@ -242,7 +242,8 @@ class World:
                     "branch_of_government": "executive", "level_of_government": "local",
                     "institution_search_languages": "en"}
         up = pp.InstitutionUpstream(OwnGroup(), merged)
-        return pp.PerPageInstitution(RUN_ID, uid_for(inst), identity, "AU",
+        # Ruling 38 a: PerPageInstitution.country is the master country name.
+        return pp.PerPageInstitution(RUN_ID, uid_for(inst), identity, identity["country"],
                                      [pp.PageSpec(p.input, self.upstream(p.pid)) for p in pages], up)
 
 

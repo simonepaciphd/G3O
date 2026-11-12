@@ -157,9 +157,10 @@ class Builder:
         identity = {"institution_id": self.inst_id, "institution_name": f"Council {self.inst_id}",
                     "country": "Australia", "branch_of_government": "executive", "level_of_government": "local",
                     "institution_search_languages": "en"}
+        # Ruling 38 a: the institution's country is the master country name.
         return rt.Stage6Institution(
-            RUN_ID, self.uid, identity, "AU", self.pages, self.observations, self.records, self.within, self.quotes,
-            self.inputs, self.sources, self.artifacts, self.provenance,
+            RUN_ID, self.uid, identity, identity["country"], self.pages, self.observations, self.records,
+            self.within, self.quotes, self.inputs, self.sources, self.artifacts, self.provenance,
             independence_groups={sid: sid for sid in self.sources}, merged_values=merged)
 
 
