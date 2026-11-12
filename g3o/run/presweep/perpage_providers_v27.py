@@ -62,7 +62,8 @@ the institution is held as pending and that response is rejected in the journal
 and asked again on the next run. The check is made before
 :func:`~g3o.common.support_check.entailment_question` is called; its own
 ``ValueError`` is never caught. Page-form questions need no name and are
-unaffected.
+unaffected. The error carries ``archive_page_state`` (ruling 33 a): the per-page
+stage moves that page's saved state, built on the rejected answer, to archive.
 
 Binding (QA3 F3). The adapter declares the extractor model and the X35 model it
 runs on; both must equal the instrument's ``extractor_configuration``
@@ -196,7 +197,8 @@ class _Adapter:
                 and (activity_name is None or not activity_name.strip())):
             raise ExtractorResponseFailed(
                 "pass1", name_request, f"activity {ev.activity_id!r} has no activity_name, which the "
-                f"activity-form X35 question for {ev.item_id} needs (C4 a)")
+                f"activity-form X35 question for {ev.item_id} needs (C4 a)",
+                archive_page_state=True)  # ruling 33 a: state built on this answer is moved to archive
         question = sc.entailment_question(ev.item_id, ev.value, part=ev.part, activity_name=activity_name,
                                           rules=self.rules)
         window, _located = sc.entailment_window(ev.quote, src)

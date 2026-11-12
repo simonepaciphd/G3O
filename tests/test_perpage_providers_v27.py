@@ -600,6 +600,84 @@ def test_nameless_activity_is_asked_again_on_the_next_run(tmp_path):
     assert [i.institution_id for i in ready] == [inst] and again.jobs == []
 
 
+def test_c4_hold_archives_the_page_state_and_the_next_run_codes_it_from_the_new_answer(tmp_path, monkeypatch):
+    """Ruling 33 a: on a C4 hold the page's saved state (page.json, activity.json, pairs.json, T-023
+    activity artifact) is moved to ``<page dir>/archive/001/``; the next run codes the page again from
+    the new pass-1 answer (T-023 runs on the new spans), using none of the archived state."""
+    from g3o.common.artifact_io import artifact_exists
+    from g3o.run.presweep import stage_activity_code
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    one = [i for i in insts if i.institution_id == inst]
+    spec = next(s for s in one[0].pages if s.page.page_id == page)
+    pdir = pp._page_dir(run_dir, spec.page)
+    inst_dir = institution_dir(run_dir, inst)
+    art = stage_activity_code.artifact_path(inst_dir / pp.ACTIVITY_DIR, page)
+
+    ready, metrics = _run(run_dir, bound, instrument, one,
+                          _providers(run_dir, bound, instrument, NamelessActivity(world, page), FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not ready and metrics.held == [inst]
+    (hold,) = _held(run_dir, inst)["held"]
+    archive = pdir / pp.PAGE_ARCHIVE_DIR / "001"
+    # nothing is left at the live paths; everything that was saved is in the archive folder
+    assert not any((pdir / n).exists() for n in pp.PAGE_STATE_FILES) and not artifact_exists(art)
+    assert (archive / "page.json").exists() and (archive / "activity.json").exists()
+    assert list((archive / pp.ACTIVITY_DIR).iterdir())
+    assert hold["archived"] and all((inst_dir / p).exists() for p in hold["archived"])
+    archived_activity = json.loads((archive / "activity.json").read_text(encoding="utf-8"))
+
+    coded = []
+    real = stage_activity_code.run_stage
+
+    def spy(pages, *a, **kw):
+        pages = list(pages)
+        coded.extend(pages)
+        return real(pages, *a, **kw)
+    monkeypatch.setattr(stage_activity_code, "run_stage", spy)
+    extract, entail = FakeExtractor(world), FakeEntail()
+    ready, metrics = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, extract, entail),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and not metrics.held
+    # T-023 ran again for b1, on the spans of the new pass-1 answer (the activity is named now)
+    (b1_input,) = [p for p in coded if p.page.page_id == page]
+    names = [f.value for s in b1_input.spans for f in s.fields if f.item_id == "core.activity_name"]
+    assert names == ["Bin rules"]
+    # the stale state stays archived (never deleted); fresh state is written at the live paths
+    assert (pdir / "page.json").exists() and (pdir / "activity.json").exists() and artifact_exists(art)
+    assert json.loads((archive / "activity.json").read_text(encoding="utf-8")) == archived_activity
+    assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
+
+
+def test_archive_page_state_moves_every_state_file_and_numbers_each_archive(tmp_path):
+    """Unit: all four kinds of saved state are moved (none deleted), each call into the next ``NNN``;
+    a page with no saved state archives nothing."""
+    from g3o.classify.jev_page_code import PageInput
+    from g3o.common.artifact_io import write_artifact
+    from g3o.run.presweep import stage_activity_code
+
+    run_dir = tmp_path / "run"
+    page = PageInput(page_id="z1", institution_id="INST-0000009", institution="Z", country=None,
+                     level_of_government=None, url="https://example.gov/z1", title=None, text="z")
+    assert pp._archive_page_state(run_dir, page) == []
+    pdir = pp._page_dir(run_dir, page)
+    inst_dir = institution_dir(run_dir, page.institution_id)
+    art = stage_activity_code.artifact_path(inst_dir / pp.ACTIVITY_DIR, page.page_id)
+    for n in (1, 2):
+        pdir.mkdir(parents=True, exist_ok=True)
+        for name in pp.PAGE_STATE_FILES:
+            (pdir / name).write_text(f"{name} {n}", encoding="utf-8")
+        art.parent.mkdir(parents=True, exist_ok=True)
+        write_artifact(art, json.dumps({"n": n}))
+        moved = pp._archive_page_state(run_dir, page)
+        dest = pdir / pp.PAGE_ARCHIVE_DIR / f"{n:03d}"
+        assert len(moved) == 4 and all((inst_dir / p).exists() for p in moved)
+        assert all((dest / name).read_text(encoding="utf-8") == f"{name} {n}" for name in pp.PAGE_STATE_FILES)
+        assert len(list((dest / pp.ACTIVITY_DIR).iterdir())) == 1
+        assert not any((pdir / name).exists() for name in pp.PAGE_STATE_FILES)
+
+
 def test_missing_name_check_covers_the_activity_form_only(tmp_path, monkeypatch):
     """Unit: a page-form X35 question needs no name; an activity-form one without a name raises
     ``ExtractorResponseFailed`` for the given pass-1 request before ``entailment_question`` is called;

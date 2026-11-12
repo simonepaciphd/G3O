@@ -53,6 +53,12 @@ Rules carried here, not decided here:
   final: a failed one is journaled ``extract_failed`` and an unparsable one is
   rejected in the journal (``extract_rejected``), both kept for accounting only,
   so the next run asks the request again.
+- **Stale page state on a C4 hold (ruling 33 a).** A C4 a hold (a pass-1 activity
+  with no ``activity_name``; :attr:`ExtractorResponseFailed.archive_page_state`)
+  moves that page's saved state (``page.json``, ``activity.json``, ``pairs.json``
+  and the T-023 activity artifact) to ``<page dir>/archive/<NNN>/`` (archive,
+  never delete), so the next run codes the page again from the new pass-1 answer
+  instead of resuming from state built on the rejected one.
 - **Provider seams.** The support check (T-022 pass-1 quotes, T-032 pass-2
   quotes, X35 entailment and the T-024 check) and the T-022 activity spans are
   injected (:class:`PerPageProviders`); this module does not call them itself.
@@ -120,7 +126,7 @@ from g3o.classify.question_rounds import (
     complete_page_rounds,
 )
 from g3o.common import attrition
-from g3o.common.artifact_io import artifact_exists, read_artifact
+from g3o.common.artifact_io import artifact_exists, gz_path, plain_path, read_artifact
 from g3o.common.cost_monitor import BudgetExceededError, UnpricedModelError
 from g3o.common.instrument import canonical_json, sha256_text
 from g3o.common.jev_client import JevAccountError
@@ -194,6 +200,11 @@ PRODUCER_FAILED = "page_producer_failed"
 #: C3 a (QA4 M3): a pass-1/pass-2 extractor response failed or broke the answer contract (held.json
 #: names the pass, the request and the error): per-institution hold, asked again on the next run
 EXTRACT_RESPONSE_FAILED = "extract_response_failed"
+#: ruling 33 a: a page's saved state is moved under ``<page dir>/<PAGE_ARCHIVE_DIR>/<NNN>/`` on a C4 hold
+#: (the project's ``archive`` folder name, as :data:`g3o.run.archive.ARCHIVE_DIRNAME`)
+PAGE_ARCHIVE_DIR = "archive"
+#: the per-page checkpoint files under the page dir (the T-023 activity artifact lives in ACTIVITY_DIR)
+PAGE_STATE_FILES = ("page.json", "activity.json", "pairs.json")
 #: Errors that stop the whole stage; every other producer error holds its institution only.
 #: Both ``MissingUpstreamError`` classes subclass ``ValueError``; they are listed here so the
 #: per-institution ``ValueError`` handlers never swallow a wiring gap (RC-D-033 C2 a).
@@ -211,11 +222,16 @@ class ExtractorResponseFailed(Exception):
     contract-violating response no longer stops the stage on every resume).
     ``request`` is the journaled extractor request (``custom_id``, ``params``),
     or None when the caller has none; it is not a stage stop.
+
+    ``archive_page_state`` (ruling 33 a) is set for a C4 a hold: the page's saved
+    state was built on the rejected pass-1 answer, so the stage moves it to archive.
     """
 
-    def __init__(self, pass_name: str, request: Mapping[str, Any] | None, detail: str) -> None:
+    def __init__(self, pass_name: str, request: Mapping[str, Any] | None, detail: str, *,
+                 archive_page_state: bool = False) -> None:
         super().__init__(f"{pass_name} extractor response failed: {detail}")
         self.pass_name, self.request, self.detail = pass_name, request, detail
+        self.archive_page_state = archive_page_state
 
 
 class UncarriedCombinedValue(ConsolidationError):
@@ -762,6 +778,37 @@ def _page_dir(run_dir: Path, page: PageInput) -> Path:
     return institution_dir(run_dir, page.institution_id) / WORK_DIR / url_hash(page.url)
 
 
+def _archive_page_state(run_dir: Path, page: PageInput) -> list[str]:
+    """Move ``page``'s saved state to ``<page dir>/archive/<NNN>/`` (ruling 33 a); never deletes.
+
+    The per-page checkpoints (:data:`PAGE_STATE_FILES`) and the T-023 activity
+    artifact (either stored form, kept under ``activity_code_v27/`` in the archive
+    folder) are moved; each call takes the next free ``NNN``. Returns the archived
+    paths relative to the institution dir (empty when the page had no saved state).
+    """
+    inst_dir = institution_dir(run_dir, page.institution_id)
+    pdir = _page_dir(run_dir, page)
+    art = stage_activity_code.artifact_path(inst_dir / ACTIVITY_DIR, page.page_id)
+    moves = [(pdir / name, Path(name)) for name in PAGE_STATE_FILES]
+    moves += [(p, Path(ACTIVITY_DIR) / p.name) for p in (gz_path(art), plain_path(art))]
+    moves = [(src, rel) for src, rel in moves if src.exists()]
+    if not moves:
+        return []
+    root = pdir / PAGE_ARCHIVE_DIR
+    taken = {p.name for p in root.iterdir()} if root.is_dir() else set()
+    n = 1
+    while f"{n:03d}" in taken:
+        n += 1
+    dest = root / f"{n:03d}"
+    archived = []
+    for src, rel in moves:
+        target = dest / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        replace_with_retry(src, target)
+        archived.append(target.relative_to(inst_dir).as_posix())
+    return archived
+
+
 def _failure_reason(run_dir: Path, page: PageInput) -> str:
     reasons = [r["reason"] for r in attrition.read_records(run_dir)
                if r.get("stage") == stage_page_code.STAGE and r.get("url") == page.url
@@ -916,6 +963,8 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                         # never replayed as final: the next run asks the request again
                         journal.reject_extract(exc.request, providers.journal_prompt, exc.detail)
                     broken = _response_hold(page.page_id, exc)
+                    if exc.archive_page_state:  # ruling 33 a: the next run codes the page again
+                        broken["archived"] = _archive_page_state(run_dir, page)
                     break
         finally:
             metrics.live_requests += journal.live
@@ -1007,6 +1056,6 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 __all__ = [
     "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
-    "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
+    "PAGE_ARCHIVE_DIR", "PAGE_STATE_FILES", "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]
