@@ -4,11 +4,13 @@ Signed rule: codebook ``items/core.syndication_group/rules/0`` -- "Deterministic
 near-duplicate hash (e.g. shingled MinHash on normalised text) per page;
 ``syndication_group`` id; QC flag when codes differ within a group."
 
-PI rulings (``agent-workspace/2026-11-10-build/QUESTIONS-overnight.md`` A4):
+PI rulings (2026-11-11):
 
 - A4.1 a: in-house seeded MinHash; 5-word shingles on lower-cased,
   whitespace-collapsed main text; Jaccard >= 0.8; connected components.
 - A4.2 a: scope is one institution; stable on resume.
+- A4 ruling 7 (procedural): pair edges by exact shingle-set Jaccard >= 0.8;
+  the MinHash signature is stored per page.
 
 Build parameters (not ruled; pinned here, all in :data:`SYNDICATION_VERSION`):
 
@@ -28,16 +30,21 @@ Build parameters (not ruled; pinned here, all in :data:`SYNDICATION_VERSION`):
 - **The per-page hash** is a seeded MinHash signature (:data:`NUM_PERM`
   permutations ``(a*h + b) mod (2**61 - 1)`` over a keyed 64-bit BLAKE2b of each
   shingle; ``a``/``b`` derived from :data:`SEED` by BLAKE2b). It is the
-  codebook's "near-duplicate hash per page", recorded per page as
-  ``signature_sha`` (BLAKE2b of the signature); it does not decide edges.
+  codebook's "near-duplicate hash per page". The full signature (all
+  :data:`NUM_PERM` values) is stored per page (A4 ruling 7) in
+  :attr:`PageFingerprint.signature` and in :meth:`SyndicationGrouping.detail`,
+  with ``signature_sha`` (BLAKE2b of the signature) as a short digest; it does
+  not decide edges.
   Python's built-in ``hash()`` is never used.
 - **Short pages.** A page with fewer than :data:`SHINGLE_WORDS` words has no
   shingle, so its Jaccard with any page is undefined. Policy
   :data:`SHORT_PAGE_POLICY`: it links to no page, gets its own singleton group,
   and is listed in :attr:`SyndicationGrouping.short_pages` (never silent).
 - **Group id.** ``"sg-" + BLAKE2b-80`` of canonical JSON
-  ``[SYNDICATION_VERSION, sorted member page keys]``: independent of input and
-  iteration order, so a resume over the same page set gives the same ids.
+  ``[SYNDICATION_VERSION, institution_id, sorted member page keys]``: independent
+  of input and iteration order, so a resume over the same page set gives the same
+  ids; the institution id (required, A4.2 a: one grouping per institution) keeps
+  two institutions from ever sharing an ``sg-`` id, even for equal page keys.
   Singletons get their own id the same way. If the page set of a group changes
   (a page added or dropped), its id changes; that is by construction.
 
@@ -59,8 +66,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-SYNDICATION_VERSION = "g3o.common.syndication.v1"
-RULING = "PI A4.1 a + A4.2 a (2026-11-11); codebook items/core.syndication_group/rules/0"
+SYNDICATION_VERSION = "g3o.common.syndication.v2"
+RULING = "PI A4.1 a + A4.2 a + A4 ruling 7 (2026-11-11); codebook items/core.syndication_group/rules/0"
 
 SHINGLE_WORDS = 5
 JACCARD_NUM = 4  # threshold 0.8 = 4/5, compared in integers
@@ -131,9 +138,17 @@ def jaccard_at_least_threshold(a: frozenset[str], b: frozenset[str]) -> bool:
     return inter * JACCARD_DEN >= union * JACCARD_NUM
 
 
-def group_id(member_keys: Any) -> str:
+def _check_institution_id(institution_id: Any) -> str:
+    if not isinstance(institution_id, str) or not institution_id.strip():
+        raise ValueError(f"institution_id must be a non-empty string: {institution_id!r}")
+    return institution_id
+
+
+def group_id(institution_id: str, member_keys: Any) -> str:
+    """``sg-`` id of one institution's group; the institution id is part of the hash."""
+    inst = _check_institution_id(institution_id)
     keys = sorted(member_keys)
-    doc = json.dumps([SYNDICATION_VERSION, keys], ensure_ascii=True, separators=(",", ":"))
+    doc = json.dumps([SYNDICATION_VERSION, inst, keys], ensure_ascii=True, separators=(",", ":"))
     digest = hashlib.blake2b(doc.encode("ascii"), digest_size=GROUP_ID_DIGEST_BYTES).hexdigest()
     return GROUP_ID_PREFIX + digest
 
@@ -144,6 +159,7 @@ class PageFingerprint:
     n_words: int
     n_shingles: int
     short: bool
+    signature: tuple[int, ...] | None  # full NUM_PERM-value MinHash signature (A4 ruling 7)
     signature_sha: str | None
 
 
@@ -153,6 +169,7 @@ class SyndicationGrouping:
 
     version: str
     unidata_version: str
+    institution_id: str
     groups: Mapping[str, str]  # page key -> group id
     members: Mapping[str, tuple[str, ...]]  # group id -> sorted page keys
     edges: tuple[tuple[str, str], ...]  # sorted pairs with J >= 0.8
@@ -168,13 +185,19 @@ class SyndicationGrouping:
         gid = self.group_of(page_key)
         fp = self.pages[page_key]
         return {"version": self.version, "unidata_version": self.unidata_version,
-                "edge_decision": EDGE_DECISION, "members": list(self.members[gid]),
+                "institution_id": self.institution_id, "edge_decision": EDGE_DECISION, "members": list(self.members[gid]),
                 "short_page": fp.short, "short_page_policy": SHORT_PAGE_POLICY if fp.short else None,
+                "signature": None if fp.signature is None else list(fp.signature),
                 "signature_sha": fp.signature_sha, "n_shingles": fp.n_shingles}
 
 
-def group_pages(texts: Mapping[str, str]) -> SyndicationGrouping:
-    """Group one institution's pages (page key -> main text) into near-duplicate components."""
+def group_pages(texts: Mapping[str, str], *, institution_id: str) -> SyndicationGrouping:
+    """Group one institution's pages (page key -> main text) into near-duplicate components.
+
+    ``institution_id`` is required (A4.2 a: the scope is one institution) and is
+    hashed into every group id.
+    """
+    inst = _check_institution_id(institution_id)
     keys = sorted(texts)
     for k in keys:
         if not isinstance(k, str) or not k:
@@ -185,8 +208,9 @@ def group_pages(texts: Mapping[str, str]) -> SyndicationGrouping:
     pages = {}
     for k in keys:
         n_words = len(normalised_words(texts[k]))
+        sig = minhash_signature(sets[k])
         pages[k] = PageFingerprint(k, n_words, len(sets[k]), n_words < SHINGLE_WORDS,
-                                   signature_sha(minhash_signature(sets[k])))
+                                   sig, signature_sha(sig))
     parent = {k: k for k in keys}
 
     def find(x: str) -> str:
@@ -209,17 +233,17 @@ def group_pages(texts: Mapping[str, str]) -> SyndicationGrouping:
     groups: dict[str, str] = {}
     members: dict[str, tuple[str, ...]] = {}
     for comp in comps.values():
-        gid = group_id(comp)
+        gid = group_id(inst, comp)
         members[gid] = tuple(sorted(comp))
         for k in comp:
             groups[k] = gid
-    return SyndicationGrouping(SYNDICATION_VERSION, unicodedata.unidata_version, groups, members,
+    return SyndicationGrouping(SYNDICATION_VERSION, unicodedata.unidata_version, inst, groups, members,
                                tuple(edges), tuple(k for k in keys if pages[k].short), pages)
 
 
-def group_rendered_pages(pages: Mapping[str, Any]) -> SyndicationGrouping:
+def group_rendered_pages(pages: Mapping[str, Any], *, institution_id: str) -> SyndicationGrouping:
     """:func:`group_pages` over ``RenderedPage``-like objects: reads ``.text`` only, never ``chrome_text``."""
-    return group_pages({k: p.text for k, p in pages.items()})
+    return group_pages({k: p.text for k, p in pages.items()}, institution_id=institution_id)
 
 
 __all__ = [
