@@ -78,6 +78,7 @@ from g3o.common.instrument import canonical_json
 from g3o.common.jev_client import JevAccountError, JevAnswer, JevResult
 from g3o.common.jev_record import CoderRecord
 from g3o.common.paths import institution_dir
+from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
 from g3o.common.source_fields import aggregation_value, default_vocab
 from g3o.common.storage import METADATA_ITEMS, table_fields
 from g3o.common.storage_fields import FIELDS
@@ -139,8 +140,17 @@ HELD_RELEASED = "stage6_held_released"  # appended when a held institution is la
 ENVELOPE_FAILED = "stage6_envelope_failed"  # the storage envelope / artifacts of one institution failed
 EXECUTOR_FAILED = "stage6_executor_failed"  # the T-026 executor refused or failed for one institution
 #: Errors that stop the whole stage (an account stop, an unapproved quote prompt, a support-gate
-#: refusal, a spend stop); every other executor error stops its institution only.
+#: refusal, a spend stop), in the executor and in the envelope build alike.
 STAGE_STOPS = (JevAccountError, Stage6QuoteNotApproved, SupportGateError, BudgetExceededError, UnpricedModelError)
+#: Both ``MissingUpstreamError`` classes (each a ``ValueError``, neither a subclass of the other).
+#: Raised inside the executor they stop the stage, as in the per-page stage (B1 a, RC-D-033 C2 a);
+#: raised while building the envelope they hold that institution only (:data:`ENVELOPE_FAILED`).
+MISSING_UPSTREAM = (MissingUpstreamError, SourceFieldsMissingUpstreamError)
+#: Per-institution outcomes of the envelope build and artifact writes (B3): refusals
+#: (``ConsolidationError``, ``ValueError`` including both ``MissingUpstreamError`` classes, the
+#: R1 refusals among them, and pydantic validation errors), ``RuntimeError``, and ``OSError`` from
+#: the artifact writes (held as before B3). Stage stops and programming errors propagate.
+ENVELOPE_HOLDS = (ConsolidationError, ValueError, RuntimeError, OSError)
 ARTIFACTS_UNREADABLE = "stage6_artifacts_unreadable"  # existing Stage 6 artifacts fail to reload
 MISSING_RELATION = "missing_relation_decision"
 CONFLICTING_GROUPS = "conflicting_relation_groups"
@@ -776,9 +786,13 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     that institution (``held.json``, attrition, ``metrics.failed``) and the stage
     continues with the next one. Any other executor exception (a programming
     error such as ``TypeError``, ``KeyError`` or ``AttributeError``) stops the
-    stage. ``MissingUpstreamError`` (a ``ValueError``) is held per institution
-    here, unlike the per-page stage where it stops the stage (RC-D-033 C2 a);
-    its Stage 6 treatment awaits a PI ruling.
+    stage. ``MissingUpstreamError`` (either class, :data:`MISSING_UPSTREAM`)
+    raised inside the executor is a wiring gap, not institution data: it stops
+    the stage, as in the per-page stage (B1 a). Raised while building the
+    envelope (the expected R1 refusals, absent independence groups or
+    uncertainty flags) it stays a per-institution :data:`ENVELOPE_FAILED` hold.
+    The envelope build and artifact writes hold only :data:`ENVELOPE_HOLDS`
+    (B3); a stage stop or a programming error there propagates.
 
     ``quote_fn`` must come from :meth:`~g3o.run.presweep.instrument_binding.BoundRuntime.stage6_quote_fn`
     for this instrument, on its pinned X35 model (or be ``None``: every answer needing a quote is held);
@@ -814,7 +828,7 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
                                 pages=inst.pages, observations=inst.observations, records=inst.records,
                                 within_page=inst.within_page, quotes=inst.quotes, ask_fn=journal.ask(ask_fn),
                                 quote_fn=journal.quote(quote_fn), config=config)
-        except STAGE_STOPS:
+        except STAGE_STOPS + MISSING_UPSTREAM:  # B1 a: a missing upstream input stops the stage here
             raise
         except (ConsolidationError, ValueError, RuntimeError) as exc:  # this institution only
             error = f"{type(exc).__name__}: {exc}"
@@ -845,7 +859,9 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
                         "model_label": config.configured_model, "notes": "v2.7 Stage 6 (T-026 executor)"}
             write_stage6_outputs(inst_dir, envelope=envelope, institution=inst.institution, metadata=metadata,
                                  provenance=provenance)
-        except Exception as exc:  # noqa: BLE001 - one institution's envelope error stops that institution only
+        except STAGE_STOPS:
+            raise
+        except ENVELOPE_HOLDS as exc:  # B3: this institution only (MissingUpstreamError included, B1 a)
             error = f"{type(exc).__name__}: {exc}"
             _hold(run_dir, inst_dir, inst.institution_id, [ENVELOPE_FAILED], {"error": error},
                   {ENVELOPE_FAILED: error})
@@ -861,7 +877,7 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 
 
 __all__ = [
-    "ENVELOPE_FAILED", "EXECUTOR_FAILED", "HELD_REASON", "STAGE_STOPS", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
+    "ENVELOPE_FAILED", "ENVELOPE_HOLDS", "EXECUTOR_FAILED", "MISSING_UPSTREAM", "HELD_REASON", "STAGE_STOPS", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
     "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_REFUSED_R1", "MERGE_UNION", "MERGE_UNRULED",
     "Stage6Metrics", "build_envelope", "hold_reasons", "merge_values", "run_stage6_v27",
 ]

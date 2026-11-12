@@ -707,22 +707,72 @@ def test_executor_programming_error_stops_the_stage_and_is_not_held(tmp_path, mo
     assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
 
 
-def test_executor_missing_upstream_is_still_held_per_institution(tmp_path, monkeypatch):
-    # Stage 6 keeps holding MissingUpstreamError per institution; its treatment awaits a PI ruling.
+MISSING_CLASSES = [rt.MissingUpstreamError, rt.SourceFieldsMissingUpstreamError]
+
+
+@pytest.mark.parametrize("error", MISSING_CLASSES)
+def test_executor_missing_upstream_stops_the_stage(tmp_path, monkeypatch, error):
+    # B1 a: inside the executor either MissingUpstreamError class is a wiring gap and stops the stage
+    assert not any(issubclass(x, y) for x in MISSING_CLASSES for y in MISSING_CLASSES if x is not y)
     run_dir, bound, instrument = e._setup(tmp_path)
     a, b = e._institutions(run_dir, bound, instrument)
-    real = rt.run_stage6
 
     def missing(**kw):
-        if kw["institution"].endswith(A):
-            raise rt.MissingUpstreamError("simulated producer", ["x"])
-        return real(**kw)
+        raise error("simulated producer", ["x"])
     monkeypatch.setattr(rt, "run_stage6", missing)
-    assert rt.MissingUpstreamError not in rt.STAGE_STOPS
+    with pytest.raises(error, match="simulated producer"):
+        _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+    assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
+    assert not (institution_dir(run_dir, B) / "6_storage.json").exists()
+    assert _ledger(run_dir) == []
+
+
+@pytest.mark.parametrize("error", MISSING_CLASSES)
+def test_envelope_missing_upstream_still_holds_only_its_institution(tmp_path, monkeypatch, error):
+    # B1 a: build_envelope's MissingUpstreamError (e.g. the R1 refusals) stays an ENVELOPE_FAILED hold
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    real = rt.build_envelope
+
+    def missing(inst, *args, **kw):
+        if inst.institution_id == A:
+            raise error("simulated producer", ["x"])
+        return real(inst, *args, **kw)
+    monkeypatch.setattr(rt, "build_envelope", missing)
     metrics = _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
     assert metrics.failed == [A] and metrics.written == [B]
     held = _held(run_dir)
-    assert held["reasons"] == [rt.EXECUTOR_FAILED] and "MissingUpstreamError" in held["error"]
+    assert held["reasons"] == [rt.ENVELOPE_FAILED] and "MissingUpstreamError" in held["error"]
+    assert _ledger(run_dir) == [rt.ENVELOPE_FAILED]
+
+
+@pytest.mark.parametrize("target", ["build_envelope", "write_stage6_outputs"])
+@pytest.mark.parametrize("error", [TypeError, KeyError, AttributeError])
+def test_envelope_programming_error_stops_the_stage_and_is_not_held(tmp_path, monkeypatch, target, error):
+    # B3: the envelope/artifact block no longer swallows programming errors
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+
+    def broken(*args, **kw):
+        raise error("simulated programming error")
+    monkeypatch.setattr(rt, target, broken)
+    with pytest.raises(error):
+        _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+    assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
+    assert _ledger(run_dir) == []
+
+
+def test_envelope_stage_stop_propagates(tmp_path, monkeypatch):
+    # B3: a stage stop raised while building the envelope is no longer held per institution
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+
+    def gated(*args, **kw):
+        raise rt.SupportGateError("simulated gate")
+    monkeypatch.setattr(rt, "build_envelope", gated)
+    with pytest.raises(rt.SupportGateError):
+        _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+    assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
 
 
 # --- QA round 2, MEDIUM-B: Z1 b retry is live; a response missing an asked answer is never replayed

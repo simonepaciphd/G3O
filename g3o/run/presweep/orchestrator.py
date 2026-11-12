@@ -405,9 +405,9 @@ def run_v27_dispatch(
 
     Returns the summary counts, written into ``into`` when given (as each stage
     finishes, so a Stage 6 stop keeps the per-page figures). Stage stops of either
-    stage (``SupportGateError``, ``MissingUpstreamError`` in the per-page stage,
-    ``JevAccountError``, ...) propagate unchanged. Within-stage budget checks are
-    not wired here (no ``cost_check_callback``): the cost monitor has no v2.7
+    stage (``SupportGateError``, ``MissingUpstreamError`` in the per-page stage
+    and in the Stage 6 executor, ``JevAccountError``, ...) propagate unchanged.
+    Within-stage budget checks are not wired here (no ``cost_check_callback``): the cost monitor has no v2.7
     stage pricing yet, so the config refuses every budget setting on a v2.7 run.
     The two stages' raw token and call counts go under :data:`V27_USAGE_KEY`
     (``{"perpage_v27": ..., "stage6_v27": ...}``), unpriced; a stage that stops
