@@ -195,6 +195,31 @@ def test_failed_robots_and_cap_attempts_hold_the_institution(tmp_path):
     assert fetch.calls == [F1, F2] and again.hold() == hold
 
 
+def test_attrition_is_recorded_before_the_state_save_l4(tmp_path, monkeypatch):
+    """Review L4: an interruption at the state save never loses the attrition record, and the resume
+    that records it again writes nothing new (the ledger dedups)."""
+    f3 = "https://one.example.gov/minutes"
+    run_dir, inst = _one(tmp_path, links=(F1, F2, f3))
+    page = inst.pages[0].page
+    pages = [fv.RoundPage(page, "yes", selection(page, [F1, F2, f3]), ())]
+    real = fv._atomic_write
+
+    def interrupted(path, text):
+        raise OSError("interrupted at the state save")
+
+    monkeypatch.setattr(fv, "_atomic_write", interrupted)
+    fetch = FakeFetch({}, fail={F1}, robots={F2})
+    with pytest.raises(OSError, match="interrupted"):
+        fv.FollowLeg(fetch, fl.FollowRules(url_cap=2)).start(run_dir, inst).round(pages)
+    assert not (institution_dir(run_dir, I1) / fv.FOLLOW_DIR / fv.STATE_FILE).exists()
+    assert ledger(run_dir) == [(fv.STAGE, fl.FETCH_FAILED, F1)]  # recorded before the save that failed
+    monkeypatch.setattr(fv, "_atomic_write", real)
+    fv.FollowLeg(fetch, fl.FollowRules(url_cap=2)).start(run_dir, inst).round(pages)
+    assert sorted(ledger(run_dir), key=str) == sorted(
+        [(fv.STAGE, fl.FETCH_FAILED, F1), (fv.STAGE, fv.ROBOTS_DISALLOWED, F2),
+         (fv.STAGE, fl.LINK_NOT_FOLLOWED_CAP, f3), (fv.STAGE, fv.CAP_REACHED, None)], key=str)
+
+
 def test_hop_limit_and_second_round(tmp_path):
     """A followed page's own links are followed one hop further, up to 3 hops (R-032)."""
     run_dir, inst = _one(tmp_path)

@@ -179,6 +179,18 @@ class InstitutionLeg:
         return institution_dir(self.run_dir, self.institution_id) / FOLLOW_DIR
 
     def _save(self) -> None:
+        """Record the attrition the state implies, then write the state (review L4).
+
+        Every link not followed and a reached cap are recorded before the state that holds them is
+        written, so an interruption between the two never loses a record. Re-recording is a no-op: the
+        ledger dedups on institution, stage, reason and URL (``attrition.record``).
+        """
+        for nf in self.state.not_followed:
+            attrition.record(self.run_dir, institution_id=self.institution_id, stage=STAGE, reason=nf.reason,
+                             url=nf.url, detail=f"hop {nf.hop} from {nf.parent_url}")
+        if self.state.cap_reached:
+            attrition.record(self.run_dir, institution_id=self.institution_id, stage=STAGE, reason=CAP_REACHED,
+                             detail=f"{self.state.followed} URL(s) tried, cap {self.state.rules.url_cap}")
         _atomic_write(self.folder / STATE_FILE, json.dumps(state_payload(self.state), indent=2, sort_keys=True))
 
     def _artifact(self, url: str) -> Path:
@@ -202,10 +214,12 @@ class InstitutionLeg:
         if page is not None and page.url != cand.url:
             raise ValueError(f"followed page {page.url!r} is not the URL tried ({cand.url!r})")
         self.state.record(cand, outcome, page.fetch_metadata.access_date if page is not None else None)
-        self._save()
+        # Review L4: the attrition record goes first, then the state that says the URL was tried, so an
+        # interruption between the two never leaves a tried-and-not-fetched URL unrecorded (idempotent).
         if outcome != fl.FETCHED:
             attrition.record(self.run_dir, institution_id=self.institution_id, stage=STAGE, reason=outcome,
                              url=cand.url, detail=f"hop {cand.hop} from {cand.parent_url}")
+        self._save()
 
     def round(self, pages: Sequence[RoundPage]) -> list[pp.PageSpec]:
         """Follow one round's pages; return the pages one hop further, in record order.
@@ -233,17 +247,10 @@ class InstitutionLeg:
             supported[p.page.page_id] = tuple(p.supported)
         if hop is None:
             return []
-        n_not_followed = len(self.state.not_followed)
         for cand in self.state.candidates(pairs, supported=supported):
             if self.state.take(cand):
                 self._try(cand)
-        self._save()
-        for nf in self.state.not_followed[n_not_followed:]:
-            attrition.record(self.run_dir, institution_id=self.institution_id, stage=STAGE, reason=nf.reason,
-                             url=nf.url, detail=f"hop {nf.hop} from {nf.parent_url}")
-        if self.state.cap_reached:
-            attrition.record(self.run_dir, institution_id=self.institution_id, stage=STAGE, reason=CAP_REACHED,
-                             detail=f"{self.state.followed} URL(s) tried, cap {self.state.rules.url_cap}")
+        self._save()  # records the links not followed and a reached cap first (review L4)
         return [self._spec(r) for r in self.state.records if r.hop == hop + 1 and r.outcome == fl.FETCHED]
 
     def _spec(self, rec: fl.FollowRecord) -> pp.PageSpec:
