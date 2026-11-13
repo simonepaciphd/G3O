@@ -70,6 +70,10 @@ _PENDING = "extra_round_in_progress"
 _HELD = "extra_round_failed:"
 _OVER_LIMIT = "over_limit, not halved (RC-D-024 item 9): "
 HALVED = "halved"
+#: What the code before rulings 68 b / 69 b wrote when it stopped a page after a halving; read
+#: only to upgrade such a checkpoint (:func:`_upgrade_legacy_halving_stop`).
+_LEGACY_HALVING_STOP = "halving_stopped (open PI question): "
+_LEGACY_HALVING_STOPPED = "extra_round_halving_stopped"
 #: Failure reason (attrition reason) of a page whose failed verdict parts reach 75% of the leaf
 #: layout halved in an extra round, after the page was coded (PI ruling 69 b).
 HALVING_PAGE_FAILED = "verdict_parts_failed_after_extra_round_halving"
@@ -179,6 +183,10 @@ def complete_page_rounds(page: page_code.PageInput, result: page_code.PageCodeRe
     _binding(result.records, config.setup_pointer)
     support = tuple(support)
     rounds = 0
+    upgraded = _upgrade_legacy_halving_stop(result, setup)  # review LOW (c): an old checkpoint
+    if upgraded is not result:
+        result = upgraded
+        _save(checkpoint, result, support)
     # Each pass adds one formerly unasked question; ancestors are immutable.
     for _ in range(len(setup.questions) + 1):
         if result.status == "failed":  # ruling 69 b: nothing more is asked or checked (resume too)
@@ -213,23 +221,52 @@ def complete_page_rounds(page: page_code.PageInput, result: page_code.PageCodeRe
                     break
             if sent != HALVED:
                 pos += 1  # a halved part is replaced in place: its first half is at ``pos``
-        items = dict(result.items)
-        items[iid] = _provisional(result, setup, iid)
-        if _halvings(result):
-            failed = _verdict_failed_after_halving(result)
-            if failed is not None:  # ruling 69 b: the page fails, as a first-round page does
-                result = replace(result, status="failed", items=items, failures=result.failures + ({
-                    "chunk_id": None, "round": q["round"], "group": "extra",
-                    "question_ids": [q["question_id"]], "reason": HALVING_PAGE_FAILED, "detail": failed,
-                },))
-                _save(checkpoint, result, support)
-                return PageRoundResult(result, _final(result, support, config), support, rounds)
-            items = _recombine_after_halving(result, setup, items, iid)
-            result = replace(result, requests=result.requests + _first_round_plan_kept(result, items, q))
-        result = replace(result, items=items)
+        result = _close_question(result, setup, q)
         _save(checkpoint, result, support)
+        if result.status == "failed":  # ruling 69 b
+            return PageRoundResult(result, _final(result, support, config), support, rounds)
         rounds += 1
     raise ValueError("question graph did not make finite progress")
+
+
+def _close_question(result: page_code.PageCodeResult, setup: Any, q: dict[str, Any]) -> page_code.PageCodeResult:
+    """Combine the extra question ``q`` on the live parts once every part answered (or failed) it.
+
+    After a halving: 75% failed verdict parts fail the page (status ``"failed"``, ruling 69 b);
+    otherwise the re-asked items are re-combined and a changed provisional verdict or
+    ``core.page_complete`` is logged, the first-round extractor plan kept (ruling 68 b)."""
+    iid = q["item_id"]
+    items = dict(result.items)
+    items[iid] = _provisional(result, setup, iid)
+    if _halvings(result):
+        failed = _verdict_failed_after_halving(result)
+        if failed is not None:  # ruling 69 b: the page fails, as a first-round page does
+            return replace(result, status="failed", items=items, failures=result.failures + ({
+                "chunk_id": None, "round": q["round"], "group": "extra",
+                "question_ids": [q["question_id"]], "reason": HALVING_PAGE_FAILED, "detail": failed,
+            },))
+        items, recombined = _recombine_after_halving(result, setup, items, iid)
+        result = replace(result, requests=result.requests + _first_round_plan_kept(result, items, recombined, q))
+    return replace(result, items=items)
+
+
+def _upgrade_legacy_halving_stop(result: page_code.PageCodeResult, setup: Any) -> page_code.PageCodeResult:
+    """A checkpoint saved before rulings 68 b / 69 b with a page stopped after a halving.
+
+    That code stopped the extra question once every part had answered it (item ``stopped``,
+    error prefix :data:`_LEGACY_HALVING_STOP`, a ``failures`` entry :data:`_LEGACY_HALVING_STOPPED`)
+    and saved the other items un-recombined. The question is closed now as the current code
+    closes it (:func:`_close_question`): no request, the legacy entry kept as history.
+    More than one such item is not a state that code wrote: refused."""
+    stopped = [k for k, o in result.items.items()
+               if o.state == "stopped" and (o.error or "").startswith(_LEGACY_HALVING_STOP)]
+    if not stopped:
+        return result
+    if (len(stopped) > 1 or result.status != "coded" or not _halvings(result)
+            or not any(f.get("reason") == _LEGACY_HALVING_STOPPED for f in result.failures)):
+        raise ValueError(f"page {result.page_id}: legacy halving-stop checkpoint not upgradable "
+                         f"(items {sorted(stopped)}, status {result.status!r}); archive its page state")
+    return _close_question(result, setup, next(q for q in setup.questions if q["item_id"] == stopped[0]))
 
 
 # ---------------------------------------------------------------------------
@@ -473,29 +510,36 @@ def _verdict_failed_after_halving(result: page_code.PageCodeResult) -> str | Non
 
 def _recombine_after_halving(result: page_code.PageCodeResult, setup: Any,
                              items: dict[str, page_code.ItemOutcome], iid: str
-                             ) -> dict[str, page_code.ItemOutcome]:
-    """Re-combine every re-asked item (other than ``iid``, combined by the caller)."""
+                             ) -> tuple[dict[str, page_code.ItemOutcome], frozenset[str]]:
+    """Re-combine every re-asked item (other than ``iid``, combined by the caller); also return
+    the items re-combined here."""
     reasked = {setup.by_id[qid]["item_id"] for e in _halvings(result) for g in e["reask"]
                for qid in g["question_ids"]}
     out = dict(items)
+    done = set()
     for item in sorted(reasked - {iid}):
         before = result.items[item]
         if before.state not in ("combined", "stopped"):
             continue
         out[item] = _provisional(result, setup, item)
-    return out
+        done.add(item)
+    return out, frozenset(done)
 
 
 def _first_round_plan_kept(result: page_code.PageCodeResult, items: dict[str, page_code.ItemOutcome],
-                           q: dict[str, Any]) -> tuple[dict[str, Any], ...]:
+                           recombined: frozenset[str], q: dict[str, Any]) -> tuple[dict[str, Any], ...]:
     """Log entries for a provisional verdict or ``core.page_complete`` that a halving changed.
 
     PI ruling 68 b: the page continues on the re-combined items (finalize_page re-gates);
     the stored first-round extractor request (its activity and link tasks), planned on the
     earlier value, is kept and not asked again. The entries record the change; no request
-    is made for them (``outcome`` :data:`PLAN_KEPT`, no ``group``)."""
+    is made for them (``outcome`` :data:`PLAN_KEPT`, no ``group``). Only items re-combined
+    after the halving (``recombined``) count: the extra question itself (e.g.
+    ``core.page_complete`` opened by the final verdict) is a newly asked item, not a change."""
     out = []
     for item in (page_code.VERDICT, page_code.COMPLETE):
+        if item not in recombined:
+            continue
         before, after = result.items.get(item), items.get(item)
         if before is None or after is None or (before.state, before.value) == (after.state, after.value):
             continue

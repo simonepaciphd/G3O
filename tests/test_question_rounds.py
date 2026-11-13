@@ -584,6 +584,38 @@ def test_page_halving_depth_limit_records_over_limit_votes_and_successful_part_c
     assert again.complete and again.rounds == 0 and again.final == done.final
 
 
+def test_legacy_halving_stop_checkpoint_is_upgraded_without_requests(monkeypatch, rules):
+    """Review LOW (c): a page.json saved by the code before rulings 68 b / 69 b (extra question
+    ``stopped`` after a halving) is closed as the current code closes it, with no request; the
+    upgrade is saved; a state that code never wrote is refused loudly, never held silently."""
+    from g3o.classify import question_rounds as qr
+
+    page, result, support, config, fake = page_case(monkeypatch, rules)
+    config = replace(config, max_split_depth=1)
+    done = complete_page_rounds(page, result, support, config=config, ask_fn=_over_limit,
+                                check_support=lambda *_: pytest.fail("no answer to check"))
+    assert done.failed
+    legacy_entry = {**done.failure, "reason": qr._LEGACY_HALVING_STOPPED}
+    legacy = replace(done.result, status="coded",
+                     items={**done.result.items, SCOPE: pc.ItemOutcome(
+                         SCOPE, "stopped", None, error=qr._LEGACY_HALVING_STOP + done.failure["detail"])},
+                     failures=done.result.failures[:-1] + (legacy_entry,))
+    legacy = pc.PageCodeResult.from_json(legacy.to_json())
+    saved = []
+    upgraded = complete_page_rounds(page, legacy, done.support, config=config,
+                                    ask_fn=lambda *_: pytest.fail("resent"),
+                                    check_support=lambda *_: pytest.fail("rechecked"),
+                                    checkpoint=lambda r, s: saved.append(r))
+    assert upgraded.failed and upgraded.failure["detail"] == done.failure["detail"]
+    assert legacy_entry in upgraded.result.failures  # history kept
+    assert saved and saved[-1].status == "failed"
+    twice = replace(legacy, items={**legacy.items, "core.content_data": replace(legacy.items[SCOPE],
+                                                                                 item_id="core.content_data")})
+    with pytest.raises(ValueError, match="legacy halving-stop"):
+        complete_page_rounds(page, twice, done.support, config=config, ask_fn=lambda *_: pytest.fail("resent"),
+                             check_support=lambda *_: pytest.fail("rechecked"))
+
+
 @pytest.mark.parametrize(("failing", "stopped"), [(2, False), (3, True)])
 def test_page_halving_verdict_failure_share_counts_leaf_parts(monkeypatch, rules, failing, stopped):
     # RC-D-024 l.39: 2/4 versus 3/4 failed verdict parts on the layout halved in an extra round.
@@ -661,6 +693,22 @@ def test_page_halving_that_changes_provisional_verdict_or_complete_continues(mon
         assert gated and all(done.final.items[i].state == "gated_out" for i in gated)
     again = _no_calls(page, done, config)
     assert again.complete and again.rounds == 0 and again.final == done.final and again.result == done.result
+
+
+def test_plan_kept_logs_only_items_recombined_after_the_halving(monkeypatch, rules):
+    """Review LOW (a): ``core.page_complete`` asked as the extra question (gated out, then opened by
+    the final verdict) is a newly asked item, not a change made by the halving: no PLAN_KEPT entry.
+    The same change on a re-combined item is logged."""
+    from g3o.classify import question_rounds as qr
+
+    _, result, _, _, _ = page_case(monkeypatch, rules)
+    complete = "core.page_complete"
+    gated = replace(result, items={**result.items, complete: pc.ItemOutcome(complete, "gated_out", "not_asked")})
+    items = {**gated.items, complete: result.items[complete]}  # combined "yes" after the extra question
+    q = next(q for q in load_set("page")["questions"] if q["item_id"] == complete)
+    assert qr._first_round_plan_kept(gated, items, frozenset(), q) == ()
+    logged = qr._first_round_plan_kept(gated, items, frozenset({complete}), q)
+    assert [(e["item_id"], e["outcome"]) for e in logged] == [(complete, PLAN_KEPT)]
 
 
 def test_page_halving_changed_verdict_resume_is_stable(monkeypatch, rules):
@@ -769,6 +817,19 @@ def test_page_halving_of_a_half_during_a_reask_owes_the_full_plan_to_its_halves(
     assert _calls(fake) == expected
 
 
+def _assert_scope_records(result, done):
+    """SCOPE's live records after the halving: jev answers on every leaf part, plus T-021's own
+    gated-out mechanical record (chunk_id None; jev_page_code module docstring item 4: a set-by-rule
+    value is a mechanical record), kept byte-for-byte (complete_page_rounds: historical gated-out
+    mechanical records remain unchanged)."""
+    scope = [r for r in done.result.records if r.item_id == SCOPE]
+    assert {r.chunk_id for r in scope if r.coder_type == "classifier"} == {"p:0", "p:1.1", "p:1.2"}
+    mechanical = [r for r in scope if r.coder_type != "classifier"]
+    assert mechanical == [r for r in result.records if r.item_id == SCOPE]
+    assert [(r.coder_type, r.chunk_id, r.rule_reference.startswith(pc.GATE_RULE)) for r in mechanical] == [
+        ("mechanical", None, True)]
+
+
 def test_page_halving_reasks_an_earlier_extra_round_question_in_its_own_request(monkeypatch, rules):
     page, result, support, config, fake = page_case(monkeypatch, rules, descendant=True)
     second_text = result.chunks[1].text
@@ -783,7 +844,7 @@ def test_page_halving_reasks_an_earlier_extra_round_question_in_its_own_request(
         asked = [q for p, q in _calls(fake) if p == label]
         assert asked[-2:] == [frozenset({SCOPE}), frozenset({data})]
     assert done.final.items[data].state == "combined"
-    assert {r.chunk_id for r in done.result.records if r.item_id == SCOPE} == {"p:0", "p:1.1", "p:1.2"}
+    _assert_scope_records(result, done)
 
 
 def test_page_halving_changed_non_verdict_answer_regates_the_extra_question(monkeypatch, rules):
@@ -797,7 +858,7 @@ def test_page_halving_changed_non_verdict_answer_regates_the_extra_question(monk
     assert done.final.items["core.disclosure_form"].value == "informal_official"
     assert SCOPE in done.final.regated and done.final.items[SCOPE].state == "gated_out"
     assert done.result.items[SCOPE].state == "combined"  # jev's raw answers kept, unpublished
-    assert {r.chunk_id for r in done.result.records if r.item_id == SCOPE} == {"p:0", "p:1.1", "p:1.2"}
+    _assert_scope_records(result, done)
 
 
 def test_support_check_after_every_part_is_halved_is_an_extra_round(monkeypatch, rules):

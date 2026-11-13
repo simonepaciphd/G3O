@@ -643,7 +643,8 @@ def _activity_source_items(config: ActivityCoderConfig) -> list[str]:
 
 
 def failed_page(spec: PageSpec, reason: str) -> ReviewedPage:
-    """An attempted page T-021 could not code (no artifact): unreviewed, failed, reason kept."""
+    """An attempted page that failed: unreviewed, failed, reason kept. Either T-021 could not code
+    it (no artifact), or it was coded and failed after halving in an extra round (PI ruling 69 b)."""
     if spec.upstream.followed is None:
         raise MissingUpstreamError(FOLLOW_PRODUCER, [spec.page.page_id])
     return ReviewedPage(spec.page.page_id, PIPELINE, FAILED_PAGE_VERDICT, None, FAILED_PAGE_SUPPORT, False, True,
