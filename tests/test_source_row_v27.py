@@ -423,8 +423,10 @@ def test_assemble_with_extraction_builds_activity_quote_values_and_codes():
     assert rows.source[sf.DATE].value == "not_documented"
     assert [rec.coder_type for sr, rec in rows.source_codes if sr.item_id == sf.DATE] == ["quote_step"]
     # No official sites: X37 and source_type refused; the undated source's credibility is low (rules/0).
-    assert set(rows.refused) == \
-        set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | {sf.OFFICIAL, sf.SOURCE_TYPE}
+    # No contracting party extracted on a GenAI page: content_vendor reads the developer (ruling 65 a; r16).
+    assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | \
+        {sf.OFFICIAL, sf.SOURCE_TYPE, "core.content_vendor"}
+    assert "r16" in rows.refused["core.content_vendor"]
     assert rows.source[sf.CREDIBILITY].value == "low"
     # An activity with no span in the page request is refused item by item.
     rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"p1#a002": acts["p1#a001"]}, followed=False,
