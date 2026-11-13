@@ -32,6 +32,7 @@ from g3o.common.jev_client import JevAccountError, JevAnswer, JevResult
 from g3o.common.jev_record import CoderRecord
 from g3o.common.page_chunks import Chunk
 from g3o.common.paths import institution_dir
+from g3o.common.run_state import is_done
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import CodeEvidence, Entailment, PageSources, check_code
 from g3o.extract.parser_v27 import ActivitySpan, FieldValue
@@ -638,6 +639,41 @@ def test_cost_stop_is_not_a_page_failure_and_resumes(tmp_path):
     assert not any(r["reason"] == pp.HELD_REASON for r in attrition.read_records(run_dir))
     ready, metrics = _perpage(run_dir, bound, instrument, world, c, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
     assert [i.institution_id for i in ready] == ["INST-0000003"] and metrics.failed_pages == ["c2"]
+
+
+def test_done_marker_written_on_completion_not_on_a_stage_stop(tmp_path):
+    """Ruling 48.3 a: ``_state/.done/perpage_v27.json`` once the whole pass finished, never
+    after a stage stop; named apart from v2.5's ``extract`` marker."""
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    c = [i for i in insts if i.institution_id == "INST-0000003"]
+    calls = []
+
+    def budget(stage, usage):
+        calls.append(stage)
+        return len(calls) < 2
+    with pytest.raises(stage_page_code.StageStopped):
+        pp.run_perpage_v27(run_dir, c, ask_fn=FakeJev(ANSWERS, RELATIONS, _fail_verdict), providers=world.providers(),
+                           page_config=bound.page_config, activity_config=bound.activity_config,
+                           instrument=instrument, cost_check_callback=budget, test_only_unbound_providers=True)
+    assert not is_done(run_dir, pp.DONE_MARKER)
+    _perpage(run_dir, bound, instrument, world, c, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert pp.DONE_MARKER == "perpage_v27"
+    assert is_done(run_dir, pp.DONE_MARKER)
+    assert not is_done(run_dir, "extract")
+
+
+def test_done_marker_written_when_the_pass_finishes_with_a_hold(tmp_path):
+    """Ruling 48.3 a: a held institution does not keep the pass from finishing; it stays
+    pending (held.json), which the report reads first (ruling 45 a)."""
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    b = [i for i in insts if i.institution_id == "INST-0000002"]
+
+    def fail_origin(state, questions, n):
+        return RuntimeError("extra round down") if list(questions) == ["core.model_origin"] else None
+    ready, metrics = _perpage(run_dir, bound, instrument, world, b, FakeJev(ANSWERS, RELATIONS, fail_origin))
+    assert not ready and metrics.held == ["INST-0000002"]
+    assert (institution_dir(run_dir, "INST-0000002") / pp.WORK_DIR / pp.HELD_FILE).exists()
+    assert is_done(run_dir, pp.DONE_MARKER)
 
 
 # ---------------------------------------------------------------------------

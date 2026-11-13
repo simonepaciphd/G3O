@@ -134,7 +134,8 @@ class LoadedInstitution:
 STORAGE_UNREADABLE = "stage7_storage_unreadable"
 
 
-def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None
+def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
+                              missing_storage: list[str] | None = None,
                               ) -> tuple[list[LoadedInstitution], list[str]]:
     """Walk ``institutions/<shard>/<inst>/6_validate.json``; validate each.
 
@@ -157,6 +158,10 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None
         whether to abort. With ``held`` (a list), an institution whose
         ``6_storage.json`` does not load is appended there and recorded in the
         attrition ledger (``stage7_storage_unreadable``) instead of raising.
+        With ``missing_storage`` (a list; the run report's path, ruling 48.2 a),
+        a v2.7 ``6_validate.json`` whose ``6_storage.json`` is absent is appended
+        there and skipped instead of raising; nothing is recorded. Stage 7
+        passes no list, so it still refuses the run.
 
     Raises:
         RuntimeError: when the manifest carries no ``institution_uids`` block,
@@ -196,6 +201,9 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None
         if is_v27 and declared_release not in (None, "2.7"):
             raise ValueError(f"{institution_id}: v2.7 6_validate.json in a {declared_release} run")
         if is_v27 and not storage_path.exists():
+            if missing_storage is not None:  # ruling 48.2 a: the report decides this institution alone
+                missing_storage.append(institution_id)
+                continue
             raise ValueError(f"{institution_id}: v2.7 6_validate.json lacks its 6_storage.json")
         if storage_path.exists():
             try:

@@ -165,6 +165,7 @@ from g3o.common.jev_client import JevAccountError
 from g3o.common.jev_record import CoderRecord
 from g3o.common.part_combine import NOT_COVERED
 from g3o.common.paths import institution_dir
+from g3o.common.run_state import mark_done
 from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
 from g3o.common.storage import METADATA_ITEMS, table_fields
 from g3o.common.storage_fields import FIELDS
@@ -210,6 +211,9 @@ from g3o.validate.consolidate_v27 import (
 from g3o.validate.stage6_v27 import InputQuote, ObservationRecord, Stage6QuoteNotApproved
 
 STAGE = "perpage_v27"
+#: ruling 48.3 a: ``_state/.done/<DONE_MARKER>.json``, written once the whole pass finished (no stage
+#: stop); the run report reads it for an unheld institution as v2.5 reads its extract marker
+DONE_MARKER = "perpage_v27"
 WORK_DIR = "perpage_v27"
 JOURNAL = "journal.jsonl"
 HELD_FILE = "held.json"
@@ -1177,6 +1181,10 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             held_path.unlink()
         ready.append(_institution(inst, products))
         metrics.ready.append(inst.institution_id)
+    # Ruling 48.3 a: the pass finished (a stage stop raised above and never gets here); held
+    # institutions stay pending, and the report decides them from held.json first (ruling 45 a).
+    # Marker only: the stage does not skip on it, a resume runs the pass again.
+    mark_done(run_dir, DONE_MARKER, no_batch=True)
     return ready, metrics
 
 

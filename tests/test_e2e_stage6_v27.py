@@ -29,6 +29,7 @@ from g3o.common.instrument import canonical_json, load_instrument, sha256_text
 from g3o.common.jev_client import JevAccountError, JevAnswer, JevResult
 from g3o.common.jev_record import CoderRecord
 from g3o.common.paths import institution_dir
+from g3o.common.run_state import is_done
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import CodeEvidence, Entailment, PageSources, check_code
 from g3o.persist.stage6_adapters import PageArtifact, SupportContext, coder_nodes, support_nodes
@@ -348,3 +349,27 @@ def test_e2e_interruption_resume_matches_uninterrupted_run(tmp_path):
                     == (institution_dir(ref_dir, inst) / name).read_bytes().replace(b"reference", b"interrupted"))
     _, again = _run(run_dir, bound, instrument, insts, FakeQuotes())
     assert again.skipped == ["INST-0000001", "INST-0000002"] and again.live_requests == 0
+
+
+def test_done_marker_written_on_completion_not_on_a_stage_stop(tmp_path):
+    """Ruling 48.3 a: ``_state/.done/stage6_v27.json`` once the whole pass finished, never
+    after a stage stop; v2.5's ``validate`` marker name is not used."""
+    run_dir, bound, instrument = _setup(tmp_path)
+    insts = _institutions(run_dir, bound, instrument)
+    with pytest.raises(JevAccountError):
+        _run(run_dir, bound, instrument, insts, FakeQuotes(fail_at=2))
+    assert not is_done(run_dir, rt.DONE_MARKER)
+    _run(run_dir, bound, instrument, insts, FakeQuotes())
+    assert rt.DONE_MARKER == "stage6_v27"
+    assert is_done(run_dir, rt.DONE_MARKER)
+    assert not is_done(run_dir, "validate")
+
+
+def test_done_marker_written_when_the_pass_finishes_with_a_hold(tmp_path):
+    """Ruling 48.3 a: a held institution does not keep the pass from finishing; it stays
+    pending (held.json), which the report reads first (ruling 45 a)."""
+    run_dir, bound, instrument = _setup(tmp_path)
+    insts = _institutions(run_dir, bound, instrument)
+    _, metrics = _run(run_dir, bound, instrument, insts[:1], None)
+    assert metrics.held == ["INST-0000001"]
+    assert is_done(run_dir, rt.DONE_MARKER)
