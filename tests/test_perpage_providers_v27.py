@@ -662,6 +662,56 @@ def test_c4_hold_archives_the_page_state_and_the_next_run_codes_it_from_the_new_
     assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
 
 
+def test_c4_hold_after_an_extra_round_names_the_first_round_request(tmp_path, monkeypatch):
+    """C1 a + C4 a: a first-round ``page_support`` call (the page request), then an RC-D-024 extra
+    round on a strict subset of its codes (a second, quote-only pass-1 request), then a pass-1
+    activity with no ``activity_name``: the C4 hold names the FIRST round's request (whose spans
+    ``activity_input`` used), not the extra round's, and the page state is archived (ruling 33 a)."""
+    from g3o.extract import request_v27
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    one = [i for i in insts if i.institution_id == inst]
+    real = ppv._Adapter.page_support
+    rules = request_v27.default_rules()
+    extra_rounds = []
+
+    def with_extra_round(self, pg, result, records):
+        out = real(self, pg, result, records)
+        if pg.page_id == page and not extra_rounds:
+            sub = [r for r in records if rules.needs_quote(r.item_id, r.chosen_value)][:1]
+            assert sub and len(sub) < len(records)  # a strict subset: the extra-round path
+            extra_rounds.append(real(self, pg, result, sub))
+        return out
+    monkeypatch.setattr(ppv._Adapter, "page_support", with_extra_round)
+    extract = NamelessActivity(world, page)  # the first pass-1 answer on b1 names no activity
+    ready, metrics = _run(run_dir, bound, instrument, one,
+                          _providers(run_dir, bound, instrument, extract, FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert extra_rounds and not ready and metrics.held == [inst]
+    first, extra = [j for j in extract.jobs if j.metadata["stage"] == PASS1 and j.metadata["page_id"] == page]
+    assert _tasks(extra)["activity_task"] is None and _tasks(first)["activity_task"] is not None
+    # Both pass-1 requests of a page carry the same custom_id (it is built from the page, not the
+    # plan); they differ in params, so the request (custom_id + params) is what tells them apart.
+    assert first.custom_id == extra.custom_id and first.params != extra.params
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED and hold["pass"] == "pass1" and "C4 a" in hold["error"]
+    assert hold["custom_id"] == first.custom_id
+    # the first round's request (not the extra round's) is the one rejected in the journal: its
+    # recorded response is the page request's answer, with the (nameless) activities
+    entries = [json.loads(x) for x in (institution_dir(run_dir, inst) / pp.WORK_DIR / pp.JOURNAL)
+               .read_text(encoding="utf-8").splitlines()]
+    (rejected,) = [e for e in entries if e["kind"] == "extract_rejected"]
+    assert json.loads(rejected["response"]["text"])["activities"]
+    extract_keys = [e["key"] for e in entries if e["kind"] == "extract"]
+    assert len(set(extract_keys)) == len(extract_keys) and rejected["key"] == extract_keys[0]
+    # ruling 33 a: the page's saved state is archived
+    spec = next(s for s in one[0].pages if s.page.page_id == page)
+    pdir = pp._page_dir(run_dir, spec.page)
+    assert hold["archived"] and (pdir / pp.PAGE_ARCHIVE_DIR / "001" / "page.json").exists()
+    assert not any((pdir / n).exists() for n in pp.PAGE_STATE_FILES)
+
+
 def test_archive_page_state_moves_every_state_file_and_numbers_each_archive(tmp_path):
     """Unit: all four kinds of saved state are moved (none deleted), each call into the next ``NNN``;
     a page with no saved state archives nothing."""
