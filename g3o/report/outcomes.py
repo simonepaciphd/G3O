@@ -377,7 +377,8 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
     # collected here (nothing recorded) and decided for that institution alone;
     # Stage 7 passes no list and still refuses it.
     missing_storage: list[str] = []
-    # Ruling 54 a (2.7 runs only; a v2.5 run still raises): a 6_storage.json that
+    # Ruling 54 a (2.7 runs, or a v2.7 response in a run declaring no release; a v2.5
+    # response still raises): a 6_storage.json that
     # exists but does not load (or does not match its 6_validate.json), or a legacy
     # 6_validate.json without storage in a 2.7 run, is likewise collected (nothing recorded; the report is
     # read-only) and fails that institution alone. Stage 7 still refuses it.

@@ -178,7 +178,8 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
         a v2.7 ``6_validate.json`` whose ``6_storage.json`` is absent is appended
         there and skipped instead of raising; nothing is recorded. With
         ``unreadable_storage`` (a list; the run report's path, ruling 54 a), an
-        institution in a 2.7 run (``declared_release == "2.7"``) whose
+        institution in a 2.7 run (``declared_release == "2.7"``), or with a v2.7
+        ``6_validate.json`` in a run that declares no release, whose
         ``6_storage.json`` exists but does not load or does
         not match its ``6_validate.json`` (release, identity, row keys, v2.7
         binding), or whose legacy ``6_validate.json`` has no ``6_storage.json``
@@ -206,9 +207,6 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
     loaded: list[LoadedInstitution] = []
     failures: list[str] = []
     unstamped: list[str] = []
-    # Ruling 54 a was put for the v2.7 run report only: a v2.5 run keeps its
-    # pre-54 a behaviour (load failure -> ``held`` or raise; mismatch -> raise).
-    capture_unreadable = unreadable_storage if declared_release == "2.7" else None
     for inst_dir in iter_institution_dirs(run_dir):
         path = inst_dir / "6_validate.json"
         if not path.exists():
@@ -230,6 +228,10 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
         is_v27 = isinstance(response, ConsolidatedInstitutionResponseV27)
         if is_v27 and declared_release not in (None, "2.7"):
             raise ValueError(f"{institution_id}: v2.7 6_validate.json in a {declared_release} run")
+        # Ruling 54 a was put for v2.7 only: a 2.7 run, or a v2.7 response in a run
+        # that declares no release. A v2.5 response in an undeclared or v2.5 run keeps
+        # its pre-54 a behaviour (load failure -> ``held`` or raise; mismatch -> raise).
+        capture_unreadable = unreadable_storage if (declared_release == "2.7" or is_v27) else None
         if is_v27 and not storage_path.exists():
             if missing_storage is not None:  # ruling 48.2 a: the report decides this institution alone
                 missing_storage.append(institution_id)
@@ -265,8 +267,8 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
                     (institution_id, f"6_storage.json does not match 6_validate.json: {exc}"))
                 continue
         elif declared_release == "2.7":
-            if unreadable_storage is not None:  # ruling 54 a
-                unreadable_storage.append(
+            if capture_unreadable is not None:  # ruling 54 a
+                capture_unreadable.append(
                     (institution_id, "legacy-format 6_validate.json without 6_storage.json in a 2.7 run"))
                 continue
             raise ValueError(f"{institution_id}: 2.7 run lacks explicit 6_storage.json")

@@ -1183,6 +1183,31 @@ def test_v27_truncated_storage_fails_only_that_institution(tmp_path: Path) -> No
     assert _attrition.read_records(run_dir) == []
 
 
+def test_v27_truncated_storage_without_declared_release_fails_only_that_institution(
+    tmp_path: Path,
+) -> None:
+    """Ruling 54 a follows the v2.7 response, not only the declared release: a run
+    whose manifest declares no storage codebook release still accepts a v2.7
+    6_validate.json, so its truncated 6_storage.json fails that institution alone."""
+    from g3o.persist.writer import load_consolidated_outputs
+
+    run_dir = tmp_path / "run"
+    _v27_storage_run_with_bystander(run_dir)
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del manifest["storage_contract"]  # declared_release is None
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    storage_path = inst_dir_of(run_dir, V27_INST) / "6_storage.json"
+    raw = storage_path.read_bytes()
+    storage_path.write_bytes(raw[: len(raw) // 2])
+
+    _assert_only_that_institution_failed(
+        run_dir, V27_INST, "6_storage.json does not load", "JSONDecodeError")
+    with pytest.raises(ValueError):  # Stage 7 without lists still refuses it
+        load_consolidated_outputs(run_dir)
+    assert _attrition.read_records(run_dir) == []
+
+
 def test_v27_storage_binding_mismatch_fails_only_that_institution(tmp_path: Path) -> None:
     """A per-institution integrity mismatch (here: row keys) is that file's content
     problem, so it is reported for that institution alone."""

@@ -606,9 +606,19 @@ def test_malformed_search_languages_stops_the_stage_before_any_call(tmp_path, la
         _run(run_dir, bound, instrument, [a, replace(b, institution=row)], quotes, jev=jev)
     assert info.value.institution_id == B and info.value.field == "institution_search_languages"
     assert info.value.where == "institution identity columns"
+    assert info.value.problem.startswith("is malformed") and "LANGS_PATTERN" in info.value.problem
     assert jev.calls == [] and quotes.calls == 0
     assert not any((institution_dir(run_dir, i) / rt.WORK_DIR).exists() for i in (A, B))
     assert _ledger(run_dir) == [] and _ledger(run_dir, B) == []
+
+
+@pytest.mark.parametrize("langs", ["en", "en,it", "uz-latn", "en,uz-latn,fil"])
+def test_valid_search_languages_pass_require_identity(tmp_path, langs):
+    # The positive side of LANGS_PATTERN: ISO 639-1/639-3 codes, comma-joined, each with an
+    # optional lowercase four-letter script subtag, are accepted (no raise).
+    run_dir, bound, instrument = e._setup(tmp_path)
+    _a, b = e._institutions(run_dir, bound, instrument)
+    rt.require_identity(replace(b, institution={**b.institution, "institution_search_languages": langs}))
 
 
 def test_wiring_stop_is_not_an_envelope_hold():

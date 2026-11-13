@@ -192,7 +192,7 @@ class UpstreamRowMalformed(Exception):  # noqa: N818 - names the wiring defect, 
     def __init__(self, institution_id: str, field: str, where: str, problem: str = "is missing") -> None:
         super().__init__(f"malformed upstream row for {institution_id}: {field} {problem} ({where}); a wiring "
                          "or programming error, the stage stops (ruling 32 b)")
-        self.institution_id, self.field, self.where = institution_id, field, where
+        self.institution_id, self.field, self.where, self.problem = institution_id, field, where, problem
 
 
 #: Ruling 32 b: wiring errors that stop the stage here, beside :data:`STAGE_STOPS`.
