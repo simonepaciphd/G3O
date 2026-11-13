@@ -165,7 +165,7 @@ def test_v27_keeps_the_stage_1_to_4_budget_settings(tmp_path, setting):
 def test_v27_refuses_a_stage_estimate_outside_stages_1_to_4(tmp_path, stage):
     """Ruling 1 a: only the v2.7-stage budget figures are refused, until v2.7 stage pricing exists."""
     setting = {"preflight_stage_estimates": {"classify_triage": 1.0, stage: 1.0}}
-    with pytest.raises(ValueError, match="v2.7 has no stage pricing yet") as err:
+    with pytest.raises(ValueError, match="v2.7 stage budgets stay refused") as err:
         _v27_config(tmp_path, **setting)
     assert f"preflight_stage_estimates for {stage}:" in str(err.value) and "RC-D-021" in str(err.value)
     # The same estimates stay valid on v2.5.
@@ -176,7 +176,7 @@ def test_run_presweep_rechecks_stage_estimates_set_after_construction(tmp_path):
     config = _v27_config(tmp_path, budget_usd=5.0)
     config.preflight_estimate_usd = 3.0  # as the CLI sets it, after construction: still valid
     config.preflight_stage_estimates = {"classify_triage": 1.0, "extract": 2.0}
-    with pytest.raises(ValueError, match="v2.7 has no stage pricing yet"):
+    with pytest.raises(ValueError, match="v2.7 stage budgets stay refused"):
         orch.run_presweep(config, v27=orch.V27Dispatch(SETTINGS, FakeJev(), lambda j: None, FakeEntail(),
                                                    lambda *a: []))
     assert not (tmp_path / "runs").exists()
@@ -873,3 +873,112 @@ def test_v27_unpriced_preflight_preview_is_labelled(tmp_path):
     assert preview["pricing"]["priced"] is False
     assert preview["v27_unpriced_stages"] == [orch.V27_PERPAGE_SPAN, orch.V27_STAGE6_SPAN]
     assert "ruling 1 a" in preview["note"]
+
+
+def test_v27_cost_block_prices_each_stage_from_its_journals_and_marks_an_interrupted_one(tmp_path):
+    """RC-D-021 cost_monitor hunks with rulings 57 a / 58 a: each stage is priced from its journals on
+    disk (the extractor per request from the journaled responses' own usage); a stage that returned no
+    usage (it stopped) is marked interrupted; outside total_usd."""
+    from g3o.common.jev_client import JevResult
+    from g3o.common.paths import institution_dir as inst_dir
+    from g3o.extract.anthropic_client import ExtractorJob, ExtractorResult
+    from g3o.run.presweep import stage_perpage_v27 as spv
+    from g3o.run.presweep import stage_validate_v27 as svv
+
+    run_dir = tmp_path / "run"
+    answer = JevResult(answers={}, response_model="jev-1.13.0", request_id="req-1",
+                       input_tokens=1_000_000, output_tokens=7)
+    s6 = svv.RequestJournal(inst_dir(run_dir, "INST-0000001") / svv.WORK_DIR / svv.JOURNAL, {"s": 1},
+                            retry_incomplete=True)
+    s6.ask(lambda state, questions: answer)({"x": 1}, {})
+    pp = svv.RequestJournal(inst_dir(run_dir, "INST-0000001") / spv.WORK_DIR / spv.JOURNAL, {"s": 1})
+    usage = {"input_tokens": 1_000, "output_tokens": 200, "cache_read_input_tokens": 0,
+             "cache_creation_input_tokens": 0}
+    wrap, _ = pp.seams({"extractor_model": "claude-haiku-5-5"})
+    wrap(lambda job: ExtractorResult("cid-1", True, "{}", None, usage=usage))(ExtractorJob("cid-1", {"p": 1}, {}))
+    summary = {orch.V27_USAGE_KEY: {orch.V27_PERPAGE_SPAN: {"n_institutions": 1}}}  # Stage 6 stopped
+    block = orch._v27_cost_block(run_dir, summary, "jev-1.13.0", "claude-haiku-5-5")
+    per = block[orch.V27_PERPAGE_SPAN]
+    assert per["source"] == "journals_on_disk" and per["returned_this_session"] is True and per["priced"]
+    assert per["parts"]["extractor"]["usd"] == pytest.approx((1_000 * 0.05 + 200 * 0.25) / 1e6)
+    stage6 = block[orch.V27_STAGE6_SPAN]
+    assert stage6["returned_this_session"] is False and stage6["usage"]["input_tokens"] == 1_000_000
+    assert stage6["parts"]["jev"]["calls"] == 1
+    assert stage6["total_usd"] == pytest.approx(1_000_000 / 1e6 * 0.042)
+    assert orch._v27_cost_block(tmp_path / "empty", {}, "jev-1.13.0", "claude-haiku-5-5") == {}
+
+
+def _journal_lines(path, *entries, tail=b""):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"".join(json.dumps(e).encode("utf-8") + b"\n" for e in entries) + tail)
+    return path.read_bytes()
+
+
+def _jev_entry(key, tokens):
+    return {"kind": "jev", "key": key, "n": 0, "elapsed_ms": 1,
+            "response": {"answers": {}, "response_model": "jev-1.13.0", "request_id": "r",
+                         "input_tokens": tokens, "output_tokens": 0}}
+
+
+def test_v27_report_time_journal_load_writes_nothing_and_isolates_a_corrupt_journal(tmp_path):
+    """Review L1/L2: the cost report reads journals read-only (a torn tail is skipped, the file stays
+    byte-identical); a journal with a corrupt middle line is listed and makes its stage unpriced, while
+    the other journals are still read."""
+    from g3o.common.paths import institution_dir as inst_dir
+    from g3o.run.presweep import stage_validate_v27 as svv
+
+    run_dir = tmp_path / "run"
+    torn = inst_dir(run_dir, "INST-0000001") / svv.WORK_DIR / svv.JOURNAL
+    corrupt = inst_dir(run_dir, "INST-0000002") / svv.WORK_DIR / svv.JOURNAL
+    torn_bytes = _journal_lines(torn, _jev_entry("a", 1_000_000), tail=b'{"kind": "jev", "key"')
+    _journal_lines(corrupt, _jev_entry("b", 5))
+    corrupt_bytes = corrupt.read_bytes().replace(b"\n", b"\nnot json\n", 1) + json.dumps(
+        _jev_entry("c", 5)).encode("utf-8") + b"\n"
+    corrupt.write_bytes(corrupt_bytes)
+    read = orch._v27_journal_usage(run_dir)[orch.V27_STAGE6_SPAN]
+    assert torn.read_bytes() == torn_bytes and corrupt.read_bytes() == corrupt_bytes  # nothing written
+    assert read["totals"]["n_institutions"] == 1 and read["totals"]["input_tokens"] == 1_000_000
+    (failed,) = read["failed"]
+    assert failed["journal"] == corrupt.relative_to(run_dir).as_posix() and "corrupt" in failed["error"]
+    block = orch._v27_cost_block(run_dir, {}, "jev-1.13.0", "claude-haiku-5-5")[orch.V27_STAGE6_SPAN]
+    assert block["unreadable_journals"] == [failed] and block["priced"] is False and block["total_usd"] is None
+    assert "journals" in block["unpriced_parts"]
+    assert block["parts"]["jev"]["usd"] is not None  # the readable journal's part is still reported
+    # A normal (writable) load still repairs the torn tail, as the next run would.
+    svv.RequestJournal(torn)
+    assert torn.read_bytes() != torn_bytes and torn.read_bytes().endswith(b"\n")
+
+
+def test_v27_report_time_load_refuses_any_write(tmp_path):
+    from g3o.run.presweep import stage_validate_v27 as svv
+
+    journal = svv.RequestJournal(tmp_path / "j.jsonl", read_only=True)
+    with pytest.raises(RuntimeError, match="read-only"):
+        journal.record_release({"keys": None, "all": True, "released_by": "PI", "date": "2026-11-13",
+                                "file_sha256": "f" * 64})
+    assert not (tmp_path / "j.jsonl").exists()
+
+
+def test_run_presweep_v27_writes_the_stage_cost_block_outside_the_stage_1_to_4_budget(tmp_path, monkeypatch):
+    """Review L5: a v2.7 run's cost report carries v27_stage_cost for both stages (returned this session),
+    while total_usd and budget_exceeded stay Stage 1-4 figures."""
+    _refuse_clients(monkeypatch)
+    monkeypatch.setattr(serper_client, "_live_mode", False, raising=False)
+    _stub_stages_1_to_4(monkeypatch, {})
+    _stub_priced_stages_done(monkeypatch)
+    config = _v27_presweep_config(tmp_path, budget_usd=5.0)
+    run_dir = config.runs_dir / config.run_id
+    _, _, _, world, _ = _world(run_dir.parent, config.run_id)
+    orch.run_presweep(config, credentials=Credentials(openai_api_key="sk-test", serper_api_key="s",
+                                                      typesafe_api_key="t"),
+                      v27=_dispatch(world, inputs=WorldInputs(world)))
+    report = json.loads((run_dir / "_cost_report.json").read_text(encoding="utf-8"))
+    block = report[orch.V27_COST_KEY]
+    assert set(block) == {orch.V27_PERPAGE_SPAN, orch.V27_STAGE6_SPAN}
+    assert all(b["returned_this_session"] is True and b["source"] == "journals_on_disk" for b in block.values())
+    assert block[orch.V27_PERPAGE_SPAN]["usage"]["input_tokens"] > 0
+    # Stage 1-4 only: the v2.7 usage and prices are not in the run totals or the budget check.
+    assert report["total_usd"] == pytest.approx(report["llm_total_usd"] + report["metered_total_usd"])
+    assert report["total_prompt_tokens"] == 0 and report["budget_exceeded"] is False
+    assert {s["stage"] for s in report["stages"]}.isdisjoint(block)
+    assert report[orch.V27_BUDGET_SCOPE_KEY] == orch.V27_BUDGET_SCOPE

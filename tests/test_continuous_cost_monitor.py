@@ -1310,3 +1310,117 @@ def test_resumed_run_reports_and_budgets_first_session_metered_spend(tmp_path, m
     assert unl["requests_succeeded"] == 2
     assert second["metered_total_usd"] == pytest.approx(2 * first["metered_total_usd"])
     assert second["abort_stage"] == "discovery_general"
+
+
+# ---------------------------------------------------------------------------
+# v2.7 stage pricing (RC-D-021 cost_monitor hunks; PI rulings 1 a, 57 a-60 a)
+# ---------------------------------------------------------------------------
+
+
+def _v27_usage(**kw):
+    base = {"jev_responses": 3, "jev_unidentified": 1, "jev_incomplete": 0, "quote_responses": 0,
+            "input_tokens": 2_000_000, "output_tokens": 500, "extractor_calls": 0,
+            "extractor_input_tokens": 0, "extractor_output_tokens": 0, "x35_calls": 0, "x35_failed": 0,
+            "request_ms": 10}
+    return {**base, **kw}
+
+
+def _ext(inp, out, read=0, write=0):
+    return {"input_tokens": inp, "output_tokens": out, "cache_read_input_tokens": read,
+            "cache_creation_input_tokens": write}
+
+
+def test_v27_jev_only_stage_is_priced_from_the_jev_row():
+    from g3o.common.cost_monitor import price_v27_usage
+    from g3o.common.pricing import JEV_1_13_0_PRICING
+
+    out = price_v27_usage(_v27_usage(), jev_model="jev-1.13.0")
+    expected = 2.0 * JEV_1_13_0_PRICING["standard_input_per_1m_usd"]  # output tokens are free
+    assert out["priced"] is True and out["unpriced_parts"] == []
+    assert out["total_usd"] == pytest.approx(expected)
+    assert out["parts"]["jev"]["usd"] == pytest.approx(expected) and out["parts"]["jev"]["calls"] == 4
+
+
+def test_v27_extractor_is_priced_per_request_at_batch_rates_with_the_tier_per_request():
+    """Rulings 57 a / 58 a: Message Batches rates; each request's own prompt length picks its tier
+    (cache reads included); the sum of per-request prices, not a price of the totals."""
+    from g3o.common.cost_monitor import price_extractor_requests
+
+    small = _ext(1_000, 200, read=5_000)  # 6,000-token prompt: up-to-100k batch rates
+    large = _ext(120_000, 1_000)  # 120,000-token prompt: over-100k batch rates
+    out = price_extractor_requests([small, large], model="claude-haiku-5-5")
+    small_usd = (1_000 * 0.05 + 5_000 * 0.005 + 200 * 0.25) / 1e6
+    large_usd = (120_000 * 0.25 + 1_000 * 1.25) / 1e6
+    assert out["usd"] == pytest.approx(small_usd + large_usd)
+    assert out["calls"] == 2 and out["unpriced_calls"] == 0 and out["rates"] == "batch"
+    assert out["cache_read_input_tokens"] == 5_000 and "reason" not in out
+    # The totals (a 126,000-token "prompt") would all price at the over-100k tier: a different figure.
+    assert out["usd"] != pytest.approx((121_000 * 0.25 + 5_000 * 0.025 + 1_200 * 1.25) / 1e6)
+
+
+def test_v27_extractor_response_without_per_request_usage_is_not_guessed():
+    """Ruling 58 a: an old journal entry without the cache-token counts (or no usage) is unpriced."""
+    from g3o.common.cost_monitor import (
+        EXTRACTOR_USAGE_MISSING,
+        price_extractor_requests,
+        price_v27_usage,
+    )
+
+    old = {"input_tokens": 100, "output_tokens": 10}  # no cache counts
+    out = price_extractor_requests([_ext(100, 10), old, None], model="claude-haiku-5-5")
+    assert out["usd"] is None and out["unpriced_calls"] == 2 and out["reason"] == EXTRACTOR_USAGE_MISSING
+    stage = price_v27_usage(_v27_usage(extractor_calls=3), jev_model="jev-1.13.0",
+                            extractor_model="claude-haiku-5-5", extractor_usages=[_ext(100, 10), old, None])
+    assert stage["unpriced_parts"] == ["extractor"] and stage["total_usd"] is None
+    assert price_extractor_requests([_ext(1, 1)], model="fake-extractor")["usd"] is None  # no rate row
+
+
+def test_v27_stage_with_jev_and_extractor_is_priced_and_x35_leaves_it_unpriced():
+    from g3o.common.cost_monitor import V27_UNPRICED_PARTS, price_v27_usage
+
+    usages = [_ext(1_000, 200)]
+    ext_usd = (1_000 * 0.05 + 200 * 0.25) / 1e6
+    priced = price_v27_usage(_v27_usage(extractor_calls=1), jev_model="jev-1.13.0",
+                             extractor_model="claude-haiku-5-5", extractor_usages=usages)
+    assert priced["priced"] is True and priced["total_usd"] == pytest.approx(2.0 * 0.042 + ext_usd)
+    with_x35 = price_v27_usage(_v27_usage(extractor_calls=1, x35_failed=1), jev_model="jev-1.13.0",
+                               extractor_model="claude-haiku-5-5", extractor_usages=usages)
+    assert with_x35["unpriced_parts"] == ["x35"] and with_x35["total_usd"] is None
+    assert with_x35["parts"]["extractor"]["usd"] == pytest.approx(ext_usd)  # still reported
+    assert set(V27_UNPRICED_PARTS) == {"x35"} and "59 b" in V27_UNPRICED_PARTS["x35"]
+    totals_only = price_v27_usage(_v27_usage(extractor_calls=1), jev_model="jev-1.13.0")
+    assert totals_only["unpriced_parts"] == ["extractor"]  # totals cannot be priced (58 a)
+
+
+def test_v27_unknown_jev_model_and_unitemised_quote_step_are_unpriced():
+    from g3o.common.cost_monitor import price_v27_usage
+
+    out = price_v27_usage(_v27_usage(), jev_model="fake-jev")
+    assert out["total_usd"] is None and out["unpriced_parts"] == ["jev"]
+    assert "fake-jev" in out["parts"]["jev"]["reason"]
+    quote = price_v27_usage(_v27_usage(quote_responses=2), jev_model="jev-1.13.0")
+    assert quote["unpriced_parts"] == ["quote_step"] and quote["total_usd"] is None
+    assert price_v27_usage(None, jev_model="jev-1.13.0") is None
+    empty = price_v27_usage({}, jev_model="fake-jev")  # no calls at all: nothing to price
+    assert empty["priced"] is True and empty["total_usd"] == 0.0
+
+
+def test_v27_extractor_tier_threshold_is_strictly_over_100k_and_cache_tokens_count():
+    """Review L5: a prompt of exactly 100,000 tokens pays the lower tier; cache reads or writes that
+    take the request's prompt over 100,000 move the whole request to the higher tier; the same
+    holds through the stage-level price."""
+    from g3o.common.cost_monitor import price_extractor_requests, price_v27_usage
+
+    def one(u):
+        return price_extractor_requests([u], model="claude-haiku-5-5")["usd"]
+
+    assert one(_ext(100_000, 0)) == pytest.approx(100_000 * 0.05 / 1e6)
+    assert one(_ext(99_000, 0, read=1_000)) == pytest.approx((99_000 * 0.05 + 1_000 * 0.005) / 1e6)
+    # Figures chosen to be exact at the report's 6-decimal rounding.
+    assert one(_ext(99_000, 0, read=1_200)) == pytest.approx((99_000 * 0.25 + 1_200 * 0.025) / 1e6)
+    assert one(_ext(99_000, 0, write=1_200)) == pytest.approx((99_000 * 0.25 + 1_200 * 0.3125) / 1e6)
+    stage = price_v27_usage(_v27_usage(input_tokens=0, jev_responses=0, jev_unidentified=0, extractor_calls=2),
+                            jev_model="jev-1.13.0", extractor_model="claude-haiku-5-5",
+                            extractor_usages=[_ext(100_000, 0), _ext(99_000, 0, read=1_200)])
+    assert stage["total_usd"] == pytest.approx(
+        (100_000 * 0.05 + 99_000 * 0.25 + 1_200 * 0.025) / 1e6)

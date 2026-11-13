@@ -129,6 +129,32 @@ PASS1_SYSTEM_SHA256 = "2ce40a562672a2079204bc57047fa52a6604bf5c6fddc4e5e4622d29e
 #: ``pass2_support.build_system_prompt()`` (RC-D-021 P-2 a).
 PASS2_SYSTEM_SHA256 = "fdcd47f2fee649bd82de4a664bd5af4b28c3a73b481a036a50fb52bd1525d044"
 _APPROVED = {"pass1": ("P-1", PASS1_SYSTEM_SHA256), "pass2": ("P-2", PASS2_SYSTEM_SHA256)}
+#: SHA256 (UTF-8) of the PI-approved P-2c quote-task question for ``core.activity_segment``
+#: (RC-D-021 P-2c a, reply 2 "p2c draft ok"; the text quoted in that row). It reaches the
+#: pass-2 *user* message through ``pass2_support.QUESTION_OVERRIDES``, which the P-2
+#: system-prompt pin does not cover.
+P2C_QUESTION_SHA256 = "d2f274e0782ad75d77c06c23108eb37608ec5d64f2e39944e5db077665489e3d"
+#: The quote-task question overrides approved by text pin: item -> (ruling row, SHA256).
+_APPROVED_QUESTION_OVERRIDES = {"core.activity_segment": ("P-2c", P2C_QUESTION_SHA256)}
+
+
+def require_approved_quote_questions(rules: Any) -> None:
+    """Refuse pass-2 quote-task question overrides other than the PI-approved texts (RC-D-021 P-2c a).
+
+    ``rules`` is the :class:`~g3o.extract.pass2_support.Pass2Rules` the pass-2 jobs are built
+    with. Its overridden items must be exactly the pinned ones, each with the pinned text.
+    """
+    overridden = set(getattr(rules, "overridden", ()))
+    if overridden != set(_APPROVED_QUESTION_OVERRIDES):
+        raise ValueError(f"pass-2 quote-task question overrides {sorted(overridden)} differ from the "
+                         f"PI-approved set {sorted(_APPROVED_QUESTION_OVERRIDES)}: no extractor call is "
+                         "made with unapproved wording")
+    for item, (row, pinned) in _APPROVED_QUESTION_OVERRIDES.items():
+        text = rules.questions.get(item)
+        if not isinstance(text, str) or sha256_text(text) != pinned:
+            raise ValueError(f"pass-2 quote-task question for {item} differs from the PI-approved text "
+                             f"(RC-D-021 {row}, SHA256 {pinned}): no extractor call is made with "
+                             "unapproved wording")
 
 
 def require_approved_system(name: str, system: str) -> None:
@@ -313,6 +339,8 @@ class _Adapter:
         plan = pass2_support.select_requests(p2)
         if not plan.needs_request:
             return {}
+        # RC-D-021 P-2c a: the rules the job's user message is built from, checked before the call.
+        require_approved_quote_questions(pass2_support.default_rules())
         job = self.bound.pass2_job(p2, plan)
         if extra_round:  # ruling 49 a: its own custom_id, never the page's first-round one
             job = replace(job, custom_id=pass2_extra_round_custom_id(job.custom_id, p2))
@@ -449,6 +477,7 @@ def check_binding(bound: Any, instrument: Mapping[str, Any], *, extractor_model:
         require_approved_system(name, system)
         if not system or sha256_text(system) != hashes.get(name):
             raise ValueError(f"{name} prompt differs from the one pinned in the instrument")
+    require_approved_quote_questions(pass2_support.default_rules())
 
 
 def build_perpage_providers(bound: Any, instrument: Mapping[str, Any], run_dir: Path, *,
@@ -469,6 +498,6 @@ def build_perpage_providers(bound: Any, instrument: Mapping[str, Any], run_dir: 
                       x35_model)
 
 
-__all__ = ["EXTRA_ROUND_MARK", "PASS1_SYSTEM_SHA256", "PASS2_SYSTEM_SHA256", "ExtractorPerPageProviders",
-           "build_perpage_providers", "check_binding", "extra_round_custom_id", "pass2_extra_round_custom_id",
-           "require_approved_system"]
+__all__ = ["EXTRA_ROUND_MARK", "P2C_QUESTION_SHA256", "PASS1_SYSTEM_SHA256", "PASS2_SYSTEM_SHA256",
+           "ExtractorPerPageProviders", "build_perpage_providers", "check_binding", "extra_round_custom_id",
+           "pass2_extra_round_custom_id", "require_approved_quote_questions", "require_approved_system"]

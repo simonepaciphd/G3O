@@ -1327,3 +1327,112 @@ def test_cap_counts_an_extra_round_apart_from_the_first_round(tmp_path, which):
 def test_cap_error_is_not_a_stage_stop():
     assert not issubclass(rt.ExtractRejectCapReached, pp.STAGE_STOPS)
     assert not issubclass(rt.ExtractRejectCapReached, (ValueError, RuntimeError, pp.ExtractorResponseFailed))
+
+
+# ---------------------------------------------------------------------------
+# PI-approved P-2c quote-task question (RC-D-021 P-2c a): user-message wording pin
+# ---------------------------------------------------------------------------
+
+
+def test_approved_p2c_question_hashes_to_its_pin_and_is_accepted():
+    from g3o.common.instrument import sha256_text
+    from g3o.extract import pass2_support
+
+    text = pass2_support.QUESTION_OVERRIDES["core.activity_segment"]
+    assert sha256_text(text) == ppv.P2C_QUESTION_SHA256
+    rules = pass2_support.default_rules()
+    assert rules.questions["core.activity_segment"] == text
+    ppv.require_approved_quote_questions(rules)
+
+
+@pytest.mark.parametrize("overrides", [
+    {"core.activity_segment": "How does this activity relate to the linked activity?"},  # other text
+    {},  # the override dropped: the codebook method note would be shown instead
+])
+def test_unapproved_p2c_question_is_refused_before_any_extractor_call(tmp_path, monkeypatch, overrides):
+    from g3o.codebook.loader import load_codebook
+    from g3o.extract import pass2_support
+
+    rules = pass2_support.rules_from_codebook(load_codebook(), overrides)
+    with pytest.raises(ValueError, match="PI-approved"):
+        ppv.require_approved_quote_questions(rules)
+    run_dir, bound, instrument, world, _ = _world(tmp_path)
+    monkeypatch.setattr(pass2_support, "default_rules", lambda: rules)
+    extract = FakeExtractor(world)
+    with pytest.raises(ValueError, match="PI-approved"):
+        _providers(run_dir, bound, instrument, extract, FakeEntail())
+    assert not extract.jobs
+
+
+def test_p2c_question_is_checked_again_before_each_pass2_job(tmp_path, monkeypatch):
+    """RC-D-021 P-2c a: wording changed after binding is refused at the pass-2 job, with no pass-2
+    extractor call made."""
+    from g3o.codebook.loader import load_codebook
+    from g3o.extract import pass2_support
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    calls = []
+    real = ppv._Adapter.activity_support
+
+    def spy(self, inp, result, records):
+        calls.append((inp, result, tuple(records)))
+        return real(self, inp, result, records)
+    monkeypatch.setattr(ppv._Adapter, "activity_support", spy)
+    _run(run_dir, bound, instrument, insts, _providers(run_dir, bound, instrument, FakeExtractor(world),
+                                                         FakeEntail()), FakeJev(ANSWERS, RELATIONS))
+    monkeypatch.setattr(ppv._Adapter, "activity_support", real)  # not undo(): keeps the layout fixture
+    inp, result, records = calls[0]  # a page's first activity call: the page's pass-2 request
+    extract = FakeExtractor(world)
+    providers = _providers(run_dir, bound, instrument, extract, FakeEntail())  # bound with the approved text
+    altered = pass2_support.rules_from_codebook(
+        load_codebook(), {"core.activity_segment": "How does this activity relate to the linked activity?"})
+    monkeypatch.setattr(pass2_support, "default_rules", lambda: altered)
+    with pytest.raises(ValueError, match="PI-approved"):
+        providers.activity_support(inp, result, records)
+    assert not [j for j in extract.jobs if j.metadata["stage"] == PASS2]
+
+
+def _agree(journal):
+    usages = journal.extractor_usages()
+    assert len(usages) == journal.usage()["extractor_calls"]
+    return usages
+
+
+def test_extractor_usages_agree_with_extractor_calls_across_kinds_and_reloads(tmp_path):
+    """Review L5: one per-request usage per counted extractor call: failed, rejected, rejected then
+    asked again, an extra round's own request, and after each reload (resume)."""
+    from g3o.extract.anthropic_client import ExtractorJob
+
+    path, prompt = tmp_path / "journal.jsonl", {"extractor_model": "m"}
+    job = ExtractorJob("cid-1", {"model": "m", "messages": [{"a": 1}]}, {})
+    extra = ExtractorJob("cid-1-extra", {"model": "m", "messages": [{"a": 2}]}, {})  # its own request
+    failed = ExtractorResult("cid-1", False, None, {"type": "errored"}, usage=None)
+    bad = ExtractorResult("cid-1", True, "bad", None, usage={**USAGE, "input_tokens": 1})
+    good = ExtractorResult("cid-1", True, "good", None, usage={**USAGE, "input_tokens": 2})
+    _journal_call(path, job, prompt, failed, reject=False)  # extract_failed
+    assert len(_agree(rt.RequestJournal(path, {"s": 1}))) == 1
+    _journal_call(path, job, prompt, bad, reject=True)  # recorded, then extract_rejected
+    assert len(_agree(rt.RequestJournal(path, {"s": 1}))) == 2
+    _journal_call(path, job, prompt, good, reject=False)  # asked again: a new recorded response
+    _journal_call(path, extra, prompt, replace(good, custom_id=extra.custom_id), reject=False)
+    reloaded = rt.RequestJournal(path, {"s": 1}, read_only=True)
+    usages = _agree(reloaded)
+    assert len(usages) == 4 and usages.count(None) == 1
+    assert sorted(u["input_tokens"] for u in usages if u) == [1, 2, 2]
+    # A resume that replays everything adds no call and no usage.
+    again = rt.RequestJournal(path, {"s": 1})
+    wrap, _ = again.seams(prompt)
+    assert wrap(lambda j: pytest.fail("asked again"))(job).text == "good"
+    assert len(_agree(again)) == 4
+
+
+@pytest.mark.parametrize(("stage", "kind"), [(PASS1, "not_json"), (PASS2, "failed")])
+def test_stage_journals_keep_extractor_usages_in_step_with_extractor_calls(tmp_path, stage, kind):
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    _run(run_dir, bound, instrument, insts,
+         _providers(run_dir, bound, instrument, BadResponse(world, stage, "b1", kind), FakeEntail()),
+         FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    for inst in insts:
+        path = institution_dir(run_dir, inst.institution_id) / pp.WORK_DIR / pp.JOURNAL
+        if path.exists():
+            _agree(rt.RequestJournal(path, {}, read_only=True))

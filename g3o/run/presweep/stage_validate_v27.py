@@ -356,10 +356,13 @@ class RequestJournal:
     """
 
     def __init__(self, path: Path, setup: Mapping[str, Any] | None = None, *,
-                 retry_incomplete: bool = False) -> None:
+                 retry_incomplete: bool = False, read_only: bool = False) -> None:
         self.path = path
         self.setup = dict(setup or {})
         self.retry_incomplete = retry_incomplete
+        #: accounting reads (the cost report): the load skips a torn tail without repairing
+        #: it, and any append raises; the file is never written
+        self.read_only = read_only
         self._recorded: dict[tuple[str, str, int], dict[str, Any]] = {}
         self._accounting: list[dict[str, Any]] = []
         self._elapsed: list[int] = []
@@ -398,7 +401,7 @@ class RequestJournal:
                     self._rejections[entry["key"]] = self._rejections.get(entry["key"], 0) + 1
             else:
                 self._recorded[(entry["kind"], entry["key"], entry["n"])] = entry["response"]
-        if not complete:  # unterminated or torn tail: repair before the next append
+        if not complete and not self.read_only:  # unterminated or torn tail: repair before the next append
             write_atomic(self.path, b"".join(line + b"\n" for line in keep))
 
     def _key(self, request: Any, extra: Mapping[str, Any] | None = None) -> str:
@@ -412,6 +415,8 @@ class RequestJournal:
         return kind, key, n
 
     def _write(self, entry: Mapping[str, Any]) -> None:
+        if self.read_only:
+            raise RuntimeError(f"journal opened read-only (accounting): {self.path}")
         self.path.parent.mkdir(parents=True, exist_ok=True)
         line = json.dumps(entry, ensure_ascii=False, sort_keys=True)
         with self.path.open("ab") as stream:
@@ -569,6 +574,20 @@ class RequestJournal:
             self._append(slot, _quote_to_json(answer), _elapsed_ms(start))
             return answer
         return wrapped
+
+    def extractor_usages(self) -> list[dict[str, Any] | None]:
+        """Each journaled extractor response's own ``usage`` (``None`` where it has none), for the
+        calls ``usage()["extractor_calls"]`` counts: successful, failed and rejected results.
+        Priced per request by :func:`g3o.common.cost_monitor.price_extractor_requests` (ruling 58 a).
+        """
+        out: list[dict[str, Any] | None] = []
+        for (kind, _, _), response in self._recorded.items():
+            if kind == "extract":
+                out.append(response.get("usage"))
+        for entry in self._accounting:
+            if entry["kind"] in ("extract_failed", EXTRACT_REJECTED):
+                out.append(entry["response"].get("usage"))
+        return out
 
     def usage(self) -> dict[str, int]:
         """Totals of every journaled call (this and earlier, interrupted runs).

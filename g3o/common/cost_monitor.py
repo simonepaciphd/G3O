@@ -66,6 +66,7 @@ from g3o.common.batch_client import DEFAULT_MODEL
 from g3o.common.pricing import (
     SERPER_PRICING,
     UNLOCKER_PRICING,
+    anthropic_request_usd,
     pricing_for,
     serper_usd,
     unlocker_usd,
@@ -903,10 +904,158 @@ class CostMonitor:
         return report
 
 
+# ---------------------------------------------------------------------------
+# v2.7 stage pricing (RC-D-021 procedural: the cost_monitor hunks; PI ruling 1 a)
+# ---------------------------------------------------------------------------
+
+#: Parts of a v2.7 stage's usage this module does not price, with the reason. While
+#: such a part has calls, the stage's total stays ``None``, and
+#: :func:`g3o.run.presweep.config.refuse_v27_budget_settings` keeps refusing v2.7-stage
+#: budget figures (PI rulings 1 a and 60 a, 2026-11-11).
+V27_UNPRICED_PARTS: dict[str, str] = {
+    "x35": (
+        "X35 stays unpriced until the X35 binding is decided (PI ruling 59 b): no X35 model "
+        "or rate in signed text, and the X35 client reports no tokens to the journal"
+    ),
+}
+
+#: The ``usage`` keys an extractor response must carry to be priced per request
+#: (ruling 58 a: cache tokens included). ``None`` values count as 0, as the SDK
+#: reports them; a missing key is an old or partial record and is not guessed.
+EXTRACTOR_USAGE_KEYS: tuple[str, ...] = (
+    "input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens",
+)
+#: Reason given when some extractor responses carry no usable per-request usage.
+EXTRACTOR_USAGE_MISSING = (
+    "extractor response(s) without per-request usage (input, output and cache token "
+    "counts; e.g. a journal written before they were stored): not priced, not guessed "
+    "(ruling 58 a)"
+)
+
+
+def price_extractor_requests(
+    usages: list[dict[str, Any] | None], *, model: str,
+) -> dict[str, Any]:
+    """Price v2.7 extractor calls one request at a time (PI rulings 57 a, 58 a).
+
+    Each element is one journaled response's own ``usage``
+    (:meth:`RequestJournal.extractor_usages`). Every v2.7 run is priced at Message
+    Batches rates (57 a); the long-prompt tier is applied per request, cache reads
+    and writes included (58 a), by :func:`g3o.common.pricing.anthropic_request_usd`.
+    A response without the :data:`EXTRACTOR_USAGE_KEYS` is counted in
+    ``unpriced_calls``; while any is, ``usd`` is ``None`` (never a partial sum).
+    """
+    row = pricing_for(model)
+    rates = None if row is None else row.get("tiers", {}).get("up_to_threshold", row)
+    priceable_row = rates is not None and "batch_cache_write_5m_per_1m_usd" in rates
+    total = 0.0
+    unpriced = 0
+    tokens = dict.fromkeys(EXTRACTOR_USAGE_KEYS, 0)
+    for u in usages:
+        if not isinstance(u, dict) or any(k not in u for k in EXTRACTOR_USAGE_KEYS):
+            unpriced += 1
+            continue
+        for k in EXTRACTOR_USAGE_KEYS:
+            tokens[k] += int(u.get(k) or 0)
+        if priceable_row:
+            total += anthropic_request_usd(u, row, batch=True)
+    out: dict[str, Any] = {
+        "model": model, "calls": len(usages), "unpriced_calls": unpriced,
+        "rates": "batch", **tokens,
+        "usd": _round_usd(total) if priceable_row and not unpriced else None,
+    }
+    if not priceable_row and usages:
+        out["reason"] = f"no Anthropic rate row for {model!r}"
+    elif unpriced:
+        out["reason"] = EXTRACTOR_USAGE_MISSING
+    return out
+
+
+def price_v27_usage(
+    usage: dict[str, Any] | None,
+    *,
+    jev_model: str,
+    extractor_model: str | None = None,
+    extractor_usages: list[dict[str, Any] | None] | None = None,
+) -> dict[str, Any] | None:
+    """Price one v2.7 stage's journal usage as far as the PI rulings allow.
+
+    ``usage`` is the stage's summed :meth:`RequestJournal.usage`. The jev part
+    (``input_tokens`` / ``output_tokens``; jev responses, unidentified and incomplete
+    ones included) is priced from ``jev_model``'s rate row at its standard rates (jev
+    is synchronous; RS-031 names jev-1.13.0). The extractor part is priced per request
+    from ``extractor_usages`` (:func:`price_extractor_requests`; rulings 57 a, 58 a);
+    given totals only, it is unpriced. The X35 part is unpriced
+    (:data:`V27_UNPRICED_PARTS`, ruling 59 b).
+
+    ``total_usd`` is a number only when every part with calls is priced: an
+    unpriced part with calls makes it ``None``, never a partial sum (review F2). A
+    part with no calls costs nothing and does not block the total. ``None`` in,
+    ``None`` out.
+    """
+    if usage is None:
+        return None
+
+    def n(key: str) -> int:
+        return int(usage.get(key) or 0)
+
+    row = pricing_for(jev_model)
+    jev_in, jev_out = n("input_tokens"), n("output_tokens")
+    jev_usd = (
+        None if row is None
+        else usd(jev_in, row["standard_input_per_1m_usd"])
+        + usd(jev_out, row["standard_output_per_1m_usd"])
+    )
+    jev_calls = n("jev_responses") + n("jev_unidentified") + n("jev_incomplete")
+    if extractor_usages is not None and extractor_model is not None:
+        extractor = price_extractor_requests(extractor_usages, model=extractor_model)
+    else:
+        extractor = {
+            "calls": n("extractor_calls"), "input_tokens": n("extractor_input_tokens"),
+            "output_tokens": n("extractor_output_tokens"), "usd": None,
+            "reason": "journal totals only: the extractor is priced per request (ruling 58 a)",
+        }
+    parts: dict[str, dict[str, Any]] = {
+        "jev": {
+            "model": jev_model, "calls": jev_calls, "input_tokens": jev_in,
+            "output_tokens": jev_out, "usd": _round_usd(jev_usd),
+            **({} if row is not None else {"reason": f"no rate row for {jev_model!r}"}),
+        },
+        "extractor": extractor,
+        "x35": {
+            "calls": n("x35_calls") + n("x35_failed"), "usd": None,
+            "reason": V27_UNPRICED_PARTS["x35"],
+        },
+    }
+    if n("quote_responses") and not (parts["extractor"]["calls"] or parts["x35"]["calls"]):
+        # A Stage 6 quote step without seams journals only its answers: its extractor
+        # and X35 calls happened but are not itemised, so they cannot be priced either.
+        parts["quote_step"] = {
+            "calls": n("quote_responses"), "usd": None,
+            "reason": "quote step without seams: its extractor and X35 calls are not itemised",
+        }
+    blocking = [
+        name for name, part in parts.items()
+        if part["usd"] is None and (part["calls"] or part.get("input_tokens") or part.get("output_tokens"))
+    ]
+    # Unrounded parts: jev from jev_usd, the extractor from its own (rounded) figure.
+    total = None if blocking else (jev_usd or 0.0) + (parts["extractor"]["usd"] or 0.0)
+    return {
+        "priced": not blocking,
+        "unpriced_parts": blocking,
+        "total_usd": _round_usd(total),
+        "parts": parts,
+    }
+
+
 __all__ = [
+    "EXTRACTOR_USAGE_KEYS",
+    "V27_UNPRICED_PARTS",
     "BudgetExceededError",
     "CostMonitor",
     "ProjectedBudgetExceededError",
     "StageCost",
     "UnpricedModelError",
+    "price_extractor_requests",
+    "price_v27_usage",
 ]
