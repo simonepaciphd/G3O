@@ -36,8 +36,8 @@ Produced here (source row, page-level, the same on every source row of a page):
   (SPEC R-015, RC-D-021 D-2 a).
 - ``content_contact``: ``yes`` if ``content_contact_named`` or
   ``content_contact_details`` is ``yes`` (``items/core.content_contact/rules/0``),
-  ``no`` if both are ``no``; any other pair (a missing token and no ``yes``)
-  has no signed rule and is refused (:class:`~g3o.common.source_fields.UnruledError`).
+  ``no`` if both are ``no``; a missing token and no ``yes`` gives ``unknown``
+  (PI ruling 64 b, 2026-11-13).
 - ``content_contact_emails``: :func:`g3o.common.support_check.extract_contact_emails`
   (CX-53, ``rules/0``-``2``; RC-D-019 E2 a) over the main text, the chrome text
   (header and footer, T-014) and the page's e-mail links.
@@ -238,14 +238,20 @@ def source_title(page: Any) -> RowValue:
 
 
 def content_contact(page_values: Mapping[str, Any]) -> RowValue:
-    """``yes`` if either sub-item is ``yes``; ``no`` if both are ``no``; anything else is unruled."""
+    """``yes`` if either sub-item is ``yes``; ``no`` if both are ``no``; otherwise ``unknown``.
+
+    A sub-item that is a signed missing token with neither ``yes`` gives ``unknown``
+    (PI ruling 64 b, 2026-11-13). An absent sub-item value is refused.
+    """
     pair = [page_values.get(i) for i in CONTACT_PARTS]
     if YES in pair:
         return _row(sc.CONTACT_ITEM, YES, "items/core.content_contact/rules/0: a sub-item is yes")
     if pair == [NO, NO]:
         return _row(sc.CONTACT_ITEM, NO, "items/core.content_contact/rules/0: both sub-items are no")
-    raise sf.UnruledError(sc.CONTACT_ITEM, f"sub-items {dict(zip(CONTACT_PARTS, pair, strict=True))}: "
-                                           "rules/0 states yes if either is yes, nothing else")
+    if all(v == NO or (v is not None and str(v) in _missing_tokens(i)) for i, v in zip(CONTACT_PARTS, pair,
+                                                                                         strict=True)):
+        return _row(sc.CONTACT_ITEM, "unknown", "PI ruling 64 b: a sub-item is a missing token, neither is yes")
+    raise sf.MissingUpstreamError(f"T-021 final {' / '.join(CONTACT_PARTS)}", [sc.CONTACT_ITEM])
 
 
 def content_contact_emails(contact: str, page: Any) -> RowValue:

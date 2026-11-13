@@ -124,14 +124,23 @@ def test_content_contact_signed_cases(named, details, expected):
     assert value.value == expected
 
 
-@pytest.mark.parametrize(("named", "details"), [("unknown", "no"), ("no", "not_documented"), (None, "no")])
-def test_content_contact_without_a_rule_is_refused(named, details):
-    with pytest.raises(sf.UnruledError):
-        srow.content_contact({"core.content_contact_named": named, "core.content_contact_details": details})
+@pytest.mark.parametrize(("named", "details"), [("unknown", "no"), ("no", "not_documented"),
+                                                ("unknown", "unknown")])
+def test_content_contact_missing_token_without_yes_is_unknown_64b(named, details):
+    """PI ruling 64 b: a sub-item that is a missing token, and neither yes, gives unknown."""
+    value = srow.content_contact({"core.content_contact_named": named, "core.content_contact_details": details})
+    assert value.value == "unknown"
     rows = srow.assemble(_page(), FIELDS_P1, {**GENAI, "core.content_contact_named": named,
-                                              "core.content_contact_details": details}, {})
+                                              "core.content_contact_details": details}, {}, followed=False)
+    assert rows.source[sc.CONTACT_ITEM].value == "unknown"
+    assert rows.source[sc.CONTACT_EMAILS_ITEM].value == "not_asked"  # CX-53 gate is yes only
+
+
+def test_content_contact_absent_sub_item_is_refused():
+    with pytest.raises(sf.MissingUpstreamError):
+        srow.content_contact({"core.content_contact_named": None, "core.content_contact_details": "no"})
+    rows = srow.assemble(_page(), FIELDS_P1, {"core.page_verdict": "confirms_activity"}, {}, followed=False)
     assert sc.CONTACT_ITEM in rows.refused and sc.CONTACT_EMAILS_ITEM in rows.refused
-    assert sc.CONTACT_EMAILS_ITEM not in rows.source
 
 
 def test_contact_emails_gate_open_with_no_address_is_not_documented():
