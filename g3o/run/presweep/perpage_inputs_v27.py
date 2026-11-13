@@ -175,7 +175,7 @@ class PerPageInputs(Iterable[pp.PerPageInstitution]):
         for row in self._sample:
             inst_id = institution_record(dict(row))["institution_id"]
             pages = list(self._scraped.get(inst_id) or ())  # ScrapedPages parses on access: read once
-            if not pages:
+            if not pages:  # ruling 37 a: skipped here; its outcome is decided from the run folder, as v2.5
                 continue
             if inst_id not in uids:
                 raise MissingUpstreamError("run manifest (institution_uids)", [inst_id])
@@ -197,7 +197,8 @@ def build_perpage_inputs(run_dir: Path, sample: Sequence[Mapping[str, Any]], scr
 
     Builds what D1 a and the A producers settle and leaves every other upstream
     value ``None`` (refused downstream). An institution with no stored page is
-    not built (nothing to code). The run manifest (``run_id``, ``institution_uids``)
+    not built (nothing to code; ruling 37 a: its outcome is decided afterwards
+    from the run folder, as v2.5 does). The run manifest (``run_id``, ``institution_uids``)
     is read here; each institution's pages only when :class:`PerPageInputs` is
     iterated. ``bound`` / ``instrument`` are accepted for the ``perpage_inputs``
     signature and not read.

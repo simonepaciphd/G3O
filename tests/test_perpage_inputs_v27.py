@@ -166,6 +166,23 @@ def test_a4_syndication_groups_are_scoped_to_the_institution(tmp_path):
     assert _spec(insts[I2], P_SHORT).upstream.page_fields.syndication_group.detail["short_page"] is True
 
 
+@pytest.mark.parametrize("scraped", [{**SCRAPED, I3: []}, {I1: SCRAPED[I1], I2: SCRAPED[I2]},
+                                     {**SCRAPED, I3: None}])
+def test_zero_page_institution_is_skipped_without_error(tmp_path, scraped):
+    """Ruling 37 a: an institution with no stored page yields no PerPageInstitution and raises nothing
+    (skipped before its uid or identity are read: here it has no institution.json at all); its outcome
+    is decided afterwards from the run folder, as v2.5 does."""
+    run_dir = _run_dir(tmp_path)
+    (institution_dir(run_dir, I3) / "institution.json").unlink()
+    insts = pin.build_perpage_inputs(run_dir, ROWS, scraped)
+    assert [i.institution_id for i in insts] == [I1, I2]
+    assert [i.institution_id for i in insts] == [I1, I2]  # re-iterable, same result
+    with pytest.raises(MissingUpstreamError):  # the pages present still refuse as before
+        pin.require_complete(insts)
+    only_empty = pin.build_perpage_inputs(run_dir, [ROWS[2]], scraped)
+    assert list(only_empty) == [] and pin.require_complete(only_empty) == 0
+
+
 def test_unproduced_values_still_refuse(tmp_path):
     insts = _built(tmp_path)
     for inst in insts.values():
