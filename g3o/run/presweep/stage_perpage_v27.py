@@ -1336,7 +1336,8 @@ def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any]
         if unrejected:
             return _release_hold(PI_RELEASE_MALFORMED, path,
                                  f"refused (ruling 34 b / 41 a): key(s) with no extract_rejected entry counted "
-                                 f"in this journal: {unrejected}")
+                                 f"in this journal since their last release: {unrejected}; drop these keys "
+                                 f"from {PI_RELEASE_FILE} and run again")
         try:
             journal.record_release({**release, "file_sha256": sha})
         except OSError as exc:

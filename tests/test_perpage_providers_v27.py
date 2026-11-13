@@ -1069,6 +1069,77 @@ def test_extra_round_pass1_request_asks_only_the_new_quote_tasks(tmp_path):
     assert len(extract.jobs) == 2
 
 
+def test_pass2_later_round_takes_the_same_request_uninterrupted_and_resumed(tmp_path, monkeypatch):
+    """Ruling 49 a with 41 a: a later activity round (a strict subset of the page's ordinary codes,
+    the earlier ones already supported) takes the extra-round request whether the adapter made the
+    page request in this process or is fresh (a resume, ``_pair_quotes`` empty); the resumed call is
+    replayed from the journal (no extractor call), and ``pair_support`` then rebuilds the page
+    request from the T-023 artifact, also replayed."""
+    from g3o.classify.jev_activity_code import PAIR_ITEMS, to_pass2_page
+    from g3o.extract import pass2_support
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    calls = []
+    real = ppv._Adapter.activity_support
+
+    def spy(self, inp, result, records):
+        calls.append((inp, result, tuple(records)))
+        return real(self, inp, result, records)
+    monkeypatch.setattr(ppv._Adapter, "activity_support", spy)
+    _run(run_dir, bound, instrument, insts, _providers(run_dir, bound, instrument, FakeExtractor(world),
+                                                         FakeEntail()), FakeJev(ANSWERS, RELATIONS))
+    monkeypatch.setattr(ppv._Adapter, "activity_support", real)  # not undo(): keeps the layout fixture
+    inp, result, records = calls[0]  # a page's first activity call: every ordinary code
+    full = to_pass2_page(result, inp)
+
+    def sub_needing_a_quote():
+        for a, r in records:
+            key = (a, r.item_id, r.item_part, r.chunk_id, str(r.chosen_value), None)
+            acts = tuple(replace(x, codes=tuple(c for c in x.codes if ppv._Adapter._code_key(x.activity_id, c) == key))
+                         for x in full.activities)
+            if pass2_support.select_requests(replace(full, activities=acts)).quote_tasks:
+                return [(a, r)]
+        return []
+    later = sub_needing_a_quote()
+    assert later and len(later) < len(records)
+    assert all(r.item_id not in PAIR_ITEMS for _, r in records)
+
+    path = tmp_path / "journal.jsonl"
+
+    def journaled(extract, seen):
+        journal = rt.RequestJournal(path, {"s": 1})
+        providers = _providers(run_dir, bound, instrument, extract, FakeEntail())
+        wrap_extract, wrap_entail = journal.seams(providers.journal_prompt)
+
+        def spying(fn):
+            inner = wrap_extract(fn)
+
+            def call(job):
+                seen.append(job.custom_id)
+                return inner(job)
+            return call
+        return journal, providers.with_seams(spying, wrap_entail)
+
+    # uninterrupted: the page request, then the later round in the same process
+    seen1, ex1 = [], FakeExtractor(world)
+    _, p1 = journaled(ex1, seen1)
+    p1.activity_support(inp, result, records)
+    later1 = p1.activity_support(inp, result, later)
+    first_cid, extra_cid = seen1
+    assert ppv.EXTRA_ROUND_MARK not in first_cid and extra_cid.startswith(first_cid + ppv.EXTRA_ROUND_MARK)
+    assert [j.custom_id for j in ex1.jobs] == seen1
+    # resumed: a fresh adapter (no _pair_quotes) on the same journal reaches the later round first
+    seen2, ex2 = [], FakeExtractor(world)
+    journal2, p2 = journaled(ex2, seen2)
+    later2 = p2.activity_support(inp, result, later)
+    assert seen2 == [extra_cid] and ex2.jobs == [] and journal2.live == 0
+    assert [pp.support_to_dict(s) for s in later2] == [pp.support_to_dict(s) for s in later1]
+    # pair_support rebuilds the page request from the T-023 artifact: replayed, no extractor call
+    # (its X35 questions on pair codes were never asked by p1, so only the extractor is checked)
+    p2.pair_support(inp, result)
+    assert seen2 == [extra_cid, first_cid] and ex2.jobs == []
+
+
 # ---------------------------------------------------------------------------
 # Ruling 34 b / 41 a: 3-attempt cap on rejected extractor requests, PI release
 # ---------------------------------------------------------------------------
