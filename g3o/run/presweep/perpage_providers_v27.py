@@ -335,6 +335,13 @@ class _Adapter:
         wanted = {(a, r.item_id, r.item_part, r.chunk_id, str(r.chosen_value), None) for a, r in records}
         ordinary = {self._code_key(a.activity_id, c) for a in full.activities for c in a.codes
                     if c.item_id not in PAIR_ITEMS}
+        # The first-round / extra-round choice is the same on a resume: ``wanted == ordinary`` holds
+        # only while no ordinary code of the page has saved support (complete_activity_rounds asks
+        # only codes missing from the activity checkpoint), and a page-request call that returns
+        # puts every ordinary code in that checkpoint. So a later round never has wanted == ordinary,
+        # and the ``_pair_quotes`` test (empty on a resume) never decides it: a returned page
+        # request makes every later call an extra round, and one that raised holds the institution,
+        # whose adapter is then discarded (with_seams is per institution and run).
         if wanted == ordinary and inp.page.page_id not in self._pair_quotes:
             # every ordinary code: the page request, pair codes included (DP-009)
             quotes = self._pass2(full)
