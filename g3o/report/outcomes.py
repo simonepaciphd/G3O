@@ -26,7 +26,10 @@ statuses:
 - ``PROCESSING_FAILED`` — a technical failure (an attrition-recorded parse /
                           scrape failure for this institution, or an
                           unreadable ``6_validate.json``) prevented a
-                          conclusion.
+                          conclusion. Also carries a v2.7 institution held as
+                          pending by the per-page stage or Stage 6 (ruling
+                          45 a): not concluded, and the reason names the hold
+                          — see :func:`_v27_hold_reason`.
 - ``RUN_TRUNCATED``     — the run itself was configured to stop before Stage 6
                           (``--stop-after``); this institution was never
                           evaluated for evidence, independent of what its
@@ -149,6 +152,56 @@ def _is_ignored_jev_failure(rec: dict[str, Any], inst_dir: Path) -> bool:
         return False
     artifact = _JEV_STAGE_ARTIFACTS.get(rec.get("stage", ""))
     return artifact is None or (inst_dir / artifact).exists()
+
+
+# v2.7 holds (ruling 45 a). The per-page stage and v2.7 Stage 6 hold an
+# institution as pending by writing ``<work dir>/held.json`` and delete that file
+# when the hold clears (after appending a ``*_held_released`` ledger record).
+# The file, not the ledger, is the authoritative signal: the ledger dedups on
+# (institution, stage, reason, url), so a second hold after a release is never
+# appended and the ledger's last word would read "released" for an institution
+# that is held again. Mirrors ``stage_perpage_v27.WORK_DIR`` / ``HELD_FILE`` and
+# ``stage_validate_v27.WORK_DIR`` / ``HELD_FILE`` (pinned by a test; not imported,
+# so this disk-only reader does not load the run stages).
+_V27_HOLDS: tuple[tuple[str, str], ...] = (
+    ("perpage_v27", "the v2.7 per-page stage"),
+    ("stage6_v27", "v2.7 Stage 6"),
+)
+_V27_HELD_FILE = "held.json"
+
+
+def _v27_hold_labels(work_dir: str, payload: dict[str, Any]) -> list[str]:
+    if work_dir == "perpage_v27":
+        return [
+            f"{h.get('page_id')}:{h.get('stage')}"
+            for h in payload.get("held", [])
+            if isinstance(h, dict)
+        ]
+    return [str(r) for r in payload.get("reasons", [])]
+
+
+def _v27_hold_reason(inst_dir: Path) -> str | None:
+    """Why a v2.7 institution is held as pending (ruling 45 a), or None if it is not.
+
+    One clause per stage whose ``held.json`` exists, naming the stage and the
+    hold labels it records (per-page: ``page_id:stage``; Stage 6: its hold
+    reasons). An unreadable ``held.json`` still holds the institution.
+    """
+    clauses: list[str] = []
+    for work_dir, stage_label in _V27_HOLDS:
+        path = inst_dir / work_dir / _V27_HELD_FILE
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_bytes().decode("utf-8"))
+            labels = _v27_hold_labels(work_dir, payload) if isinstance(payload, dict) else []
+            detail = ", ".join(labels) or "no hold label recorded"
+        except (OSError, ValueError) as exc:  # UnicodeDecodeError is a ValueError
+            detail = f"{work_dir}/{_V27_HELD_FILE} unreadable: {type(exc).__name__}"
+        clauses.append(f"held as pending at {stage_label} ({work_dir}: {detail})")
+    if not clauses:
+        return None
+    return "; ".join(clauses) + "; not concluded, a later run retries it"
 
 
 def _load_manifest(run_dir: Path) -> dict[str, Any]:
@@ -311,7 +364,17 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
             and has_genai_activity == "yes"
             and consolidated_row_count > 0
         )
-        if failures and concluded_positive:
+        held_reason = _v27_hold_reason(inst_dir)
+        if held_reason is not None:
+            # Ruling 45 a: a v2.7 institution held as pending is not concluded.
+            # Checked first: v2.7 writes no extract/ folder and no extract or
+            # validate .done marker, so below it would read as "pages scraped
+            # but nothing extracted" and publish as NO_EVIDENCE_FOUND, or as
+            # PROCESSING_FAILED with a false "run aborted" reason.
+            final_status = "PROCESSING_FAILED"
+            reason = held_reason + (f"; {attrition_detail}" if attrition_detail else "")
+            error = reason
+        elif failures and concluded_positive:
             # EVIDENCE_FOUND_PARTIAL, 2026-08-31. Measured on five runs: this
             # branch is 23.8%–33.3% of every run's positives — 104 of 437 on
             # ``r20260830T114940Z-32ea``, 439 institutions across the five —

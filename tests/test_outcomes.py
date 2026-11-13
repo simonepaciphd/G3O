@@ -782,3 +782,171 @@ def test_stage2_jev_failure_keeps_prior_behaviour(tmp_path: Path, stage: str) ->
     assert rec["final_status"] == "NO_EVIDENCE_FOUND"
     assert rec["reason"] == "zero URLs passed triage"
     assert rec["error"] is None
+
+
+# ---------------------------------------------------------------------------
+# v2.7 holds (ruling 45 a): a held institution is not concluded
+# ---------------------------------------------------------------------------
+
+# A finished v2.7 run leaves the classify_triage and scrape markers only: the
+# per-page stage and v2.7 Stage 6 replace Stages 5/6 and write no extract or
+# validate marker, and no extract/ folder.
+V27_DONE = ("classify_triage", "scrape")
+
+
+def _make_v27_run(run_dir: Path, institutions: list[str]) -> None:
+    _make_run(run_dir, institutions=institutions, done=V27_DONE)
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["config"]["pipeline_version"] = "v2.7"
+    manifest["run_pipeline"] = {"pipeline_version": "v2.7", "instrument_id": "INSTR-test"}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def _perpage_held(run_dir: Path, inst_id: str, stage: str = "extract_response_failed") -> None:
+    """What stage_perpage_v27 writes for a held institution: held.json + ledger."""
+    _write(
+        inst_dir_of(run_dir, inst_id) / "perpage_v27" / "held.json",
+        {"institution_id": inst_id, "held": [{"page_id": "P1", "stage": stage}]},
+    )
+    _attrition.record(run_dir, institution_id=inst_id, stage="perpage_v27",
+                      reason="perpage_held", detail=f"P1:{stage}")
+
+
+def _stage6_held(run_dir: Path, inst_id: str, reason: str = "stage6_quote_step_absent") -> None:
+    """What stage_validate_v27 writes for a held institution: held.json + ledger."""
+    _write(
+        inst_dir_of(run_dir, inst_id) / "stage6_v27" / "held.json",
+        {"institution_id": inst_id, "reasons": [reason], "held": []},
+    )
+    _attrition.record(run_dir, institution_id=inst_id, stage="validate",
+                      reason=f"stage6_held:{reason}")
+
+
+def _v27_upstream(run_dir: Path, inst_id: str) -> None:
+    _discovery(run_dir, inst_id)
+    _triage(run_dir, inst_id, keeps=2)
+    _scraped(run_dir, inst_id)
+
+
+def test_v27_hold_paths_match_the_stages() -> None:
+    """The reader mirrors the stages' constants rather than importing them."""
+    from g3o.run.presweep import stage_perpage_v27, stage_validate_v27
+
+    assert [w for w, _ in outcomes._V27_HOLDS] == [
+        stage_perpage_v27.WORK_DIR, stage_validate_v27.WORK_DIR]
+    assert outcomes._V27_HELD_FILE == stage_perpage_v27.HELD_FILE == stage_validate_v27.HELD_FILE
+
+
+@pytest.mark.parametrize(
+    "stage", ["extract_response_failed", "extract_rejected_cap", "pi_release_malformed",
+              "pi_release_archive_failed", "page_state_archive_failed"]
+)
+def test_v27_perpage_hold_is_not_concluded(tmp_path: Path, stage: str) -> None:
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _v27_upstream(run_dir, "INST-0000001")
+    _perpage_held(run_dir, "INST-0000001", stage)
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert rec["final_status"] != "NO_EVIDENCE_FOUND"
+    assert "run aborted" not in rec["reason"]
+    assert "held as pending at the v2.7 per-page stage" in rec["reason"]
+    assert f"P1:{stage}" in rec["reason"]
+    assert rec["error"] == rec["reason"]
+
+
+def test_v27_stage6_hold_is_not_concluded(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _v27_upstream(run_dir, "INST-0000001")
+    _stage6_held(run_dir, "INST-0000001")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert "run aborted" not in rec["reason"]
+    assert "held as pending at v2.7 Stage 6" in rec["reason"]
+    assert "stage6_quote_step_absent" in rec["reason"]
+
+
+def test_v27_unreadable_held_file_still_holds(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _v27_upstream(run_dir, "INST-0000001")
+    path = inst_dir_of(run_dir, "INST-0000001") / "perpage_v27" / "held.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"{truncated")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert "held as pending" in rec["reason"]
+    assert "unreadable" in rec["reason"]
+
+
+def test_v27_hold_keeps_an_attrition_failure_in_the_reason(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _v27_upstream(run_dir, "INST-0000001")
+    _attrition.record(run_dir, institution_id="INST-0000001", stage="scrape",
+                      reason="scrape_failed", url="https://x9.gov/")
+    _perpage_held(run_dir, "INST-0000001")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert rec["reason"].startswith("held as pending")
+    assert "scrape:scrape_failed" in rec["reason"]
+
+
+@pytest.mark.parametrize("held", [_perpage_held, _stage6_held])
+def test_v27_released_and_concluded_reads_normally(tmp_path: Path, held: Any) -> None:
+    """A hold the stage later cleared (release record appended, held.json removed)
+    no longer holds: the concluded Stage 6 result decides the outcome."""
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _v27_upstream(run_dir, "INST-0000001")
+    held(run_dir, "INST-0000001")
+    work_dir = "perpage_v27" if held is _perpage_held else "stage6_v27"
+    _attrition.record(run_dir, institution_id="INST-0000001",
+                      stage="perpage_v27" if held is _perpage_held else "validate",
+                      reason=f"{'perpage' if held is _perpage_held else 'stage6'}_held_released")
+    (inst_dir_of(run_dir, "INST-0000001") / work_dir / "held.json").unlink()
+    _validated(run_dir, "INST-0000001", has_genai="yes", n_activities=1)
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "EVIDENCE_FOUND"
+    assert "held" not in rec["reason"]
+
+
+def test_v27_held_again_after_a_release_is_still_held(tmp_path: Path) -> None:
+    """The ledger dedups the second ``perpage_held`` row, so its last word reads
+    "released"; held.json, rewritten on every hold, is what says held."""
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _v27_upstream(run_dir, "INST-0000001")
+    _perpage_held(run_dir, "INST-0000001")
+    _attrition.record(run_dir, institution_id="INST-0000001", stage="perpage_v27",
+                      reason="perpage_held_released", detail="P1:extract_response_failed")
+    _perpage_held(run_dir, "INST-0000001")
+    assert _attrition.read_records(run_dir)[-1]["reason"] == "perpage_held_released"
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert "held as pending" in rec["reason"]
+
+
+def test_v27_zero_page_institution_reads_as_v25(tmp_path: Path) -> None:
+    """Ruling 37 a: a v2.7 institution with no stored page is never a per-page
+    input; its outcome is decided from the run folder exactly as in v2.5."""
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001", "INST-0000002"])
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=2)  # kept URLs, nothing scraped
+    _discovery(run_dir, "INST-0000002")
+    _triage(run_dir, "INST-0000002", keeps=0)
+
+    recs = {r["institution_id"]: r for r in outcomes.compute_institution_report(run_dir)}
+    assert recs["INST-0000001"]["final_status"] == "NO_EVIDENCE_FOUND"
+    assert recs["INST-0000001"]["reason"] == "no pages scraped from kept URLs"
+    assert recs["INST-0000002"]["final_status"] == "NO_EVIDENCE_FOUND"
+    assert recs["INST-0000002"]["reason"] == "zero URLs passed triage"
