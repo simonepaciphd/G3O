@@ -593,14 +593,29 @@ class RequestJournal:
         """Each journaled extractor response's own ``usage`` (``None`` where it has none), for the
         calls ``usage()["extractor_calls"]`` counts: successful, failed and rejected results.
         Priced per request by :func:`g3o.common.cost_monitor.price_extractor_requests` (ruling 58 a).
+
+        A failed result (``extract_failed``) that reports no usage gives
+        ``{EXTRACTOR_FAILED_RESULT_KEY: <its error type>}`` instead, read from the journaled
+        result's ``error["type"]`` (on disk, so the same after a resume): the pricing decides
+        what that type costs (PI ruling 67 a). Without a string type it stays ``None``.
         """
+        from g3o.common.cost_monitor import EXTRACTOR_FAILED_RESULT_KEY
+
         out: list[dict[str, Any] | None] = []
         for (kind, _, _), response in self._recorded.items():
             if kind == "extract":
                 out.append(response.get("usage"))
         for entry in self._accounting:
             if entry["kind"] in ("extract_failed", EXTRACT_REJECTED):
-                out.append(entry["response"].get("usage"))
+                response = entry["response"]
+                usage = response.get("usage")
+                error = response.get("error")
+                failed_type = error.get("type") if isinstance(error, dict) else None
+                if (entry["kind"] == "extract_failed" and usage is None
+                        and isinstance(failed_type, str)):
+                    out.append({EXTRACTOR_FAILED_RESULT_KEY: failed_type})
+                else:
+                    out.append(usage)
         return out
 
     def usage(self) -> dict[str, int]:

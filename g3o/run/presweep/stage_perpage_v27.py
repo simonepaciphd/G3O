@@ -643,7 +643,8 @@ def _activity_source_items(config: ActivityCoderConfig) -> list[str]:
 
 
 def failed_page(spec: PageSpec, reason: str) -> ReviewedPage:
-    """An attempted page T-021 could not code (no artifact): unreviewed, failed, reason kept."""
+    """An attempted page that failed: unreviewed, failed, reason kept. Either T-021 could not code
+    it (no artifact), or it was coded and failed after halving in an extra round (PI ruling 69 b)."""
     if spec.upstream.followed is None:
         raise MissingUpstreamError(FOLLOW_PRODUCER, [spec.page.page_id])
     return ReviewedPage(spec.page.page_id, PIPELINE, FAILED_PAGE_VERDICT, None, FAILED_PAGE_SUPPORT, False, True,
@@ -1023,6 +1024,13 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
         page, result, support, ask_fn=ask, config=page_config,
         check_support=lambda r, recs: providers.page_support(page, r, recs), checkpoint=page_ckpt.save)
     metrics.checkpoint_writes += page_ckpt.writes
+    if st.page_round.failed:  # ruling 69 b: failed after halving in an extra round, as a T-021 failure
+        failure = st.page_round.failure
+        attrition.record(run_dir, institution_id=page.institution_id, stage=STAGE, reason=failure["reason"],
+                         url=page.url, detail=failure["detail"])
+        st.failure = failure["reason"]
+        metrics.failed_pages.append(page.page_id)
+        return
     if not st.page_round.complete:
         st.holds.append({"page_id": page.page_id, "stage": "page_rounds", "items": sorted(
             k for k, o in st.page_round.final.items.items() if o.state in ("pending", "stopped"))})

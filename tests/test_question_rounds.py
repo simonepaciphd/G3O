@@ -9,8 +9,8 @@ import pytest
 from g3o.classify import jev_activity_code as ac
 from g3o.classify import jev_page_code as pc
 from g3o.classify.question_rounds import (
-    HALVING_STOP,
-    HALVING_STOPPED,
+    HALVING_PAGE_FAILED,
+    PLAN_KEPT,
     complete_activity_rounds,
     complete_page_rounds,
     extra_round_started,
@@ -427,19 +427,19 @@ def test_activity_transient_hold_then_over_limit_on_resume_is_a_request_failed_v
         assert o.state == "combined" and o.failed and o.cause == ac.REQUEST_FAILED
 
 
-def test_page_extra_round_over_limit_everywhere_halves_to_depth_then_stops(monkeypatch, rules):
+def test_page_extra_round_over_limit_everywhere_halves_to_depth_then_fails(monkeypatch, rules):
     # RC-D-023 B-Q6: no longer held. Every part is halved to the depth limit, every leaf
-    # request records jev_part_over_limit, and all verdict leaves failing stops the page.
+    # request records jev_part_over_limit, and all verdict leaves failing fails the page (ruling 69 b).
     page, result, support, config, _ = page_case(monkeypatch, rules)
     config = replace(config, max_split_depth=1)
     done = complete_page_rounds(page, result, support, config=config, ask_fn=_over_limit,
                                 check_support=lambda *_: pytest.fail("no answer to check"))
-    assert not done.complete
+    assert not done.complete and done.failed and done.result.status == "failed"
     assert [c.chunk_id for c in done.result.chunks] == ["p:0.1", "p:0.2", "p:1.1", "p:1.2"]
     assert not [r for r in done.result.records if r.coder_type == "classifier"]
-    scope = done.result.items[SCOPE]
-    assert scope.state == "stopped" and scope.error.startswith(HALVING_STOP) and "4/4 verdict" in scope.error
-    assert done.result.failures[-1]["reason"] == HALVING_STOPPED
+    assert done.failure == done.result.failures[-1]
+    assert done.failure["reason"] == HALVING_PAGE_FAILED and "4/4 verdict" in done.failure["detail"]
+    assert "halved in an extra round" in done.failure["detail"]
     over = {f["chunk_id"] for f in done.result.failures if f["reason"] == pc.OVER_LIMIT and SCOPE in f["question_ids"]}
     assert over == {"p:0.1", "p:0.2", "p:1.1", "p:1.2"}
 
@@ -584,6 +584,29 @@ def test_page_halving_depth_limit_records_over_limit_votes_and_successful_part_c
     assert again.complete and again.rounds == 0 and again.final == done.final
 
 
+def test_legacy_halving_stop_checkpoint_is_refused(monkeypatch, rules):
+    """Review LOW (c): a page.json with an item stopped by the unreleased pre-68 b / 69 b halving
+    stop is refused loudly (never held silently), before any request, check or save."""
+    from g3o.classify import question_rounds as qr
+
+    page, result, support, config, fake = page_case(monkeypatch, rules)
+    config = replace(config, max_split_depth=1)
+    done = complete_page_rounds(page, result, support, config=config, ask_fn=_over_limit,
+                                check_support=lambda *_: pytest.fail("no answer to check"))
+    assert done.failed
+    legacy = replace(done.result, status="coded",
+                     items={**done.result.items, SCOPE: pc.ItemOutcome(
+                         SCOPE, "stopped", None, error=qr._LEGACY_HALVING_STOP + done.failure["detail"])},
+                     failures=done.result.failures[:-1] + (
+                         {**done.failure, "reason": "extra_round_halving_stopped"},))
+    legacy = pc.PageCodeResult.from_json(legacy.to_json())
+    with pytest.raises(ValueError, match="legacy halving-stop checkpoint from an unreleased build"):
+        complete_page_rounds(page, legacy, done.support, config=config,
+                             ask_fn=lambda *_: pytest.fail("resent"),
+                             check_support=lambda *_: pytest.fail("rechecked"),
+                             checkpoint=lambda *_: pytest.fail("saved"))
+
+
 @pytest.mark.parametrize(("failing", "stopped"), [(2, False), (3, True)])
 def test_page_halving_verdict_failure_share_counts_leaf_parts(monkeypatch, rules, failing, stopped):
     # RC-D-024 l.39: 2/4 versus 3/4 failed verdict parts on the layout halved in an extra round.
@@ -603,37 +626,108 @@ def test_page_halving_verdict_failure_share_counts_leaf_parts(monkeypatch, rules
     failed = {f["chunk_id"] for f in done.result.failures
               if f["reason"] == pc.OVER_LIMIT and VERDICT in f["question_ids"]}
     assert len(failed) == failing
-    if stopped:
-        assert not done.complete
-        scope = done.result.items[SCOPE]
-        assert scope.state == "stopped" and scope.error.startswith(HALVING_STOP) and "3/4 verdict" in scope.error
-        assert done.result.failures[-1]["reason"] == HALVING_STOPPED
+    if stopped:  # ruling 69 b: the page fails; nothing more is asked or checked, then or on resume
+        assert not done.complete and done.failed and done.result.status == "failed"
+        assert done.failure["reason"] == HALVING_PAGE_FAILED and "3/4 verdict" in done.failure["detail"]
         again = _no_calls(page, done, config)
-        assert not again.complete and again.result == done.result
+        assert again.failed and not again.complete and again.result == done.result and again.rounds == 0
+        loaded = pc.PageCodeResult.from_json(done.result.to_json())  # as the saved checkpoint reloads it
+        resumed = complete_page_rounds(page, loaded, done.support, config=config,
+                                       ask_fn=lambda *_: pytest.fail("resent"),
+                                       check_support=lambda *_: pytest.fail("rechecked"))
+        assert resumed.failed and resumed.failure == done.failure
     else:
-        assert done.complete
+        assert done.complete and not done.failed and done.result.status == "coded"
         assert done.final.items[VERDICT].value == "confirms_activity"
-        assert not any((o.error or "").startswith(HALVING_STOP) for o in done.final.items.values())
+        assert all(f["reason"] != HALVING_PAGE_FAILED for f in done.result.failures)
 
 
-def test_page_halving_that_changes_provisional_verdict_stops_with_gates_pending(monkeypatch, rules):
-    # Unruled cascade: the stored first-round extractor request was planned on the earlier verdict.
+def _changed_case(monkeypatch, rules, item, first, halves):
+    """A page whose ``item`` is ``first`` on the original parts and ``halves`` on every half: the
+    extra question is over the limit on both parts, so both are halved and ``item`` is re-asked."""
     page, result, support, config, fake = page_case(monkeypatch, rules)
     originals = {c.text for c in result.chunks}
-    fake.choices[VERDICT] = lambda s: "confirms_activity" if s["page_text"] in originals else "background_only"
+    assert result.items[item].value == first
+    fake.choices[item] = lambda s: first if s["page_text"] in originals else halves
     ask = _over_for(fake, lambda s, q: set(q) == {SCOPE} and s["page_text"] in originals)
-    done = complete_page_rounds(page, result, support, ask_fn=ask, config=config,
-                                check_support=lambda *_: pytest.fail("no support check on a stopped page"))
-    assert not done.complete
-    scope = done.result.items[SCOPE]
-    assert scope.state == "stopped" and scope.error.startswith(HALVING_STOP) and VERDICT in scope.error
-    assert done.result.items[VERDICT] == result.items[VERDICT]  # provisional verdict not rewritten
-    assert done.final.items[VERDICT].state == "pending"  # the halves' answers are not support-checked
-    gated = [q["item_id"] for q in load_set("page")["questions"]
-             if isinstance(q.get("gate"), dict) and q["gate"]["item"] == VERDICT]
-    assert gated and all(done.final.items[i].state == "pending" for i in gated)
+    return page, result, support, config, fake, ask
+
+
+@pytest.mark.parametrize(("item", "first", "halves"), [
+    (VERDICT, "confirms_activity", "background_only"),
+    ("core.page_complete", "yes", "no"),
+])
+def test_page_halving_that_changes_provisional_verdict_or_complete_continues(monkeypatch, rules, item,
+                                                                              first, halves):
+    """PI ruling 68 b: the page continues on the re-combined values (finalize_page re-gates); the
+    stored first-round extractor request is kept: every later support check is an extra round
+    (quote tasks only, never a new first-round request); the change is logged, not stopped."""
+    page, result, support, config, fake, ask = _changed_case(monkeypatch, rules, item, first, halves)
+    seen = []
+
+    def check(updated, records):
+        seen.append(extra_round_started(updated))
+        return _page_check(updated, records)
+
+    done = complete_page_rounds(page, result, support, ask_fn=ask, config=config, check_support=check)
+    assert done.complete and done.result.status == "coded"
+    assert seen and all(seen)  # no first-round (T-022 page) request is planned again
+    assert done.result.items[item].value == halves and done.final.items[item].value == halves
+    kept = [e for e in done.result.requests if e.get("outcome") == PLAN_KEPT]
+    assert [(e["item_id"], e["before"]["value"], e["after"]["value"]) for e in kept] == [(item, first, halves)]
+    assert all("group" not in e and "request_id" not in e for e in kept)  # a log entry, no request
+    assert all(o.state not in ("stopped", "pending") for o in done.final.items.values())
+    if item == VERDICT:  # items gated on the verdict follow the new verdict (PI Q2 b)
+        gated = [q["item_id"] for q in load_set("page")["questions"]
+                 if isinstance(q.get("gate"), dict) and q["gate"]["item"] == VERDICT
+                 and halves not in q["gate"]["values"]]
+        assert gated and all(done.final.items[i].state == "gated_out" for i in gated)
     again = _no_calls(page, done, config)
-    assert not again.complete and again.result == done.result
+    assert again.complete and again.rounds == 0 and again.final == done.final and again.result == done.result
+
+
+def test_plan_kept_logs_only_items_recombined_after_the_halving(monkeypatch, rules):
+    """Review LOW (a): ``core.page_complete`` asked as the extra question (gated out, then opened by
+    the final verdict) is a newly asked item, not a change made by the halving: no PLAN_KEPT entry.
+    The same change on a re-combined item is logged."""
+    from g3o.classify import question_rounds as qr
+
+    _, result, _, _, _ = page_case(monkeypatch, rules)
+    complete = "core.page_complete"
+    gated = replace(result, items={**result.items, complete: pc.ItemOutcome(complete, "gated_out", "not_asked")})
+    items = {**gated.items, complete: result.items[complete]}  # combined "yes" after the extra question
+    q = next(q for q in load_set("page")["questions"] if q["item_id"] == complete)
+    assert qr._first_round_plan_kept(gated, items, frozenset(), q) == ()
+    logged = qr._first_round_plan_kept(gated, items, frozenset({complete}), q)
+    assert [(e["item_id"], e["outcome"]) for e in logged] == [(complete, PLAN_KEPT)]
+
+
+def test_page_halving_changed_verdict_resume_is_stable(monkeypatch, rules):
+    """PI ruling 68 b on resume: interrupted right after the change is saved, the resumed page
+    sends nothing twice, logs the change once and matches an uninterrupted run."""
+    page, result, support, config, fake, ask = _changed_case(
+        monkeypatch, rules, VERDICT, "confirms_activity", "background_only")
+    saved, stops = [], []
+
+    def checkpoint(updated, checked):
+        saved.append((pc.PageCodeResult.from_json(updated.to_json()), checked))
+        if any(e.get("outcome") == PLAN_KEPT for e in updated.requests) and not stops:
+            stops.append(True)
+            raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        complete_page_rounds(page, result, support, ask_fn=ask, config=config, check_support=_page_check,
+                             checkpoint=checkpoint)
+    resumed = complete_page_rounds(page, *saved[-1], ask_fn=ask, config=config, check_support=_page_check)
+    calls = _calls(fake)
+    assert resumed.complete and len(calls) == len(set(calls))
+    assert sum(e.get("outcome") == PLAN_KEPT for e in resumed.result.requests) == 1
+    ref_page, ref_result, ref_support, ref_config, ref_fake, ref_ask = _changed_case(
+        monkeypatch, rules, VERDICT, "confirms_activity", "background_only")
+    ref = complete_page_rounds(ref_page, ref_result, ref_support, ask_fn=ref_ask, config=ref_config,
+                               check_support=_page_check)
+    assert calls == _calls(ref_fake) and resumed.result.to_json() == ref.result.to_json()
+    assert resumed.final == ref.final
 
 
 def test_page_halving_transient_reask_failure_holds_then_resumes(monkeypatch, rules):
@@ -714,6 +808,19 @@ def test_page_halving_of_a_half_during_a_reask_owes_the_full_plan_to_its_halves(
     assert _calls(fake) == expected
 
 
+def _assert_scope_records(result, done):
+    """SCOPE's live records after the halving: jev answers on every leaf part, plus T-021's own
+    gated-out mechanical record (chunk_id None; jev_page_code module docstring item 4: a set-by-rule
+    value is a mechanical record), kept byte-for-byte (complete_page_rounds: historical gated-out
+    mechanical records remain unchanged)."""
+    scope = [r for r in done.result.records if r.item_id == SCOPE]
+    assert {r.chunk_id for r in scope if r.coder_type == "classifier"} == {"p:0", "p:1.1", "p:1.2"}
+    mechanical = [r for r in scope if r.coder_type != "classifier"]
+    assert mechanical == [r for r in result.records if r.item_id == SCOPE]
+    assert [(r.coder_type, r.chunk_id, r.rule_reference.startswith(pc.GATE_RULE)) for r in mechanical] == [
+        ("mechanical", None, True)]
+
+
 def test_page_halving_reasks_an_earlier_extra_round_question_in_its_own_request(monkeypatch, rules):
     page, result, support, config, fake = page_case(monkeypatch, rules, descendant=True)
     second_text = result.chunks[1].text
@@ -728,23 +835,7 @@ def test_page_halving_reasks_an_earlier_extra_round_question_in_its_own_request(
         asked = [q for p, q in _calls(fake) if p == label]
         assert asked[-2:] == [frozenset({SCOPE}), frozenset({data})]
     assert done.final.items[data].state == "combined"
-    assert {r.chunk_id for r in done.result.records if r.item_id == SCOPE} == {"p:0", "p:1.1", "p:1.2"}
-
-
-def test_page_halving_that_changes_provisional_page_complete_stops_for_pi(monkeypatch, rules):
-    page, result, support, config, fake = page_case(monkeypatch, rules)
-    originals = {c.text for c in result.chunks}
-    assert result.items["core.page_complete"].value == "yes"
-    fake.choices["core.page_complete"] = lambda s: "yes" if s["page_text"] in originals else "no"
-    ask = _over_for(fake, lambda s, q: set(q) == {SCOPE} and s["page_text"] in originals)
-    done = complete_page_rounds(page, result, support, ask_fn=ask, config=config,
-                                check_support=lambda *_: pytest.fail("no support check on a stopped page"))
-    assert not done.complete
-    scope = done.result.items[SCOPE]
-    assert scope.state == "stopped" and scope.error.startswith(HALVING_STOP) and "core.page_complete" in scope.error
-    assert done.result.items["core.page_complete"] == result.items["core.page_complete"]
-    again = _no_calls(page, done, config)
-    assert not again.complete and again.result == done.result
+    _assert_scope_records(result, done)
 
 
 def test_page_halving_changed_non_verdict_answer_regates_the_extra_question(monkeypatch, rules):
@@ -758,7 +849,7 @@ def test_page_halving_changed_non_verdict_answer_regates_the_extra_question(monk
     assert done.final.items["core.disclosure_form"].value == "informal_official"
     assert SCOPE in done.final.regated and done.final.items[SCOPE].state == "gated_out"
     assert done.result.items[SCOPE].state == "combined"  # jev's raw answers kept, unpublished
-    assert {r.chunk_id for r in done.result.records if r.item_id == SCOPE} == {"p:0", "p:1.1", "p:1.2"}
+    _assert_scope_records(result, done)
 
 
 def test_support_check_after_every_part_is_halved_is_an_extra_round(monkeypatch, rules):

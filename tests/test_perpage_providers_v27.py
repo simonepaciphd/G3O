@@ -1466,13 +1466,49 @@ def test_extractor_usages_agree_with_extractor_calls_across_kinds_and_reloads(tm
     _journal_call(path, extra, prompt, replace(good, custom_id=extra.custom_id), reject=False)
     reloaded = rt.RequestJournal(path, {"s": 1}, read_only=True)
     usages = _agree(reloaded)
-    assert len(usages) == 4 and usages.count(None) == 1
-    assert sorted(u["input_tokens"] for u in usages if u) == [1, 2, 2]
+    # Ruling 67 a: the errored result (no usage) comes as its failure type, read from the journal.
+    assert len(usages) == 4 and usages.count({"failed_result_type": "errored"}) == 1
+    assert sorted(u["input_tokens"] for u in usages if "input_tokens" in u) == [1, 2, 2]
     # A resume that replays everything adds no call and no usage.
     again = rt.RequestJournal(path, {"s": 1})
     wrap, _ = again.seams(prompt)
     assert wrap(lambda j: pytest.fail("asked again"))(job).text == "good"
     assert len(_agree(again)) == 4
+
+
+def test_failed_extractor_results_without_usage_are_priced_at_zero_after_resume(tmp_path):
+    """PI ruling 67 a: errored / expired / canceled batch results that report no usage are priced at
+    $0 from the journal on disk (canceled counted on its own: its not-billed premise is unverified);
+    an ``unknown`` failure without usage, and a failed result whose type was not recorded, stay
+    unpriced; a failed result that does report usage is priced from it."""
+    from g3o.common.cost_monitor import price_extractor_requests
+    from g3o.extract.anthropic_client import ExtractorJob
+
+    path, prompt = tmp_path / "journal.jsonl", {"extractor_model": "m"}
+    full = {**USAGE, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}
+    results = {
+        "errored": ExtractorResult("c-e", False, None, {"type": "errored", "error_type": "x"}, usage=None),
+        "expired": ExtractorResult("c-x", False, None, {"type": "expired"}, usage=None),
+        "canceled": ExtractorResult("c-c", False, None, {"type": "canceled"}, usage=None),
+        "max_tokens": ExtractorResult("c-m", False, None, {"type": "max_tokens"}, usage=full),
+    }
+    for i, result in enumerate(results.values()):
+        job = ExtractorJob(result.custom_id, {"model": "m", "messages": [{"a": i}]}, {})
+        _journal_call(path, job, prompt, result, reject=False)
+    usages = _agree(rt.RequestJournal(path, {"s": 1}, read_only=True))  # a resume reads them from disk
+    out = price_extractor_requests(usages, model="claude-haiku-5-5")
+    assert out["unbilled_failed_calls"] == 2 and out["unbilled_canceled_calls"] == 1
+    assert out["unpriced_calls"] == 0 and out["calls"] == 4 and out["usd"] is not None
+    assert out["usd"] == price_extractor_requests([full], model="claude-haiku-5-5")["usd"]
+    job = ExtractorJob("c-u", {"model": "m", "messages": [{"a": 9}]}, {})
+    _journal_call(path, job, prompt, ExtractorResult("c-u", False, None, {"type": "unknown"}, usage=None),
+                  reject=False)
+    usages = _agree(rt.RequestJournal(path, {"s": 1}, read_only=True))
+    out = price_extractor_requests(usages, model="claude-haiku-5-5")
+    assert out["unpriced_calls"] == 1 and out["usd"] is None
+    job = ExtractorJob("c-n", {"model": "m", "messages": [{"a": 10}]}, {})
+    _journal_call(path, job, prompt, ExtractorResult("c-n", False, None, None, usage=None), reject=False)
+    assert None in _agree(rt.RequestJournal(path, {"s": 1}, read_only=True))  # no type: not guessed
 
 
 @pytest.mark.parametrize(("stage", "kind"), [(PASS1, "not_json"), (PASS2, "failed")])
