@@ -36,12 +36,15 @@ Any other failure of a re-ask holds the question pending, as above.
 
 After a halving, the re-asked items are re-combined provisionally (0.8 bar,
 as in first rounds) and the final gates are re-applied by
-:func:`~g3o.classify.jev_page_code.finalize_page` (PI Q2 b / item 4 b). Two
-cases the signed rules do not settle stop the page instead (``stopped``,
-error :data:`HALVING_STOP`; open PI questions, no further request): the
-provisional verdict or ``core.page_complete`` changes, which the stored
-first-round extractor request was planned on; and failed verdict parts reach
-75% of the new leaf layout after the page was coded.
+:func:`~g3o.classify.jev_page_code.finalize_page` (PI Q2 b / item 4 b). When
+this changes the provisional verdict or ``core.page_complete``, the page
+continues on the re-combined values while the stored first-round extractor
+request (planned on the earlier value: its activity and link tasks) is kept
+and never asked again (PI ruling 68 b); the change is logged in ``requests``
+(``outcome`` :data:`PLAN_KEPT`). One case the signed rules do not settle stops
+the page instead (``stopped``, error :data:`HALVING_STOP`; open PI question,
+no further request): failed verdict parts reach 75% of the new leaf layout
+after the page was coded.
 """
 
 from __future__ import annotations
@@ -67,6 +70,9 @@ _OVER_LIMIT = "over_limit, not halved (RC-D-024 item 9): "
 HALVING_STOP = "halving_stopped (open PI question): "
 HALVED = "halved"
 HALVING_STOPPED = "extra_round_halving_stopped"
+#: ``requests`` log outcome: a halving changed the provisional verdict or ``core.page_complete``
+#: and the stored first-round extractor plan was kept (PI ruling 68 b; no request is made).
+PLAN_KEPT = "provisional_changed_first_round_plan_kept"
 #: Page part failures that are a final failed vote (first-round reasons and the depth limit).
 _FINAL_FAILURES = frozenset({page_code.REQUEST_FAILED, page_code.MISSING_REQUEST_ID,
                              page_code.ANSWER_MISSING, page_code.OVER_LIMIT})
@@ -206,6 +212,7 @@ def complete_page_rounds(page: page_code.PageInput, result: page_code.PageCodeRe
                 },))
                 _save(checkpoint, result, support)
                 return PageRoundResult(result, _final(result, support, config), support, rounds)
+            result = replace(result, requests=result.requests + _first_round_plan_kept(result, items, q))
         result = replace(result, items=items)
         _save(checkpoint, result, support)
         rounds += 1
@@ -460,14 +467,28 @@ def _recombine_after_halving(result: page_code.PageCodeResult, setup: Any,
         before = result.items[item]
         if before.state not in ("combined", "stopped"):
             continue
-        after = _provisional(result, setup, item)
-        if item in (page_code.VERDICT, page_code.COMPLETE) and (after.state, after.value) != (before.state,
-                                                                                             before.value):
-            return items, (f"provisional {item} changed from {before.value!r} ({before.state}) to "
-                           f"{after.value!r} ({after.state}) after halving; the stored first-round "
-                           "extractor request was planned on the earlier value")
-        out[item] = after
+        out[item] = _provisional(result, setup, item)
     return out, None
+
+
+def _first_round_plan_kept(result: page_code.PageCodeResult, items: dict[str, page_code.ItemOutcome],
+                           q: dict[str, Any]) -> tuple[dict[str, Any], ...]:
+    """Log entries for a provisional verdict or ``core.page_complete`` that a halving changed.
+
+    PI ruling 68 b: the page continues on the re-combined items (finalize_page re-gates);
+    the stored first-round extractor request (its activity and link tasks), planned on the
+    earlier value, is kept and not asked again. The entries record the change; no request
+    is made for them (``outcome`` :data:`PLAN_KEPT`, no ``group``)."""
+    out = []
+    for item in (page_code.VERDICT, page_code.COMPLETE):
+        before, after = result.items.get(item), items.get(item)
+        if before is None or after is None or (before.state, before.value) == (after.state, after.value):
+            continue
+        out.append({"chunk_id": None, "round": q["round"], "question_ids": [q["question_id"]],
+                    "outcome": PLAN_KEPT, "item_id": item,
+                    "before": {"state": before.state, "value": before.value},
+                    "after": {"state": after.state, "value": after.value}})
+    return tuple(out)
 
 
 def _binding(records: Sequence[CoderRecord], setup_pointer: str) -> None:
