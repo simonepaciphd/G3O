@@ -790,7 +790,10 @@ def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: 
     if chosen is not None:
         origin = chosen.origin
         label = f"{origin} {chosen.tag}" if chosen.tag else origin
-        if chosen.tag:  # the A1.1 a signal that decided (PI ruling 63 a names it in the support rule)
+        # The A1.1 a signal that decided, kept so the T-015 assembler can name the support rule
+        # deterministic_date:<tag>. PI ruling 63 a gives deterministic_date:<origin> only as an example
+        # form; using the A1.1 a tag as the origin is this build's procedural choice.
+        if chosen.tag:
             detail["tag"] = chosen.tag
         return _fv(DATE, chosen.value, f"deterministic {label} date ({chosen.detail})", v,
                    provenance=v.date_origin_map[origin], date_origin=origin, detail=detail)
