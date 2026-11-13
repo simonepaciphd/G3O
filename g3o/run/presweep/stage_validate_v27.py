@@ -183,7 +183,7 @@ class UpstreamRowMalformed(Exception):  # noqa: N818 - names the wiring defect, 
 
     def __init__(self, institution_id: str, field: str, where: str) -> None:
         super().__init__(f"malformed upstream row for {institution_id}: {field} is missing ({where}); a wiring "
-                         "error, the stage stops (ruling 32 b)")
+                         "or programming error, the stage stops (ruling 32 b)")
         self.institution_id, self.field, self.where = institution_id, field, where
 
 
@@ -193,11 +193,13 @@ IDENTITY_COLUMNS = tuple(InstitutionIdentityV27.model_fields)
 
 
 def require_identity(inst: Stage6Institution) -> None:
-    """Ruling 32 b: refuse (stage stop) an institution row missing a master identity column."""
+    """Ruling 32 b: refuse (stage stop) an institution row missing a master identity column, or with
+    a null (``None``) value in one; :func:`run_stage6_v27` checks every row before its first call."""
     row = inst.institution
-    missing = [c for c in IDENTITY_COLUMNS if c not in row]
+    missing = [c for c in IDENTITY_COLUMNS if row.get(c) is None]
     if missing:
-        raise UpstreamRowMalformed(str(row.get("institution_id", "<no institution_id>")), ", ".join(missing),
+        ident = row.get("institution_id")
+        raise UpstreamRowMalformed(str(ident) if ident is not None else "<no institution_id>", ", ".join(missing),
                                    "institution identity columns")
 ARTIFACTS_UNREADABLE = "stage6_artifacts_unreadable"  # existing Stage 6 artifacts fail to reload
 MISSING_RELATION = "missing_relation_decision"
@@ -990,8 +992,9 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 
     Malformed upstream rows (ruling 32 b) stop the stage with
     :class:`UpstreamRowMalformed`, naming the institution and the missing field:
-    an institution row missing a master identity column (checked first, before
-    the executor asks anything), and any ``KeyError`` while building the storage
+    an institution row missing a master identity column or holding a null in one
+    (every row is checked before the first institution is run, so nothing is asked
+    for any institution), and any ``KeyError`` while building the storage
     envelope or writing the artifacts (e.g. a source row without
     ``core.confidence``). The holds the rulings require are unchanged: a source
     with no syndication group holds the institution (A7 13 a, a
@@ -1014,8 +1017,10 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     metrics = Stage6Metrics()
     setup = {"setup_pointer": config.setup_pointer, "configured_model": config.configured_model,
              "coder_version": config.coder_version}
+    institutions = list(institutions)
+    for inst in institutions:  # ruling 32 b: a malformed row stops the stage before any call is made
+        require_identity(inst)
     for inst in institutions:
-        require_identity(inst)  # ruling 32 b: a malformed row stops the stage before anything is asked
         inst_dir = institution_dir(run_dir, inst.institution_id)
         try:
             done = _done(inst_dir)

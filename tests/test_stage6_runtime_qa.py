@@ -559,6 +559,25 @@ def test_institution_row_without_an_identity_column_stops_the_stage(tmp_path, co
     assert _ledger(run_dir) == []
 
 
+@pytest.mark.parametrize("value", ["absent", None])
+def test_identity_checked_for_every_row_before_any_call(tmp_path, value):
+    # Ruling 32 b: a malformed row anywhere (here the second institution; a missing column or a
+    # null value) stops the stage before the first institution is run: no jev or quote call at all.
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    row = {k: v for k, v in b.institution.items() if k != "country"}
+    if value is None:
+        row["country"] = None
+    jev, quotes = e.FakeJev(e.RELATIONS, e._pooled_answers()), e.FakeQuotes()
+    with pytest.raises(rt.UpstreamRowMalformed, match="country") as info:
+        _run(run_dir, bound, instrument, [a, replace(b, institution=row)], quotes, jev=jev)
+    assert info.value.institution_id == B and info.value.field == "country"
+    assert "wiring or programming error" in str(info.value)
+    assert jev.calls == [] and quotes.calls == 0
+    assert not any((institution_dir(run_dir, i) / rt.WORK_DIR).exists() for i in (A, B))
+    assert _ledger(run_dir) == [] and _ledger(run_dir, B) == []
+
+
 def test_wiring_stop_is_not_an_envelope_hold():
     assert not issubclass(rt.UpstreamRowMalformed, rt.ENVELOPE_HOLDS + rt.STAGE_STOPS)
 

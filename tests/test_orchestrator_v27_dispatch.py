@@ -585,6 +585,39 @@ def test_v27_dispatch_refuses_inputs_that_empty_on_the_second_pass(tmp_path):
     assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in INSTS)
 
 
+def _inst(inst_id, *page_ids):
+    page = type("P", (), {})
+    specs = []
+    for pid in page_ids:
+        spec = type("S", (), {})()
+        spec.page = page()
+        spec.page.page_id = pid
+        specs.append(spec)
+    out = type("I", (), {})()
+    out.institution_id, out.pages = inst_id, specs
+    return out
+
+
+def test_same_pages_refuses_more_pages_than_counted():
+    expected = [("I1", "p1"), ("I1", "p2")]
+    run = orch._same_pages([_inst("I1", "p1", "p2"), _inst("I2", "p3")], expected)
+    assert next(run).institution_id == "I1"
+    with pytest.raises(orch.V27InputsChanged, match="more than the 2 page"):
+        next(run)
+
+
+def test_same_pages_compares_the_ordered_page_list_not_the_count():
+    expected = [("I1", "p1"), ("I2", "p2")]
+    for changed in ([_inst("I2", "p2"), _inst("I1", "p1")],  # same pages, other order
+                    [_inst("I1", "p1"), _inst("I2", "p9")]):  # same count, another page
+        with pytest.raises(orch.V27InputsChanged, match="changed between passes"):
+            list(orch._same_pages(changed, expected))
+    assert [i.institution_id for i in orch._same_pages([_inst("I1", "p1"), _inst("I2", "p2")], expected)] == \
+        ["I1", "I2"]
+    with pytest.raises(orch.V27InputsChanged, match="yielded 1 page"):
+        list(orch._same_pages([_inst("I1", "p1")], expected))
+
+
 def test_require_complete_runs_on_injected_inputs_before_any_paid_call(tmp_path):
     """Ruling 40 a: a None row value from an injected builder is refused before coding."""
     run_dir, bound, instrument, world = _world_run(tmp_path)
