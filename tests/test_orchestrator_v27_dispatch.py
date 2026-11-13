@@ -304,6 +304,25 @@ def test_default_builder_run_is_refused_at_entry_while_producers_are_missing(tmp
     assert orch._require_v27_dispatch(replace(v27, perpage_inputs=lambda *a: [])).perpage_inputs is not None
 
 
+@pytest.mark.parametrize("name", ["default_perpage_inputs", "build_perpage_inputs"])
+def test_default_builder_passed_explicitly_is_refused_at_entry(tmp_path, monkeypatch, name):
+    """Ruling 36 a: the default builder passed by name is refused exactly like ``None``."""
+    from g3o.persist.stage6_adapters import MissingUpstreamError
+    from g3o.run.presweep import perpage_inputs_v27 as pin
+
+    assert pin.MISSING_PRODUCERS
+    _no_planning(monkeypatch)
+    v27 = _stub_dispatch(perpage_inputs=getattr(pin, name))
+    with pytest.raises(MissingUpstreamError, match="ruling 36 a") as exc:
+        orch._require_v27_dispatch(v27)
+    assert exc.value.missing == pin.MISSING_PRODUCERS
+    with pytest.raises(MissingUpstreamError, match="ruling 36 a"):
+        orch.run_presweep(_v27_config(tmp_path), v27=v27)
+    assert not (tmp_path / "runs").exists()
+    monkeypatch.setattr(pin, "MISSING_PRODUCERS", ())
+    assert orch._require_v27_dispatch(v27) is v27
+
+
 def test_default_builder_entry_refusal_lifts_once_the_producers_exist(tmp_path, monkeypatch):
     """Ruling 36 a: the refusal is keyed on ``MISSING_PRODUCERS``, not hard-coded."""
     from g3o.run.presweep import perpage_inputs_v27 as pin
@@ -526,6 +545,43 @@ def test_v27_dispatch_stops_on_a_missing_upstream_producer(tmp_path):
     assert exc.value.missing == (f"{INSTS[0]}/{dropped[0]}",)
     assert jev.calls == [] and extract.jobs == [] and entail.calls == []
     assert not any((institution_dir(run_dir, i) / pp.WORK_DIR).exists() for i in INSTS)
+    assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in INSTS)
+
+
+def test_v27_dispatch_codes_the_pages_of_a_generator_builder(tmp_path):
+    """A builder that ``yield``s its institutions (a one-shot iterator) is held as a list, so the
+    ``require_complete`` pass does not consume what the per-page stage then codes."""
+    run_dir, bound, instrument, world = _world_run(tmp_path)
+    inputs = WorldInputs(world)
+
+    def generator(*args):
+        yield from inputs(*args)
+    extract = FakeExtractorS6(world)
+    out = orch.run_v27_dispatch(run_dir, [], None, _dispatch(world, extract=extract, inputs=generator))
+    assert out["n_perpage_ready"] == 3 and out["n_stage6_written"] == 3
+    assert "5_extract_v27" in extract.stages()
+    for inst in INSTS:
+        assert (institution_dir(run_dir, inst) / pp.WORK_DIR / pp.JOURNAL).is_file()
+
+
+def test_v27_dispatch_refuses_inputs_that_empty_on_the_second_pass(tmp_path):
+    """A re-iterable (not an iterator) whose second pass yields fewer pages than ``require_complete``
+    counted is an explicit error, raised before Stage 6; here nothing is coded."""
+    run_dir, bound, instrument, world = _world_run(tmp_path)
+    inputs = WorldInputs(world)
+
+    class OnePass:
+        def __init__(self, insts):
+            self.insts, self.passes = insts, 0
+
+        def __iter__(self):
+            self.passes += 1
+            return iter(self.insts if self.passes == 1 else [])
+    jev, extract, entail = FakeJev(ANSWERS, RELATIONS, _fail_verdict), FakeExtractorS6(world), FakeEntail()
+    v27 = _dispatch(world, jev=jev, extract=extract, entail=entail, inputs=lambda *a: OnePass(inputs(*a)))
+    with pytest.raises(orch.V27InputsChanged, match="yielded 0 page"):
+        orch.run_v27_dispatch(run_dir, [], None, v27)
+    assert jev.calls == [] and extract.jobs == [] and entail.calls == []
     assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in INSTS)
 
 

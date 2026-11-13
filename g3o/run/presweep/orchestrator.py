@@ -350,7 +350,9 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
       :data:`g3o.run.presweep.perpage_inputs_v27.MISSING_PRODUCERS` is non-empty
       (PI ruling 36 a: T-025 ``followed`` and the T-015/T-022/T-024 row values have
       no producer yet, so the builder could only refuse after Stages 1-4 had
-      spent). An injected ``perpage_inputs`` is not refused here.
+      spent). The default builder passed explicitly (``default_perpage_inputs`` or
+      ``build_perpage_inputs``) is refused the same way; any other injected
+      ``perpage_inputs`` is not refused here.
 
     Nothing here writes. Every later check still runs where it did.
     """
@@ -388,15 +390,17 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
     bound, record = check_runtime(settings)
     check_binding(bound, record, extractor_model=settings.extractor_model, x35_model=settings.x35_model)
     bound.stage6_quote_fn(v27.extract_fn, v27.entail_fn, x35_model=settings.x35_model)
-    if v27.perpage_inputs is None:
-        from g3o.persist.stage6_adapters import MissingUpstreamError
-        from g3o.run.presweep.perpage_inputs_v27 import MISSING_PRODUCERS
+    from g3o.run.presweep import perpage_inputs_v27 as pin
 
-        if MISSING_PRODUCERS:  # ruling 36 a
+    # the default builder, whether left as None or passed explicitly by name
+    if v27.perpage_inputs is None or v27.perpage_inputs in (pin.default_perpage_inputs, pin.build_perpage_inputs):
+        from g3o.persist.stage6_adapters import MissingUpstreamError
+
+        if pin.MISSING_PRODUCERS:  # ruling 36 a
             raise MissingUpstreamError(
                 "the default v2.7 per-page builder (ruling 36 a: a v2.7 run on it is refused at "
                 "entry, before any Stage 1-4 spend, while these producers are missing)",
-                MISSING_PRODUCERS,
+                pin.MISSING_PRODUCERS,
             )
     return v27
 
@@ -422,6 +426,30 @@ def _usage_totals(metrics: Any) -> dict[str, int]:
             totals[key] = totals.get(key, 0) + int(value)
     return {"n_institutions": len(metrics.usage), "live_requests": metrics.live_requests,
             "replayed_requests": metrics.replayed_requests, **dict(sorted(totals.items()))}
+
+
+class V27InputsChanged(RuntimeError):
+    """The per-page inputs' run pass saw other pages than the ``require_complete`` pass counted.
+
+    A re-iterable ``perpage_inputs`` output must give the same institutions and pages on
+    each pass (ruling 40 a checks the first pass only); one that empties or changes on the
+    second pass is a wiring error and stops the dispatch before Stage 6.
+    """
+
+
+def _same_pages(institutions: Iterable[Any], expected: int) -> Iterator[Any]:
+    """Yield ``institutions`` (the run pass), raising :class:`V27InputsChanged` as soon as the
+    pages seen exceed ``expected``, or at the end when they fall short of it."""
+    seen = 0
+    for inst in institutions:
+        seen += len(inst.pages)
+        if seen > expected:
+            raise V27InputsChanged(f"v2.7 per-page inputs: the run pass yielded more than the {expected} page(s) "
+                                   "require_complete counted (the builder's output changed between passes)")
+        yield inst
+    if seen != expected:
+        raise V27InputsChanged(f"v2.7 per-page inputs: the run pass yielded {seen} page(s), require_complete "
+                               f"counted {expected} (a re-iterable that empties or changes on the second pass)")
 
 
 def run_v27_dispatch(
@@ -488,7 +516,7 @@ def run_v27_dispatch(
 
     span = tel.stage_start(V27_PERPAGE_SPAN, counts_in=n_pages)
     ready, pm = run_perpage_v27(
-        run_dir, institutions, ask_fn=v27.jev_ask_fn, providers=providers,
+        run_dir, _same_pages(institutions, n_pages), ask_fn=v27.jev_ask_fn, providers=providers,
         page_config=bound.page_config, activity_config=bound.activity_config,
         instrument=instrument,
     )
