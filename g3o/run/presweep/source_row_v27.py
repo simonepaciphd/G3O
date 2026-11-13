@@ -215,10 +215,13 @@ PRODUCED_SOURCE_ITEMS = (
     sf.DATE, sf.UPPER_BOUND, *EXTRACTED_FIELDS, sf.OFFICIAL, sf.SOURCE_TYPE, sf.CREDIBILITY,
 )
 
-#: A readable residual page: the residual source_type question (T-015's own jev request, RC-D-023 B-Q3 a) and
-#: the supporting quote its support check needs are not wired into the per-page stage.
-RESIDUAL_REFUSAL = ("the residual source_type question (T-015 jev request, RC-D-023 B-Q3 a) and its supporting "
-                    "quote, not wired into the per-page stage")
+#: A readable residual page. PI ruling 71 b (2026-11-13): the classifier-typed source_type gets its supporting
+#: quote "inside the residual jev request" (no pass-1 prompt change). A jev request returns typed answers only
+#: (Choice / Score / Noul, :class:`g3o.common.jev_client.JevAnswer`), never text, so it cannot carry a quote,
+#: and the support check (T-024 / R-042, plus X35: the item has an entailment label) needs one. Refused before
+#: the residual jev call is made, so nothing is spent on a value that could not be published (open PI question).
+RESIDUAL_REFUSAL = ("the residual source_type question and its supporting quote (PI ruling 71 b: quote inside "
+                    "the residual jev request; a jev request returns no text; open PI question)")
 
 
 def pass1_activity_fields() -> tuple[str, ...]:

@@ -566,3 +566,16 @@ def test_unresolved_official_site_refuses_its_readers_70b():
     rows = _typed(_page(), FIELDS_P1, None)
     assert srow.OFFICIAL_SITES in rows.refused[sf.OFFICIAL]
     assert TYPED - {sf.CREDIBILITY} <= set(rows.refused)
+
+
+def test_residual_source_type_refused_before_any_call_71b():
+    """PI ruling 71 b asks for the quote inside the residual jev request; a jev answer carries no text."""
+    from dataclasses import fields
+
+    from g3o.common.jev_client import JevAnswer
+    assert {f.name for f in fields(JevAnswer)} == {"question_id", "type", "choice", "noul", "score", "confidence",
+                                                   "probabilities"}
+    assert "71 b" in srow.RESIDUAL_REFUSAL
+    rows = _typed(_page(), FIELDS_P1, ELSEWHERE)  # the assembler is handed no jev call at all
+    assert rows.refused[sf.SOURCE_TYPE].endswith(f"{srow.RESIDUAL_REFUSAL}: {sf.SOURCE_TYPE}")
+    assert sf.SOURCE_TYPE in srow.CONDITIONAL_ITEMS and sf.SOURCE_TYPE not in srow.unproduced_items()
