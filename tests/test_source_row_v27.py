@@ -102,7 +102,8 @@ def test_page_level_values_from_page_fields_and_page():
     # Without the pass-1 request and its provenance every quote-step item is refused as well.
     quote_items = {sf.SNIPPET, sf.DATE, sf.UPPER_BOUND, *srow.pass1_activity_fields(), *srow.REPORTED_GATES,
                    *srow.EXTRACTED_FIELDS}
-    assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | quote_items         | TYPED
+    assert set(rows.refused) == \
+        set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | quote_items | TYPED
     assert all(srow.MISSING_EXTRACTION in rows.refused[i] for i in quote_items - {sf.UPPER_BOUND})
     assert not set(rows.source) & set(rows.refused)
 
@@ -416,7 +417,11 @@ def test_assemble_with_extraction_builds_activity_quote_values_and_codes():
     assert rows.source[sf.SNIPPET].value == quote
     assert {sr.item_id for sr, _ in rows.activity_codes["p1#a001"]} == \
         {*srow.pass1_activity_fields(), *srow.REPORTED_GATES}
-    assert [sr.item_id for sr, _ in rows.source_codes] == [sf.SNIPPET]
+    # The snippet, then the T-022 date task's code: pass 1 returned no date, so not_documented with a
+    # quote-step record (items/core.source_publication_date/rules/0; PI ruling 63 a covers metadata/URL dates).
+    assert [sr.item_id for sr, _ in rows.source_codes] == [sf.SNIPPET, sf.DATE]
+    assert rows.source[sf.DATE].value == "not_documented"
+    assert [rec.coder_type for sr, rec in rows.source_codes if sr.item_id == sf.DATE] == ["quote_step"]
     # No official sites: X37 and source_type refused; the undated source's credibility is low (rules/0).
     assert set(rows.refused) == \
         set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | {sf.OFFICIAL, sf.SOURCE_TYPE}
