@@ -315,13 +315,19 @@ class V27Dispatch:
       scraped pages. ``None`` (the default, PI ruling D1 a): built from the stored
       scrape artifacts by
       :func:`g3o.run.presweep.perpage_inputs_v27.default_perpage_inputs`, which
-      leaves ``None`` the values no producer supplies yet (T-025 ``followed``, the
+      leaves ``None`` the values no producer supplies yet (the
       T-015/T-022/T-024 row values). While those producers are missing
       (``perpage_inputs_v27.MISSING_PRODUCERS``) a run on the default is refused at
       entry (PI ruling 36 a). An injected callable wins (the D1 a seam, kept for
       tests). Whichever builder is used, ``perpage_inputs_v27.require_complete``
       refuses a ``None`` upstream value (``MissingUpstreamError``) before any paid
       call (PI ruling 40 a); key coverage is still checked in the per-page stage.
+    - ``follow_fetch(url) -> stage_follow.FetchResult``: the T-025 follow leg's fetch
+      (:func:`g3o.run.presweep.stage_follow.polite_fetch` binds the existing scrape
+      path; tests pass fakes). Given, the per-page stage follows the searched pages'
+      links (:class:`g3o.run.presweep.follow_v27.FollowLeg`). Required with the
+      default builder (refused at entry otherwise); with an injected builder, None
+      follows nothing.
     """
 
     settings: Any
@@ -329,6 +335,7 @@ class V27Dispatch:
     extract_fn: Callable[..., Any]
     entail_fn: Callable[..., Any]
     perpage_inputs: Callable[..., Iterable[Any]] | None = None
+    follow_fetch: Callable[[str], Any] | None = None
 
 
 def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
@@ -348,7 +355,7 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
       instruction pin and X35 model (``BoundRuntime.stage6_quote_fn``);
     - a run on the default per-page builder (``perpage_inputs`` None) while
       :data:`g3o.run.presweep.perpage_inputs_v27.MISSING_PRODUCERS` is non-empty
-      (PI ruling 36 a: T-025 ``followed`` and the T-015/T-022/T-024 row values have
+      (PI ruling 36 a: the T-025 attempted pages and the T-015/T-022/T-024 row values have
       no producer yet, so the builder could only refuse after Stages 1-4 had
       spent). The default builder passed explicitly (``default_perpage_inputs`` or
       ``build_perpage_inputs``) is refused the same way; any other injected
@@ -369,6 +376,9 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
     if v27.perpage_inputs is not None and not callable(v27.perpage_inputs):
         raise ValueError("v2.7 dispatch: perpage_inputs must be a callable, or None for the default "
                          "builder (D1 a)")
+    if v27.follow_fetch is not None and not callable(v27.follow_fetch):
+        raise ValueError("v2.7 dispatch: follow_fetch must be a callable (stage_follow.polite_fetch or a fake), "
+                         "or None")
     from g3o.run.presweep.instrument_binding import RuntimeSettings
 
     if not isinstance(v27.settings, RuntimeSettings):
@@ -402,6 +412,9 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
                 "entry, before any Stage 1-4 spend, while these producers are missing)",
                 pin.MISSING_PRODUCERS,
             )
+        if v27.follow_fetch is None:  # T-025: the default builder's searched pages are followed
+            raise MissingUpstreamError("the T-025 follow leg (V27Dispatch.follow_fetch) of the default v2.7 "
+                                       "per-page builder", ["follow_fetch"])
     return v27
 
 
@@ -522,11 +535,16 @@ def run_v27_dispatch(
     out.update({"pipeline_version": PIPELINE_V27, "instrument_id": bound.instrument_id})
     usage: dict[str, dict[str, int]] = {}
 
+    follow = None
+    if v27.follow_fetch is not None:  # T-025 (RC-D-023 C-1 a): followed inside the per-page stage
+        from g3o.run.presweep.follow_v27 import FollowLeg
+
+        follow = FollowLeg(v27.follow_fetch)
     span = tel.stage_start(V27_PERPAGE_SPAN, counts_in=n_pages)
     ready, pm = run_perpage_v27(
         run_dir, _same_pages(institutions, page_keys), ask_fn=v27.jev_ask_fn, providers=providers,
         page_config=bound.page_config, activity_config=bound.activity_config,
-        instrument=instrument,
+        instrument=instrument, follow=follow,
     )
     out["n_perpage_ready"] = len(pm.ready)
     out["n_perpage_held"] = len(pm.held)

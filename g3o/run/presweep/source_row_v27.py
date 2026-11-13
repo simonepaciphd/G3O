@@ -23,9 +23,10 @@ Produced here (source row, page-level, the same on every source row of a page):
   ``syndication_group``: :class:`PageSourceFields` (X28, A3, A4; PI D1 a).
 - ``text_source``: :class:`PageSourceFields` (``new_run`` for a new run's
   rows, PI ruling 62 a).
-- ``discovery_path``: from ``PageUpstream.followed`` (PI ruling 61 a): a page
-  not followed is ``searched``; a followed page needs its hop from T-025 and is
-  refused until T-025 passes it (the seam is ``discovery_path(hop=...)``).
+- ``discovery_path``: from ``PageUpstream.followed`` and ``PageUpstream.hop``
+  (PI ruling 61 a): a page not followed is ``searched``; a followed page is
+  ``followed_hop_<n>`` with the hop the T-025 follow leg
+  (:mod:`g3o.run.presweep.follow_v27`) gives it, and is refused without one.
 - ``source_title``: ``RenderedPage.title`` when it is not empty
   (``items/core.source_title/rules/0``); an empty title is refused, since the
   first-heading fallback stays unproduced (PI ruling 39 a).
@@ -673,14 +674,15 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
                        activities: Mapping[str, Mapping[str, Any]], rows: AssembledRows, *,
                        followed: bool | None = None, sources: sc.PageSources | None = None,
                        verdict_support: sc.SupportResult | None = None,
-                       provenance: Provenance | None = None, extraction: Any = None) -> None:
+                       provenance: Provenance | None = None, extraction: Any = None,
+                       hop: int | None = None) -> None:
     """The page-level source-row values (see the module docstring) into ``rows.source``."""
     out = rows.source
     for item, attr in ((sf.URL, "url"), (sf.ACCESS_DATE, "access_date"), (sf.LANGUAGE, "language"),
                        (sf.SYNDICATION, "syndication_group"), (sf.TEXT_SOURCE, "text_source")):
         _try(rows, out, item, lambda item=item, attr=attr: _field(getattr(page_fields, attr, None), item))
-    # Ruling 61 a: from the follow provenance; a followed page waits for its T-025 hop (seam: ``hop``).
-    _try(rows, out, sf.DISCOVERY, lambda: _from(sf.discovery_path(followed=followed)))
+    # Ruling 61 a: from the T-025 follow provenance (a followed page with no hop is refused).
+    _try(rows, out, sf.DISCOVERY, lambda: _from(sf.discovery_path(followed=followed, hop=hop)))
     _try(rows, out, sf.TITLE, lambda: source_title(page))
     _try(rows, out, sf.REVIEW_STATE, lambda: RowValue(
         sf.REVIEW_STATE, sf.page_review_state(REVIEWED).value,
@@ -747,14 +749,15 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
              activities: Mapping[str, Mapping[str, Any]], *, followed: bool | None = None,
              extraction: Any = None, sources: sc.PageSources | None = None,
              verdict_support: sc.SupportResult | None = None,
-             provenance: Provenance | None = None) -> AssembledRows:
+             provenance: Provenance | None = None, hop: int | None = None) -> AssembledRows:
     """Build every producible row value of one coded page and name every refused item.
 
     ``page`` is the :class:`~g3o.classify.jev_page_code.PageInput`,
     ``page_fields`` its :class:`~g3o.run.presweep.perpage_inputs_v27.PageSourceFields`,
     ``page_values`` the final page values and ``activities`` the final values of
     each coded activity (``{activity_id: values}``; empty on a page with no activity).
-    ``followed`` is ``PageUpstream.followed`` (T-025; None: no follow provenance).
+    ``followed`` / ``hop`` are ``PageUpstream.followed`` / ``.hop`` (T-025; followed None: no
+    follow provenance; a followed page's hop is >= 1).
     ``extraction`` is the page's T-022 pass-1 request
     (:class:`~g3o.extract.parser_v27.Pass1Extraction`, from
     ``PerPageProviders.page_extraction``), ``sources`` the coded page's parts,
@@ -770,7 +773,7 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
     if activities:
         rows.refused.update(REFUSED_ACTIVITY_ITEMS)
     page_source_values(page, page_fields, page_values, activities, rows, followed=followed, sources=sources,
-                       verdict_support=verdict_support, provenance=provenance, extraction=extraction)
+                       verdict_support=verdict_support, provenance=provenance, extraction=extraction, hop=hop)
     activity_row_values(activities, rows, extraction=extraction, sources=sources, provenance=provenance)
     return rows
 

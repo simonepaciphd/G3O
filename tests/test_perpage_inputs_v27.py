@@ -5,8 +5,9 @@ A fixture run dir with two institutions and stored ``RenderedPage`` artifacts
 near-duplicate pages, the same text at a second institution). Checks
 ``page_id = url_hash(url)``, fields verbatim from the page and master row, each
 A-producer value, syndication groups scoped to the institution, and the
-refusals kept for values no producer supplies (``followed``, the row values,
-``merged_values``; the row items the T-015 assembler still refuses). One dispatch
+refusals kept for values no producer supplies (the row values, ``merged_values``;
+the row items the T-015 assembler still refuses); every page built here is a
+searched page (``followed`` False, ruling 61 a). One dispatch
 test runs ``run_v27_dispatch`` with the default builder and fake calls: it
 refuses before any jev or extractor call. No network: lingua runs locally.
 """
@@ -195,14 +196,12 @@ def test_unproduced_values_still_refuse(tmp_path):
         for spec in inst.pages:
             up = spec.upstream
             assert (up.artifact_path, up.segments) == (None, None)  # A5 writes the artifact in the stage
-            assert (up.followed, up.activity_values, up.source_values, up.codes) == (None, None, None, None)
-    with pytest.raises(MissingUpstreamError, match="T-025 follow provenance") as exc:
-        pin.require_complete(list(insts.values()))
-    assert f"{I1}/{url_hash(P_META.url)}" in exc.value.missing
-    followed = [replace(i, pages=[replace(s, upstream=replace(s.upstream, followed=False)) for s in i.pages])
-                for i in insts.values()]
+            assert (up.followed, up.hop) == (False, None)  # searched pages (ruling 61 a)
+            assert (up.activity_values, up.source_values, up.codes) == (None, None, None)
+    followed = list(insts.values())
     with pytest.raises(MissingUpstreamError, match=r"row values .*\(activity_values, source_values, codes\)") as exc:
         pin.require_complete(followed)
+    assert f"{I1}/{url_hash(P_META.url)}" in exc.value.missing
     # Ruling 35 a: the row values are left to the T-015 assembler, which names what it still refuses.
     assert "source-row assembler" in str(exc.value) and "core.source_type" in str(exc.value)
     assert all(s.upstream.page_fields is not None for i in followed for s in i.pages)
@@ -245,13 +244,16 @@ def test_require_complete_refuses_each_none_row_value(tmp_path, absent):
 
 def test_unproduced_values_refusals_in_the_stage(tmp_path):
     insts = _built(tmp_path)
-    # The per-page stage's own refusal is unchanged: failed_page still refuses a page with no follow value.
+    # The per-page stage's own refusal is unchanged: failed_page still refuses a page with no follow value
+    # (an injected builder's gap); the builder's pages are searched.
+    spec = insts[I1].pages[0]
     with pytest.raises(MissingUpstreamError, match="T-025 follow provenance"):
-        pp.failed_page(insts[I1].pages[0], "jev_request_failed")
-    # Ruling 61 a: discovery_path needs the follow provenance; a followed page also needs its hop.
+        pp.failed_page(replace(spec, upstream=replace(spec.upstream, followed=None)), "jev_request_failed")
+    # Ruling 61 a: a searched page is ``searched``; a followed page also needs its hop.
+    assert sf.discovery_path(followed=spec.upstream.followed).value == "searched"
     with pytest.raises(sf.MissingUpstreamError, match="T-025 follow provenance"):
-        sf.discovery_path(followed=insts[I1].pages[0].upstream.followed)
-    with pytest.raises(MissingUpstreamError, match="T-025 follow provenance"):
+        sf.discovery_path(followed=True)
+    with pytest.raises(MissingUpstreamError, match="row values"):
         pin.require_complete(pin.default_perpage_inputs(_run_dir(tmp_path / "again"), ROWS, SCRAPED, None, None))
 
 
@@ -351,17 +353,19 @@ def test_v27_dispatch_default_builder_refuses_before_any_call(tmp_path, monkeypa
         (d / "institution.json").write_text(json.dumps({**rec, "institution_search_languages": "en"}),
                                             encoding="utf-8")
     jev, extract, entail = FakeJev(), FakeExtractor(world), FakeEntail()
-    v27 = orch.V27Dispatch(settings=SETTINGS, jev_ask_fn=jev, extract_fn=extract, entail_fn=entail)
+    fetched = []
+    v27 = orch.V27Dispatch(settings=SETTINGS, jev_ask_fn=jev, extract_fn=extract, entail_fn=entail,
+                           follow_fetch=fetched.append)
     assert v27.perpage_inputs is None
     with pytest.raises(MissingUpstreamError, match="ruling 36 a"):  # refused at entry while producers are missing
         orch.run_v27_dispatch(run_dir, ROWS[:2], SCRAPED, v27)
     # Once the producers exist the entry refusal lifts; the builder's own guard still refuses.
     monkeypatch.setattr(pin, "MISSING_PRODUCERS", ())
     scraped = RecordingScraped(SCRAPED)
-    with pytest.raises(MissingUpstreamError, match="T-025 follow provenance") as exc:
+    with pytest.raises(MissingUpstreamError, match="row values") as exc:
         orch.run_v27_dispatch(run_dir, ROWS[:2], scraped, v27)
     # The refusal comes from the first (check) pass over the lazy inputs: each institution read once.
     assert scraped.reads == [I1, I2]
     assert exc.value.missing == tuple(f"{i}/{url_hash(p.url)}" for i in (I1, I2) for p in SCRAPED[i])
-    assert jev.calls == [] and extract.jobs == [] and entail.calls == []
+    assert jev.calls == [] and extract.jobs == [] and entail.calls == [] and fetched == []
     assert not (institution_dir(run_dir, I1) / pp.WORK_DIR).exists()

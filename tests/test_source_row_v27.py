@@ -74,7 +74,10 @@ def test_discovery_path_and_text_source_rulings_61a_62a():
         assert item in srow.PRODUCED_SOURCE_ITEMS and item not in srow.unproduced_items()
     v = _values(srow.assemble(_page(), FIELDS_P1, GENAI, {}, followed=False))
     assert (v[sf.DISCOVERY], v[sf.TEXT_SOURCE]) == ("searched", "new_run")
-    # A followed page waits for its T-025 hop; no follow provenance, or no text source, refuses.
+    # A followed page carries its T-025 hop (followed_hop_<n>); without it, or with no follow
+    # provenance, or no text source, the item is refused.
+    assert _values(srow.assemble(_page(), FIELDS_P1, GENAI, {}, followed=True, hop=2))[sf.DISCOVERY] == \
+        "followed_hop_2"
     for followed in (True, None):
         rows = srow.assemble(_page(), FIELDS_P1, GENAI, {}, followed=followed)
         assert sf.DISCOVERY not in rows.source and "T-025" in rows.refused[sf.DISCOVERY]
@@ -214,7 +217,7 @@ def test_vendor_claim_only_a89():
 
 
 def test_missing_producers_names_the_refused_items():
-    assert pin.MISSING_PRODUCERS == (pp.FOLLOW_PRODUCER, pin.VALUES_MISSING)
+    assert pin.MISSING_PRODUCERS == (pin.FOLLOW_ATTEMPTS_MISSING, pin.VALUES_MISSING)
     for item in srow.unproduced_items():
         assert item in pin.VALUES_MISSING
     assert "core.source_url" not in pin.VALUES_MISSING

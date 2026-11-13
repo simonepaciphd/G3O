@@ -289,7 +289,7 @@ def test_default_builder_run_is_refused_at_entry_while_producers_are_missing(tmp
     with pytest.raises(MissingUpstreamError, match="ruling 36 a") as exc:
         orch.run_presweep(_v27_config(tmp_path), v27=v27)
     assert exc.value.missing == pin.MISSING_PRODUCERS
-    assert "T-025 follow provenance" in str(exc.value) and "T-015 / T-022 / T-024" in str(exc.value)
+    assert "T-025 attempted pages" in str(exc.value) and "T-015 / T-022 / T-024" in str(exc.value)
     assert not (tmp_path / "runs").exists()
     # run_v27_dispatch itself refuses the same way, on an existing run directory, before binding.
     run_dir, _bound, _instrument, _world_ = _world_run(tmp_path / "w")
@@ -320,6 +320,9 @@ def test_default_builder_passed_explicitly_is_refused_at_entry(tmp_path, monkeyp
         orch.run_presweep(_v27_config(tmp_path), v27=v27)
     assert not (tmp_path / "runs").exists()
     monkeypatch.setattr(pin, "MISSING_PRODUCERS", ())
+    with pytest.raises(MissingUpstreamError, match="follow leg"):  # T-025: the default builder follows
+        orch._require_v27_dispatch(v27)
+    v27 = replace(v27, follow_fetch=lambda url: None)
     assert orch._require_v27_dispatch(v27) is v27
 
 
@@ -329,7 +332,7 @@ def test_default_builder_entry_refusal_lifts_once_the_producers_exist(tmp_path, 
 
     monkeypatch.setattr(pin, "MISSING_PRODUCERS", ())
     v27 = orch.V27Dispatch(settings=SETTINGS, jev_ask_fn=FakeJev(), extract_fn=lambda j: None,
-                           entail_fn=FakeEntail())
+                           entail_fn=FakeEntail(), follow_fetch=lambda url: None)
     assert orch._require_v27_dispatch(v27) is v27
 
 

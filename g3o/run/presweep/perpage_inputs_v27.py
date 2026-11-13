@@ -43,9 +43,14 @@ Per institution (sample order; pages in the order Stage 4 stored them,
   master columns must equal the sample row's, else refused), ``country`` the
   master row's ``country``.
 
+``PageUpstream.followed`` is ``False`` on every page built here: these are the
+searched pages (PI ruling 61 a: ``searched``). The pages the T-025 follow leg
+fetches are built in the per-page stage (:mod:`g3o.run.presweep.follow_v27`,
+``followed=True`` with their hop), from their stored ``RenderedPage`` by
+:func:`rendered_page_input` and :func:`page_source_fields`, as here.
+
 Not produced here, and still refused exactly where they were (no value is
-invented): ``PageUpstream.followed`` (T-025 follow provenance),
-``InstitutionUpstream.merged_values`` (A8). ``activity_values`` /
+invented): ``InstitutionUpstream.merged_values`` (A8). ``activity_values`` /
 ``source_values`` / ``codes`` stay ``None``: the T-015 source-row assembler
 (:mod:`g3o.run.presweep.source_row_v27`, PI ruling 35 a) builds them in the
 per-page stage after coding, and still refuses the row items listed by
@@ -88,8 +93,14 @@ INSTITUTION_FILE = "institution.json"
 #: :func:`g3o.run.presweep.source_row_v27.unproduced_items`); it drops out once that list is empty.
 VALUES_MISSING = (f"{pp.VALUES_PRODUCER} (activity_values, source_values, codes); {srow.ASSEMBLER} "
                   f"refuses: {', '.join(srow.unproduced_items())}")
+#: The T-025 entry left: ``followed`` / hop are produced (searched pages here, followed pages by
+#: :mod:`g3o.run.presweep.follow_v27`), but the Stage 6 entry of a URL tried and not fetched or a
+#: link not followed is a PI question; the stage holds such an institution
+#: (``follow_v27.FOLLOW_ATTEMPTS_UNRULED``). Drop this entry once that is ruled and built.
+FOLLOW_ATTEMPTS_MISSING = ("T-025 attempted pages not reviewed (fetch failed, robots refused, link not "
+                           "followed: cap or hops): Stage 6 entry unruled")
 MISSING_PRODUCERS: tuple[str, ...] = (
-    pp.FOLLOW_PRODUCER,
+    FOLLOW_ATTEMPTS_MISSING,
     *((VALUES_MISSING,) if srow.unproduced_items() else ()),
 )
 
@@ -118,12 +129,19 @@ class PageSourceFields:
 def page_input(page: Any, row: Mapping[str, Any], *, institution_id: str) -> PageInput:
     """``PageInput`` of one stored ``RenderedPage``: its fields verbatim, ``page_id = url_hash(url)``."""
     record = institution_record(dict(row))
+    return rendered_page_input(page, institution_id=institution_id, institution=record["institution_name"],
+                               country=record["country"], level_of_government=record["level_of_government"])
+
+
+def rendered_page_input(page: Any, *, institution_id: str, institution: str, country: str | None,
+                        level_of_government: str | None) -> PageInput:
+    """``PageInput`` of one ``RenderedPage`` given the master values (D1 a; also the followed pages, T-025)."""
     return PageInput(
         page_id=url_hash(page.url),
         institution_id=institution_id,
-        institution=record["institution_name"],
-        country=record["country"],
-        level_of_government=record["level_of_government"],
+        institution=institution,
+        country=country,
+        level_of_government=level_of_government,
         url=page.url,
         title=page.title,
         text=page.text,
@@ -201,7 +219,8 @@ class PerPageInputs(Iterable[pp.PerPageInstitution]):
             if len(set(ids)) != len(ids):
                 raise ValueError(f"{inst_id}: two stored pages share a URL (page_id = url_hash(url))")
             grouping = group_rendered_pages(dict(zip(ids, pages, strict=True)), institution_id=inst_id)
-            specs = [pp.PageSpec(i, pp.PageUpstream(page_fields=page_source_fields(p, grouping, i.page_id)))
+            specs = [pp.PageSpec(i, pp.PageUpstream(followed=False,  # searched (ruling 61 a)
+                                                    page_fields=page_source_fields(p, grouping, i.page_id)))
                      for i, p in zip(inputs, pages, strict=True)]
             identity = _identity(run_dir, row, inst_id)
             yield pp.PerPageInstitution(self._run_id, uids[inst_id], identity, identity["country"], specs,
@@ -284,6 +303,6 @@ def default_perpage_inputs(run_dir: Path, sample: Sequence[Mapping[str, Any]], s
     return build_perpage_inputs(run_dir, sample, scraped, bound, instrument)
 
 
-__all__ = ["IDENTITY_COLUMNS", "MISSING_PRODUCERS", "VALUES_MISSING", "PageSourceFields", "PerPageInputs", "build_perpage_inputs",
-           "default_perpage_inputs",
-           "page_input", "page_source_fields", "require_complete"]
+__all__ = ["FOLLOW_ATTEMPTS_MISSING", "IDENTITY_COLUMNS", "MISSING_PRODUCERS", "VALUES_MISSING", "PageSourceFields",
+           "PerPageInputs", "build_perpage_inputs", "default_perpage_inputs",
+           "page_input", "page_source_fields", "rendered_page_input", "require_complete"]
