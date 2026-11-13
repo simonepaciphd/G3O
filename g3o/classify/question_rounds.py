@@ -41,10 +41,13 @@ this changes the provisional verdict or ``core.page_complete``, the page
 continues on the re-combined values while the stored first-round extractor
 request (planned on the earlier value: its activity and link tasks) is kept
 and never asked again (PI ruling 68 b); the change is logged in ``requests``
-(``outcome`` :data:`PLAN_KEPT`). One case the signed rules do not settle stops
-the page instead (``stopped``, error :data:`HALVING_STOP`; open PI question,
-no further request): failed verdict parts reach 75% of the new leaf layout
-after the page was coded.
+(``outcome`` :data:`PLAN_KEPT`). When failed verdict parts reach 75% of the
+new leaf layout after the page was coded, the page fails as a first-round
+page does (PI 2026-11-07 item 5; PI ruling 69 b): ``status`` ``"failed"``,
+a ``failures`` entry with reason :data:`HALVING_PAGE_FAILED` saying it arose
+after halving in an extra round, and nothing more is asked or checked, then
+or on any resume (:attr:`PageRoundResult.failed`; the caller records the
+attrition).
 """
 
 from __future__ import annotations
@@ -66,10 +69,10 @@ from g3o.validate.jev_validate import is_max_tokens_exceeded
 _PENDING = "extra_round_in_progress"
 _HELD = "extra_round_failed:"
 _OVER_LIMIT = "over_limit, not halved (RC-D-024 item 9): "
-#: Error prefix of an extra page question stopped after a halving (open PI question).
-HALVING_STOP = "halving_stopped (open PI question): "
 HALVED = "halved"
-HALVING_STOPPED = "extra_round_halving_stopped"
+#: Failure reason (attrition reason) of a page whose failed verdict parts reach 75% of the leaf
+#: layout halved in an extra round, after the page was coded (PI ruling 69 b).
+HALVING_PAGE_FAILED = "verdict_parts_failed_after_extra_round_halving"
 #: ``requests`` log outcome: a halving changed the provisional verdict or ``core.page_complete``
 #: and the stored first-round extractor plan was kept (PI ruling 68 b; no request is made).
 PLAN_KEPT = "provisional_changed_first_round_plan_kept"
@@ -88,8 +91,19 @@ class PageRoundResult:
     rounds: int
 
     @property
+    def failed(self) -> bool:
+        """The page failed after halving in an extra round (PI ruling 69 b): never complete."""
+        return self.result.status == "failed"
+
+    @property
+    def failure(self) -> dict[str, Any] | None:
+        """The :data:`HALVING_PAGE_FAILED` failure entry (``reason``, ``detail``) of a failed page."""
+        return next((f for f in reversed(self.result.failures) if f.get("reason") == HALVING_PAGE_FAILED),
+                    None) if self.failed else None
+
+    @property
     def complete(self) -> bool:
-        return all(o.state not in ("pending", "stopped") for o in self.final.items.values())
+        return not self.failed and all(o.state not in ("pending", "stopped") for o in self.final.items.values())
 
 
 @dataclass(frozen=True)
@@ -167,7 +181,7 @@ def complete_page_rounds(page: page_code.PageInput, result: page_code.PageCodeRe
     rounds = 0
     # Each pass adds one formerly unasked question; ancestors are immutable.
     for _ in range(len(setup.questions) + 1):
-        if _halving_stopped(result):  # open PI question: nothing more is asked
+        if result.status == "failed":  # ruling 69 b: nothing more is asked or checked (resume too)
             return PageRoundResult(result, _final(result, support, config), support, rounds)
         partial = [q for q in setup.questions if _retryable(result.items[q["item_id"]].note)]
         if not partial:
@@ -202,16 +216,15 @@ def complete_page_rounds(page: page_code.PageInput, result: page_code.PageCodeRe
         items = dict(result.items)
         items[iid] = _provisional(result, setup, iid)
         if _halvings(result):
-            items, stop = _recombine_after_halving(result, setup, items, iid)
-            if stop is not None:
-                items = dict(result.items)
-                items[iid] = page_code.ItemOutcome(iid, "stopped", None, error=HALVING_STOP + stop)
-                result = replace(result, items=items, failures=result.failures + ({
+            failed = _verdict_failed_after_halving(result)
+            if failed is not None:  # ruling 69 b: the page fails, as a first-round page does
+                result = replace(result, status="failed", items=items, failures=result.failures + ({
                     "chunk_id": None, "round": q["round"], "group": "extra",
-                    "question_ids": [q["question_id"]], "reason": HALVING_STOPPED, "detail": stop,
+                    "question_ids": [q["question_id"]], "reason": HALVING_PAGE_FAILED, "detail": failed,
                 },))
                 _save(checkpoint, result, support)
                 return PageRoundResult(result, _final(result, support, config), support, rounds)
+            items = _recombine_after_halving(result, setup, items, iid)
             result = replace(result, requests=result.requests + _first_round_plan_kept(result, items, q))
         result = replace(result, items=items)
         _save(checkpoint, result, support)
@@ -254,10 +267,6 @@ def extra_round_started(result: page_code.PageCodeResult) -> bool:
     page request); after it, every support check is an extra round (C1 a, ruling 46 a),
     even when halving left every live answer unchecked."""
     return any(e.get("group") == "extra" for e in (*result.requests, *result.failures))
-
-
-def _halving_stopped(result: page_code.PageCodeResult) -> bool:
-    return any(o.state == "stopped" and (o.error or "").startswith(HALVING_STOP) for o in result.items.values())
 
 
 def _halvings(result: page_code.PageCodeResult) -> list[dict[str, Any]]:
@@ -446,10 +455,9 @@ def _provisional(result: page_code.PageCodeResult, setup: Any, iid: str) -> page
     return page_code._combine(setup.combine_rules[iid], answers)
 
 
-def _recombine_after_halving(result: page_code.PageCodeResult, setup: Any,
-                             items: dict[str, page_code.ItemOutcome], iid: str
-                             ) -> tuple[dict[str, page_code.ItemOutcome], str | None]:
-    """Re-combine every re-asked item; return the stop reason for the unruled cases."""
+def _verdict_failed_after_halving(result: page_code.PageCodeResult) -> str | None:
+    """The failure detail when failed verdict parts reach 75% of the leaf layout halved in an extra
+    round (counted as the first round counts them, PI 2026-11-07 item 5; ruling 69 b), else None."""
     n = len(result.chunks)
     live = {c.chunk_id for c in result.chunks}
     verdict_records = {r.chunk_id for r in result.records
@@ -457,9 +465,16 @@ def _recombine_after_halving(result: page_code.PageCodeResult, setup: Any,
     failed = {f["chunk_id"] for f in result.failures
               if f["reason"] in _FINAL_FAILURES and f["chunk_id"] in live and f["chunk_id"] not in verdict_records
               and page_code.VERDICT in f["question_ids"]}
-    if 4 * len(failed) >= 3 * n:
-        return items, (f"{len(failed)}/{n} verdict parts failed (at least 75%) on the layout halved in an "
-                       "extra round, after the page was coded")
+    if 4 * len(failed) < 3 * n:
+        return None
+    return (f"{len(failed)}/{n} verdict parts failed (at least 75%) on the layout halved in an extra round, "
+            "after the page was coded")
+
+
+def _recombine_after_halving(result: page_code.PageCodeResult, setup: Any,
+                             items: dict[str, page_code.ItemOutcome], iid: str
+                             ) -> dict[str, page_code.ItemOutcome]:
+    """Re-combine every re-asked item (other than ``iid``, combined by the caller)."""
     reasked = {setup.by_id[qid]["item_id"] for e in _halvings(result) for g in e["reask"]
                for qid in g["question_ids"]}
     out = dict(items)
@@ -468,7 +483,7 @@ def _recombine_after_halving(result: page_code.PageCodeResult, setup: Any,
         if before.state not in ("combined", "stopped"):
             continue
         out[item] = _provisional(result, setup, item)
-    return out, None
+    return out
 
 
 def _first_round_plan_kept(result: page_code.PageCodeResult, items: dict[str, page_code.ItemOutcome],

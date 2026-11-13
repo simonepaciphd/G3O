@@ -9,8 +9,7 @@ import pytest
 from g3o.classify import jev_activity_code as ac
 from g3o.classify import jev_page_code as pc
 from g3o.classify.question_rounds import (
-    HALVING_STOP,
-    HALVING_STOPPED,
+    HALVING_PAGE_FAILED,
     PLAN_KEPT,
     complete_activity_rounds,
     complete_page_rounds,
@@ -428,19 +427,19 @@ def test_activity_transient_hold_then_over_limit_on_resume_is_a_request_failed_v
         assert o.state == "combined" and o.failed and o.cause == ac.REQUEST_FAILED
 
 
-def test_page_extra_round_over_limit_everywhere_halves_to_depth_then_stops(monkeypatch, rules):
+def test_page_extra_round_over_limit_everywhere_halves_to_depth_then_fails(monkeypatch, rules):
     # RC-D-023 B-Q6: no longer held. Every part is halved to the depth limit, every leaf
-    # request records jev_part_over_limit, and all verdict leaves failing stops the page.
+    # request records jev_part_over_limit, and all verdict leaves failing fails the page (ruling 69 b).
     page, result, support, config, _ = page_case(monkeypatch, rules)
     config = replace(config, max_split_depth=1)
     done = complete_page_rounds(page, result, support, config=config, ask_fn=_over_limit,
                                 check_support=lambda *_: pytest.fail("no answer to check"))
-    assert not done.complete
+    assert not done.complete and done.failed and done.result.status == "failed"
     assert [c.chunk_id for c in done.result.chunks] == ["p:0.1", "p:0.2", "p:1.1", "p:1.2"]
     assert not [r for r in done.result.records if r.coder_type == "classifier"]
-    scope = done.result.items[SCOPE]
-    assert scope.state == "stopped" and scope.error.startswith(HALVING_STOP) and "4/4 verdict" in scope.error
-    assert done.result.failures[-1]["reason"] == HALVING_STOPPED
+    assert done.failure == done.result.failures[-1]
+    assert done.failure["reason"] == HALVING_PAGE_FAILED and "4/4 verdict" in done.failure["detail"]
+    assert "halved in an extra round" in done.failure["detail"]
     over = {f["chunk_id"] for f in done.result.failures if f["reason"] == pc.OVER_LIMIT and SCOPE in f["question_ids"]}
     assert over == {"p:0.1", "p:0.2", "p:1.1", "p:1.2"}
 
@@ -604,17 +603,20 @@ def test_page_halving_verdict_failure_share_counts_leaf_parts(monkeypatch, rules
     failed = {f["chunk_id"] for f in done.result.failures
               if f["reason"] == pc.OVER_LIMIT and VERDICT in f["question_ids"]}
     assert len(failed) == failing
-    if stopped:
-        assert not done.complete
-        scope = done.result.items[SCOPE]
-        assert scope.state == "stopped" and scope.error.startswith(HALVING_STOP) and "3/4 verdict" in scope.error
-        assert done.result.failures[-1]["reason"] == HALVING_STOPPED
+    if stopped:  # ruling 69 b: the page fails; nothing more is asked or checked, then or on resume
+        assert not done.complete and done.failed and done.result.status == "failed"
+        assert done.failure["reason"] == HALVING_PAGE_FAILED and "3/4 verdict" in done.failure["detail"]
         again = _no_calls(page, done, config)
-        assert not again.complete and again.result == done.result
+        assert again.failed and not again.complete and again.result == done.result and again.rounds == 0
+        loaded = pc.PageCodeResult.from_json(done.result.to_json())  # as the saved checkpoint reloads it
+        resumed = complete_page_rounds(page, loaded, done.support, config=config,
+                                       ask_fn=lambda *_: pytest.fail("resent"),
+                                       check_support=lambda *_: pytest.fail("rechecked"))
+        assert resumed.failed and resumed.failure == done.failure
     else:
-        assert done.complete
+        assert done.complete and not done.failed and done.result.status == "coded"
         assert done.final.items[VERDICT].value == "confirms_activity"
-        assert not any((o.error or "").startswith(HALVING_STOP) for o in done.final.items.values())
+        assert all(f["reason"] != HALVING_PAGE_FAILED for f in done.result.failures)
 
 
 def _changed_case(monkeypatch, rules, item, first, halves):

@@ -1114,3 +1114,51 @@ def test_t015_assembler_runs_after_coding_and_stops_the_stage_on_refused_items(t
     assert built["core.page_review_state"] == "reviewed"
     assert (built["core.discovery_path"], built["core.text_source"]) == ("searched", "new_run")  # 61 a, 62 a
     assert not (institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.HELD_FILE).exists()
+
+
+def test_page_failed_after_extra_round_halving_fails_through_attrition_and_resumes(tmp_path, monkeypatch):
+    """PI ruling 69 b: a page whose failed verdict parts reach 75% of the leaf layout halved in an
+    extra round fails as a T-021 page failure does: an attrition record (this stage, the reason
+    saying so), a failed unreviewed page carrying that reason, the institution not held. On a
+    rerun the saved failed state is kept: nothing is asked for that page, no second record."""
+    from dataclasses import replace
+
+    from g3o.classify import question_rounds as qr
+
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    real = pp.complete_page_rounds
+    detail = ("3/4 verdict parts failed (at least 75%) on the layout halved in an extra round, "
+              "after the page was coded")
+
+    def failing(page, result, support, **kw):  # the halving itself is covered in test_question_rounds
+        if page.page_id != "p2" or result.status == "failed":
+            return real(page, result, support, **kw)
+        failed = replace(result, status="failed", failures=result.failures + (
+            {"chunk_id": None, "round": 3, "group": "extra", "question_ids": [],
+             "reason": qr.HALVING_PAGE_FAILED, "detail": detail},))
+        kw["checkpoint"](failed, tuple(support))
+        return real(page, failed, support, **kw)
+
+    monkeypatch.setattr(pp, "complete_page_rounds", failing)
+    jev = FakeJev(ANSWERS, RELATIONS, _fail_verdict)
+    jev.log = world.log
+    ready, metrics = _perpage(run_dir, bound, instrument, world, insts, jev)
+    assert metrics.failed_pages == ["p2", "c2"] and "INST-0000001" in metrics.ready and not metrics.held
+
+    def p2_ledger():
+        return [(r["stage"], r["reason"], r.get("detail")) for r in attrition.read_records(run_dir)
+                if r.get("url", "").endswith("/p2")]
+
+    assert p2_ledger() == [(pp.STAGE, qr.HALVING_PAGE_FAILED, detail)]
+    inst = next(i for i in ready if i.institution_id == "INST-0000001")
+    p2 = next(p for p in inst.pages if p.page_id == "p2")
+    assert (p2.reviewed, p2.failed, p2.failure_reason) == (False, True, qr.HALVING_PAGE_FAILED)
+
+    monkeypatch.setattr(pp, "complete_page_rounds", real)  # resume: the real rounds load the saved page
+    n = len(jev.calls)
+    ready, metrics = _perpage(run_dir, bound, instrument, world, insts, jev)
+    assert metrics.failed_pages == ["p2", "c2"] and not metrics.held
+    assert not [s for s, _ in jev.calls[n:] if s.get("page_url", "").endswith("/p2")]
+    assert p2_ledger() == [(pp.STAGE, qr.HALVING_PAGE_FAILED, detail)]
+    p2 = next(p for p in next(i for i in ready if i.institution_id == "INST-0000001").pages if p.page_id == "p2")
+    assert (p2.failed, p2.failure_reason) == (True, qr.HALVING_PAGE_FAILED)

@@ -1023,6 +1023,13 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
         page, result, support, ask_fn=ask, config=page_config,
         check_support=lambda r, recs: providers.page_support(page, r, recs), checkpoint=page_ckpt.save)
     metrics.checkpoint_writes += page_ckpt.writes
+    if st.page_round.failed:  # ruling 69 b: failed after halving in an extra round, as a T-021 failure
+        failure = st.page_round.failure
+        attrition.record(run_dir, institution_id=page.institution_id, stage=STAGE, reason=failure["reason"],
+                         url=page.url, detail=failure["detail"])
+        st.failure = failure["reason"]
+        metrics.failed_pages.append(page.page_id)
+        return
     if not st.page_round.complete:
         st.holds.append({"page_id": page.page_id, "stage": "page_rounds", "items": sorted(
             k for k, o in st.page_round.final.items.items() if o.state in ("pending", "stopped"))})
