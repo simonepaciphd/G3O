@@ -348,10 +348,27 @@ def test_review_state():
 def test_unproduced_items_refuse():
     with pytest.raises(sf.MissingUpstreamError):
         sf.syndication_group(None)
+    with pytest.raises(sf.MissingUpstreamError):
+        sf.discovery_path(followed=None)
+    with pytest.raises(sf.MissingUpstreamError):
+        sf.discovery_path(followed=True)  # a followed new-run page needs its T-025 hop
     with pytest.raises(sf.UnruledError):
-        sf.discovery_path("searched")
-    with pytest.raises(sf.UnruledError):
-        sf.text_source("stored")
+        sf.discovery_path(followed=False, backfill=True)
+    with pytest.raises(sf.MissingUpstreamError):
+        sf.text_source(None)
+    with pytest.raises(ValueError):
+        sf.text_source("live re-fetch")
+
+
+def test_discovery_path_and_text_source_codes_rulings_61a_62a():
+    assert sf.discovery_path(followed=False).value == "searched"
+    assert sf.discovery_path(followed=True, hop=1).value == "followed_hop_1"
+    assert sf.discovery_path(followed=True, hop=4).value == "followed_hop_4"  # open-ended (61 a)
+    assert sf.discovery_path(followed=True, backfill=True).value == "backfill_followed"
+    with pytest.raises(ValueError):
+        sf.discovery_path(followed=True, hop=0)
+    assert [sf.text_source(k).value for k in ("stored", "live_refetch", "new_run")] == \
+        ["stored", "live_refetch", "new_run"]
 
 
 def test_source_language_from_main_text():

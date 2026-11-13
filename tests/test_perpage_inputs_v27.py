@@ -6,7 +6,7 @@ near-duplicate pages, the same text at a second institution). Checks
 ``page_id = url_hash(url)``, fields verbatim from the page and master row, each
 A-producer value, syndication groups scoped to the institution, and the
 refusals kept for values no producer supplies (``followed``, the row values,
-``merged_values``; ``discovery_path`` / ``text_source`` unruled). One dispatch
+``merged_values``; the row items the T-015 assembler still refuses). One dispatch
 test runs ``run_v27_dispatch`` with the default builder and fake calls: it
 refuses before any jev or extractor call. No network: lingua runs locally.
 """
@@ -155,6 +155,12 @@ def test_a2_archive_address_and_a3_language(tmp_path):
     assert _spec(insts[I2], P_SHORT).upstream.page_fields.language.value == language_id.UNKNOWN
 
 
+def test_text_source_is_new_run_ruling_62a(tmp_path):
+    """Ruling 62 a: this builder is the new-run path, so every row's text_source is new_run."""
+    insts = _built(tmp_path)
+    assert {s.upstream.page_fields.text_source.value for i in insts.values() for s in i.pages} == {"new_run"}
+
+
 def test_a4_syndication_groups_are_scoped_to_the_institution(tmp_path):
     insts = _built(tmp_path)
     g = {p.url: _spec(insts[I1], p).upstream.page_fields.syndication_group for p in SCRAPED[I1]}
@@ -198,7 +204,7 @@ def test_unproduced_values_still_refuse(tmp_path):
     with pytest.raises(MissingUpstreamError, match=r"row values .*\(activity_values, source_values, codes\)") as exc:
         pin.require_complete(followed)
     # Ruling 35 a: the row values are left to the T-015 assembler, which names what it still refuses.
-    assert "source-row assembler" in str(exc.value) and "core.discovery_path" in str(exc.value)
+    assert "source-row assembler" in str(exc.value) and "core.source_type" in str(exc.value)
     assert all(s.upstream.page_fields is not None for i in followed for s in i.pages)
 
 
@@ -242,10 +248,9 @@ def test_unproduced_values_refusals_in_the_stage(tmp_path):
     # The per-page stage's own refusal is unchanged: failed_page still refuses a page with no follow value.
     with pytest.raises(MissingUpstreamError, match="T-025 follow provenance"):
         pp.failed_page(insts[I1].pages[0], "jev_request_failed")
-    with pytest.raises(sf.UnruledError):
-        sf.discovery_path()
-    with pytest.raises(sf.UnruledError):
-        sf.text_source()
+    # Ruling 61 a: discovery_path needs the follow provenance; a followed page also needs its hop.
+    with pytest.raises(sf.MissingUpstreamError, match="T-025 follow provenance"):
+        sf.discovery_path(followed=insts[I1].pages[0].upstream.followed)
     with pytest.raises(MissingUpstreamError, match="T-025 follow provenance"):
         pin.require_complete(pin.default_perpage_inputs(_run_dir(tmp_path / "again"), ROWS, SCRAPED, None, None))
 

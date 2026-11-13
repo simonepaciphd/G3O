@@ -31,7 +31,8 @@ def _fv(item, value):
 
 FIELDS_P1 = pin.PageSourceFields(url=_fv(sf.URL, URL), access_date=_fv(sf.ACCESS_DATE, "2026-11-10"),
                                  publication_date=None, archive_address=False,
-                                 language=_fv(sf.LANGUAGE, "en"), syndication_group=_fv(sf.SYNDICATION, "sg-1"))
+                                 language=_fv(sf.LANGUAGE, "en"), syndication_group=_fv(sf.SYNDICATION, "sg-1"),
+                                 text_source=sf.text_source("new_run"))
 GENAI = {"core.page_verdict": "confirms_activity", "core.content_contact_named": "yes",
          "core.content_contact_details": "no"}
 NOGENAI = {"core.page_verdict": "no_genai", "core.content_contact_named": "no",
@@ -68,18 +69,22 @@ def test_every_row_item_is_produced_or_refused_exactly_once():
     assert act == {i for i in pp.ACTIVITY_ITEMS if FIELDS[i]["coder"] != "classifier"} - {"core.uncertainty_flags"}
 
 
-def test_unruled_items_stay_refused():
+def test_discovery_path_and_text_source_rulings_61a_62a():
     for item in (sf.DISCOVERY, sf.TEXT_SOURCE):
-        assert item in srow.REFUSED_SOURCE_ITEMS and "unruled" in srow.REFUSED_SOURCE_ITEMS[item]
-        assert item in srow.unproduced_items()
-    with pytest.raises(sf.UnruledError):
-        sf.discovery_path()
-    with pytest.raises(sf.UnruledError):
-        sf.text_source()
+        assert item in srow.PRODUCED_SOURCE_ITEMS and item not in srow.unproduced_items()
+    v = _values(srow.assemble(_page(), FIELDS_P1, GENAI, {}, followed=False))
+    assert (v[sf.DISCOVERY], v[sf.TEXT_SOURCE]) == ("searched", "new_run")
+    # A followed page waits for its T-025 hop; no follow provenance, or no text source, refuses.
+    for followed in (True, None):
+        rows = srow.assemble(_page(), FIELDS_P1, GENAI, {}, followed=followed)
+        assert sf.DISCOVERY not in rows.source and "T-025" in rows.refused[sf.DISCOVERY]
+    from dataclasses import replace
+    rows = srow.assemble(_page(), replace(FIELDS_P1, text_source=None), GENAI, {}, followed=False)
+    assert sf.TEXT_SOURCE in rows.refused
 
 
 def test_page_level_values_from_page_fields_and_page():
-    rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"a1": _activity()})
+    rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"a1": _activity()}, followed=False)
     v = _values(rows)
     assert (v[sf.URL], v[sf.ACCESS_DATE], v[sf.LANGUAGE], v[sf.SYNDICATION]) == (URL, "2026-11-10", "en", "sg-1")
     assert v[sf.TITLE] == "AI pilot" and v[sf.REVIEW_STATE] == "reviewed"
@@ -91,7 +96,7 @@ def test_page_level_values_from_page_fields_and_page():
 
 
 def test_no_activity_page_refuses_only_source_items():
-    rows = srow.assemble(_page(), FIELDS_P1, NOGENAI, {})
+    rows = srow.assemble(_page(), FIELDS_P1, NOGENAI, {}, followed=False)
     assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) and rows.activities == {}
     v = _values(rows)
     assert v[sc.CONTACT_ITEM] == "no" and v[sc.CONTACT_EMAILS_ITEM] == "not_asked"

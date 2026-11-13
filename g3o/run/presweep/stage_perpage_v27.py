@@ -688,7 +688,8 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         # PI ruling 35 a: the T-015 assembler builds the rows after coding. A row is published whole or
         # not at all, so any item it cannot produce yet is a wiring gap that stops the stage (RC-D-033 C2 a).
         rows = srow.assemble(page, up.page_fields, outcome_values(page_round.final.items),
-                             {aid: outcome_values(f.outcomes) for aid, f in finals.items()})
+                             {aid: outcome_values(f.outcomes) for aid, f in finals.items()},
+                             followed=up.followed)
         if rows.refused:
             raise MissingUpstreamError(f"{VALUES_PRODUCER} ({srow.ASSEMBLER})", sorted(rows.refused))
     for name, value, need in (("activity_values", up.activity_values, list(acts)),

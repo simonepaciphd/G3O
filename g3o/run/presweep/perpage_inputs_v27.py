@@ -49,9 +49,9 @@ invented): ``PageUpstream.followed`` (T-025 follow provenance),
 ``source_values`` / ``codes`` stay ``None``: the T-015 source-row assembler
 (:mod:`g3o.run.presweep.source_row_v27`, PI ruling 35 a) builds them in the
 per-page stage after coding, and still refuses the row items listed by
-:func:`~g3o.run.presweep.source_row_v27.unproduced_items` (among them
-``core.discovery_path`` and ``core.text_source``, which have no signed spelling
-and raise ``UnruledError``). :func:`require_complete` raises the per-page
+:func:`~g3o.run.presweep.source_row_v27.unproduced_items`.
+``PageSourceFields.text_source`` is ``new_run`` (PI ruling 62 a: this builder is
+the new-run path). :func:`require_complete` raises the per-page
 stage's own ``MissingUpstreamError`` for the follow values and the refused row
 items before any jev call is made, so a run on these inputs stops before
 spending on coding it could never finish.
@@ -111,6 +111,8 @@ class PageSourceFields:
     archive_address: bool
     language: sf.FieldValue
     syndication_group: sf.FieldValue
+    #: R-059 ``core.text_source`` (PI ruling 62 a); None: the builder did not say which run path it is.
+    text_source: sf.FieldValue | None = None
 
 
 def page_input(page: Any, row: Mapping[str, Any], *, institution_id: str) -> PageInput:
@@ -134,7 +136,11 @@ def page_input(page: Any, row: Mapping[str, Any], *, institution_id: str) -> Pag
 
 
 def page_source_fields(page: Any, grouping: Any, page_id: str) -> PageSourceFields:
-    """The A1-A4 / X28 values of one stored page (access date: its UTC ``fetch_metadata.access_date``)."""
+    """The A1-A4 / X28 values of one stored page (access date: its UTC ``fetch_metadata.access_date``).
+
+    This builder is the new-run path (pages scraped by this run's Stage 4), so
+    ``text_source`` is ``new_run`` (PI ruling 62 a).
+    """
     access = page.fetch_metadata.access_date
     date = None
     if sf.page_has_metadata_date(page.metadata_dates, page.url, access_date=access):
@@ -146,6 +152,7 @@ def page_source_fields(page: Any, grouping: Any, page_id: str) -> PageSourceFiel
         archive_address=sf.source_archive_address(page.url),
         language=sf.source_language_of_page(page),
         syndication_group=sf.syndication_group_for(grouping, page_id),
+        text_source=sf.text_source(sf.TEXT_SOURCE_NEW_RUN),
     )
 
 

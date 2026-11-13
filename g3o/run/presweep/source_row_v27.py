@@ -21,6 +21,11 @@ Produced here (source row, page-level, the same on every source row of a page):
 
 - ``source_url``, ``source_access_date``, ``source_language``,
   ``syndication_group``: :class:`PageSourceFields` (X28, A3, A4; PI D1 a).
+- ``text_source``: :class:`PageSourceFields` (``new_run`` for a new run's
+  rows, PI ruling 62 a).
+- ``discovery_path``: from ``PageUpstream.followed`` (PI ruling 61 a): a page
+  not followed is ``searched``; a followed page needs its hop from T-025 and is
+  refused until T-025 passes it (the seam is ``discovery_path(hop=...)``).
 - ``source_title``: ``RenderedPage.title`` when it is not empty
   (``items/core.source_title/rules/0``); an empty title is refused, since the
   first-heading fallback stays unproduced (PI ruling 39 a).
@@ -108,11 +113,6 @@ _QUOTE_STEP_PLUMBING = (
 
 #: Source-row items refused here, with the reason (signed source text or the missing producer).
 REFUSED_SOURCE_ITEMS: Mapping[str, str] = {
-    sf.DISCOVERY: ("unruled: no signed value spellings ('searched / followed hop n / back-fill followed', "
-                   "codebook items/core.discovery_path/rules/0, X18; SPEC R-034, R-036); also needs T-025 "
-                   "follow provenance"),
-    sf.TEXT_SOURCE: ("unruled: no signed value spellings ('stored / live re-fetch / new run', codebook "
-                     "items/core.text_source/rules/0; SPEC R-059; RC-D-002 F)"),
     sf.OFFICIAL: ("the master official-site overlay (OfficialSiteOverlay, RC-D-025 P13) is not passed to "
                   "the v2.7 per-page stage"),
     sf.SOURCE_TYPE: ("rules/0 needs source_on_official_domain (refused); the residual source_type question "
@@ -165,8 +165,8 @@ def activity_row_items() -> frozenset[str]:
 
 #: Source-row items produced by :func:`page_source_values`.
 PRODUCED_SOURCE_ITEMS = (
-    sf.URL, sf.ACCESS_DATE, sf.LANGUAGE, sf.SYNDICATION, sf.TITLE, sf.REVIEW_STATE,
-    sc.CONTACT_ITEM, sc.CONTACT_EMAILS_ITEM, *STATED_FIELDS, *SAFEGUARDS,
+    sf.URL, sf.ACCESS_DATE, sf.LANGUAGE, sf.SYNDICATION, sf.TITLE, sf.REVIEW_STATE, sf.DISCOVERY,
+    sf.TEXT_SOURCE, sc.CONTACT_ITEM, sc.CONTACT_EMAILS_ITEM, *STATED_FIELDS, *SAFEGUARDS,
 )
 #: Activity-row items produced by :func:`activity_row_values`.
 PRODUCED_ACTIVITY_ITEMS = ("core.unit_credit",)
@@ -216,6 +216,10 @@ def stated(item: str, value: Any) -> bool:
 
 def _row(item: str, value: Any, basis: str) -> RowValue:
     return RowValue(item, value, basis)
+
+
+def _from(fv: sf.FieldValue) -> RowValue:
+    return RowValue(fv.item_id, fv.value, fv.basis)
 
 
 def _field(fv: sf.FieldValue | None, item: str) -> RowValue:
@@ -329,12 +333,15 @@ def _try(rows: AssembledRows, out: dict[str, RowValue], item: str, make: Callabl
 
 
 def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, Any],
-                       activities: Mapping[str, Mapping[str, Any]], rows: AssembledRows) -> None:
+                       activities: Mapping[str, Mapping[str, Any]], rows: AssembledRows, *,
+                       followed: bool | None = None) -> None:
     """The page-level source-row values (see the module docstring) into ``rows.source``."""
     out = rows.source
     for item, attr in ((sf.URL, "url"), (sf.ACCESS_DATE, "access_date"), (sf.LANGUAGE, "language"),
-                       (sf.SYNDICATION, "syndication_group")):
+                       (sf.SYNDICATION, "syndication_group"), (sf.TEXT_SOURCE, "text_source")):
         _try(rows, out, item, lambda item=item, attr=attr: _field(getattr(page_fields, attr, None), item))
+    # Ruling 61 a: from the follow provenance; a followed page waits for its T-025 hop (seam: ``hop``).
+    _try(rows, out, sf.DISCOVERY, lambda: _from(sf.discovery_path(followed=followed)))
     _try(rows, out, sf.TITLE, lambda: source_title(page))
     _try(rows, out, sf.REVIEW_STATE, lambda: RowValue(
         sf.REVIEW_STATE, sf.page_review_state(REVIEWED).value,
@@ -361,13 +368,14 @@ def activity_row_values(activities: Mapping[str, Mapping[str, Any]], rows: Assem
 
 
 def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
-             activities: Mapping[str, Mapping[str, Any]]) -> AssembledRows:
+             activities: Mapping[str, Mapping[str, Any]], *, followed: bool | None = None) -> AssembledRows:
     """Build every producible row value of one coded page and name every refused item.
 
     ``page`` is the :class:`~g3o.classify.jev_page_code.PageInput`,
     ``page_fields`` its :class:`~g3o.run.presweep.perpage_inputs_v27.PageSourceFields`,
     ``page_values`` the final page values and ``activities`` the final values of
     each coded activity (``{activity_id: values}``; empty on a page with no activity).
+    ``followed`` is ``PageUpstream.followed`` (T-025; None: no follow provenance).
     """
     if page_fields is None:
         raise sf.MissingUpstreamError("perpage_inputs_v27.PageSourceFields (PageUpstream.page_fields)",
@@ -376,7 +384,7 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
     rows.refused.update(REFUSED_SOURCE_ITEMS)
     if activities:
         rows.refused.update(REFUSED_ACTIVITY_ITEMS)
-    page_source_values(page, page_fields, page_values, activities, rows)
+    page_source_values(page, page_fields, page_values, activities, rows, followed=followed)
     activity_row_values(activities, rows)
     return rows
 
