@@ -313,13 +313,27 @@ def test_superseded_part_is_refused_not_looked_up():
 @pytest.mark.parametrize("item", list(srow.REPORTED_GATES))
 def test_reported_lists_only_when_gated_out(item):
     gate = srow.REPORTED_GATES[item]
-    qv = srow.reported_value(item, "p1#a001", _activity(**{gate: "none_reported"}), SOURCES, PROV)
-    (sr, rec), = qv.codes
-    assert qv.row.value == "not_asked" and sr.support_rule_name == f"gated_out:{gate}"
-    with pytest.raises(sf.MissingUpstreamError, match="extractor"):
-        srow.reported_value(item, "p1#a001", _activity(**{gate: "quantified"}), SOURCES, PROV)
-    with pytest.raises(sf.UnruledError):
-        srow.reported_value(item, "p1#a001", _activity(**{gate: "unknown"}), SOURCES, PROV)
+    # PI ruling 73.2 a: open only at quantified / qualitative; any other gate value closes the gate.
+    for closed in ("none_reported", "unknown", "not_documented", "not_asked", "_NA_"):
+        qv = srow.reported_value(item, "p1#a001", _activity(**{gate: closed}), SOURCES, PROV)
+        (sr, rec), = qv.codes
+        assert qv.row.value == "not_asked" and sr.support_status == "set_by_rule"
+        assert sr.support_rule_name == rec.rule_reference == f"gated_out:{gate}"
+        assert "73.2 a" in qv.row.basis
+    for open_value in srow.REPORTED_OPEN:  # 73.1 under PI review: the open-gate list stays refused
+        with pytest.raises(sf.MissingUpstreamError, match="73.1"):
+            srow.reported_value(item, "p1#a001", _activity(**{gate: open_value}), SOURCES, PROV)
+    with pytest.raises(sf.MissingUpstreamError):  # gate item absent
+        srow.reported_value(item, "p1#a001", _activity(), SOURCES, PROV)
+    with pytest.raises(ValueError, match="not a signed code"):
+        srow.reported_value(item, "p1#a001", _activity(**{gate: "plenty"}), SOURCES, PROV)
+
+
+def test_discontinuation_uncertain_is_unruled_73_2a():
+    """The signed incident gate lists it (open); ruling 73.2 a closes all but quantified / qualitative."""
+    with pytest.raises(sf.UnruledError, match="73.2 a"):
+        srow.reported_value("core.reported_incidents", "p1#a001",
+                            _activity(**{"core.incident_kind": "discontinuation_uncertain"}), SOURCES, PROV)
 
 
 def _verdict(quote):

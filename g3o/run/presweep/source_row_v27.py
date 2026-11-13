@@ -91,9 +91,12 @@ Produced here (activity row, per observation):
   question-set version; the response's actual model and request id, refused
   when absent, D-007). A part id the coded page no longer has (superseded, e.g.
   after an extra-round halving) is refused, never looked up.
-- ``reported_outcomes`` / ``reported_incidents``: ``not_asked`` by rule when
-  their gate item is ``none_reported``; refused otherwise (see
-  :func:`reported_value`).
+- ``reported_outcomes`` / ``reported_incidents``: the gate is closed at any
+  gate value other than ``quantified`` / ``qualitative`` (``none_reported``,
+  and a missing token such as ``unknown``: PI ruling 73.2 a), giving
+  ``not_asked`` by rule ``gated_out:<gate item>``; an open gate is refused
+  (the extraction is under PI review, ruling 73.1); ``discontinuation_uncertain``
+  is refused (see :func:`reported_value`).
 
 Produced here (source row, page-level), PI ruling 70 b (2026-11-13):
 
@@ -173,6 +176,13 @@ VENDOR = "vendor"
 REPORTED_GATES = {"core.reported_outcomes": "core.outcome_kind", "core.reported_incidents": "core.incident_kind"}
 #: The gate value at which both readings of the reported_* gates agree it is closed.
 NONE_REPORTED = "none_reported"
+#: PI ruling 73.2 a (2026-11-13): the gate values that open the reported_* gates; any other value closes them.
+REPORTED_OPEN = ("quantified", "qualitative")
+#: An open reported_* gate: the list is asked by pass 2 (pass2_support DEFERRED_FIELDS, RC-D-017 / PI 2026-11-04
+#: "5 a") but its output is not plumbed into the assembler, and PI ruling 73.1 (extract it in pass 1) is under
+#: PI review: refused.
+REPORTED_OPEN_REFUSAL = ("the open-gate list (PI ruling 73.1 under review: pass 1 vs the pass-2 field task, "
+                         "whose output is not plumbed into the assembler)")
 MISSING_EXTRACTION = "T-022 pass-1 page request of this page (PerPageProviders.page_extraction)"
 #: coder_version of a quote-step coder record: the pass-1 parser and its prompt version (procedural label).
 QUOTE_STEP_CODER_VERSION = f"g3o.extract.parser_v27/{request_v27.PROMPT_VERSION}"
@@ -242,9 +252,9 @@ CONDITIONAL_ITEMS: Mapping[str, str] = {
     sf.CREDIBILITY: "refused when source_type is refused and the publication date is not unknown/not_documented",
     "core.content_vendor": ("refused on a GenAI-bearing page whose activities state no contracting party: it then "
                             "reads developer (PI A8.1 a needs codebook r16)"),
-    **{item: (f"refused when {gate} opens the gate (no extractor produces the list: pass 'none', not a "
-              f"T-022 pass-1 field), and when {gate} is a value other than {NONE_REPORTED!r} or the gate "
-              "values (the signed gate values and its 'as ruled: not none_reported' note disagree)")
+    **{item: (f"refused when {gate} opens the gate ({' / '.join(REPORTED_OPEN)}): {REPORTED_OPEN_REFUSAL}; "
+              f"and when {gate} is a signed gate value outside PI ruling 73.2 a's list "
+              "(discontinuation_uncertain: open in the codebook gate, closed under 73.2 a; PI question)")
        for item, gate in REPORTED_GATES.items()},
 }
 
@@ -542,22 +552,29 @@ def reported_value(item: str, activity_id: str, activity_values: Mapping[str, An
                    prov: Provenance) -> QuoteValue:
     """``reported_outcomes`` / ``reported_incidents``: produced only when their gate is closed.
 
-    The gate item at ``none_reported`` closes the gate under both readings of the
-    signed gate (its ``values`` list and its "as ruled: not none_reported" note).
-    An open gate needs the list itself, which no extractor produces (pass ``none``,
-    not a T-022 pass-1 field): refused. Any other gate value: the two readings
-    disagree, unruled.
+    PI ruling 73.2 a: the gate is open only at ``quantified`` / ``qualitative``;
+    every other value of the gate item (``none_reported``, or a missing token such
+    as ``unknown``) closes it: ``not_asked`` by rule ``gated_out:<gate item>``. An
+    open gate is refused (:data:`REPORTED_OPEN_REFUSAL`). ``discontinuation_uncertain``
+    (incident item) is a gate value in the signed codebook (open) but outside the
+    73.2 a list (closed): unruled. A value that is neither a signed code nor a
+    missing token of the gate item is an error.
     """
     gate = sf.default_codebook().items[item]["gate"]
     if gate["item"] != REPORTED_GATES[item]:
         raise ValueError(f"{item}: signed gate item {gate['item']!r} is not {REPORTED_GATES[item]!r}")
     key = activity_values.get(gate["item"])
-    if key == NONE_REPORTED:
-        return _gated(item, gate, activity_id, sources, prov, f"{gate['item']} = {key!r}")
+    if key is None:
+        raise sf.MissingUpstreamError(f"T-023 final {gate['item']}", [item])
+    if key in REPORTED_OPEN:
+        raise sf.MissingUpstreamError(REPORTED_OPEN_REFUSAL, [item])
     if key in gate["values"]:
-        raise sf.MissingUpstreamError(f"an extractor of {item} (pass 'none'; not a T-022 pass-1 field)", [item])
-    raise sf.UnruledError(item, f"{gate['item']} = {key!r}: the gate values {gate['values']} and the note "
-                                f"{gate.get('as_ruled')!r} disagree")
+        raise sf.UnruledError(item, f"{gate['item']} = {key!r} opens the signed gate {gate['values']} but is "
+                                    f"outside PI ruling 73.2 a's open values {list(REPORTED_OPEN)}")
+    known = {*(sf.default_codebook().codes(gate["item"]) or ()), *_missing_tokens(gate["item"])}
+    if key not in known:
+        raise ValueError(f"{gate['item']} = {key!r} is not a signed code or missing token")
+    return _gated(item, gate, activity_id, sources, prov, f"{gate['item']} = {key!r} (PI ruling 73.2 a)")
 
 
 #: PI ruling 72 a (2026-11-13): the rule that sets ``source_snippet`` to ``not_asked`` when the page verdict's
