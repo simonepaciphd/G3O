@@ -1232,6 +1232,48 @@ def test_legacy_validate_without_storage_in_v27_run_fails_only_that_institution(
         load_consolidated_outputs(run_dir, held=[])
 
 
+@pytest.mark.parametrize("declared_release", [None, "v2.5"])
+@pytest.mark.parametrize("broken", ["truncated", "mismatched"])
+def test_v25_run_with_broken_storage_still_raises_on_the_report_path(
+    tmp_path: Path, declared_release: str | None, broken: str,
+) -> None:
+    """Ruling 54 a was put for the v2.7 run report: outside a 2.7 run the report keeps
+    its pre-54 a behaviour, so a 6_storage.json that does not load or does not match
+    its legacy 6_validate.json still raises (no per-institution capture)."""
+    from g3o.common.instrument import canonical_json, write_instrument
+    from g3o.persist.writer import load_consolidated_outputs
+    from tests._storage_fixture import fixture_bundle, instrument_payload
+
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=[V27_INST], done=ALL_STAGES)
+    if declared_release is not None:
+        manifest_path = run_dir / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["storage_contract"] = {"codebook_release": declared_release}
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    _discovery(run_dir, V27_INST)
+    _triage(run_dir, V27_INST, keeps=2)
+    _scraped(run_dir, V27_INST)
+    _validated(run_dir, V27_INST, has_genai="yes", n_activities=1)
+    storage_path = inst_dir_of(run_dir, V27_INST) / "6_storage.json"
+    if broken == "truncated":
+        storage_path.write_text('{"format": "g3o-storage-v1", ', encoding="utf-8")
+    else:
+        # A storage file that loads but belongs to other rows (A1/A2, S1/S2 against the
+        # legacy payload's A1/S1; and, under "v2.5", the 2.7 release too).
+        write_instrument(run_dir / "final" / "instruments", instrument_payload())
+        data, *_ = fixture_bundle(run_dir)
+        storage_path.write_text(canonical_json(data), encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        outcomes.compute_institution_report(run_dir)
+    unreadable: list[tuple[str, str]] = []
+    with pytest.raises(ValueError):
+        load_consolidated_outputs(run_dir, missing_storage=[], unreadable_storage=unreadable)
+    assert unreadable == []
+    assert _attrition.read_records(run_dir) == []
+
+
 def test_v27_unheld_without_v27_markers_is_processing_failed(tmp_path: Path) -> None:
     """Ruling 48.3 a: scraped, unheld, no Stage 6 output, and the per-page stage never
     finished. v2.5's extract/validate markers do not stand in for it."""

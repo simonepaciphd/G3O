@@ -178,11 +178,13 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
         a v2.7 ``6_validate.json`` whose ``6_storage.json`` is absent is appended
         there and skipped instead of raising; nothing is recorded. With
         ``unreadable_storage`` (a list; the run report's path, ruling 54 a), an
-        institution whose ``6_storage.json`` exists but does not load or does
+        institution in a 2.7 run (``declared_release == "2.7"``) whose
+        ``6_storage.json`` exists but does not load or does
         not match its ``6_validate.json`` (release, identity, row keys, v2.7
         binding), or whose legacy ``6_validate.json`` has no ``6_storage.json``
         in a 2.7 run, is appended there as ``(institution_id, reason)`` and
         skipped; nothing is recorded, and it takes precedence over ``held``.
+        In any other run the list is ignored and the pre-54 a behaviour holds.
         Run-level checks (manifest release, v2.7 payload in a non-2.7 run,
         unstamped uids) still raise. Stage 7 passes neither of these two lists,
         so it still refuses the run (or, with ``held``, holds an unreadable
@@ -204,6 +206,9 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
     loaded: list[LoadedInstitution] = []
     failures: list[str] = []
     unstamped: list[str] = []
+    # Ruling 54 a was put for the v2.7 run report only: a v2.5 run keeps its
+    # pre-54 a behaviour (load failure -> ``held`` or raise; mismatch -> raise).
+    capture_unreadable = unreadable_storage if declared_release == "2.7" else None
     for inst_dir in iter_institution_dirs(run_dir):
         path = inst_dir / "6_validate.json"
         if not path.exists():
@@ -235,8 +240,8 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
                 storage = StorageEnvelope.load(storage_path, run_dir / "final" / "instruments",
                                                artifact_root=run_dir)
             except (ValueError, UnicodeDecodeError) as exc:
-                if unreadable_storage is not None:  # ruling 54 a: report only, nothing recorded
-                    unreadable_storage.append(
+                if capture_unreadable is not None:  # ruling 54 a: report only, nothing recorded
+                    capture_unreadable.append(
                         (institution_id, f"6_storage.json does not load: {type(exc).__name__}: {exc}"))
                     continue
                 if held is None:
@@ -252,11 +257,11 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
                                        institution_id=institution_id, institution_uid=institution_uid,
                                        is_v27=is_v27)
             except ValueError as exc:
-                if unreadable_storage is None:
+                if capture_unreadable is None:
                     raise
                 # Ruling 54 a: a per-institution integrity mismatch is that file's content
                 # problem; the report marks this institution alone.
-                unreadable_storage.append(
+                capture_unreadable.append(
                     (institution_id, f"6_storage.json does not match 6_validate.json: {exc}"))
                 continue
         elif declared_release == "2.7":

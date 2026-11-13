@@ -36,10 +36,11 @@ statuses:
                           institution whose verdict is ``unclear`` (ruling
                           48.1 b) or whose ``6_validate.json`` has no
                           ``6_storage.json`` (ruling 48.2 a). Also an
-                          institution whose ``6_storage.json`` exists but does
-                          not load or does not match its ``6_validate.json``,
-                          or whose legacy ``6_validate.json`` has no storage in
-                          a 2.7 run (ruling 54 a; that institution only).
+                          institution in a 2.7 run whose ``6_storage.json``
+                          exists but does not load or does not match its
+                          ``6_validate.json``, or whose legacy
+                          ``6_validate.json`` has no storage (ruling 54 a; that
+                          institution only; a v2.5 run still raises).
 - ``RUN_TRUNCATED``     — the run itself was configured to stop before Stage 6
                           (``--stop-after``); this institution was never
                           evaluated for evidence, independent of what its
@@ -376,9 +377,9 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
     # collected here (nothing recorded) and decided for that institution alone;
     # Stage 7 passes no list and still refuses it.
     missing_storage: list[str] = []
-    # Ruling 54 a: a 6_storage.json that exists but does not load (or does not
-    # match its 6_validate.json), or a legacy 6_validate.json without storage in
-    # a 2.7 run, is likewise collected (nothing recorded; the report is
+    # Ruling 54 a (2.7 runs only; a v2.5 run still raises): a 6_storage.json that
+    # exists but does not load (or does not match its 6_validate.json), or a legacy
+    # 6_validate.json without storage in a 2.7 run, is likewise collected (nothing recorded; the report is
     # read-only) and fails that institution alone. Stage 7 still refuses it.
     unreadable_storage: list[tuple[str, str]] = []
     loaded, validate_parse_failures = load_consolidated_outputs(
