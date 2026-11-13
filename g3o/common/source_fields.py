@@ -765,6 +765,8 @@ def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: 
     if chosen is not None:
         origin = chosen.origin
         label = f"{origin} {chosen.tag}" if chosen.tag else origin
+        if chosen.tag:  # the A1.1 a signal that decided (PI ruling 63 a names it in the support rule)
+            detail["tag"] = chosen.tag
         return _fv(DATE, chosen.value, f"deterministic {label} date ({chosen.detail})", v,
                    provenance=v.date_origin_map[origin], date_origin=origin, detail=detail)
     if quote_date is None:

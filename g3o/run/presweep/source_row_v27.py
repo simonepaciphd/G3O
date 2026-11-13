@@ -59,6 +59,13 @@ Produced here (source row, page-level, the same on every source row of a page):
   coder record carrying the page's T-022 pass-1 request provenance. A verdict
   support with no quote is refused (no signed rule).
 
+- ``source_publication_date`` (X26): the A1 metadata/URL date with
+  ``set_by_rule`` support naming ``deterministic_date:<A1.1 a tag>`` or
+  ``deterministic_date:web_address`` (PI ruling 63 a); otherwise the T-022
+  quote-step date checked under R-042 (``unknown`` when it fails), or
+  ``not_documented`` when pass 1 returned none. ``date_upper_bound``:
+  :func:`g3o.common.source_fields.date_upper_bound` on it.
+
 Produced here (activity row, per observation):
 
 - ``unit_credit``: ``yes`` if and only if the ``relationship`` part of
@@ -128,9 +135,6 @@ RELATIONSHIP_PART = "relationship"
 UNIT_OF_INSTITUTION = "unit_of_institution"
 VENDOR = "vendor"
 
-_QUOTE_STEP_PLUMBING = (
-    "a quote-step value needs its T-022 coder record (extractor model, response model, request id of "
-    "the pass-1 response) and its T-024 support result")
 #: The pass-1 activity quote-step fields T-022 asks (request_v27.Pass1Rules.activity_fields).
 REPORTED_GATES = {"core.reported_outcomes": "core.outcome_kind", "core.reported_incidents": "core.incident_kind"}
 #: The gate value at which both readings of the reported_* gates agree it is closed.
@@ -149,10 +153,6 @@ REFUSED_SOURCE_ITEMS: Mapping[str, str] = {
     sf.CREDIBILITY: "reads source_type and source_publication_date (both refused)",
     sf.CONFIDENCE: ("reads source_credibility (refused) and the claim's support records "
                     "(items/core.confidence/rules/1; association is T-026's, RC-D-025 P12)"),
-    sf.DATE: ("quote_step item: the A1 metadata/URL date is in page_fields, but the row needs a support node "
-              "for it and no signed support representation exists for a metadata date; a quote-step date "
-              f"is Pass1Extraction.publication_date, and {_QUOTE_STEP_PLUMBING}"),
-    sf.UPPER_BOUND: "reads source_publication_date (refused)",
     "core.content_tool_or_model": ("reads tool_name / model_name (activity quote-step values, refused); whether "
                                    "an extracted name that fails R-042 counts as 'stated' is not ruled"),
     "core.content_vendor": ("reads developer (PI A8.1 a needs codebook r16) and contracting_party (activity "
@@ -190,6 +190,7 @@ def activity_row_items() -> frozenset[str]:
 PRODUCED_SOURCE_ITEMS = (
     sf.URL, sf.ACCESS_DATE, sf.LANGUAGE, sf.SYNDICATION, sf.TITLE, sf.REVIEW_STATE, sf.DISCOVERY,
     sf.TEXT_SOURCE, sc.CONTACT_ITEM, sc.CONTACT_EMAILS_ITEM, *STATED_FIELDS, *SAFEGUARDS, sf.SNIPPET,
+    sf.DATE, sf.UPPER_BOUND,
 )
 
 
@@ -380,7 +381,7 @@ class Provenance:
                    rule_coder_version, getattr(extraction, "response_model", None),
                    getattr(extraction, "request_id", None))
 
-    def quote_record(self, item: str, value: Any, chunk_id: str) -> CoderRecord:
+    def quote_record(self, item: str, value: Any, chunk_id: str | None) -> CoderRecord:
         if not self.response_model or not self.request_id:
             raise sf.MissingUpstreamError("actual response model and request id of the T-022 pass-1 response "
                                           "(D-007)", [item])
@@ -514,6 +515,65 @@ def snippet_value(verdict_support: sc.SupportResult | None, sources: sc.PageSour
                       ((fv.support, prov.quote_record(sf.SNIPPET, verdict_support.supporting_text, chunk)),))
 
 
+#: PI ruling 63 a (2026-11-13): the support rule of a metadata/URL publication date.
+DETERMINISTIC_DATE_RULE = "deterministic_date:"
+
+
+def deterministic_date_rule(date: sf.FieldValue) -> str:
+    """``deterministic_date:<origin>``: the A1.1 a tag of a metadata date, ``web_address`` for a URL date."""
+    if date.date_origin == "metadata":
+        tag = date.detail.get("tag")
+        if not tag:
+            raise ValueError("metadata publication date without its A1.1 a tag")
+        return DETERMINISTIC_DATE_RULE + str(tag)
+    if date.date_origin == "web_address":
+        return DETERMINISTIC_DATE_RULE + "web_address"
+    raise ValueError(f"date origin {date.date_origin!r} is not deterministic")
+
+
+@dataclass(frozen=True)
+class DateValue:
+    """The publication date with its codes, and the field ``date_upper_bound`` reads."""
+
+    quote: QuoteValue
+    field: sf.FieldValue
+
+
+def publication_date_value(page: Any, page_fields: Any, extraction: Any, sources: sc.PageSources,
+                           prov: Provenance) -> DateValue:
+    """X26 (``items/core.source_publication_date/rules/0``) with its support.
+
+    A1 metadata or URL date (``PageSourceFields.publication_date``): that value,
+    ``set_by_rule`` support naming ``deterministic_date:<origin>`` (PI ruling 63 a).
+    Otherwise the T-022 quote step's date
+    (``Pass1Extraction.publication_date``) checked under R-042
+    (:func:`g3o.common.source_fields.publication_date`: supported, or ``unknown``
+    when the check fails), with a quote-step record; no date returned:
+    ``not_documented``. Pass 1 asks the date only when it sends a request for the
+    page (``request_v27.select_requests``); with no request the date was never
+    asked, and that is refused.
+    """
+    date = getattr(page_fields, "publication_date", None)
+    if date is not None:
+        rule = deterministic_date_rule(date)
+        return DateValue(QuoteValue(RowValue(sf.DATE, date.value, f"{date.basis}; PI ruling 63 a"),
+                                    (rule_code(sf.DATE, date.value, rule, None, sources, prov),)), date)
+    if page.has_metadata_date:
+        raise ValueError("PageInput.has_metadata_date is set but page_fields has no publication date")
+    if extraction is None:
+        raise sf.MissingUpstreamError("T-022 date task (pass 1 sent no request for this page)", [sf.DATE])
+    quote = extraction.publication_date
+    if quote is None:
+        fv = sf.publication_date([], None, sources)
+        sr = sc.check_code(sc.CodeEvidence(sf.DATE, fv.value, None), sources)
+        return DateValue(QuoteValue(RowValue(sf.DATE, fv.value, fv.basis),
+                                    ((sr, prov.quote_record(sf.DATE, fv.value, None)),)), fv)
+    chunk = _known_part(sources, quote.chunk_id, sf.DATE)
+    fv = sf.publication_date([], quote, sources)
+    return DateValue(QuoteValue(RowValue(sf.DATE, fv.value, fv.basis),
+                                ((fv.support, prov.quote_record(sf.DATE, quote.value, chunk)),)), fv)
+
+
 # ---------------------------------------------------------------------------
 # The assembler
 # ---------------------------------------------------------------------------
@@ -563,7 +623,7 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
                        activities: Mapping[str, Mapping[str, Any]], rows: AssembledRows, *,
                        followed: bool | None = None, sources: sc.PageSources | None = None,
                        verdict_support: sc.SupportResult | None = None,
-                       provenance: Provenance | None = None) -> None:
+                       provenance: Provenance | None = None, extraction: Any = None) -> None:
     """The page-level source-row values (see the module docstring) into ``rows.source``."""
     out = rows.source
     for item, attr in ((sf.URL, "url"), (sf.ACCESS_DATE, "access_date"), (sf.LANGUAGE, "language"),
@@ -590,6 +650,16 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
     _try_quote(rows, out, rows.source_codes, sf.SNIPPET,
                lambda: snippet_value(verdict_support, _need(sources, sf.SNIPPET),
                                      _need(provenance, sf.SNIPPET)))
+    try:  # X26 and the date_upper_bound note on it (mechanical: no code)
+        dated = publication_date_value(page, page_fields, extraction, _need(sources, sf.DATE),
+                                       _need(provenance, sf.DATE))
+    except _REFUSALS as exc:
+        rows.refused[sf.DATE] = str(exc)
+        rows.refused[sf.UPPER_BOUND] = f"reads {sf.DATE} (refused)"
+    else:
+        out[sf.DATE] = dated.quote.row
+        rows.source_codes.extend(dated.quote.codes)
+        _try(rows, out, sf.UPPER_BOUND, lambda: _from(sf.date_upper_bound(dated.field)))
 
 
 def _need(value: Any, item: str) -> Any:
@@ -647,7 +717,7 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
     if activities:
         rows.refused.update(REFUSED_ACTIVITY_ITEMS)
     page_source_values(page, page_fields, page_values, activities, rows, followed=followed, sources=sources,
-                       verdict_support=verdict_support, provenance=provenance)
+                       verdict_support=verdict_support, provenance=provenance, extraction=extraction)
     activity_row_values(activities, rows, extraction=extraction, sources=sources, provenance=provenance)
     return rows
 

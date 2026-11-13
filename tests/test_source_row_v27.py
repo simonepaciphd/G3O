@@ -92,15 +92,16 @@ def test_page_level_values_from_page_fields_and_page():
     # CX-53: main text, then chrome (header/footer), then the page's e-mail links.
     assert v[sc.CONTACT_EMAILS_ITEM] == ["ai@one.example.gov", "help@one.example.gov", "info@one.example.gov"]
     # Without the pass-1 request and its provenance every quote-step item is refused as well.
-    quote_items = {sf.SNIPPET, *srow.pass1_activity_fields(), *srow.REPORTED_GATES}
+    quote_items = {sf.SNIPPET, sf.DATE, sf.UPPER_BOUND, *srow.pass1_activity_fields(), *srow.REPORTED_GATES}
     assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | quote_items
-    assert all(srow.MISSING_EXTRACTION in rows.refused[i] for i in quote_items)
+    assert all(srow.MISSING_EXTRACTION in rows.refused[i] for i in quote_items - {sf.UPPER_BOUND})
     assert not set(rows.source) & set(rows.refused)
 
 
 def test_no_activity_page_refuses_only_source_items():
     rows = srow.assemble(_page(), FIELDS_P1, NOGENAI, {}, followed=False)
-    assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) | {sf.SNIPPET} and rows.activities == {}
+    assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) | {sf.SNIPPET, sf.DATE, sf.UPPER_BOUND}
+    assert rows.activities == {}
     v = _values(rows)
     assert v[sc.CONTACT_ITEM] == "no" and v[sc.CONTACT_EMAILS_ITEM] == "not_asked"
     assert all(v[i] == "no" for i in (*srow.STATED_FIELDS, *srow.SAFEGUARDS))
@@ -235,8 +236,9 @@ def _span(*fields, aid="p1#a001"):
 
 
 class _Extraction:
-    def __init__(self, *spans, response_model="fake-extractor-response", request_id="req-1"):
+    def __init__(self, *spans, response_model="fake-extractor-response", request_id="req-1", date=None):
         self.activities, self.response_model, self.request_id = spans, response_model, request_id
+        self.publication_date = date
 
 
 def test_pass1_fields_are_the_signed_activity_quote_step_items():
@@ -383,3 +385,48 @@ def test_assemble_with_extraction_builds_activity_quote_values_and_codes():
                          extraction=_Extraction(span), sources=SOURCES, verdict_support=_verdict(quote),
                          provenance=PROV)
     assert all(i in rows.refused for i in srow.pass1_activity_fields())
+
+
+# ---------------------------------------------------------------------------
+# Publication date (PI ruling 63 a) and date_upper_bound
+# ---------------------------------------------------------------------------
+
+
+def _meta_date(origin="metadata"):
+    from g3o.common import date_signals
+    tag = date_signals.TAG_ORDER[1] if origin == "metadata" else None
+    dates = [sf.MetadataDate("2025-03-12", origin, "fixture", tag)]
+    return sf.publication_date(dates, None, None), tag
+
+
+def test_metadata_and_url_dates_get_a_deterministic_date_rule_63a():
+    from dataclasses import replace
+    for origin in ("metadata", "web_address"):
+        date, tag = _meta_date(origin=origin)
+        fields = replace(FIELDS_P1, publication_date=date)
+        dv = srow.publication_date_value(_page(), fields, None, SOURCES, PROV)  # no request needed
+        (sr, rec), = dv.quote.codes
+        expected = f"deterministic_date:{tag if origin == 'metadata' else 'web_address'}"
+        assert dv.quote.row.value == "2025-03-12"
+        assert sr.support_status == "set_by_rule" and sr.support_rule_name == rec.rule_reference == expected
+        assert rec.coder_type == "mechanical" and sf.date_upper_bound(dv.field).value == "no"
+
+
+def test_quote_step_date_supported_failed_or_absent():
+    from g3o.extract.parser_v27 import FieldValue
+    text = "In 2024 the council runs Copilot Chat."
+    sources = sc.PageSources("p1", {PART: text}, None)
+    good = FieldValue(sf.DATE, "2024", PART, "In 2024 the council runs Copilot Chat")
+    dv = srow.publication_date_value(_page(), FIELDS_P1, _Extraction(date=good), sources, PROV)
+    (sr, rec), = dv.quote.codes
+    assert dv.quote.row.value == "2024" and sr.support_status == "supported"
+    assert (rec.coder_type, rec.chosen_value, rec.chunk_id) == ("quote_step", "2024", PART)
+    bad = FieldValue(sf.DATE, "2024", PART, "no such sentence anywhere here at all")
+    dv = srow.publication_date_value(_page(), FIELDS_P1, _Extraction(date=bad), sources, PROV)
+    assert dv.quote.row.value == "unknown" and dv.quote.codes[0][0].support_status == "downgraded_no_quote"
+    dv = srow.publication_date_value(_page(), FIELDS_P1, _Extraction(), sources, PROV)
+    (sr, rec), = dv.quote.codes
+    assert dv.quote.row.value == "not_documented" and sr.support_status == "not_required"
+    assert sf.date_upper_bound(dv.field).value == "not_asked"
+    with pytest.raises(sf.MissingUpstreamError, match="no request"):
+        srow.publication_date_value(_page(), FIELDS_P1, None, sources, PROV)
