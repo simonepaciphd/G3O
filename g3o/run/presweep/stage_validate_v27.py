@@ -48,13 +48,22 @@ Rules carried here, not decided here:
   value. An R2 item with no entry in any observation takes the value of the
   first observation in that R3 order (RC-D-032 B3 a; e.g. ``[]`` beside
   ``not_documented``). Every observation's nodes stay on the merged row.
+- **Merged activities' A8 values (PI A8 rulings 2026-11-11, 66 a;**
+  :mod:`g3o.validate.merged_activity_v27`**).** ``stage_as_of`` (the latest
+  among the pooled observations' publication date / latest supported year code
+  / access date), ``date_upper_bound`` (of that date), ``unit_credit`` (any
+  pooled observation's relationship ``unit_of_institution``) and
+  ``vendor_claim_only`` (every supporting source ``vendor``; a missing type
+  gives ``unknown``) are produced from the pooled observations' rows and their
+  source rows (:data:`MERGE_PRODUCED_A8`). An absent input refuses; a latest
+  date the signed rule does not determine refuses (a PI question).
 - **Values with no producer here** are explicit inputs and refuse when absent
   (:class:`~g3o.persist.stage6_adapters.MissingUpstreamError`): the merged
-  values R1 asks to re-derive but whose signed rule needs inputs the merged
-  row does not hold (:data:`MERGE_REFUSED_R1`; ``evidence_channel`` is the
-  row metadata :data:`EVIDENCE_CHANNEL`, not a row value), the merged values
-  no ruling covers (:data:`MERGE_UNRULED`, now empty). RC-D-032 B1 a keeps the
-  R1 refusal until per-source producers exist.
+  values R1 asks to re-derive whose rule awaits codebook r16 or PI approval
+  (:data:`MERGE_REFUSED_R1`: developer, developer_basis, stage_as_of_basis,
+  cx_display_rollup; ``evidence_channel`` is the row metadata
+  :data:`EVIDENCE_CHANNEL`, not a row value), the merged values no ruling
+  covers (:data:`MERGE_UNRULED`, now empty).
 - **Uncertainty flags (PI A6.1-A6.4 a, 2026-11-11;**
   :mod:`g3o.validate.uncertainty_flags_v27`**).** Each Stage 6 node carries its
   own code's flags: a pooled ``core.adoption_stage`` node ``stage_ambiguous``
@@ -122,6 +131,7 @@ from g3o.persist.stage6_adapters import (
     load_support_provenance,
     write_atomic,
 )
+from g3o.validate import merged_activity_v27 as ma
 from g3o.validate import uncertainty_flags_v27 as uf
 from g3o.validate.consolidate_v27 import (
     ActivityObservation,
@@ -235,14 +245,16 @@ ACTIVITY_ITEMS = frozenset(table_fields("activities"))
 MERGE_UNION = ("core.tool_name", "core.model_name", "core.reported_outcomes", "core.reported_incidents")
 MERGE_CREDIBLE = ("core.activity_name", "core.contracting_party", "core.observed_actor_name",
                   "core.deployment_scale_number")
-#: X1 a R1 items whose signed rule reads inputs the merged row does not hold (refused, explicit input):
-#: developer/developer_basis (the page's stated vendor or a product lookup), stage_as_of/_basis (the
-#: source's supported publication date, the page's latest stated date, the access date), unit_credit
-#: (no derivation rule text beyond the column's purpose), vendor_claim_only (the sources' type),
-#: cx_display_rollup (supported positives with their support, source and observation ids; no item list),
-#: date_upper_bound (the source date's origin). evidence_channel is row metadata, not a value.
-MERGE_REFUSED_R1 = ("core.developer", "core.developer_basis", "core.stage_as_of", "core.stage_as_of_basis",
-                    "core.unit_credit", "core.vendor_claim_only", "core.cx_display_rollup", "core.date_upper_bound")
+#: X1 a R1 items produced here from the pooled observations and their source rows (PI A8 rulings,
+#: 2026-11-11, and 66 a; :mod:`g3o.validate.merged_activity_v27`): stage_as_of (A8.3/A8.4/A8.6 a),
+#: date_upper_bound (A8.11/A8.12 a), unit_credit (A8.7/A8.8 a), vendor_claim_only (A8.9 a).
+MERGE_PRODUCED_A8 = ma.PRODUCED
+#: X1 a R1 items still refused (explicit input): developer/developer_basis (A8.1 a: a developer quote
+#: item, codebook r16 and a re-signature first; A8.2 a: no lookup table), stage_as_of_basis (A8.5 a:
+#: three step codes, codebook r16), cx_display_rollup (A8.10 a: the per-item "positive" table
+#: :data:`g3o.validate.merged_activity_v27.CX_POSITIVE` awaits PI approval). evidence_channel is row
+#: metadata, not a value.
+MERGE_REFUSED_R1 = ("core.developer", "core.developer_basis", "core.stage_as_of_basis", "core.cx_display_rollup")
 #: Non-pooled activity items no merge rule covers (explicit input). Empty since A6 (2026-11-11).
 MERGE_UNRULED: tuple[str, ...] = ()
 #: Derived here from the row's stored nodes (A6.4 a: union, alphabetical).
@@ -257,8 +269,10 @@ def _non_pooled_items() -> frozenset[str]:
     return ACTIVITY_ITEMS - pooled - set(METADATA_ITEMS) - {"core.n_sources", "core.confidence"}
 
 
-if _non_pooled_items() != (MERGE_INPUT_ITEMS | set(MERGE_UNION) | set(MERGE_CREDIBLE)
-                           | set(MERGE_DERIVED)):  # pragma: no cover
+if (_non_pooled_items() != (MERGE_INPUT_ITEMS | set(MERGE_UNION) | set(MERGE_CREDIBLE) | set(MERGE_DERIVED)
+                            | set(MERGE_PRODUCED_A8))
+        or len(MERGE_INPUT_ITEMS) + len(MERGE_UNION) + len(MERGE_CREDIBLE) + len(MERGE_DERIVED)
+        + len(MERGE_PRODUCED_A8) != len(_non_pooled_items())):  # pragma: no cover - overlap or gap
     raise RuntimeError("the merged-activity item split no longer matches the activities table")
 INDEPENDENCE_PRODUCER = "near-duplicate / syndication grouping (P15) for source independence groups"
 
@@ -888,7 +902,8 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
             pooled_values = outcome_values(pooled.outcomes)
             # Pooled answers to items the activities table does not hold (the evaluation items,
             # stored per source claim in D-007) stay in the row's support/coder provenance only.
-            values = {**given, **merge_values(inst, observation_pool_order(inst.quotes, pooled.observation_ids)),
+            order = observation_pool_order(inst.quotes, pooled.observation_ids)
+            values = {**given, **merge_values(inst, order), **ma.merged_values_a8(inst, order),
                       **{k: v for k, v in pooled_values.items() if k in ACTIVITY_ITEMS}}
         support: dict[str, dict[str, Any]] = {}
         for node in [*(s for f in fragments for s in f["item_support"]), *out.supports.get(aid, [])]:
@@ -1118,7 +1133,7 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 
 __all__ = [
     "ENVELOPE_FAILED", "ENVELOPE_HOLDS", "EXECUTOR_FAILED", "MISSING_UPSTREAM", "HELD_REASON", "STAGE_STOPS", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
-    "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_REFUSED_R1", "MERGE_UNION", "MERGE_UNRULED",
+    "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_PRODUCED_A8", "MERGE_REFUSED_R1", "MERGE_UNION", "MERGE_UNRULED",
     "Stage6Metrics", "build_envelope", "hold_reasons", "independence_groups_of", "merge_values", "run_stage6_v27",
     "EXTRACT_REJECT_CAP", "IDENTITY_COLUMNS", "PI_RELEASED", "WIRING_STOPS", "ExtractRejectCapReached",
     "UpstreamRowMalformed", "require_identity",
