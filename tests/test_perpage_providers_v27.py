@@ -1327,3 +1327,38 @@ def test_cap_counts_an_extra_round_apart_from_the_first_round(tmp_path, which):
 def test_cap_error_is_not_a_stage_stop():
     assert not issubclass(rt.ExtractRejectCapReached, pp.STAGE_STOPS)
     assert not issubclass(rt.ExtractRejectCapReached, (ValueError, RuntimeError, pp.ExtractorResponseFailed))
+
+
+# ---------------------------------------------------------------------------
+# PI-approved P-2c quote-task question (RC-D-021 P-2c a): user-message wording pin
+# ---------------------------------------------------------------------------
+
+
+def test_approved_p2c_question_hashes_to_its_pin_and_is_accepted():
+    from g3o.common.instrument import sha256_text
+    from g3o.extract import pass2_support
+
+    text = pass2_support.QUESTION_OVERRIDES["core.activity_segment"]
+    assert sha256_text(text) == ppv.P2C_QUESTION_SHA256
+    rules = pass2_support.default_rules()
+    assert rules.questions["core.activity_segment"] == text
+    ppv.require_approved_quote_questions(rules)
+
+
+@pytest.mark.parametrize("overrides", [
+    {"core.activity_segment": "How does this activity relate to the linked activity?"},  # other text
+    {},  # the override dropped: the codebook method note would be shown instead
+])
+def test_unapproved_p2c_question_is_refused_before_any_extractor_call(tmp_path, monkeypatch, overrides):
+    from g3o.codebook.loader import load_codebook
+    from g3o.extract import pass2_support
+
+    rules = pass2_support.rules_from_codebook(load_codebook(), overrides)
+    with pytest.raises(ValueError, match="PI-approved"):
+        ppv.require_approved_quote_questions(rules)
+    run_dir, bound, instrument, world, _ = _world(tmp_path)
+    monkeypatch.setattr(pass2_support, "default_rules", lambda: rules)
+    extract = FakeExtractor(world)
+    with pytest.raises(ValueError, match="PI-approved"):
+        _providers(run_dir, bound, instrument, extract, FakeEntail())
+    assert not extract.jobs
