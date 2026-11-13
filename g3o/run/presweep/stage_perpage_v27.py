@@ -103,6 +103,10 @@ Rules carried here, not decided here:
   in Stage 6 when not injected, A7) and the merged-activity values RC-D-030 X1 a
   leaves without a rule computable from the merged row
   (:data:`~g3o.run.presweep.stage_validate_v27.MERGE_INPUT_ITEMS`).
+  When no row values are injected and ``PageUpstream.page_fields`` is set, the
+  T-015 source-row assembler (:mod:`g3o.run.presweep.source_row_v27`, PI ruling
+  35 a) builds them after coding; while it still refuses any row item, that is a
+  ``MissingUpstreamError`` naming the items (a stage stop, RC-D-033 C2 a).
 - **Reviewed page with no activity (RC-D-030 Y2 a).** It gets one page-level
   source row: ``activity_id`` ``_NA_``, empty ``observation_ids``, its
   page-level values and nodes (support nodes with no observation), the
@@ -190,6 +194,7 @@ from g3o.persist.stage6_adapters import (
     replace_with_retry,
     support_nodes,
 )
+from g3o.run.presweep import source_row_v27 as srow
 from g3o.run.presweep import stage_activity_code, stage_page_code
 from g3o.run.presweep.stage_validate_v27 import DONE_MARKER as STAGE6_DONE_MARKER
 from g3o.run.presweep.stage_validate_v27 import (
@@ -409,8 +414,11 @@ class PageUpstream:
     stored page fixes before coding
     (:class:`g3o.run.presweep.perpage_inputs_v27.PageSourceFields`: X28 URL and
     access date, A1 deterministic date, A2 archive test, A3 language, A4
-    syndication group). Carried, not read here: ``source_values`` still holds
-    every source-row value.
+    syndication group). With ``activity_values``, ``source_values`` and ``codes``
+    all ``None``, :func:`produce_page` runs the T-015 source-row assembler on it
+    after coding (PI ruling 35 a, :func:`g3o.run.presweep.source_row_v27.assemble`),
+    which refuses while any row item has no producer; otherwise it is carried, not
+    read, and the injected values hold every row value.
     """
 
     artifact_path: str | None = None
@@ -676,6 +684,13 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
     acts = {} if activity_round is None else {a.activity_id: a for a in activity_round.result.activities}
     finals = {} if activity_round is None else {f.activity_id: f for f in activity_round.final}
     keys = list(acts) or [NO_ACTIVITY]  # source-row units: one per activity, or the page (Y2 a)
+    if up.page_fields is not None and all(v is None for v in (up.activity_values, up.source_values, up.codes)):
+        # PI ruling 35 a: the T-015 assembler builds the rows after coding. A row is published whole or
+        # not at all, so any item it cannot produce yet is a wiring gap that stops the stage (RC-D-033 C2 a).
+        rows = srow.assemble(page, up.page_fields, outcome_values(page_round.final.items),
+                             {aid: outcome_values(f.outcomes) for aid, f in finals.items()})
+        if rows.refused:
+            raise MissingUpstreamError(f"{VALUES_PRODUCER} ({srow.ASSEMBLER})", sorted(rows.refused))
     for name, value, need in (("activity_values", up.activity_values, list(acts)),
                               ("source_values", up.source_values, keys), ("codes", up.codes, keys)):
         if need and (value is None or set(need) - set(value)):

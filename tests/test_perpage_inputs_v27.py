@@ -195,8 +195,29 @@ def test_unproduced_values_still_refuse(tmp_path):
     assert f"{I1}/{url_hash(P_META.url)}" in exc.value.missing
     followed = [replace(i, pages=[replace(s, upstream=replace(s.upstream, followed=False)) for s in i.pages])
                 for i in insts.values()]
-    with pytest.raises(MissingUpstreamError, match=r"row values .*\(activity_values, source_values, codes\)"):
+    with pytest.raises(MissingUpstreamError, match=r"row values .*\(activity_values, source_values, codes\)") as exc:
         pin.require_complete(followed)
+    # Ruling 35 a: the row values are left to the T-015 assembler, which names what it still refuses.
+    assert "source-row assembler" in str(exc.value) and "core.discovery_path" in str(exc.value)
+    assert all(s.upstream.page_fields is not None for i in followed for s in i.pages)
+
+
+def test_require_complete_passes_assembler_pages_once_nothing_is_refused(tmp_path, monkeypatch):
+    """Ruling 35 a: a page left to the assembler (row values None, page_fields set) passes the
+    pre-check once the assembler refuses no row item; a page with only some values injected, or
+    with neither values nor page_fields, still refuses."""
+    insts = _built(tmp_path)
+    followed = [replace(i, pages=[replace(s, upstream=replace(s.upstream, followed=False)) for s in i.pages])
+                for i in insts.values()]
+    monkeypatch.setattr(pin.srow, "unproduced_items", lambda: ())
+    assert pin.require_complete(followed) == 5
+    one = followed[0]
+    for broken_up in (replace(one.pages[0].upstream, source_values={}),
+                      replace(one.pages[0].upstream, page_fields=None)):
+        broken = [replace(one, pages=[replace(one.pages[0], upstream=broken_up), *one.pages[1:]]), *followed[1:]]
+        with pytest.raises(MissingUpstreamError, match="row values") as exc:
+            pin.require_complete(broken)
+        assert exc.value.missing == (f"{I1}/{one.pages[0].page.page_id}",)
 
 
 @pytest.mark.parametrize("absent", ["activity_values", "source_values", "codes"])
