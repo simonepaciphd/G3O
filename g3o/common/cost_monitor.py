@@ -931,6 +931,16 @@ EXTRACTOR_USAGE_MISSING = (
     "counts; e.g. a journal written before they were stored): not priced, not guessed "
     "(ruling 58 a)"
 )
+#: Key of the marker :meth:`RequestJournal.extractor_usages` gives, in place of a
+#: usage, for a failed extractor result that reports no usage: its result type
+#: (``ExtractorResult.error["type"]``, e.g. ``"errored"``).
+EXTRACTOR_FAILED_RESULT_KEY = "failed_result_type"
+#: Failed Message Batches result types priced at $0 when they report no usage (PI
+#: ruling 67 a). Verified: Anthropic does not bill errored or expired batch requests.
+EXTRACTOR_UNBILLED_FAILED_RESULTS: frozenset[str] = frozenset({"errored", "expired"})
+#: A canceled batch result reporting no usage is also priced at $0 (ruling 67 a), but
+#: counted on its own: that Anthropic does not bill canceled requests is NOT verified.
+EXTRACTOR_UNBILLED_CANCELED_RESULT = "canceled"
 
 
 def price_extractor_requests(
@@ -944,14 +954,29 @@ def price_extractor_requests(
     and writes included (58 a), by :func:`g3o.common.pricing.anthropic_request_usd`.
     A response without the :data:`EXTRACTOR_USAGE_KEYS` is counted in
     ``unpriced_calls``; while any is, ``usd`` is ``None`` (never a partial sum).
+
+    A failed call that reports no usage comes as ``{EXTRACTOR_FAILED_RESULT_KEY: type}``
+    (PI ruling 67 a): an ``errored`` or ``expired`` result costs $0 and is counted in
+    ``unbilled_failed_calls`` (Anthropic does not bill these: verified); a ``canceled``
+    result costs $0 and is counted in ``unbilled_canceled_calls`` -- the premise that a
+    canceled request is not billed is NOT verified, hence the separate count. Any other
+    failed type without usage (e.g. ``unknown``), and a successful or rejected response
+    missing usage keys, stays unpriced (ruling 58 a: not guessed).
     """
     row = pricing_for(model)
     rates = None if row is None else row.get("tiers", {}).get("up_to_threshold", row)
     priceable_row = rates is not None and "batch_cache_write_5m_per_1m_usd" in rates
     total = 0.0
-    unpriced = 0
+    unpriced = unbilled_failed = unbilled_canceled = 0
     tokens = dict.fromkeys(EXTRACTOR_USAGE_KEYS, 0)
     for u in usages:
+        failed_type = u.get(EXTRACTOR_FAILED_RESULT_KEY) if isinstance(u, dict) else None
+        if failed_type in EXTRACTOR_UNBILLED_FAILED_RESULTS:
+            unbilled_failed += 1
+            continue
+        if failed_type == EXTRACTOR_UNBILLED_CANCELED_RESULT:
+            unbilled_canceled += 1
+            continue
         if not isinstance(u, dict) or any(k not in u for k in EXTRACTOR_USAGE_KEYS):
             unpriced += 1
             continue
@@ -961,6 +986,7 @@ def price_extractor_requests(
             total += anthropic_request_usd(u, row, batch=True)
     out: dict[str, Any] = {
         "model": model, "calls": len(usages), "unpriced_calls": unpriced,
+        "unbilled_failed_calls": unbilled_failed, "unbilled_canceled_calls": unbilled_canceled,
         "rates": "batch", **tokens,
         "usd": _round_usd(total) if priceable_row and not unpriced else None,
     }
@@ -1049,6 +1075,9 @@ def price_v27_usage(
 
 
 __all__ = [
+    "EXTRACTOR_FAILED_RESULT_KEY",
+    "EXTRACTOR_UNBILLED_CANCELED_RESULT",
+    "EXTRACTOR_UNBILLED_FAILED_RESULTS",
     "EXTRACTOR_USAGE_KEYS",
     "V27_UNPRICED_PARTS",
     "BudgetExceededError",

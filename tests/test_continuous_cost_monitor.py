@@ -1372,6 +1372,33 @@ def test_v27_extractor_response_without_per_request_usage_is_not_guessed():
     stage = price_v27_usage(_v27_usage(extractor_calls=3), jev_model="jev-1.13.0",
                             extractor_model="claude-haiku-5-5", extractor_usages=[_ext(100, 10), old, None])
     assert stage["unpriced_parts"] == ["extractor"] and stage["total_usd"] is None
+    # Ruling 67 a does not reach a successful or rejected response missing usage keys.
+    assert price_extractor_requests([old], model="claude-haiku-5-5")["unbilled_failed_calls"] == 0
+
+
+def test_v27_failed_extractor_results_without_usage_cost_zero_and_canceled_counts_apart():
+    """PI ruling 67 a: errored / expired results without usage cost $0 (verified not billed);
+    canceled ones cost $0 too but are counted apart (not verified); the stage stays priced."""
+    from g3o.common.cost_monitor import (
+        EXTRACTOR_FAILED_RESULT_KEY,
+        price_extractor_requests,
+        price_v27_usage,
+    )
+
+    def failed(kind):
+        return {EXTRACTOR_FAILED_RESULT_KEY: kind}
+
+    usages = [_ext(1_000, 200), failed("errored"), failed("expired"), failed("canceled")]
+    out = price_extractor_requests(usages, model="claude-haiku-5-5")
+    ext_usd = (1_000 * 0.05 + 200 * 0.25) / 1e6
+    assert out["usd"] == pytest.approx(ext_usd) and out["calls"] == 4 and "reason" not in out
+    assert (out["unbilled_failed_calls"], out["unbilled_canceled_calls"], out["unpriced_calls"]) == (2, 1, 0)
+    assert out["input_tokens"] == 1_000
+    stage = price_v27_usage(_v27_usage(extractor_calls=4), jev_model="jev-1.13.0",
+                            extractor_model="claude-haiku-5-5", extractor_usages=usages)
+    assert stage["priced"] is True and stage["total_usd"] == pytest.approx(2.0 * 0.042 + ext_usd)
+    other = price_extractor_requests([failed("unknown")], model="claude-haiku-5-5")
+    assert other["usd"] is None and other["unpriced_calls"] == 1  # not a ruled type: not guessed
     assert price_extractor_requests([_ext(1, 1)], model="fake-extractor")["usd"] is None  # no rate row
 
 
