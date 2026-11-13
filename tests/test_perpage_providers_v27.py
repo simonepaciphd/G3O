@@ -691,12 +691,14 @@ def test_c4_hold_after_an_extra_round_names_the_first_round_request(tmp_path, mo
     assert extra_rounds and not ready and metrics.held == [inst]
     first, extra = [j for j in extract.jobs if j.metadata["stage"] == PASS1 and j.metadata["page_id"] == page]
     assert _tasks(extra)["activity_task"] is None and _tasks(first)["activity_task"] is not None
-    # Both pass-1 requests of a page carry the same custom_id (it is built from the page, not the
-    # plan); they differ in params, so the request (custom_id + params) is what tells them apart.
-    assert first.custom_id == extra.custom_id and first.params != extra.params
+    # Ruling 46 a: the extra round has its own custom_id, the first-round one with a round suffix
+    # derived from its code set; the first round's is the page's unchanged id.
+    assert first.custom_id == request_v27.make_custom_id(inst, first.metadata["source_url"])
+    assert extra.custom_id != first.custom_id and extra.custom_id.startswith(first.custom_id + ppv.EXTRA_ROUND_MARK)
+    assert first.params != extra.params
     (hold,) = _held(run_dir, inst)["held"]
     assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED and hold["pass"] == "pass1" and "C4 a" in hold["error"]
-    assert hold["custom_id"] == first.custom_id
+    assert hold["custom_id"] == first.custom_id and hold["custom_id"] != extra.custom_id
     # the first round's request (not the extra round's) is the one rejected in the journal: its
     # recorded response is the page request's answer, with the (nameless) activities
     entries = [json.loads(x) for x in (institution_dir(run_dir, inst) / pp.WORK_DIR / pp.JOURNAL)
@@ -986,6 +988,19 @@ def test_extra_round_pass1_request_asks_only_the_new_quote_tasks(tmp_path):
     assert extract.jobs[1].params["system"] == bound.pass1_system  # the pinned system prompt, unchanged
     assert [(s.item_id, s.chunk_id) for s in extra] == [(r.item_id, r.chunk_id) for r in new]
     assert all(s.supporting_text for s in extra)  # the quote-only answer was consumed
+    # ruling 46 a: the extra round's custom_id is its own, and a fresh adapter (a resume) builds the
+    # same one, so the journal replays the same request; the first round's id is the page's
+    page_cid = request_v27.make_custom_id(page.institution_id, page.url)
+    assert extract.jobs[0].custom_id == page_cid
+    wanted = {(r.item_id, r.chunk_id, r.chosen_value) for r in new}
+    extra_codes = [c for c in full.codes if (c.item_id, c.chunk_id, c.value) in wanted]
+    assert extract.jobs[1].custom_id == ppv.extra_round_custom_id(page_cid, extra_codes)
+    assert ppv.extra_round_custom_id(page_cid, extra_codes[::-1]) == extract.jobs[1].custom_id  # order-free
+    assert ppv.extra_round_custom_id(page_cid, full.codes) != extract.jobs[1].custom_id  # set-bound
+    assert extract.jobs[1].custom_id != page_cid and len(extract.jobs[1].custom_id) <= 64
+    resumed = FakeExtractor(world)
+    _providers(run_dir, bound, instrument, resumed, FakeEntail()).page_support(page, result, new)
+    assert [j.custom_id for j in resumed.jobs] == [extract.jobs[1].custom_id]
 
     inp = providers.activity_input(page, PageRoundResult(result, jpc.finalize_page(result, first + extra,
                                                                                    bound.page_config),

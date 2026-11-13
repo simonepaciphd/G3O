@@ -27,7 +27,8 @@ The seams:
   quote tasks of the new codes (C1 a, PI 2026-11-11:
   :func:`~g3o.extract.request_v27.quote_tasks_only`): no link, span or date
   task, since those come from the stored page request; an extra round whose new
-  codes need no quote makes no call.
+  codes need no quote makes no call. An extra-round request has its own
+  ``custom_id`` (ruling 46 a, :func:`extra_round_custom_id`).
 - ``activity_input`` - the spans of that page request. On resume (the page
   checkpoint holds the support, so ``page_support`` is not called again) the
   page request is rebuilt from the stored T-021 artifact; the per-page journal
@@ -142,6 +143,23 @@ def _job_key(job: ExtractorJob) -> str:
                           .encode("utf-8")).hexdigest()
 
 
+#: Ruling 46 a: marks an extra-round (C1 a) pass-1 ``custom_id`` (see :func:`extra_round_custom_id`).
+EXTRA_ROUND_MARK = "-x"
+
+
+def extra_round_custom_id(first_round: str, codes: Sequence[Any]) -> str:
+    """The ``custom_id`` of an extra-round pass-1 request (ruling 46 a).
+
+    The page's first-round ``custom_id`` plus :data:`EXTRA_ROUND_MARK` and 8 hex of the
+    SHA256 of the round's sorted ``(item_id, chunk_id, value)`` code set: distinct from the
+    first-round request, and the same on a resume, so the journal replays the same request.
+    The first-round ``custom_id`` (``x27-`` + 48 hex) is unchanged; the result is 62
+    characters, inside the Batches limit of 64."""
+    code_set = sorted([c.item_id, c.chunk_id, c.value] for c in codes)
+    digest = hashlib.sha256(canonical_json(code_set).encode("utf-8")).hexdigest()[:8]
+    return f"{first_round}{EXTRA_ROUND_MARK}{digest}"
+
+
 class _Adapter:
     """The four seams over one pair of calls. Caches are per institution (see ``with_seams``)."""
 
@@ -236,6 +254,8 @@ class _Adapter:
         if not plan.needs_request:
             return plan, None, None
         job = self.bound.pass1_job(p1, plan)
+        if extra_round:  # ruling 46 a: its own custom_id, never the page's first-round one
+            job = replace(job, custom_id=extra_round_custom_id(job.custom_id, p1.codes))
         ext = self._parsed("pass1", job, lambda r: parse_pass1_result(r, p1, plan))
         self.extractions.append(ext)
         return plan, ext, {"custom_id": job.custom_id, "params": job.params}
@@ -414,5 +434,5 @@ def build_perpage_providers(bound: Any, instrument: Mapping[str, Any], run_dir: 
                       x35_model)
 
 
-__all__ = ["PASS1_SYSTEM_SHA256", "PASS2_SYSTEM_SHA256", "ExtractorPerPageProviders",
-           "build_perpage_providers", "check_binding", "require_approved_system"]
+__all__ = ["EXTRA_ROUND_MARK", "PASS1_SYSTEM_SHA256", "PASS2_SYSTEM_SHA256", "ExtractorPerPageProviders",
+           "build_perpage_providers", "check_binding", "extra_round_custom_id", "require_approved_system"]
