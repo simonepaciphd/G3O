@@ -240,6 +240,15 @@ def _final(result: page_code.PageCodeResult, support: Sequence[Any],
     return page_code.finalize_page(result, support, config)
 
 
+def extra_round_started(result: page_code.PageCodeResult) -> bool:
+    """Whether any RC-D-024 extra-round request was made or attempted on this page.
+
+    Before that, a support check of the page's codes is its first round (the T-022
+    page request); after it, every support check is an extra round (C1 a, ruling 46 a),
+    even when halving left every live answer unchecked."""
+    return any(e.get("group") == "extra" for e in (*result.requests, *result.failures))
+
+
 def _halving_stopped(result: page_code.PageCodeResult) -> bool:
     return any(o.state == "stopped" and (o.error or "").startswith(HALVING_STOP) for o in result.items.values())
 
@@ -334,6 +343,7 @@ def _send_group(page: page_code.PageInput, result: page_code.PageCodeResult, pos
         return _over_limit(page, result, pos, group, own, setup, config, checkpoint, support,
                            {**log, "outcome": "over_limit", "estimated_tokens": size})
     over: str | None = None
+    response = None
     try:
         response = ask_fn(state, questions)
         recs = [_answer(response, q, chunk.chunk_id, config, setup.qset["question_set_version"]) for q in qs]
@@ -341,6 +351,12 @@ def _send_group(page: page_code.PageInput, result: page_code.PageCodeResult, pos
         raise
     except Exception as exc:
         if not is_max_tokens_exceeded(exc):
+            if response is not None:  # billed but unusable (no answer / no request id): logged, then held
+                result = replace(result, requests=result.requests + ({
+                    **log, "request_id": response.request_id, "response_model": response.response_model,
+                    "input_tokens": response.input_tokens, "output_tokens": response.output_tokens,
+                    "outcome": "extra_round_failed",
+                },))
             return "held", _hold(result, setup, own, group, chunk.chunk_id, exc, checkpoint, support)
         over = f"{type(exc).__name__}: {exc}"
     if over is not None:
@@ -381,6 +397,8 @@ def _over_limit(page: page_code.PageInput, result: page_code.PageCodeResult, pos
     halves = None if chunk.depth >= config.max_split_depth else halve_chunk(chunk, estimator=config.estimator)
     requests = result.requests + (log,)
     if halves is None:
+        # as the first round logs an exhausted part: the request outcome ``jev_part_over_limit``
+        requests += ({**{k: v for k, v in log.items() if k != "detail"}, "outcome": page_code.OVER_LIMIT},)
         result = replace(result, requests=requests, failures=result.failures + ({
             "chunk_id": chunk.chunk_id, "round": rnd, "group": gname, "question_ids": list(qids),
             "reason": page_code.OVER_LIMIT, "detail": "part cannot be halved further",

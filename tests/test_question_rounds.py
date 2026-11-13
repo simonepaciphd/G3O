@@ -13,6 +13,7 @@ from g3o.classify.question_rounds import (
     HALVING_STOPPED,
     complete_activity_rounds,
     complete_page_rounds,
+    extra_round_started,
 )
 from g3o.classify.questions.v27 import load_set
 from g3o.codebook.loader import default_codebook_path
@@ -512,6 +513,12 @@ def test_page_over_limit_part_is_halved_and_its_earlier_requests_reasked_on_the_
     assert len(log) == 1 and log[0]["chunk_id"] == "p:1" and log[0]["halves"] == ["p:1.1", "p:1.2"]
     assert [frozenset(g["question_ids"]) for g in log[0]["reask"]] == first_round
     assert {e["page_part"] for e in done.result.requests if e.get("reasked")} == {"2 of 3", "3 of 3"}
+    # The chrome request is re-asked as a chrome request: its own group, with the chrome text.
+    chrome_ids = {"core.content_contact_named", "core.content_contact_details"}
+    assert {e["page_part"] for e in done.result.requests
+            if e.get("reasked") and e["group"] == "chrome"} == {"2 of 3", "3 of 3"}
+    assert all((pc.CHROME_STATE_FIELD in s) == bool(set(q) & chrome_ids) for s, q in fake.calls)
+    assert any(set(q) & chrome_ids for s, q in fake.calls if s["page_part"] == "2 of 3")
     # Every new answer, re-asked or extra, is support-checked before finalization.
     new = {(r.item_id, r.chunk_id) for r in done.result.records
            if r.coder_type == "classifier" and r.chosen_value != NOT_COVERED
@@ -653,3 +660,122 @@ def test_page_halving_transient_reask_failure_holds_then_resumes(monkeypatch, ru
     calls = _calls(fake)
     assert len(calls) == len(set(calls))
     assert calls[sent:] and all(label == "3 of 3" for label, _ in calls[sent:])
+
+
+def test_page_halving_billed_reask_without_answer_is_logged_then_held(monkeypatch, rules):
+    # M2 (PI question 75 open): hold semantics unchanged; the billed response is logged.
+    page, result, support, config, fake = page_case(monkeypatch, rules)
+    second_text = result.chunks[1].text
+    ask = _over_for(fake, lambda s, q: set(q) == {SCOPE} and s["page_text"] == second_text)
+
+    def no_verdict(state, questions):
+        res = ask(state, questions)
+        if state["page_part"] == "3 of 3" and VERDICT in questions:
+            return JevResult({k: v for k, v in res.answers.items() if k != VERDICT}, res.response_model,
+                             res.request_id, res.input_tokens, res.output_tokens)
+        return res
+
+    held = complete_page_rounds(page, result, support, ask_fn=no_verdict, config=config, check_support=_page_check)
+    assert not held.complete and held.result.items[SCOPE].note.startswith("extra_round_failed:")
+    entry = held.result.requests[-1]
+    assert (entry["chunk_id"], entry["outcome"], entry["question_ids"], entry["reasked"]) == (
+        "p:1.2", "extra_round_failed", [VERDICT], True)
+    assert entry["request_id"] == f"request-{len(fake.calls)}"  # the last (billed) call
+    assert entry["input_tokens"] == 10 and entry["output_tokens"] == 1
+    assert not any(r.chunk_id == "p:1.2" for r in held.result.records)  # the group is not half-recorded
+
+
+def test_page_halving_of_a_half_during_a_reask_owes_the_full_plan_to_its_halves(monkeypatch, rules):
+    page, result, support, config, fake = page_case(monkeypatch, rules)
+    second = result.chunks[1]
+    h1, _ = halve_chunk(second)
+
+    def over(s, q):
+        return ((set(q) == {SCOPE} and s["page_text"] == second.text)
+                or (VERDICT in q and s["page_text"] == h1.text))
+
+    ask = _over_for(fake, over)
+    done = complete_page_rounds(page, result, support, ask_fn=ask, config=config, check_support=_page_check)
+    assert done.complete
+    assert [c.chunk_id for c in done.result.chunks] == ["p:0", "p:1.1.1", "p:1.1.2", "p:1.2"]
+    assert [c.depth for c in done.result.chunks] == [0, 2, 2, 1]
+    assert ask.rejected == [("2 of 2", second.text, frozenset({SCOPE})),
+                            ("2 of 3", h1.text, frozenset({VERDICT}))]
+    first_round = [frozenset(e["question_ids"]) for e in result.requests
+                   if e["chunk_id"] == "p:1" and e["outcome"] == "ok"]
+    log = [e for e in done.result.requests if e.get("outcome") == "halved"]
+    assert [(e["chunk_id"], e["halves"]) for e in log] == [("p:1", ["p:1.1", "p:1.2"]),
+                                                           ("p:1.1", ["p:1.1.1", "p:1.1.2"])]
+    # The half's plan still holds the re-ask it was rejected on (it was owed, not answered).
+    assert [frozenset(g["question_ids"]) for g in log[1]["reask"]] == first_round
+    expected = [("1 of 2", frozenset({SCOPE}))]
+    for label in ("2 of 4", "3 of 4", "4 of 4"):
+        expected += [(label, g) for g in first_round] + [(label, frozenset({SCOPE}))]
+    assert _calls(fake) == expected
+
+
+def test_page_halving_reasks_an_earlier_extra_round_question_in_its_own_request(monkeypatch, rules):
+    page, result, support, config, fake = page_case(monkeypatch, rules, descendant=True)
+    second_text = result.chunks[1].text
+    data = "core.content_data"
+    ask = _over_for(fake, lambda s, q: set(q) == {data} and s["page_text"] == second_text)
+    done = complete_page_rounds(page, result, support, ask_fn=ask, config=config, check_support=_page_check)
+    assert done.complete
+    log = [e for e in done.result.requests if e.get("outcome") == "halved"]
+    assert len(log) == 1 and {"round": 3, "group": "extra", "question_ids": [SCOPE]} in log[0]["reask"]
+    assert log[0]["reask"][-1]["question_ids"] == [SCOPE]  # last of the plan: the latest round
+    for label in ("2 of 3", "3 of 3"):
+        asked = [q for p, q in _calls(fake) if p == label]
+        assert asked[-2:] == [frozenset({SCOPE}), frozenset({data})]
+    assert done.final.items[data].state == "combined"
+    assert {r.chunk_id for r in done.result.records if r.item_id == SCOPE} == {"p:0", "p:1.1", "p:1.2"}
+
+
+def test_page_halving_that_changes_provisional_page_complete_stops_for_pi(monkeypatch, rules):
+    page, result, support, config, fake = page_case(monkeypatch, rules)
+    originals = {c.text for c in result.chunks}
+    assert result.items["core.page_complete"].value == "yes"
+    fake.choices["core.page_complete"] = lambda s: "yes" if s["page_text"] in originals else "no"
+    ask = _over_for(fake, lambda s, q: set(q) == {SCOPE} and s["page_text"] in originals)
+    done = complete_page_rounds(page, result, support, ask_fn=ask, config=config,
+                                check_support=lambda *_: pytest.fail("no support check on a stopped page"))
+    assert not done.complete
+    scope = done.result.items[SCOPE]
+    assert scope.state == "stopped" and scope.error.startswith(HALVING_STOP) and "core.page_complete" in scope.error
+    assert done.result.items["core.page_complete"] == result.items["core.page_complete"]
+    again = _no_calls(page, done, config)
+    assert not again.complete and again.result == done.result
+
+
+def test_page_halving_changed_non_verdict_answer_regates_the_extra_question(monkeypatch, rules):
+    # A gate item answered differently on the halves: finalize_page re-gates (PI Q2 b).
+    page, result, support, config, fake = page_case(monkeypatch, rules)
+    second_text = result.chunks[1].text
+    fake.choices["core.disclosure_form"] = lambda s: "informal_official"  # halves: gate closes
+    ask = _over_for(fake, lambda s, q: set(q) == {SCOPE} and s["page_text"] == second_text)
+    done = complete_page_rounds(page, result, support, ask_fn=ask, config=config, check_support=_page_check)
+    assert done.complete
+    assert done.final.items["core.disclosure_form"].value == "informal_official"
+    assert SCOPE in done.final.regated and done.final.items[SCOPE].state == "gated_out"
+    assert done.result.items[SCOPE].state == "combined"  # jev's raw answers kept, unpublished
+    assert {r.chunk_id for r in done.result.records if r.item_id == SCOPE} == {"p:0", "p:1.1", "p:1.2"}
+
+
+def test_support_check_after_every_part_is_halved_is_an_extra_round(monkeypatch, rules):
+    # M1: every live answer is unchecked after both parts are halved, yet the page is past its
+    # first round; extra_round_started tells the provider so (ruling 46 a).
+    page, result, support, config, fake = page_case(monkeypatch, rules)
+    originals = {c.text for c in result.chunks}
+    ask = _over_for(fake, lambda s, q: set(q) == {SCOPE} and s["page_text"] in originals)
+    seen = []
+
+    def check(updated, records):
+        live = {(r.item_id, r.chunk_id) for r in updated.records
+                if r.coder_type == "classifier" and r.chosen_value != NOT_COVERED}
+        seen.append((extra_round_started(updated), {(r.item_id, r.chunk_id) for r in records} == live))
+        return _page_check(updated, records)
+
+    assert not extra_round_started(result)
+    done = complete_page_rounds(page, result, support, ask_fn=ask, config=config, check_support=check)
+    assert done.complete
+    assert seen == [(True, True)]

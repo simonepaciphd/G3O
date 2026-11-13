@@ -99,7 +99,7 @@ from g3o.classify.jev_activity_code import (
     to_pass2_page,
 )
 from g3o.classify.jev_page_code import PageCodeResult, PageInput, to_pass1_page
-from g3o.classify.question_rounds import PageRoundResult
+from g3o.classify.question_rounds import PageRoundResult, extra_round_started
 from g3o.common import support_check as sc
 from g3o.common.artifact_io import read_artifact
 from g3o.common.instrument import canonical_json, sha256_text
@@ -282,8 +282,9 @@ class _Adapter:
         codes = tuple(c for c in full.codes if (c.item_id, c.chunk_id, c.value) in wanted)
         p1 = replace(full, codes=codes)
         # every pass-1 code: T-022's page request (its spans feed activity_input); fewer codes: an
-        # RC-D-024 extra round, which asks only their quotes (C1 a)
-        first = codes == full.codes
+        # RC-D-024 extra round, which asks only their quotes (C1 a). Once an extra round has started,
+        # every call is one, even when a halving left all live codes unchecked (ruling 46 a)
+        first = codes == full.codes and not extra_round_started(result)
         plan, ext, request = self._pass1(p1, extra_round=not first)
         if first and page.page_id not in self._page_request:
             self._page_request[page.page_id], self._page_pass1[page.page_id] = ext, request
