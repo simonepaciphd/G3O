@@ -206,9 +206,10 @@ class InstitutionLeg:
             result = self.fetch(cand.url)
             outcome, page = result.outcome, result.page
             if outcome not in fl.OUTCOMES:
-                raise ValueError(f"follow fetch of {cand.url!r} returned unknown outcome {outcome!r}")
+                raise pp.FollowWiringError(f"follow fetch of {cand.url!r} returned unknown outcome {outcome!r}")
             if (outcome == fl.FETCHED) != (page is not None):
-                raise ValueError(f"follow fetch of {cand.url!r}: a page is returned exactly when it is fetched")
+                raise pp.FollowWiringError(f"follow fetch of {cand.url!r}: a page is returned exactly when it is "
+                                           "fetched")
             if page is not None:
                 write_artifact(art, page.model_dump_json())
         if page is not None and page.url != cand.url:
@@ -236,12 +237,12 @@ class InstitutionLeg:
         pairs, supported = [], {}
         for p in ordered:
             if p.page.institution_id != self.institution_id:
-                raise ValueError(f"page {p.page.page_id} is not {self.institution_id}'s")
+                raise pp.FollowWiringError(f"page {p.page.page_id} is not {self.institution_id}'s")
             fp = FollowPage(p.page.page_id, p.page.institution_id, p.page.url, p.page.text, p.page_complete,
                             p.page.links)
             page_hop = self.state.hop_of(p.page.url)
             if hop is not None and page_hop != hop:
-                raise ValueError(f"{self.institution_id}: a follow round mixes hops {hop} and {page_hop}")
+                raise pp.FollowWiringError(f"{self.institution_id}: a follow round mixes hops {hop} and {page_hop}")
             hop = page_hop
             pairs.append((fp, p.extraction))
             supported[p.page.page_id] = tuple(p.supported)
@@ -321,8 +322,8 @@ class FollowLeg:
             state = fl.InstitutionFollow(inst.institution_id, inst.run_id, rules=self.rules)
         for spec in inst.pages:
             if spec.upstream.followed:
-                raise ValueError(f"{spec.page.page_id}: an input page is already followed; the leg follows "
-                                 "from searched pages only")
+                raise pp.FollowWiringError(f"{spec.page.page_id}: an input page is already followed; the leg "
+                                           "follows from searched pages only")
             state.register_original(spec.page.url)
         return InstitutionLeg(Path(run_dir), inst.institution_id, inst.pages[0].page, state, self.fetch, self)
 

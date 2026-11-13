@@ -281,11 +281,23 @@ PI_RELEASE_ARCHIVE_FAILED = "pi_release_archive_failed"
 PI_RELEASE_RECORD_FAILED = "pi_release_record_failed"
 _PI_RELEASE_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 _PI_RELEASE_FIELDS = frozenset({"released_by", "date", "keys", "all", "note"})
+class FollowWiringError(ValueError):
+    """A T-025 follow-leg error that is a wiring gap, not institution data (review L5): the fetch seam
+    broke its contract (unknown outcome; a page without ``fetched`` or ``fetched`` without a page), the
+    leg was handed a page of another institution or a page already followed, a round mixed hops, or a
+    followed page id was already coded. It stops the stage (:data:`STAGE_STOPS`); any other error of
+    the follow leg (e.g. a stored follow state written for another release or rules, a fetched page
+    whose URL is not the URL tried) holds its institution (:data:`FOLLOW_FAILED`)."""
+
+
+#: Review L5: an error of the T-025 follow leg that is institution data, not wiring: per-institution hold.
+FOLLOW_FAILED = "follow_failed"
 #: Errors that stop the whole stage; every other producer error holds its institution only.
 #: Both ``MissingUpstreamError`` classes subclass ``ValueError``; they are listed here so the
 #: per-institution ``ValueError`` handlers never swallow a wiring gap (RC-D-033 C2 a).
 STAGE_STOPS = (JevAccountError, stage_page_code.StageStopped, SupportGateError, Stage6QuoteNotApproved,
-               BudgetExceededError, UnpricedModelError, MissingUpstreamError, SourceFieldsMissingUpstreamError)
+               BudgetExceededError, UnpricedModelError, MissingUpstreamError, SourceFieldsMissingUpstreamError,
+               FollowWiringError)
 
 
 class ExtractorResponseFailed(Exception):
@@ -1165,7 +1177,7 @@ def _follow_rounds(run_dir: Path, inst: PerPageInstitution, states: list[_PageSt
         known = {st.spec.page.page_id for st in states}
         clash = sorted(s.page.page_id for s in new_specs if s.page.page_id in known)
         if clash:
-            raise ValueError(f"{inst.institution_id}: followed page id(s) {clash} already coded")
+            raise FollowWiringError(f"{inst.institution_id}: followed page id(s) {clash} already coded")
         current = [_PageState(spec) for spec in new_specs]
         states.extend(current)
         broken = _finish_failed_archives(run_dir, current, held_path)  # ruling 33 a, as for searched pages
@@ -1244,11 +1256,18 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                                   inst_providers=inst_providers, journal=journal, page_config=page_config,
                                   activity_config=activity_config, metrics=metrics,
                                   cost_check_callback=cost_check_callback)
-            if follow is not None and broken is None and not any(st.holds for st in states):
-                broken = _follow_rounds(run_dir, inst, states, follow, held_path, ask=ask, providers=providers,
-                                        inst_providers=inst_providers, journal=journal, page_config=page_config,
-                                        activity_config=activity_config, metrics=metrics,
-                                        cost_check_callback=cost_check_callback)
+            # Review L5: an institution with no page has nothing to follow from (not an error).
+            if follow is not None and broken is None and states and not any(st.holds for st in states):
+                try:
+                    broken = _follow_rounds(run_dir, inst, states, follow, held_path, ask=ask,
+                                            providers=providers, inst_providers=inst_providers, journal=journal,
+                                            page_config=page_config, activity_config=activity_config,
+                                            metrics=metrics, cost_check_callback=cost_check_callback)
+                except STAGE_STOPS:
+                    raise
+                except (ValueError, OSError) as exc:  # institution data: this institution is held
+                    broken = {"page_id": inst.institution_id, "stage": FOLLOW_FAILED,
+                              "error": f"{type(exc).__name__}: {exc}"}
         finally:
             metrics.live_requests += journal.live
             metrics.replayed_requests += journal.replayed
@@ -1507,7 +1526,7 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 __all__ = [
     "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
-    "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
+    "FOLLOW_FAILED", "FollowWiringError", "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]

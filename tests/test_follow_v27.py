@@ -20,6 +20,7 @@ from g3o.common import attrition
 from g3o.common import source_fields as sf
 from g3o.common.artifact_io import artifact_exists
 from g3o.common.instrument import load_instrument
+from g3o.common.jev_client import JevAccountError
 from g3o.common.paths import institution_dir
 from g3o.extract.batch import url_hash
 from g3o.extract.parser_v27 import Pass1Extraction, SelectedLink
@@ -379,6 +380,96 @@ def test_perpage_failed_follow_fetch_holds_the_institution(tmp_path):
     assert [(a["url"], a["state"]) for a in hold["attempts"]] == [(REPORT_URL, fl.FETCH_FAILED)]
     assert any(r["reason"] == pp.HELD_REASON and fv.FOLLOW_ATTEMPTS_UNRULED in r["detail"]
                for r in attrition.read_records(run_dir))
+
+
+def test_failed_follow_hold_persists_on_resume_with_no_live_call_l8(tmp_path):
+    """Review L8: the follow_attempts_unruled hold is found again on the next run from the stored follow
+    state and the journal: no fetch and no live jev or extractor call."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    fetch = FakeFetch({}, fail={REPORT_URL})
+    _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), _jev())
+    ready, metrics = _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), _jev())
+    assert ready == [] and metrics.held == [INST] and metrics.live_requests == 0
+    assert fetch.calls == [REPORT_URL]  # R-034: the URL is not tried again
+    held = json.loads((institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).read_text(encoding="utf-8"))
+    assert [h["stage"] for h in held["held"]] == [fv.FOLLOW_ATTEMPTS_UNRULED]
+
+
+def test_resume_interrupted_while_coding_a_followed_page_l8(tmp_path):
+    """Review L8: a stop while the followed page is coded; the next run does not fetch it again and
+    finishes the institution."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    fetch = FakeFetch({REPORT_URL: REPORT})
+
+    def stop(state, questions, n):
+        if REPORT in state.get("page_text", ""):
+            return JevAccountError("simulated interruption while coding the followed page")
+        return None
+
+    first = _jev()
+    first.fail = stop
+    with pytest.raises(JevAccountError):
+        _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), first)
+    assert fetch.calls == [REPORT_URL]
+    ready, metrics = _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), _jev())
+    assert metrics.ready == [INST] and fetch.calls == [REPORT_URL]
+    assert metrics.live_requests > 0  # the followed page is asked now; nothing was answered for it before
+    assert [(p.page_id, p.followed) for p in ready[0].pages] == [("s1", False), (url_hash(REPORT_URL), True)]
+
+
+def test_real_followed_page_reaches_the_assembler_l8(tmp_path, monkeypatch):
+    """Review L8: the plain follow leg (no WorldLeg override) gives the followed page its D1 a page
+    fields and hop; the T-015 assembler builds its rows and stops the stage on what it still refuses."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    seen = []
+    real = srow.assemble
+    monkeypatch.setattr(srow, "assemble", lambda *a, **k: seen.append((a[0].page_id, real(*a, **k))) or seen[-1][1])
+    fetch = FakeFetch({REPORT_URL: REPORT})
+    with pytest.raises(MissingUpstreamError, match="source-row assembler"):
+        _run(run_dir, bound, instrument, providers, inst, fv.FollowLeg(fetch), _jev())
+    assert fetch.calls == [REPORT_URL]
+    (pid, rows), = seen  # the searched page carries injected values; only the followed page is assembled
+    assert pid == url_hash(REPORT_URL)
+    built = {k: v.value for k, v in rows.source.items()}
+    assert (built[sf.URL], built[sf.DISCOVERY], built[sf.TEXT_SOURCE]) == (REPORT_URL, "followed_hop_1", "new_run")
+    assert built[sf.ACCESS_DATE] == ACCESS and built[sf.TITLE] == "Followed"
+    assert sf.OFFICIAL in rows.refused  # no official-site step in this run (PI ruling 70 b)
+
+
+def test_zero_page_institution_is_not_followed_l5(tmp_path):
+    """Review L5: an institution with no page (an injected builder may pass one) has nothing to follow
+    from; the stage neither crashes nor fetches."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    fetch = FakeFetch({REPORT_URL: REPORT})
+    _run(run_dir, bound, instrument, providers, replace(inst, pages=[]), WorldLeg(fetch, world=world), _jev())
+    assert fetch.calls == [] and not (institution_dir(run_dir, INST) / fv.FOLLOW_DIR).exists()
+
+
+def test_follow_data_error_holds_the_institution_l5(tmp_path):
+    """Review L5: a follow-leg error that is institution data (here a stored follow state in another
+    format) holds that institution instead of stopping the stage."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    state = institution_dir(run_dir, INST) / fv.FOLLOW_DIR / fv.STATE_FILE
+    state.parent.mkdir(parents=True, exist_ok=True)
+    state.write_text(json.dumps({"format": "another-format"}), encoding="utf-8")
+    fetch = FakeFetch({REPORT_URL: REPORT})
+    ready, metrics = _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), _jev())
+    assert ready == [] and metrics.held == [INST] and fetch.calls == []
+    held = json.loads((institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).read_text(encoding="utf-8"))
+    (hold,) = held["held"]
+    assert hold["stage"] == pp.FOLLOW_FAILED and "unsupported follow state format" in hold["error"]
+
+
+def test_follow_wiring_error_stops_the_stage_l5(tmp_path):
+    """Review L5: a fetch seam that breaks its contract is a wiring gap: the stage stops."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+
+    def bogus(url):
+        return FetchResult("bogus_outcome")
+
+    with pytest.raises(pp.FollowWiringError, match="unknown outcome"):
+        _run(run_dir, bound, instrument, providers, inst, WorldLeg(bogus, world=world), _jev())
+    assert pp.FollowWiringError in pp.STAGE_STOPS
 
 
 # ---------------------------------------------------------------------------
