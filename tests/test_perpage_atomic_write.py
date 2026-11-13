@@ -138,6 +138,7 @@ def test_release_naming_a_key_with_no_rejection_is_malformed(tmp_path):
     hold = pp._apply_pi_release(tmp_path, journal)
     assert hold["stage"] == pp.PI_RELEASE_MALFORMED and hold["error"].startswith("refused")
     assert OTHER in hold["error"] and KEY not in hold["error"]
+    assert "since their last release" in hold["error"] and f"drop these keys from {pp.PI_RELEASE_FILE}" in hold["error"]
     assert (tmp_path / pp.PI_RELEASE_FILE).exists() and not _archive(tmp_path).exists()
     assert "pi_released" not in _kinds(tmp_path) and journal.rejections(KEY) == 1
 
@@ -186,6 +187,31 @@ def test_byte_identical_release_is_only_archived(tmp_path):
     assert not (tmp_path / pp.PI_RELEASE_FILE).exists()
     assert sorted(p.name for p in _archive(tmp_path).iterdir()) == ["001", "002"]
     assert pp._cap_hold("p1", "pass1", "c1", KEY, 3, "d")["error"].count("byte-identical") == 1
+
+
+def test_second_release_with_other_bytes_after_new_rejections_resets_the_count_again(tmp_path):
+    # Ruling 41 a / 47.2 a: a release with different bytes (another date and note), after new
+    # rejections, is a second release: a second pi_released entry, and the count resets again
+    journal = _journal(tmp_path)
+    first = _release(tmp_path, {"released_by": "PI", "date": "2026-11-12", "keys": [KEY]})
+    assert pp._apply_pi_release(tmp_path, journal) is None and journal.rejections(KEY) == 0
+    with journal.path.open("ab") as stream:  # two new rejections after the first release
+        for n in (10, 11):
+            stream.write(json.dumps({"kind": rt.EXTRACT_REJECTED, "key": KEY, "n": n, "response": {},
+                                     "elapsed_ms": 0}).encode("utf-8") + b"\n")
+    journal = rt.RequestJournal(journal.path, {})
+    assert journal.rejections(KEY) == 2
+    second = _release(tmp_path, {"released_by": "PI", "date": "2026-11-13", "keys": [KEY],
+                                 "note": "second look"})
+    assert second != first
+    assert pp._apply_pi_release(tmp_path, journal) is None
+    assert journal.rejections(KEY) == 0 and _kinds(tmp_path).count("pi_released") == 2
+    assert journal.release_applied(hashlib.sha256(first).hexdigest())
+    assert journal.release_applied(hashlib.sha256(second).hexdigest())
+    reloaded = rt.RequestJournal(journal.path, {})
+    assert reloaded.rejections(KEY) == 0
+    assert not (tmp_path / pp.PI_RELEASE_FILE).exists()
+    assert sorted(p.name for p in _archive(tmp_path).iterdir()) == ["001", "002"]
 
 
 def test_release_journal_write_error_holds_the_institution(tmp_path, monkeypatch):
