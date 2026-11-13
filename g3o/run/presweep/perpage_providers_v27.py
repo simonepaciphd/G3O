@@ -358,6 +358,17 @@ class _Adapter:
 
     def pair_support(self, inp: ActivityPageInput, result: PageActivityResult) -> list[SupportResult]:
         pid = inp.page.page_id
+        # The rebuild below is the request the uninterrupted run made, or would make here. The
+        # page request is only ever made in round 1 of complete_activity_rounds, on the T-023
+        # result (the stored artifact, or the result run_stage just wrote to it): round 1 asks
+        # every classifier, non-not-covered ordinary record, which is ``ordinary``
+        # (``to_pass2_page`` keeps the same records; choice values are strings). If round 1 asks
+        # nothing, the page has no such record, so there is no support, finalize_activities
+        # re-combines the same votes in the same gate order as code_page (the permanent-pilot
+        # override needs a SUPPORTED part) and opens no gate, and a fresh T-023 result holds no
+        # extra-round note: no extra round runs and activity_support is never called. Then the
+        # uninterrupted run rebuilds here too, from the same artifact, so a resume gives the same
+        # custom_id and params (journal replay, no new call).
         if pid not in self._pair_quotes:  # resume: rebuild the page request from the T-023 artifact
             art = stage_activity_code.artifact_path(
                 institution_dir(self.run_dir, inp.page.institution_id) / ACTIVITY_DIR, pid)
