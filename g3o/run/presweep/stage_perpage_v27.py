@@ -99,7 +99,9 @@ Rules carried here, not decided here:
   non-classifier row values (T-015 source fields, T-022 quote-step values,
   T-024 derived values) and the quote-step codes' support, an injected stored
   page artifact layout (absent: written by :mod:`g3o.persist.page_artifact`,
-  PI ruling A5.1 a), T-025 follow provenance, independence groups (produced
+  PI ruling A5.1 a), T-025 follow provenance of an input page (the follow
+  leg, ``run_perpage_v27(follow=...)``, sets it on the pages it fetches:
+  :mod:`g3o.run.presweep.follow_v27`), independence groups (produced
   in Stage 6 when not injected, A7) and the merged-activity values RC-D-030 X1 a
   leaves without a rule computable from the merged row
   (:data:`~g3o.run.presweep.stage_validate_v27.MERGE_INPUT_ITEMS`).
@@ -196,6 +198,7 @@ from g3o.persist.stage6_adapters import (
 )
 from g3o.run.presweep import source_row_v27 as srow
 from g3o.run.presweep import stage_activity_code, stage_page_code
+from g3o.run.presweep.official_site_v27 import load_run_official_sites
 from g3o.run.presweep.stage_validate_v27 import DONE_MARKER as STAGE6_DONE_MARKER
 from g3o.run.presweep.stage_validate_v27 import (
     EXTRACT_REJECT_CAP,
@@ -278,11 +281,23 @@ PI_RELEASE_ARCHIVE_FAILED = "pi_release_archive_failed"
 PI_RELEASE_RECORD_FAILED = "pi_release_record_failed"
 _PI_RELEASE_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 _PI_RELEASE_FIELDS = frozenset({"released_by", "date", "keys", "all", "note"})
+class FollowWiringError(ValueError):
+    """A T-025 follow-leg error that is a wiring gap, not institution data (review L5): the fetch seam
+    broke its contract (unknown outcome; a page without ``fetched`` or ``fetched`` without a page), the
+    leg was handed a page of another institution or a page already followed, a round mixed hops, or a
+    followed page id was already coded. It stops the stage (:data:`STAGE_STOPS`); any other error of
+    the follow leg (e.g. a stored follow state written for another release or rules, a fetched page
+    whose URL is not the URL tried) holds its institution (:data:`FOLLOW_FAILED`)."""
+
+
+#: Review L5: an error of the T-025 follow leg that is institution data, not wiring: per-institution hold.
+FOLLOW_FAILED = "follow_failed"
 #: Errors that stop the whole stage; every other producer error holds its institution only.
 #: Both ``MissingUpstreamError`` classes subclass ``ValueError``; they are listed here so the
 #: per-institution ``ValueError`` handlers never swallow a wiring gap (RC-D-033 C2 a).
 STAGE_STOPS = (JevAccountError, stage_page_code.StageStopped, SupportGateError, Stage6QuoteNotApproved,
-               BudgetExceededError, UnpricedModelError, MissingUpstreamError, SourceFieldsMissingUpstreamError)
+               BudgetExceededError, UnpricedModelError, MissingUpstreamError, SourceFieldsMissingUpstreamError,
+               FollowWiringError)
 
 
 class ExtractorResponseFailed(Exception):
@@ -419,6 +434,11 @@ class PageUpstream:
     after coding (PI ruling 35 a, :func:`g3o.run.presweep.source_row_v27.assemble`),
     which refuses while any row item has no producer; otherwise it is carried, not
     read, and the injected values hold every row value.
+
+    ``followed`` / ``hop`` (T-025): a searched page is ``followed=False`` (hop
+    unused); a page the follow leg fetched (:mod:`g3o.run.presweep.follow_v27`) is
+    ``followed=True`` with its hop (>= 1) from the searched page, which the T-015
+    assembler turns into ``core.discovery_path`` (PI ruling 61 a).
     """
 
     artifact_path: str | None = None
@@ -428,6 +448,7 @@ class PageUpstream:
     source_values: Mapping[str, Mapping[str, Any]] | None = None
     codes: Mapping[str, Sequence[tuple[SupportResult, CoderRecord]]] | None = None
     page_fields: Any = None
+    hop: int | None = None
 
 
 @dataclass(frozen=True)
@@ -657,11 +678,13 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                  activity_round: ActivityRoundResult | None, pairs: Sequence[PairResult],
                  pair_support: Sequence[SupportResult], page_config: PageCoderConfig,
                  activity_config: ActivityCoderConfig, instrument: dict[str, Any],
-                 extraction: Any = None) -> PageProduct:
+                 extraction: Any = None, official_sites: Any = None) -> PageProduct:
     """Final per-page values and their support -> the Stage 6 per-page inputs of one coded page.
 
     ``extraction`` is the page's T-022 pass-1 page request (``PerPageProviders.page_extraction``),
-    read by the T-015 source-row assembler when no row values are injected (PI ruling 35 a).
+    read by the T-015 source-row assembler when no row values are injected (PI ruling 35 a);
+    ``official_sites`` the run's official sites it reads (PI ruling 70 b,
+    :func:`g3o.run.presweep.official_site_v27.load_run_official_sites`).
 
     Uncertainty flags (PI A6.1 a / A6.3 a): each node carries its own code's flags
     (:func:`g3o.validate.uncertainty_flags_v27.code_flags`); an observation row's
@@ -693,12 +716,16 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         # PI ruling 35 a: the T-015 assembler builds the rows after coding. A row is published whole or
         # not at all, so any item it cannot produce yet is a wiring gap that stops the stage (RC-D-033 C2 a).
         verdict = page_round.final.items[jpc.VERDICT]
-        vsr = None if verdict.state != "combined" else next(
-            (s for s in page_round.support if s.item_id == jpc.VERDICT and s.activity_id is None
-             and s.part is None and s.chunk_id == verdict.part_id), None)
+        if verdict.state == "combined":
+            vsr = next((s for s in page_round.support if s.item_id == jpc.VERDICT and s.activity_id is None
+                        and s.part is None and s.chunk_id == verdict.part_id), None)
+        else:  # a rule-set verdict (e.g. R-015): its set_by_rule support carries no quote (PI ruling 72 a)
+            vsr = next((_rule_support(r, None, sources) for r in result.records
+                        if r.item_id == jpc.VERDICT and r.coder_type != "classifier"), None)
         rows = srow.assemble(page, up.page_fields, outcome_values(page_round.final.items),
                              {aid: outcome_values(f.outcomes) for aid, f in finals.items()},
-                             followed=up.followed, extraction=extraction, sources=sources, verdict_support=vsr,
+                             followed=up.followed, hop=up.hop, extraction=extraction, sources=sources,
+                             verdict_support=vsr, official_sites=official_sites,
                              provenance=srow.Provenance.of(instrument, extraction,
                                                            rule_coder_version=activity_config.coder_version))
         if rows.refused:
@@ -1080,11 +1107,103 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
         st.pairs = finalize_pairs(result_now, st.pair_support, activity_config)
 
 
+def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str, Any] | None, *, ask: Any,
+                 providers: PerPageProviders, inst_providers: PerPageProviders, journal: RequestJournal,
+                 page_config: PageCoderConfig, activity_config: ActivityCoderConfig, metrics: PerPageMetrics,
+                 cost_check_callback: Callable[[str, dict[str, int]], bool] | None) -> dict[str, Any] | None:
+    """T-021 coding and the rounds of ``to_code`` (one institution); returns the institution's hold, if any.
+
+    ``broken`` is returned unchanged unless a page sets a hold (the caller passes
+    ``to_code`` empty when it already holds the institution).
+    """
+    coded = stage_page_code.run_page_code_stage(run_dir, [s.spec.page for s in to_code], ask_fn=ask,
+                                                config=page_config, concurrency=1,
+                                                cost_check_callback=cost_check_callback)
+    if coded.stopped_early:  # the cost check stopped T-021: uncoded pages are not failures
+        raise stage_page_code.StageStopped("page coding stopped by the cost check")
+    for st in to_code:
+        page = st.spec.page
+        if not artifact_exists(stage_page_code.artifact_path(run_dir, page.institution_id, page.url)):
+            try:
+                st.failure = _failure_reason(run_dir, page)
+            except STAGE_STOPS:
+                raise
+            except (ConsolidationError, ValueError, RuntimeError) as exc:
+                return _producer_hold(page.page_id, exc)
+            metrics.failed_pages.append(page.page_id)
+            continue
+        try:
+            _rounds_for_page(run_dir, st, ask, inst_providers, page_config, activity_config, metrics)
+        except PageArchiveIncomplete as exc:  # finishing an earlier archive failed again
+            return _archive_hold(page.page_id, exc)
+        except ExtractRejectCapReached as exc:  # ruling 34 b / 41 a: no call was made
+            return _cap_hold(page.page_id, exc.pass_name, exc.custom_id, exc.key, exc.rejections,
+                             "no extractor call made")
+        except ExtractorResponseFailed as exc:  # C3 a: this institution is held as pending
+            broken = _response_hold(page.page_id, exc)
+            if exc.request is not None and hasattr(providers, "journal_prompt"):
+                # never replayed as final: the next run asks the request again
+                journal.reject_extract(exc.request, providers.journal_prompt, exc.detail)
+                key = journal.extract_key(exc.request, providers.journal_prompt)
+                if journal.rejections(key) >= EXTRACT_REJECT_CAP:  # ruling 34 b / 41 a
+                    broken = _cap_hold(page.page_id, exc.pass_name, broken["custom_id"], key,
+                                       journal.rejections(key), exc.detail)
+            if exc.archive_page_state:  # ruling 33 a: the next run codes the page again
+                try:
+                    broken["archived"] = _archive_page_state(run_dir, page)
+                except PageArchiveIncomplete as aexc:  # ruling 28 a: held, never a crash
+                    broken.update(_archive_detail(aexc))
+            return broken
+    return broken
+
+
+def _follow_rounds(run_dir: Path, inst: PerPageInstitution, states: list[_PageState], follow: Any,
+                   held_path: Path, **code: Any) -> dict[str, Any] | None:
+    """The T-025 follow leg of one institution (RC-D-023 C-1 a), after its searched pages are coded.
+
+    Each round follows the links of the last round's coded pages
+    (:meth:`g3o.run.presweep.follow_v27.InstitutionLeg.round`); the pages it fetched
+    are appended to ``states`` and coded like searched pages (their own T-021 pass
+    and extractor call, the same request journal). A round stops the leg when a
+    page holds the institution; the next run resumes from the follow state and the
+    journal. Once no round fetches a page, the specs get their follow page fields
+    (:meth:`~g3o.run.presweep.follow_v27.InstitutionLeg.finish`), and an
+    institution with a URL tried and not fetched, or a link not followed, is held
+    (:data:`g3o.run.presweep.follow_v27.FOLLOW_ATTEMPTS_UNRULED`, a PI question).
+    Returns the hold, or None.
+    """
+    from g3o.run.presweep.follow_v27 import round_page
+
+    leg = follow.start(run_dir, inst)
+    current = list(states)
+    while True:
+        pages = [round_page(st.spec, st.page_round, st.extraction) for st in current
+                 if st.failure is None and st.page_round is not None]
+        new_specs = leg.round(pages)
+        if not new_specs:
+            break
+        known = {st.spec.page.page_id for st in states}
+        clash = sorted(s.page.page_id for s in new_specs if s.page.page_id in known)
+        if clash:
+            raise FollowWiringError(f"{inst.institution_id}: followed page id(s) {clash} already coded")
+        current = [_PageState(spec) for spec in new_specs]
+        states.extend(current)
+        broken = _finish_failed_archives(run_dir, current, held_path)  # ruling 33 a, as for searched pages
+        if broken is None:
+            broken = _code_states(run_dir, current, None, **code)
+        if broken is not None or any(st.holds for st in current):
+            return broken
+    for st, spec in zip(states, leg.finish([st.spec for st in states]), strict=True):
+        st.spec = spec
+    return leg.hold()
+
+
 def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *, ask_fn: Any,
                     providers: PerPageProviders, page_config: PageCoderConfig,
                     activity_config: ActivityCoderConfig, instrument: dict[str, Any],
                     cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
                     test_only_unbound_providers: bool = False,
+                    follow: Any = None,
                     ) -> tuple[list[Stage6Institution], PerPageMetrics]:
     """Code, re-gate and produce every page; return the institutions ready for Stage 6.
 
@@ -1096,6 +1215,11 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
     instrument, declaring its pinned extractor and X35 models (QA3 F3); their extractor
     and X35 calls are journaled per institution. ``test_only_unbound_providers`` lifts
     that check for offline fakes in tests only.
+
+    ``follow`` (T-025): a :class:`g3o.run.presweep.follow_v27.FollowLeg`. Given, each
+    institution's searched pages are followed after they are coded
+    (:func:`_follow_rounds`); the pages fetched are coded and produced with them,
+    after the searched pages (attempted order). None: no page is followed.
     """
     if page_config.setup_pointer != instrument["instrument_id"] or \
             activity_config.setup_pointer != instrument["instrument_id"]:
@@ -1114,6 +1238,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
     clear_done(run_dir, STAGE6_DONE_MARKER)
     metrics = PerPageMetrics()
     ready: list[Stage6Institution] = []
+    official_sites = load_run_official_sites(run_dir)  # PI ruling 70 b: read from the run folder every pass
     # The journal key binds the setup: a response recorded under another setup is never replayed.
     setup = {"setup_pointer": page_config.setup_pointer,
              "page": {"configured_model": page_config.configured_model, "coder_version": page_config.coder_version},
@@ -1135,47 +1260,22 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             broken = _apply_pi_release(inst_dir, journal)
         to_code = states if broken is None else []
         try:
-            coded = stage_page_code.run_page_code_stage(run_dir, [s.spec.page for s in to_code], ask_fn=ask,
-                                                        config=page_config, concurrency=1,
-                                                        cost_check_callback=cost_check_callback)
-            if coded.stopped_early:  # the cost check stopped T-021: uncoded pages are not failures
-                raise stage_page_code.StageStopped("page coding stopped by the cost check")
-            for st in to_code:
-                page = st.spec.page
-                if not artifact_exists(stage_page_code.artifact_path(run_dir, page.institution_id, page.url)):
-                    try:
-                        st.failure = _failure_reason(run_dir, page)
-                    except STAGE_STOPS:
-                        raise
-                    except (ConsolidationError, ValueError, RuntimeError) as exc:
-                        broken = _producer_hold(page.page_id, exc)
-                        break
-                    metrics.failed_pages.append(page.page_id)
-                    continue
+            broken = _code_states(run_dir, to_code, broken, ask=ask, providers=providers,
+                                  inst_providers=inst_providers, journal=journal, page_config=page_config,
+                                  activity_config=activity_config, metrics=metrics,
+                                  cost_check_callback=cost_check_callback)
+            # Review L5: an institution with no page has nothing to follow from (not an error).
+            if follow is not None and broken is None and states and not any(st.holds for st in states):
                 try:
-                    _rounds_for_page(run_dir, st, ask, inst_providers, page_config, activity_config, metrics)
-                except PageArchiveIncomplete as exc:  # finishing an earlier archive failed again
-                    broken = _archive_hold(page.page_id, exc)
-                    break
-                except ExtractRejectCapReached as exc:  # ruling 34 b / 41 a: no call was made
-                    broken = _cap_hold(page.page_id, exc.pass_name, exc.custom_id, exc.key, exc.rejections,
-                                       "no extractor call made")
-                    break
-                except ExtractorResponseFailed as exc:  # C3 a: this institution is held as pending
-                    broken = _response_hold(page.page_id, exc)
-                    if exc.request is not None and hasattr(providers, "journal_prompt"):
-                        # never replayed as final: the next run asks the request again
-                        journal.reject_extract(exc.request, providers.journal_prompt, exc.detail)
-                        key = journal.extract_key(exc.request, providers.journal_prompt)
-                        if journal.rejections(key) >= EXTRACT_REJECT_CAP:  # ruling 34 b / 41 a
-                            broken = _cap_hold(page.page_id, exc.pass_name, broken["custom_id"], key,
-                                               journal.rejections(key), exc.detail)
-                    if exc.archive_page_state:  # ruling 33 a: the next run codes the page again
-                        try:
-                            broken["archived"] = _archive_page_state(run_dir, page)
-                        except PageArchiveIncomplete as aexc:  # ruling 28 a: held, never a crash
-                            broken.update(_archive_detail(aexc))
-                    break
+                    broken = _follow_rounds(run_dir, inst, states, follow, held_path, ask=ask,
+                                            providers=providers, inst_providers=inst_providers, journal=journal,
+                                            page_config=page_config, activity_config=activity_config,
+                                            metrics=metrics, cost_check_callback=cost_check_callback)
+                except STAGE_STOPS:
+                    raise
+                except (ValueError, OSError) as exc:  # institution data: this institution is held
+                    broken = {"page_id": inst.institution_id, "stage": FOLLOW_FAILED,
+                              "error": f"{type(exc).__name__}: {exc}"}
         finally:
             metrics.live_requests += journal.live
             metrics.replayed_requests += journal.replayed
@@ -1200,7 +1300,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                     page_order=order, first_source=next_source, page_round=st.page_round,
                     activity_input=st.activity_input, activity_round=st.activity_round, pairs=st.pairs,
                     pair_support=st.pair_support, page_config=page_config, activity_config=activity_config,
-                    instrument=instrument, extraction=st.extraction))
+                    instrument=instrument, extraction=st.extraction, official_sites=official_sites))
             except UncarriedCombinedValue as exc:  # Y3 b: refused as a per-institution hold
                 uncarried = exc
                 break
@@ -1434,7 +1534,7 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 __all__ = [
     "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
-    "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
+    "FOLLOW_FAILED", "FollowWiringError", "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]

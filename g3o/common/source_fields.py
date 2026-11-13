@@ -41,7 +41,10 @@ Producers and their signed rules:
 - ``core.source_url`` / ``core.source_title`` / ``core.source_access_date`` (X28).
 - ``core.source_on_official_domain`` (X37): URL host vs the master
   official-site overlay, hosts compared with :func:`g3o.common.urlnorm.site_host`,
-  exact host equality (RC-D-025 P13).
+  exact host equality (RC-D-025 P13). In the v2.7 per-page stage the map is
+  the official sites the run itself found (PI ruling 70 b,
+  :mod:`g3o.run.presweep.official_site_v27`), compared by
+  :func:`official_from_hosts`.
 - ``core.page_review_state`` (X39): the caller's fetch/follow state, checked
   against the signed codes.
 - ``core.source_language`` (X27): pinned lingua on the stored main text,
@@ -368,21 +371,32 @@ def source_on_official_domain(url: str, institution_uid: str, overlay: OfficialS
     institution is not in the overlay (behaviour kept from v1; see the T-015
     report, open question on P13).
     """
-    v = vocab or default_vocab()
-    own, other, not_official = v.official_values
     if overlay is None:
         raise MissingUpstreamError("master official-site overlay", [OFFICIAL])
+    return official_from_hosts(url, institution_uid, overlay.hosts(), f"overlay {overlay.version}", vocab=vocab)
+
+
+def official_from_hosts(url: str, institution_key: str, hosts: Mapping[str, str], label: str, *,
+                        vocab: SourceVocab | None = None) -> FieldValue:
+    """X37 against an official-site host map (institution key -> :func:`site_host` of its site).
+
+    The comparison of :func:`source_on_official_domain` (RC-D-025 P13, RC-D-026
+    9 a), for any map of official sites: own host -> ``own_official``; another
+    institution's host -> ``other_official``; institution not in the map ->
+    ``unknown``; otherwise ``not_official``. ``label`` names the map in the basis.
+    """
+    v = vocab or default_vocab()
+    own, other, not_official = v.official_values
     host = site_host(url)
     if host is None:
         raise ValueError(f"source URL has no host: {url!r}")
-    hosts = overlay.hosts()
-    basis = f"overlay {overlay.version}; host {host}"
-    if hosts.get(institution_uid) == host:
+    basis = f"{label}; host {host}"
+    if hosts.get(institution_key) == host:
         return _fv(OFFICIAL, own, basis, v, provenance="from_metadata")
-    if any(uid != institution_uid and h == host for uid, h in hosts.items()):
+    if any(key != institution_key and h == host for key, h in hosts.items()):
         return _fv(OFFICIAL, other, basis, v, provenance="from_metadata")
-    if institution_uid not in hosts:
-        return _fv(OFFICIAL, "unknown", basis + "; institution not covered by the overlay", v)
+    if institution_key not in hosts:
+        return _fv(OFFICIAL, "unknown", basis + "; institution has no site in the map (P13)", v)
     return _fv(OFFICIAL, not_official, basis, v, provenance="from_metadata")
 
 
@@ -592,6 +606,20 @@ def residual_question_set() -> dict[str, Any]:
             "questions": [question], "excluded": []}
 
 
+def readability_source_type(page: Any, *, vocab: SourceVocab | None = None) -> SourceTyping | None:
+    """A residual page that fails the R-015 readability check is not sent: ``not_asked``, set by rule
+    ``readability_failure:<reason>`` (as T-021). None: the page is readable (the question is asked)."""
+    from g3o.scrape.readability import readability_failure
+
+    v = vocab or default_vocab()
+    reason = readability_failure(page.text)
+    if reason is None:
+        return None
+    rule = READABILITY_RULE + reason
+    return SourceTyping(_fv(SOURCE_TYPE, "not_asked", "R-015 readability failure", v, rule_name=rule),
+                        typed_by="readability")
+
+
 def code_source_type(page: Any, ask_fn: Any, config: Any, *, vocab: SourceVocab | None = None,
                      on_response: Any = None) -> SourceTyping:
     """Ask the residual ``source_type`` question of a page not typed automatically.
@@ -605,14 +633,11 @@ def code_source_type(page: Any, ask_fn: Any, config: Any, *, vocab: SourceVocab 
     from dataclasses import replace
 
     from g3o.classify import jev_page_code as jpc
-    from g3o.scrape.readability import readability_failure
 
     v = vocab or default_vocab()
-    reason = readability_failure(page.text)
-    if reason is not None:
-        rule = READABILITY_RULE + reason
-        return SourceTyping(_fv(SOURCE_TYPE, "not_asked", "R-015 readability failure", v, rule_name=rule),
-                            typed_by="readability")
+    unreadable = readability_source_type(page, vocab=v)
+    if unreadable is not None:
+        return unreadable
     res = jpc.code_page(page, ask_fn, replace(config, question_set=residual_question_set()),
                         on_response=on_response)
     outcome = res.items[SOURCE_TYPE]
@@ -765,7 +790,10 @@ def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: 
     if chosen is not None:
         origin = chosen.origin
         label = f"{origin} {chosen.tag}" if chosen.tag else origin
-        if chosen.tag:  # the A1.1 a signal that decided (PI ruling 63 a names it in the support rule)
+        # The A1.1 a signal that decided, kept so the T-015 assembler can name the support rule
+        # deterministic_date:<tag>. PI ruling 63 a gives deterministic_date:<origin> only as an example
+        # form; using the A1.1 a tag as the origin is this build's procedural choice.
+        if chosen.tag:
             detail["tag"] = chosen.tag
         return _fv(DATE, chosen.value, f"deterministic {label} date ({chosen.detail})", v,
                    provenance=v.date_origin_map[origin], date_origin=origin, detail=detail)
@@ -920,6 +948,17 @@ def _low(v: SourceVocab) -> str:
 LOW_DATE_VALUES = ("unknown", "not_documented")
 
 
+def credibility_from_date(date: FieldValue, *, vocab: SourceVocab | None = None) -> FieldValue | None:
+    """Step (1) of :func:`source_credibility`: ``low`` when the publication date is ``unknown`` or
+    ``not_documented`` (rules/0, RC-D-025 C6 a), whatever ``source_type`` is; None otherwise."""
+    v = vocab or default_vocab()
+    if date.item_id != DATE:
+        raise ValueError("source_credibility needs the core.source_publication_date value")
+    if date.value in LOW_DATE_VALUES:
+        return _fv(CREDIBILITY, _low(v), f"items/core.source_credibility/rules/0: publication date {date.value}", v)
+    return None
+
+
 def source_credibility(typing: SourceTyping, date: FieldValue, credibility_map: CredibilityMap | None = None, *,
                        vocab: SourceVocab | None = None) -> FieldValue:
     """Fixed map from source_type, plus ``low`` when the publication date is ``unknown`` or ``not_documented``.
@@ -933,13 +972,11 @@ def source_credibility(typing: SourceTyping, date: FieldValue, credibility_map: 
     ``not_asked`` -> ``low`` (RC-D-026 10 a).
     """
     v = vocab or default_vocab()
-    if date.item_id != DATE:
-        raise ValueError("source_credibility needs the core.source_publication_date value")
     if credibility_map is None:
         credibility_map = signed_credibility_map()
-    low = _low(v)
-    if date.value in LOW_DATE_VALUES:
-        return _fv(CREDIBILITY, low, f"items/core.source_credibility/rules/0: publication date {date.value}", v)
+    dated = credibility_from_date(date, vocab=v)
+    if dated is not None:
+        return dated
     if date.value in v.missing:
         raise UnruledError(CREDIBILITY, f"publication date {date.value!r}: rules/0 names only unknown and "
                                         "not_documented")

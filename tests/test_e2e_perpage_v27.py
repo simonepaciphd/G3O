@@ -1107,7 +1107,7 @@ def test_t015_assembler_runs_after_coding_and_stops_the_stage_on_refused_items(t
     with pytest.raises(pp.MissingUpstreamError, match="source-row assembler") as exc:
         _perpage(run_dir, bound, instrument, world, [replace(a, pages=[replace(a.pages[0], upstream=up)])],
                  FakeJev(ANSWERS, RELATIONS, _fail_verdict))
-    assert "core.source_type" in exc.value.missing  # still refused (no overlay, no residual request wiring)
+    assert "core.source_type" in exc.value.missing  # still refused (no official-site step in this run: PI ruling 70 b)
     assert set(exc.value.missing) == set(seen[0].refused)
     built = {k: v.value for k, v in seen[0].source.items()}
     assert built["core.source_url"] == page.url and built["core.source_title"] == page.title
