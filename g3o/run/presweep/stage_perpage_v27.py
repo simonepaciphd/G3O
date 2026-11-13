@@ -69,8 +69,11 @@ Rules carried here, not decided here:
   after which the rejections recorded before it no longer count for the released
   keys, and the file is moved to ``<inst>/archive/pi_release/<NNN>/`` so it is
   never re-applied (a file with the same bytes as a recorded release is only
-  moved). A malformed release file is refused explicitly: the institution is held
-  (:data:`PI_RELEASE_MALFORMED`) and the file stays in place.
+  moved, ruling 47.2 a). A malformed release file is refused explicitly: the
+  institution is held (:data:`PI_RELEASE_MALFORMED`) and the file stays in place;
+  so is a file naming a key with no ``extract_rejected`` entry counted in the
+  journal. A journal write of the release that fails holds the institution
+  (:data:`PI_RELEASE_RECORD_FAILED`, ruling 28 a), the file staying in place.
 - **Stale page state on a C4 hold (ruling 33 a).** A C4 a hold (a pass-1 activity
   with no ``activity_name``; :attr:`ExtractorResponseFailed.archive_page_state`)
   moves that page's saved state (``page.json``, ``activity.json``, ``pairs.json``
@@ -128,6 +131,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from datetime import date as iso_date
@@ -260,6 +264,9 @@ PI_RELEASE_MALFORMED = "pi_release_malformed"
 #: ruling 28 a: a consumed release whose move to archive failed after the write retries holds the
 #: institution; the release is already recorded in the journal, so the next run only finishes the move
 PI_RELEASE_ARCHIVE_FAILED = "pi_release_archive_failed"
+#: ruling 28 a: an OSError appending the release to the journal holds the institution (file stays in place)
+PI_RELEASE_RECORD_FAILED = "pi_release_record_failed"
+_PI_RELEASE_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 _PI_RELEASE_FIELDS = frozenset({"released_by", "date", "keys", "all", "note"})
 #: Errors that stop the whole stage; every other producer error holds its institution only.
 #: Both ``MissingUpstreamError`` classes subclass ``ValueError``; they are listed here so the
@@ -1224,7 +1231,9 @@ def _cap_hold(page_id: str, pass_name: str | None, custom_id: Any, key: str, rej
     return {"page_id": page_id, "stage": EXTRACT_REJECTED_CAP, "pass": pass_name, "custom_id": custom_id,
             "request_key": key, "rejections": rejections,
             "error": f"extractor request rejected {rejections} times (cap {EXTRACT_REJECT_CAP}): permanent hold "
-                     f"until the PI releases it with {PI_RELEASE_FILE} in the institution folder ({detail})"}
+                     f"until the PI releases it with {PI_RELEASE_FILE} in the institution folder; a release "
+                     f"file byte-identical to an already recorded release is ignored (only archived, not "
+                     f"re-applied: ruling 47.2 a) ({detail})"}
 
 
 def _release_hold(stage: str, path: Path, detail: str) -> dict[str, Any]:
@@ -1232,7 +1241,12 @@ def _release_hold(stage: str, path: Path, detail: str) -> dict[str, Any]:
 
 
 def read_pi_release(path: Path) -> dict[str, Any]:
-    """Parse and check a PI release file (ruling 34 b / 41 a); raise ``ValueError`` naming the defect.
+    """Read and check a PI release file (:func:`parse_pi_release`); ``OSError`` if it cannot be read."""
+    return parse_pi_release(path.read_bytes())
+
+
+def parse_pi_release(raw: bytes) -> dict[str, Any]:
+    """Parse and check a PI release file's bytes (ruling 34 b / 41 a); raise ``ValueError`` naming the defect.
 
     Format (UTF-8 JSON object; no other fields)::
 
@@ -1242,10 +1256,10 @@ def read_pi_release(path: Path) -> dict[str, Any]:
 
     Exactly one of ``keys`` (a non-empty list of journal request keys, as
     ``held.json`` names them in ``request_key``) or ``all`` (``true``: every key)
-    must be given.
+    must be given. ``date`` must match ``YYYY-MM-DD`` exactly and be a real date.
     """
     try:
-        doc = json.loads(path.read_bytes().decode("utf-8"))
+        doc = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError(f"not UTF-8 JSON: {exc}") from None
     if not isinstance(doc, dict):
@@ -1258,7 +1272,7 @@ def read_pi_release(path: Path) -> dict[str, Any]:
         raise ValueError("released_by must be a non-empty string")
     when = doc.get("date")
     try:
-        if not isinstance(when, str):
+        if not isinstance(when, str) or not _PI_RELEASE_DATE.fullmatch(when):
             raise TypeError
         iso_date.fromisoformat(when)
     except (TypeError, ValueError):
@@ -1285,35 +1299,57 @@ def read_pi_release(path: Path) -> dict[str, Any]:
 def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any] | None:
     """Consume ``<inst>/pi_release.json`` if present (ruling 34 b / 41 a); a hold dict when it cannot be.
 
-    A valid file is recorded in the per-page journal (:meth:`RequestJournal.record_release`,
-    unless a release with the same bytes is already there) and then moved to
-    ``<inst>/archive/pi_release/<NNN>/pi_release.json`` (never deleted, so it is not
-    re-applied). A malformed file holds the institution (:data:`PI_RELEASE_MALFORMED`)
-    and stays in place; a move that fails after the write retries holds it
-    (:data:`PI_RELEASE_ARCHIVE_FAILED`, ruling 28 a) with the release already recorded.
+    The file's bytes are read once; the same bytes are parsed and hashed. A valid
+    file is recorded in the per-page journal (:meth:`RequestJournal.record_release`,
+    unless a release with the same bytes is already there: then it is only archived,
+    ruling 47.2 a) and then moved to ``<inst>/archive/pi_release/<NNN>/pi_release.json``
+    (never deleted, so it is not re-applied). A malformed file, or one naming a key
+    with no ``extract_rejected`` entry counted in the journal, holds the institution
+    (:data:`PI_RELEASE_MALFORMED`) and stays in place; an ``OSError`` writing the
+    journal entry holds it (:data:`PI_RELEASE_RECORD_FAILED`, ruling 28 a) and the file
+    stays in place; a move that fails after the write retries holds it
+    (:data:`PI_RELEASE_ARCHIVE_FAILED`, ruling 28 a) with the release already recorded
+    and no empty ``<NNN>`` folder left behind.
     """
     path = inst_dir / PI_RELEASE_FILE
     if not path.exists():
         return None
     try:
-        release = read_pi_release(path)
-        sha = hashlib.sha256(path.read_bytes()).hexdigest()
+        raw = path.read_bytes()
     except OSError as exc:
         return _release_hold(PI_RELEASE_MALFORMED, path, f"unreadable: {type(exc).__name__}: {exc}")
+    try:
+        release = parse_pi_release(raw)
     except ValueError as exc:
         return _release_hold(PI_RELEASE_MALFORMED, path, f"refused (ruling 34 b / 41 a release format): {exc}")
+    sha = hashlib.sha256(raw).hexdigest()
     if not journal.release_applied(sha):
-        journal.record_release({**release, "file_sha256": sha})
+        unrejected = [k for k in release["keys"] or () if journal.rejections(k) == 0]
+        if unrejected:
+            return _release_hold(PI_RELEASE_MALFORMED, path,
+                                 f"refused (ruling 34 b / 41 a): key(s) with no extract_rejected entry counted "
+                                 f"in this journal: {unrejected}")
+        try:
+            journal.record_release({**release, "file_sha256": sha})
+        except OSError as exc:
+            return _release_hold(PI_RELEASE_RECORD_FAILED, path,
+                                 f"release not recorded, journal write failed: {type(exc).__name__}: {exc}")
     root = inst_dir / PAGE_ARCHIVE_DIR / PI_RELEASE_ARCHIVE
+    dest: Path | None = None
     try:
         taken = {p.name for p in root.iterdir()} if root.is_dir() else set()
         n = 1
         while f"{n:03d}" in taken:
             n += 1
         dest = root / f"{n:03d}"
-        dest.mkdir(parents=True, exist_ok=True)
+        dest.mkdir(parents=True)
         replace_with_retry(path, dest / PI_RELEASE_FILE)
     except OSError as exc:
+        if dest is not None and dest.is_dir() and not any(dest.iterdir()):
+            try:
+                dest.rmdir()  # no empty <NNN> folder left behind by a failed move
+            except OSError:
+                pass
         return _release_hold(PI_RELEASE_ARCHIVE_FAILED, path,
                              f"release recorded, move to archive failed: {type(exc).__name__}: {exc}")
     return None
