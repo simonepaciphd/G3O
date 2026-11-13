@@ -330,6 +330,16 @@ class _Adapter:
         return ActivityPageInput(to_pass1_page(page_round.result, page), page.country,
                                  page.level_of_government, ext.activities)
 
+    def page_extraction(self, page_id: str) -> Pass1Extraction | None:
+        """The page's T-022 pass-1 page request (its parsed answer with the actual response model and
+        request id), as :meth:`activity_input` holds it; None when the plan needed no request.
+
+        Call after :meth:`activity_input` for the page (which rebuilds it on a resume); the T-015
+        source-row assembler reads its activity fields and provenance (PI ruling 35 a)."""
+        if page_id not in self._page_request:
+            raise KeyError(f"no pass-1 page request held for page {page_id!r} (activity_input not called)")
+        return self._page_request[page_id]
+
     # --- pass 2 --------------------------------------------------------------
 
     @staticmethod
@@ -436,6 +446,10 @@ class ExtractorPerPageProviders(PerPageProviders):
         return {"extractor_model": self.extractor_model, "x35_model": self.x35_model,
                 "pass1_prompt_version": request_v27.PROMPT_VERSION,
                 "pass2_prompt_version": pass2_support.PROMPT_VERSION}
+
+    def page_extraction(self, page_id: str) -> Pass1Extraction | None:
+        """The page's T-022 pass-1 page request (:meth:`_Adapter.page_extraction`)."""
+        return self.adapter.page_extraction(page_id)
 
     def with_seams(self, wrap_extract: Callable[[ExtractFn], ExtractFn],
                    wrap_entail: Callable[[EntailFn], EntailFn]) -> ExtractorPerPageProviders:

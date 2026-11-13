@@ -50,8 +50,11 @@ Producers and their signed rules:
   near-duplicate component (:func:`syndication_group_for` over a
   :func:`g3o.common.syndication.group_pages` grouping; PI A4.1 a, A4.2 a,
   2026-11-11), or an upstream group id (:func:`syndication_group`).
-- ``core.discovery_path``, ``core.text_source``: no producer or no signed
-  spelling/parameter exists; each refuses explicitly (RC-D-025 P15). The
+- ``core.discovery_path`` (X18): ``searched`` / ``followed_hop_<n>`` /
+  ``backfill_followed`` from the follow provenance (PI ruling 61 a,
+  2026-11-13); a followed page with no hop from T-025 refuses.
+- ``core.text_source`` (R-059): ``stored`` / ``live_refetch`` / ``new_run``
+  (PI ruling 62 a, 2026-11-13). The
   archive-address test of ``core.source_type`` rules/0 uses the versioned host
   list of :mod:`g3o.common.archive_hosts` (PI ruling A2.1 a, 2026-11-11):
   :func:`source_archive_address`.
@@ -458,14 +461,55 @@ def syndication_group_for(grouping: Any, page_key: str, *, vocab: SourceVocab | 
                detail=grouping.detail(page_key))
 
 
-def discovery_path(*_: Any, **__: Any) -> FieldValue:
-    raise UnruledError(DISCOVERY, "value spellings ('searched / followed hop n / back-fill followed') "
-                                  "are not signed as codes")
+#: PI ruling 61 a (2026-11-13): the ``core.discovery_path`` codes (rules/0 "searched / followed hop n /
+#: back-fill followed"); the hop code is open-ended, ``followed_hop_<n>`` with n >= 1.
+DISCOVERY_SEARCHED = "searched"
+DISCOVERY_FOLLOWED_HOP = "followed_hop_"
+DISCOVERY_BACKFILL_FOLLOWED = "backfill_followed"
+#: PI ruling 62 a (2026-11-13): the ``core.text_source`` codes (rules/0 "stored / live re-fetch / new run").
+TEXT_SOURCE_CODES = ("stored", "live_refetch", "new_run")
+TEXT_SOURCE_NEW_RUN = "new_run"
 
 
-def text_source(*_: Any, **__: Any) -> FieldValue:
-    raise UnruledError(TEXT_SOURCE, "value spellings ('stored / live re-fetch / new run') are not "
-                                    "signed as codes")
+def discovery_path(*, followed: bool | None, hop: int | None = None, backfill: bool = False,
+                   vocab: SourceVocab | None = None) -> FieldValue:
+    """X18 from the page's follow provenance (PI ruling 61 a, 2026-11-13).
+
+    A page that was not followed (searched): ``searched``. A followed page:
+    ``followed_hop_<n>`` with its hop ``n`` (>= 1) from T-025, or
+    ``backfill_followed`` when it was followed in a back-fill run. ``followed``
+    None (no follow provenance) and a followed new-run page with no hop are
+    refused; a back-fill page that was not followed has no signed code.
+    """
+    v = vocab or default_vocab()
+    if followed is None:
+        raise MissingUpstreamError("T-025 follow provenance (followed / attempted page)", [DISCOVERY])
+    basis = "items/core.discovery_path/rules/0; PI ruling 61 a"
+    if not followed:
+        if backfill:
+            raise UnruledError(DISCOVERY, "a back-fill page that was not followed: ruling 61 a names "
+                                          "'backfill_followed' only")
+        return _fv(DISCOVERY, DISCOVERY_SEARCHED, basis + ": not followed", v)
+    if backfill:
+        return _fv(DISCOVERY, DISCOVERY_BACKFILL_FOLLOWED, basis + ": followed in a back-fill run", v)
+    if hop is None:
+        raise MissingUpstreamError("T-025 follow provenance (hop of a followed page)", [DISCOVERY])
+    if type(hop) is not int or hop < 1:
+        raise ValueError(f"follow hop {hop!r} is not an integer >= 1")
+    return _fv(DISCOVERY, f"{DISCOVERY_FOLLOWED_HOP}{hop}", basis + f": followed, hop {hop}", v)
+
+
+def text_source(kind: str | None, *, vocab: SourceVocab | None = None) -> FieldValue:
+    """R-059 per-row text source (PI ruling 62 a, 2026-11-13): ``stored`` / ``live_refetch`` / ``new_run``.
+
+    ``kind`` is the run path that obtained the page text; a new run's rows are ``new_run``.
+    """
+    v = vocab or default_vocab()
+    if kind is None:
+        raise MissingUpstreamError("run path that obtained the page text (R-059)", [TEXT_SOURCE])
+    if kind not in TEXT_SOURCE_CODES:
+        raise ValueError(f"text source {kind!r} is not a ruling 62 a code {TEXT_SOURCE_CODES}")
+    return _fv(TEXT_SOURCE, kind, "items/core.text_source/rules/0; PI ruling 62 a", v)
 
 
 # ---------------------------------------------------------------------------
@@ -721,6 +765,8 @@ def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: 
     if chosen is not None:
         origin = chosen.origin
         label = f"{origin} {chosen.tag}" if chosen.tag else origin
+        if chosen.tag:  # the A1.1 a signal that decided (PI ruling 63 a names it in the support rule)
+            detail["tag"] = chosen.tag
         return _fv(DATE, chosen.value, f"deterministic {label} date ({chosen.detail})", v,
                    provenance=v.date_origin_map[origin], date_origin=origin, detail=detail)
     if quote_date is None:
@@ -1085,6 +1131,8 @@ __all__ = [
     "AGGREGATION_ROLE", "CONFIDENCE_DECISION", "LOW_DATE_VALUES", "UNFINISHED", "CredibilityMap", "FieldValue", "MetadataDate", "MissingUpstreamError",
     "OfficialSiteOverlay", "PendingCheck", "SourceConfidence", "SourceTyping", "SourceVocab",
     "UnfinishedConfidenceError", "UnruledError", "aggregation_value", "auto_source_type", "code_source_type", "confidence_field",
+    "DISCOVERY_BACKFILL_FOLLOWED", "DISCOVERY_FOLLOWED_HOP", "DISCOVERY_SEARCHED", "TEXT_SOURCE_CODES",
+    "TEXT_SOURCE_NEW_RUN",
     "confidence_seam", "date_upper_bound", "default_vocab", "discovery_path", "missing_source_items",
     "has_deterministic_date", "page_has_metadata_date", "page_publication_date", "page_review_state",
     "publication_date", "residual_question_set", "select_deterministic_date", "route_source_type", "signed_credibility_map",

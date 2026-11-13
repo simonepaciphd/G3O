@@ -45,12 +45,16 @@ Per institution (sample order; pages in the order Stage 4 stored them,
 
 Not produced here, and still refused exactly where they were (no value is
 invented): ``PageUpstream.followed`` (T-025 follow provenance),
-``activity_values`` / ``source_values`` / ``codes`` (T-015 / T-022 / T-024 row
-values; ``core.discovery_path`` and ``core.text_source`` have no signed
-spelling and raise ``UnruledError``), ``InstitutionUpstream.merged_values``
-(A8). :func:`require_complete` raises the per-page stage's own
-``MissingUpstreamError`` for the first two before any jev call is made, so a
-run on these inputs stops before spending on coding it could never finish.
+``InstitutionUpstream.merged_values`` (A8). ``activity_values`` /
+``source_values`` / ``codes`` stay ``None``: the T-015 source-row assembler
+(:mod:`g3o.run.presweep.source_row_v27`, PI ruling 35 a) builds them in the
+per-page stage after coding, and still refuses the row items listed by
+:func:`~g3o.run.presweep.source_row_v27.unproduced_items`.
+``PageSourceFields.text_source`` is ``new_run`` (PI ruling 62 a: this builder is
+the new-run path). :func:`require_complete` raises the per-page
+stage's own ``MissingUpstreamError`` for the follow values and the refused row
+items before any jev call is made, so a run on these inputs stops before
+spending on coding it could never finish.
 """
 from __future__ import annotations
 
@@ -66,6 +70,7 @@ from g3o.common.paths import MANIFEST_NAME, institution_dir, institution_uid_map
 from g3o.common.syndication import group_rendered_pages
 from g3o.extract.batch import url_hash
 from g3o.persist.stage6_adapters import MissingUpstreamError
+from g3o.run.presweep import source_row_v27 as srow
 from g3o.run.presweep import stage_perpage_v27 as pp
 from g3o.run.presweep.records import institution_record
 
@@ -79,9 +84,13 @@ INSTITUTION_FILE = "institution.json"
 #: default builder at entry, before any Stage 1-4 spend. Remove each entry when
 #: its producer is wired into :func:`build_perpage_inputs`; once empty, the entry
 #: refusal is gone and :func:`require_complete` remains the per-value guard.
+#: The row-values entry names the row items the T-015 source-row assembler still refuses (PI ruling 35 a,
+#: :func:`g3o.run.presweep.source_row_v27.unproduced_items`); it drops out once that list is empty.
+VALUES_MISSING = (f"{pp.VALUES_PRODUCER} (activity_values, source_values, codes); {srow.ASSEMBLER} "
+                  f"refuses: {', '.join(srow.unproduced_items())}")
 MISSING_PRODUCERS: tuple[str, ...] = (
     pp.FOLLOW_PRODUCER,
-    f"{pp.VALUES_PRODUCER} (activity_values, source_values, codes)",
+    *((VALUES_MISSING,) if srow.unproduced_items() else ()),
 )
 
 
@@ -92,7 +101,8 @@ class PageSourceFields:
     ``publication_date`` is ``None`` when A1 finds no metadata or URL date: the
     T-022 quote step then asks for the date and T-015 decides it after coding
     (:func:`g3o.common.source_fields.page_publication_date`), so nothing is set here.
-    These values are not yet merged into the per-activity ``source_values``.
+    The T-015 source-row assembler (:mod:`g3o.run.presweep.source_row_v27`, PI
+    ruling 35 a) reads them after coding when no row values are injected.
     """
 
     url: sf.FieldValue
@@ -101,6 +111,8 @@ class PageSourceFields:
     archive_address: bool
     language: sf.FieldValue
     syndication_group: sf.FieldValue
+    #: R-059 ``core.text_source`` (PI ruling 62 a); None: the builder did not say which run path it is.
+    text_source: sf.FieldValue | None = None
 
 
 def page_input(page: Any, row: Mapping[str, Any], *, institution_id: str) -> PageInput:
@@ -124,7 +136,11 @@ def page_input(page: Any, row: Mapping[str, Any], *, institution_id: str) -> Pag
 
 
 def page_source_fields(page: Any, grouping: Any, page_id: str) -> PageSourceFields:
-    """The A1-A4 / X28 values of one stored page (access date: its UTC ``fetch_metadata.access_date``)."""
+    """The A1-A4 / X28 values of one stored page (access date: its UTC ``fetch_metadata.access_date``).
+
+    This builder is the new-run path (pages scraped by this run's Stage 4), so
+    ``text_source`` is ``new_run`` (PI ruling 62 a).
+    """
     access = page.fetch_metadata.access_date
     date = None
     if sf.page_has_metadata_date(page.metadata_dates, page.url, access_date=access):
@@ -136,6 +152,7 @@ def page_source_fields(page: Any, grouping: Any, page_id: str) -> PageSourceFiel
         archive_address=sf.source_archive_address(page.url),
         language=sf.source_language_of_page(page),
         syndication_group=sf.syndication_group_for(grouping, page_id),
+        text_source=sf.text_source(sf.TEXT_SOURCE_NEW_RUN),
     )
 
 
@@ -219,8 +236,12 @@ def require_complete(institutions: Iterable[pp.PerPageInstitution],
     ``produce_page``); refusing here keeps the same refusal and spends nothing.
     One pass that keeps only page keys, never page text. Returns the page count.
 
-    A None-only pre-check: ``followed``, ``activity_values``, ``source_values``
-    and ``codes`` must not be ``None``. Which keys they must cover (one per coded
+    A None-only pre-check: ``followed`` must not be ``None``, and the row values
+    must be injected (``activity_values``, ``source_values`` and ``codes`` not
+    ``None``) or left wholly to the T-015 source-row assembler (all three ``None``
+    with ``page_fields`` set; PI ruling 35 a), which is refused while it still
+    refuses any row item (:func:`g3o.run.presweep.source_row_v27.unproduced_items`,
+    named in the error). Which keys injected values must cover (one per coded
     activity, or :data:`~g3o.run.presweep.stage_perpage_v27.NO_ACTIVITY`) is known
     only after coding, so key coverage is still checked by ``produce_page``.
 
@@ -238,12 +259,16 @@ def require_complete(institutions: Iterable[pp.PerPageInstitution],
             up = spec.upstream
             if up.followed is None:
                 follow.append(key)
-            if up.activity_values is None or up.source_values is None or up.codes is None:
+            given = (up.activity_values, up.source_values, up.codes)
+            assembled = up.page_fields is not None and all(v is None for v in given)  # ruling 35 a path
+            if (assembled and srow.unproduced_items()) or (not assembled and any(v is None for v in given)):
                 values.append(key)
     if follow:
         raise MissingUpstreamError(pp.FOLLOW_PRODUCER, follow)
     if values:
-        raise MissingUpstreamError(f"{pp.VALUES_PRODUCER} (activity_values, source_values, codes)", values)
+        label = VALUES_MISSING if srow.unproduced_items() else \
+            f"{pp.VALUES_PRODUCER} (activity_values, source_values, codes)"
+        raise MissingUpstreamError(label, values)
     return n_pages
 
 
@@ -259,6 +284,6 @@ def default_perpage_inputs(run_dir: Path, sample: Sequence[Mapping[str, Any]], s
     return build_perpage_inputs(run_dir, sample, scraped, bound, instrument)
 
 
-__all__ = ["IDENTITY_COLUMNS", "MISSING_PRODUCERS", "PageSourceFields", "PerPageInputs", "build_perpage_inputs",
+__all__ = ["IDENTITY_COLUMNS", "MISSING_PRODUCERS", "VALUES_MISSING", "PageSourceFields", "PerPageInputs", "build_perpage_inputs",
            "default_perpage_inputs",
            "page_input", "page_source_fields", "require_complete"]

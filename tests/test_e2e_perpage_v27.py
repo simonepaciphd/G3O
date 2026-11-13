@@ -1077,3 +1077,40 @@ def test_a51_half_an_injected_layout_stops_the_stage(tmp_path):
     with pytest.raises(pp.MissingUpstreamError, match="page artifact"):
         _perpage(run_dir, bound, instrument, world, [replace(a, pages=[spec, *a.pages[1:]])],
                  FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+
+
+def test_t015_assembler_runs_after_coding_and_stops_the_stage_on_refused_items(tmp_path, monkeypatch):
+    """PI ruling 35 a: with no row values injected and page_fields set, produce_page runs the T-015
+    source-row assembler on the coded page; while it refuses any row item that is a wiring gap
+    (RC-D-033 C2 a), so the stage stops naming the items and nothing is held or published."""
+    from dataclasses import replace
+
+    from g3o.common import source_fields as sf
+    from g3o.run.presweep import perpage_inputs_v27 as pin
+    from g3o.run.presweep import source_row_v27 as srow
+
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    a = next(i for i in insts if i.institution_id == "INST-0000001")
+
+    def fv(item, value):
+        return sf.FieldValue(item, value, FIELDS[item]["coder"], "declared fixture")
+
+    seen = []
+    real = srow.assemble
+    monkeypatch.setattr(srow, "assemble", lambda *a, **k: seen.append(real(*a, **k)) or seen[-1])
+    page = a.pages[0].page
+    fields = pin.PageSourceFields(fv("core.source_url", page.url), fv("core.source_access_date", "2026-11-10"),
+                                  None, False, fv("core.source_language", "en"),
+                                  fv("core.syndication_group", "sg-fixture"), sf.text_source("new_run"))
+    up = replace(a.pages[0].upstream, activity_values=None, source_values=None, codes=None, page_fields=fields)
+    assert up.followed is False
+    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler") as exc:
+        _perpage(run_dir, bound, instrument, world, [replace(a, pages=[replace(a.pages[0], upstream=up)])],
+                 FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert "core.source_type" in exc.value.missing  # still refused (no overlay, no residual request wiring)
+    assert set(exc.value.missing) == set(seen[0].refused)
+    built = {k: v.value for k, v in seen[0].source.items()}
+    assert built["core.source_url"] == page.url and built["core.source_title"] == page.title
+    assert built["core.page_review_state"] == "reviewed"
+    assert (built["core.discovery_path"], built["core.text_source"]) == ("searched", "new_run")  # 61 a, 62 a
+    assert not (institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.HELD_FILE).exists()

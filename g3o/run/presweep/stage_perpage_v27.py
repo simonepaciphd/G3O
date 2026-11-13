@@ -103,6 +103,10 @@ Rules carried here, not decided here:
   in Stage 6 when not injected, A7) and the merged-activity values RC-D-030 X1 a
   leaves without a rule computable from the merged row
   (:data:`~g3o.run.presweep.stage_validate_v27.MERGE_INPUT_ITEMS`).
+  When no row values are injected and ``PageUpstream.page_fields`` is set, the
+  T-015 source-row assembler (:mod:`g3o.run.presweep.source_row_v27`, PI ruling
+  35 a) builds them after coding; while it still refuses any row item, that is a
+  ``MissingUpstreamError`` naming the items (a stage stop, RC-D-033 C2 a).
 - **Reviewed page with no activity (RC-D-030 Y2 a).** It gets one page-level
   source row: ``activity_id`` ``_NA_``, empty ``observation_ids``, its
   page-level values and nodes (support nodes with no observation), the
@@ -190,6 +194,7 @@ from g3o.persist.stage6_adapters import (
     replace_with_retry,
     support_nodes,
 )
+from g3o.run.presweep import source_row_v27 as srow
 from g3o.run.presweep import stage_activity_code, stage_page_code
 from g3o.run.presweep.stage_validate_v27 import DONE_MARKER as STAGE6_DONE_MARKER
 from g3o.run.presweep.stage_validate_v27 import (
@@ -409,8 +414,11 @@ class PageUpstream:
     stored page fixes before coding
     (:class:`g3o.run.presweep.perpage_inputs_v27.PageSourceFields`: X28 URL and
     access date, A1 deterministic date, A2 archive test, A3 language, A4
-    syndication group). Carried, not read here: ``source_values`` still holds
-    every source-row value.
+    syndication group). With ``activity_values``, ``source_values`` and ``codes``
+    all ``None``, :func:`produce_page` runs the T-015 source-row assembler on it
+    after coding (PI ruling 35 a, :func:`g3o.run.presweep.source_row_v27.assemble`),
+    which refuses while any row item has no producer; otherwise it is carried, not
+    read, and the injected values hold every row value.
     """
 
     artifact_path: str | None = None
@@ -647,8 +655,12 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                  page_round: PageRoundResult, activity_input: ActivityPageInput | None,
                  activity_round: ActivityRoundResult | None, pairs: Sequence[PairResult],
                  pair_support: Sequence[SupportResult], page_config: PageCoderConfig,
-                 activity_config: ActivityCoderConfig, instrument: dict[str, Any]) -> PageProduct:
+                 activity_config: ActivityCoderConfig, instrument: dict[str, Any],
+                 extraction: Any = None) -> PageProduct:
     """Final per-page values and their support -> the Stage 6 per-page inputs of one coded page.
+
+    ``extraction`` is the page's T-022 pass-1 page request (``PerPageProviders.page_extraction``),
+    read by the T-015 source-row assembler when no row values are injected (PI ruling 35 a).
 
     Uncertainty flags (PI A6.1 a / A6.3 a): each node carries its own code's flags
     (:func:`g3o.validate.uncertainty_flags_v27.code_flags`); an observation row's
@@ -676,6 +688,22 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
     acts = {} if activity_round is None else {a.activity_id: a for a in activity_round.result.activities}
     finals = {} if activity_round is None else {f.activity_id: f for f in activity_round.final}
     keys = list(acts) or [NO_ACTIVITY]  # source-row units: one per activity, or the page (Y2 a)
+    if up.page_fields is not None and all(v is None for v in (up.activity_values, up.source_values, up.codes)):
+        # PI ruling 35 a: the T-015 assembler builds the rows after coding. A row is published whole or
+        # not at all, so any item it cannot produce yet is a wiring gap that stops the stage (RC-D-033 C2 a).
+        verdict = page_round.final.items[jpc.VERDICT]
+        vsr = None if verdict.state != "combined" else next(
+            (s for s in page_round.support if s.item_id == jpc.VERDICT and s.activity_id is None
+             and s.part is None and s.chunk_id == verdict.part_id), None)
+        rows = srow.assemble(page, up.page_fields, outcome_values(page_round.final.items),
+                             {aid: outcome_values(f.outcomes) for aid, f in finals.items()},
+                             followed=up.followed, extraction=extraction, sources=sources, verdict_support=vsr,
+                             provenance=srow.Provenance.of(instrument, extraction,
+                                                           rule_coder_version=activity_config.coder_version))
+        if rows.refused:
+            raise MissingUpstreamError(f"{VALUES_PRODUCER} ({srow.ASSEMBLER})", sorted(rows.refused))
+        a_vals, s_vals, codes = rows.to_upstream(keys)
+        up = replace(up, activity_values=a_vals, source_values=s_vals, codes=codes)
     for name, value, need in (("activity_values", up.activity_values, list(acts)),
                               ("source_values", up.source_values, keys), ("codes", up.codes, keys)):
         if need and (value is None or set(need) - set(value)):
@@ -969,6 +997,7 @@ class _PageState:
     activity_round: ActivityRoundResult | None = None
     pairs: tuple[PairResult, ...] = ()
     pair_support: tuple[SupportResult, ...] = ()
+    extraction: Any = None  # the page's T-022 pass-1 page request (PerPageProviders.page_extraction)
     failure: str | None = None
     holds: list[dict[str, Any]] = field(default_factory=list)
 
@@ -1000,6 +1029,8 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
         return
     inp = providers.activity_input(page, st.page_round)
     st.activity_input = inp
+    page_extraction = getattr(providers, "page_extraction", None)  # absent on test fakes: None (refused)
+    st.extraction = None if page_extraction is None else page_extraction(page.page_id)
     if inp is None:
         return
     act_ckpt = Checkpoint(pdir / "activity.json", "activity")
@@ -1161,7 +1192,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                     page_order=order, first_source=next_source, page_round=st.page_round,
                     activity_input=st.activity_input, activity_round=st.activity_round, pairs=st.pairs,
                     pair_support=st.pair_support, page_config=page_config, activity_config=activity_config,
-                    instrument=instrument))
+                    instrument=instrument, extraction=st.extraction))
             except UncarriedCombinedValue as exc:  # Y3 b: refused as a per-institution hold
                 uncarried = exc
                 break
