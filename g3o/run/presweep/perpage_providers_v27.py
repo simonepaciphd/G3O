@@ -40,7 +40,8 @@ The seams:
   The first activity call sends every pass-2 code of the page, pair codes
   included (DP-009: one request per page); the pair quotes are kept for
   ``pair_support``, which on resume rebuilds that request from the stored T-023
-  artifact (journal replay).
+  artifact (journal replay). Any other activity call (an extra round) has its own
+  ``custom_id`` (ruling 49 a, :func:`pass2_extra_round_custom_id`).
 
 Failure semantics are the builders' own. A quote task with no usable quote
 (missing, empty, wrong part) is a record with no quote, so T-024 downgrades it
@@ -156,6 +157,20 @@ def extra_round_custom_id(first_round: str, codes: Sequence[Any]) -> str:
     The first-round ``custom_id`` (``x27-`` + 48 hex) is unchanged; the result is 62
     characters, inside the Batches limit of 64."""
     code_set = sorted([c.item_id, c.chunk_id, c.value] for c in codes)
+    digest = hashlib.sha256(canonical_json(code_set).encode("utf-8")).hexdigest()[:8]
+    return f"{first_round}{EXTRA_ROUND_MARK}{digest}"
+
+
+def pass2_extra_round_custom_id(first_round: str, page: Any) -> str:
+    """The ``custom_id`` of a pass-2 extra-round request (ruling 49 a, the 46 a scheme).
+
+    The page's first-round pass-2 ``custom_id`` plus :data:`EXTRA_ROUND_MARK` and 8 hex of
+    the SHA256 of the round's sorted code set, each code as ``(activity_id, item_id, part,
+    chunk_id, value, linked_activity)``: distinct from the first-round request and the same
+    on a resume. The first-round ``custom_id`` (``x27s-`` + 48 hex) is unchanged; the
+    result is 63 characters, inside the Batches limit of 64."""
+    code_set = sorted(canonical_json([a.activity_id, c.item_id, c.part, c.chunk_id, c.value, c.linked_activity])
+                      for a in page.activities for c in a.codes)
     digest = hashlib.sha256(canonical_json(code_set).encode("utf-8")).hexdigest()[:8]
     return f"{first_round}{EXTRA_ROUND_MARK}{digest}"
 
@@ -294,12 +309,14 @@ class _Adapter:
     def _code_key(aid: str, code: Any) -> tuple[Any, ...]:
         return (aid, code.item_id, code.part, code.chunk_id, code.value, code.linked_activity)
 
-    def _pass2(self, p2: Any) -> dict[tuple[Any, ...], Any]:
+    def _pass2(self, p2: Any, *, extra_round: bool = False) -> dict[tuple[Any, ...], Any]:
         plan = pass2_support.select_requests(p2)
         if not plan.needs_request:
             return {}
-        sup = self._parsed("pass2", self.bound.pass2_job(p2, plan),
-                           lambda r: pass2_support.parse_pass2_result(r, p2, plan))
+        job = self.bound.pass2_job(p2, plan)
+        if extra_round:  # ruling 49 a: its own custom_id, never the page's first-round one
+            job = replace(job, custom_id=pass2_extra_round_custom_id(job.custom_id, p2))
+        sup = self._parsed("pass2", job, lambda r: pass2_support.parse_pass2_result(r, p2, plan))
         self.extractions.append(sup)
         tasks = {t.task_id: t for t in plan.quote_tasks}
         out: dict[tuple[Any, ...], Any] = {}
@@ -325,7 +342,7 @@ class _Adapter:
         else:
             acts = tuple(replace(a, codes=tuple(c for c in a.codes if self._code_key(a.activity_id, c) in wanted))
                          for a in full.activities)
-            quotes = self._pass2(replace(full, activities=acts))
+            quotes = self._pass2(replace(full, activities=acts), extra_round=True)
         sources = PageSources.from_page(inp.page)
         names, name_request = self._names(inp), self._page_pass1.get(inp.page.page_id)
         return [self._check(r, quotes.get((a, r.item_id, r.item_part, r.chunk_id, str(r.chosen_value), None)),
@@ -435,4 +452,5 @@ def build_perpage_providers(bound: Any, instrument: Mapping[str, Any], run_dir: 
 
 
 __all__ = ["EXTRA_ROUND_MARK", "PASS1_SYSTEM_SHA256", "PASS2_SYSTEM_SHA256", "ExtractorPerPageProviders",
-           "build_perpage_providers", "check_binding", "extra_round_custom_id", "require_approved_system"]
+           "build_perpage_providers", "check_binding", "extra_round_custom_id", "pass2_extra_round_custom_id",
+           "require_approved_system"]

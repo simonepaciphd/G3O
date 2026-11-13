@@ -308,6 +308,41 @@ def test_extra_round_asks_only_the_new_codes(tmp_path):
     assert [(t["question"], t["answer"]) for t in extra["quote_tasks"]] == [("model_origin", "commercial")]
     obs = next(o for o in ready[0].observations if o.observation_id == pp.observation_id("b1", aid("b1")))
     assert {o.item_id: o.value for o in obs.final_outcomes.values()}["core.model_origin"] == "commercial"
+    # ruling 49 a: the pass-2 extra round has its own custom_id; the first round's is the page's
+    from g3o.extract.anthropic_client import make_custom_id
+
+    page = world.pages["b1"].input
+    page_cid = make_custom_id(page.institution_id, page.url, prefix="x27s")
+    first, second = b1_pass2
+    assert first.custom_id == page_cid
+    assert second.custom_id != page_cid and second.custom_id.startswith(page_cid + ppv.EXTRA_ROUND_MARK)
+    assert len(second.custom_id) <= 64 and first.params != second.params
+    # deterministic: the same run in another folder builds the same two ids
+    run2, bound2, instrument2, world2, insts2 = _world(tmp_path, "run2")
+    extract2 = FakeExtractor(world2)
+    _run(run2, bound2, instrument2, [i for i in insts2 if i.institution_id == "INST-0000002"],
+         _providers(run2, bound2, instrument2, extract2, FakeEntail()), FakeJev(answers, RELATIONS))
+    assert [j.custom_id for j in extract2.jobs if j.metadata["stage"] == PASS2 and j.metadata["page_id"] == "b1"] \
+        == [first.custom_id, second.custom_id]
+
+
+def test_pass2_extra_round_custom_id_is_order_free_and_set_bound():
+    """Ruling 49 a: the suffix hashes the round's code set (activity included), not its order."""
+    from types import SimpleNamespace as NS
+
+    def code(item, value, part=None, linked=None):
+        return NS(item_id=item, part=part, chunk_id="b1#p0", value=value, linked_activity=linked)
+
+    a1 = NS(activity_id="b1#a001", codes=(code("core.model_origin", "commercial"), code("core.tool_type", "x", "p")))
+    a2 = NS(activity_id="b1#a002", codes=(code("core.model_origin", "commercial"),))
+    cid = ppv.pass2_extra_round_custom_id("x27s-" + "0" * 48, NS(activities=(a1, a2)))
+    rev = NS(activities=(NS(activity_id=a2.activity_id, codes=a2.codes),
+                         NS(activity_id=a1.activity_id, codes=a1.codes[::-1])))
+    assert ppv.pass2_extra_round_custom_id("x27s-" + "0" * 48, rev) == cid
+    assert ppv.pass2_extra_round_custom_id("x27s-" + "0" * 48, NS(activities=(a1,))) != cid
+    moved = NS(activities=(NS(activity_id="b1#a003", codes=a1.codes), a2))
+    assert ppv.pass2_extra_round_custom_id("x27s-" + "0" * 48, moved) != cid  # activity-bound
+    assert cid.startswith("x27s-" + "0" * 48 + ppv.EXTRA_ROUND_MARK) and len(cid) == 63
 
 
 def _held(run_dir, inst):
@@ -1182,6 +1217,40 @@ def test_cap_counts_rejections_per_request_key_only(tmp_path):
     assert reloaded.rejections(key_a) == reloaded.rejections(key_b) == 0 and reloaded.release_applied("f" * 64)
     wrap, _ = reloaded.seams(prompt)
     assert wrap(lambda j: bad)(job_a).text == "bad" and reloaded.live == 1
+
+
+@pytest.mark.parametrize("which", ["pass1", "pass2"])
+def test_cap_counts_an_extra_round_apart_from_the_first_round(tmp_path, which):
+    """Rulings 46 a / 49 a with 41 a: an extra round's own custom_id is its own request key, so its
+    rejections never count toward the page's first-round request (even with equal params)."""
+    from types import SimpleNamespace as NS
+
+    from g3o.extract.anthropic_client import ExtractorJob, make_custom_id
+
+    path, prompt = tmp_path / "journal.jsonl", {"extractor_model": "m"}
+    params = {"model": "m", "messages": [{"same": 1}]}
+    code = NS(item_id="core.model_origin", part=None, chunk_id="b1#p0", value="commercial", linked_activity=None)
+    if which == "pass1":
+        first_cid = make_custom_id("INST-0000002", "https://example.org/b1")
+        extra_cid = ppv.extra_round_custom_id(first_cid, [code])
+    else:
+        first_cid = make_custom_id("INST-0000002", "https://example.org/b1", prefix="x27s")
+        extra_cid = ppv.pass2_extra_round_custom_id(first_cid, NS(activities=(NS(activity_id="b1#a001",
+                                                                                 codes=(code,)),)))
+    first, extra = ExtractorJob(first_cid, params, {}), ExtractorJob(extra_cid, params, {})
+    bad = ExtractorResult(extra_cid, True, "bad", None, usage=dict(USAGE))
+    for _ in range(3):
+        _journal_call(path, extra, prompt, bad, reject=True)
+    journal = rt.RequestJournal(path, {"s": 1})
+    key_first = journal.extract_key({"custom_id": first_cid, "params": params}, prompt)
+    key_extra = journal.extract_key({"custom_id": extra_cid, "params": params}, prompt)
+    assert key_first != key_extra and journal.rejections(key_extra) == 3 and journal.rejections(key_first) == 0
+    wrap, _ = journal.seams(prompt)
+    with pytest.raises(rt.ExtractRejectCapReached) as info:
+        wrap(lambda j: pytest.fail("called past the cap"))(extra)
+    assert info.value.key == key_extra and info.value.custom_id == extra_cid
+    good = ExtractorResult(first_cid, True, "ok", None, usage=dict(USAGE))
+    assert wrap(lambda j: good)(first).text == "ok" and journal.live == 1  # the first round is still asked
 
 
 def test_cap_error_is_not_a_stage_stop():
