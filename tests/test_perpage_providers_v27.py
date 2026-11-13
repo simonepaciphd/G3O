@@ -1069,6 +1069,55 @@ def test_extra_round_pass1_request_asks_only_the_new_quote_tasks(tmp_path):
     assert len(extract.jobs) == 2
 
 
+def test_page_support_after_an_extra_round_with_every_code_unchecked_stays_an_extra_round(tmp_path):
+    """M1 (review of 5b9d8fd): after a halving in an extra round every live code can be unchecked,
+    so a support call holds all the page's pass-1 codes. It is still an extra round: its own
+    custom_id (ruling 46 a), quote tasks only (C1 a), never stored as the page request; and the
+    activity spans are the first-round ones whether or not the adapter is fresh (a resume).
+
+    The halving is marked synthetically (an extra-round ``halved`` log entry on the coded page);
+    question_rounds tests cover the real halving reaching this call."""
+    from g3o.classify.jev_page_code import PageCodeResult, to_pass1_page
+    from g3o.classify.question_rounds import PageRoundResult, extra_round_started
+    from g3o.common.artifact_io import read_artifact
+    from g3o.extract import request_v27
+    from g3o.run.presweep import stage_page_code
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    a = [i for i in insts if i.institution_id == "INST-0000001"]
+    _run(run_dir, bound, instrument, a, _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+         FakeJev(ANSWERS, RELATIONS))
+    page = world.pages["p1"].input
+    result = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(run_dir, page.institution_id,
+                                                                                  page.url)))
+    records = [r for r in result.records if r.coder_type == "classifier" and r.chosen_value != NOT_COVERED]
+    started = replace(result, requests=result.requests + ({
+        "chunk_id": result.chunks[0].chunk_id, "round": 3, "group": "extra",
+        "question_ids": ["core.disclosure_scope"], "outcome": "halved", "halves": [], "reask": []},))
+    assert not extra_round_started(result) and extra_round_started(started)
+    full = to_pass1_page(result, page)
+    page_cid = request_v27.make_custom_id(page.institution_id, page.url)
+    extra_cid = ppv.extra_round_custom_id(page_cid, full.codes)
+
+    extract = FakeExtractor(world)
+    providers = _providers(run_dir, bound, instrument, extract, FakeEntail())
+    first = providers.page_support(page, result, records)
+    providers.page_support(page, started, records)  # every code, all unchecked
+    assert [j.custom_id for j in extract.jobs] == [page_cid, extra_cid]
+    t2 = _tasks(extract.jobs[1])
+    assert t2["activity_task"] is None and t2["link_task"] is False and t2["date_task"] is False
+    page_round = PageRoundResult(started, jpc.finalize_page(result, first, bound.page_config), tuple(first), 1)
+    spans = [s.activity_id for s in providers.activity_input(page, page_round).spans]
+    assert spans == [aid("p1")] and len(extract.jobs) == 2
+
+    resumed = FakeExtractor(world)  # a fresh adapter whose first call is the post-halving one
+    fresh = _providers(run_dir, bound, instrument, resumed, FakeEntail())
+    fresh.page_support(page, started, records)
+    assert [j.custom_id for j in resumed.jobs] == [extra_cid]
+    assert [s.activity_id for s in fresh.activity_input(page, page_round).spans] == spans
+    assert [j.custom_id for j in resumed.jobs] == [extra_cid, page_cid]  # page request rebuilt from T-021
+
+
 def test_pass2_later_round_takes_the_same_request_uninterrupted_and_resumed(tmp_path, monkeypatch):
     """Ruling 49 a with 41 a: a later activity round (a strict subset of the page's ordinary codes,
     the earlier ones already supported) takes the extra-round request whether the adapter made the
