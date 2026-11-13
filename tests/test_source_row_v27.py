@@ -12,6 +12,7 @@ from g3o.classify.jev_page_code import PageInput
 from g3o.common import source_fields as sf
 from g3o.common import support_check as sc
 from g3o.common.storage_fields import FIELDS
+from g3o.run.presweep import official_site_v27 as osv
 from g3o.run.presweep import perpage_inputs_v27 as pin
 from g3o.run.presweep import source_row_v27 as srow
 from g3o.run.presweep import stage_perpage_v27 as pp
@@ -58,6 +59,10 @@ def _values(rows):
     return {k: v.value for k, v in rows.source.items()}
 
 
+#: Read without the run's official sites (PI ruling 70 b): X37 and what reads it are refused.
+TYPED = {sf.OFFICIAL, sf.SOURCE_TYPE, sf.CREDIBILITY}
+
+
 def test_every_row_item_is_produced_or_refused_exactly_once():
     src, act = srow.source_row_items(), srow.activity_row_items()
     assert set(srow.PRODUCED_SOURCE_ITEMS) | set(srow.REFUSED_SOURCE_ITEMS) == src
@@ -97,14 +102,14 @@ def test_page_level_values_from_page_fields_and_page():
     # Without the pass-1 request and its provenance every quote-step item is refused as well.
     quote_items = {sf.SNIPPET, sf.DATE, sf.UPPER_BOUND, *srow.pass1_activity_fields(), *srow.REPORTED_GATES,
                    *srow.EXTRACTED_FIELDS}
-    assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | quote_items
+    assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | quote_items         | TYPED
     assert all(srow.MISSING_EXTRACTION in rows.refused[i] for i in quote_items - {sf.UPPER_BOUND})
     assert not set(rows.source) & set(rows.refused)
 
 
 def test_no_activity_page_refuses_only_source_items():
     rows = srow.assemble(_page(), FIELDS_P1, NOGENAI, {}, followed=False)
-    assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) | {sf.SNIPPET, sf.DATE, sf.UPPER_BOUND}
+    assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) | {sf.SNIPPET, sf.DATE, sf.UPPER_BOUND} | TYPED
     assert rows.activities == {}
     v = _values(rows)
     assert v[sc.CONTACT_ITEM] == "no" and v[sc.CONTACT_EMAILS_ITEM] == "not_asked"
@@ -383,7 +388,10 @@ def test_assemble_with_extraction_builds_activity_quote_values_and_codes():
     assert {sr.item_id for sr, _ in rows.activity_codes["p1#a001"]} == \
         {*srow.pass1_activity_fields(), *srow.REPORTED_GATES}
     assert [sr.item_id for sr, _ in rows.source_codes] == [sf.SNIPPET]
-    assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS)
+    # No official sites: X37 and source_type refused; the undated source's credibility is low (rules/0).
+    assert set(rows.refused) == \
+        set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | {sf.OFFICIAL, sf.SOURCE_TYPE}
+    assert rows.source[sf.CREDIBILITY].value == "low"
     # An activity with no span in the page request is refused item by item.
     rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"p1#a002": acts["p1#a001"]}, followed=False,
                          extraction=_Extraction(span), sources=SOURCES, verdict_support=_verdict(quote),
@@ -475,3 +483,86 @@ def test_to_upstream_shape_and_refusal():
     assert {sr.item_id for sr, _ in codes["p1#a001"]} >= {"core.tool_name", "core.source_snippet"}
     _, s_na, c_na = rows.to_upstream(["_NA_"])
     assert c_na["_NA_"] == rows.source_codes and s_na["_NA_"] == s_vals["p1#a001"]
+
+
+# ---------------------------------------------------------------------------
+# PI ruling 70 b: official domain from this run's sites; source_type rules/0; credibility
+# ---------------------------------------------------------------------------
+
+INST = "INST-0000001"
+
+
+def _sites(**hosts):
+    return osv.RunOfficialSites("fixture: 2_official_site.json", hosts, frozenset())
+
+
+OWN = _sites(**{INST: "one.example.gov"})
+ELSEWHERE = _sites(**{INST: "council-one.gov.au"})
+
+
+def _typed(page, fields, sites, date=None):
+    return srow.assemble(page, fields, NOGENAI, {}, followed=False, extraction=_Extraction(date=date),
+                         sources=SOURCES, verdict_support=_verdict("The council runs Copilot Chat"),
+                         provenance=PROV, official_sites=sites)
+
+
+def _dated():
+    from dataclasses import replace
+    return replace(FIELDS_P1, publication_date=_meta_date()[0])
+
+
+def test_official_page_is_typed_automatically_70b():
+    rows = _typed(_page(), FIELDS_P1, OWN)
+    v = _values(rows)
+    assert v[sf.OFFICIAL] == "own_official" and v[sf.SOURCE_TYPE] == "not_asked"
+    (sr, rec), = [(sr, rec) for sr, rec in rows.source_codes if sr.item_id == sf.SOURCE_TYPE]
+    assert sr.support_status == "set_by_rule"
+    assert sr.support_rule_name == rec.rule_reference == "source_type_auto:official_domain"
+    assert rec.coder_type == "mechanical" and rec.chosen_value == "not_asked"
+    assert v[sf.CREDIBILITY] == "low"  # pass 1 returned no date: not_documented -> low (rules/0)
+    dated = _values(_typed(_page(), _dated(), OWN))
+    assert dated[sf.CREDIBILITY] == sf.signed_credibility_map().cells["official_domain"]
+    assert not TYPED & set(rows.refused)
+    # Another institution's site of this run: other_official, also typed automatically.
+    other = _values(_typed(_page(), FIELDS_P1, _sites(**{INST: "council-one.gov.au", "X": "one.example.gov"})))
+    assert (other[sf.OFFICIAL], other[sf.SOURCE_TYPE]) == ("other_official", "not_asked")
+
+
+def test_archive_address_is_typed_automatically_70b():
+    from dataclasses import replace
+    rows = _typed(_page(), replace(_dated(), archive_address=True), ELSEWHERE)
+    v = _values(rows)
+    assert (v[sf.OFFICIAL], v[sf.SOURCE_TYPE]) == ("not_official", "not_asked")
+    assert [sr.support_rule_name for sr, _ in rows.source_codes if sr.item_id == sf.SOURCE_TYPE] ==         ["source_type_auto:archive_address"]
+    assert v[sf.CREDIBILITY] == sf.signed_credibility_map().cells["archive_address"]
+
+
+def test_residual_page_routing_70b():
+    # Readable residual page: refused (no residual question and quote wired); undated: credibility low.
+    rows = _typed(_page(), FIELDS_P1, ELSEWHERE)
+    assert _values(rows)[sf.OFFICIAL] == "not_official"
+    assert sf.SOURCE_TYPE not in rows.source and srow.RESIDUAL_REFUSAL in rows.refused[sf.SOURCE_TYPE]
+    assert _values(rows)[sf.CREDIBILITY] == "low"
+    dated = _typed(_page(), _dated(), ELSEWHERE)
+    assert sf.CREDIBILITY in dated.refused and sf.CREDIBILITY not in dated.source
+    # No official site for the institution (P13): unknown, and the page is residual.
+    rows = _typed(_page(), FIELDS_P1, osv.RunOfficialSites("fixture", {}, frozenset({INST})))
+    assert _values(rows)[sf.OFFICIAL] == "unknown" and sf.SOURCE_TYPE in rows.refused
+    # An unreadable residual page is not sent (R-015): not_asked by its readability rule.
+    unreadable = PageInput("p1", INST, "Council One", "Australia", "local", URL, "AI pilot",
+                           "0123456789 " * 40, None)
+    rows = _typed(unreadable, _dated(), ELSEWHERE)
+    v = _values(rows)
+    assert v[sf.SOURCE_TYPE] == "not_asked"
+    assert [sr.support_rule_name for sr, _ in rows.source_codes if sr.item_id == sf.SOURCE_TYPE] ==         ["readability_failure:low_letter_share"]
+    assert v[sf.CREDIBILITY] == sf.signed_credibility_map().cells["not_asked"]
+
+
+def test_unresolved_official_site_refuses_its_readers_70b():
+    sites = osv.RunOfficialSites("fixture", {}, frozenset(), {INST: "bypassed: master column"})
+    rows = _typed(_page(), FIELDS_P1, sites)
+    assert "master column" in rows.refused[sf.OFFICIAL] and sf.OFFICIAL in rows.refused[sf.SOURCE_TYPE]
+    assert _values(rows)[sf.CREDIBILITY] == "low"  # undated: low whatever the type
+    rows = _typed(_page(), FIELDS_P1, None)
+    assert srow.OFFICIAL_SITES in rows.refused[sf.OFFICIAL]
+    assert TYPED - {sf.CREDIBILITY} <= set(rows.refused)

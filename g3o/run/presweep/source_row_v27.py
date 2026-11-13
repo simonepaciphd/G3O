@@ -93,6 +93,26 @@ Produced here (activity row, per observation):
   their gate item is ``none_reported``; refused otherwise (see
   :func:`reported_value`).
 
+Produced here (source row, page-level), PI ruling 70 b (2026-11-13):
+
+- ``source_on_official_domain`` (X37): the page URL's host against the
+  official sites this run found
+  (:class:`g3o.run.presweep.official_site_v27.RunOfficialSites`, read from
+  each institution's ``2_official_site.json``; no official site: ``unknown``,
+  RC-D-025 P13). Refused without that map, and for an institution whose site
+  is unresolved (see that module).
+- ``source_type`` (X21) by ``items/core.source_type/rules/0``: an official page
+  (``own_official`` / ``other_official``) or an archive address is typed
+  automatically, ``not_asked`` set by rule ``source_type_auto:<basis>``; a
+  residual page that fails the R-015 readability check is not sent,
+  ``not_asked`` set by rule ``readability_failure:<reason>``. A residual
+  readable page needs the residual classifier question and its supporting
+  quote: refused (:data:`RESIDUAL_REFUSAL`).
+- ``source_credibility`` (X22, :func:`g3o.common.source_fields.source_credibility`):
+  ``low`` when the publication date is ``unknown`` / ``not_documented``
+  whatever the type; otherwise the signed map cell of the automatic basis or of
+  the (missing) type. Refused when it needs a refused ``source_type``.
+
 Built but not yet usable (its input is refused): :func:`vendor_claim_only`
 (PI A8.9 a) reads ``source_type``.
 """
@@ -157,12 +177,6 @@ QUOTE_STEP_CODER_VERSION = f"g3o.extract.parser_v27/{request_v27.PROMPT_VERSION}
 
 #: Source-row items refused here, with the reason (signed source text or the missing producer).
 REFUSED_SOURCE_ITEMS: Mapping[str, str] = {
-    sf.OFFICIAL: ("the master official-site overlay (OfficialSiteOverlay, RC-D-025 P13) is not passed to "
-                  "the v2.7 per-page stage"),
-    sf.SOURCE_TYPE: ("rules/0 needs source_on_official_domain (refused); the residual source_type question "
-                     "(T-015's own jev request, RC-D-023 B-Q3 a) is not wired into the per-page stage, and "
-                     "T-022 has no source_type quote task for its support check"),
-    sf.CREDIBILITY: "reads source_type and source_publication_date (both refused)",
     sf.CONFIDENCE: ("reads source_credibility (refused) and the claim's support records "
                     "(items/core.confidence/rules/1; association is T-026's, RC-D-025 P12)"),
 }
@@ -198,8 +212,13 @@ def activity_row_items() -> frozenset[str]:
 PRODUCED_SOURCE_ITEMS = (
     sf.URL, sf.ACCESS_DATE, sf.LANGUAGE, sf.SYNDICATION, sf.TITLE, sf.REVIEW_STATE, sf.DISCOVERY,
     sf.TEXT_SOURCE, sc.CONTACT_ITEM, sc.CONTACT_EMAILS_ITEM, *STATED_FIELDS, *SAFEGUARDS, sf.SNIPPET,
-    sf.DATE, sf.UPPER_BOUND, *EXTRACTED_FIELDS,
+    sf.DATE, sf.UPPER_BOUND, *EXTRACTED_FIELDS, sf.OFFICIAL, sf.SOURCE_TYPE, sf.CREDIBILITY,
 )
+
+#: A readable residual page: the residual source_type question (T-015's own jev request, RC-D-023 B-Q3 a) and
+#: the supporting quote its support check needs are not wired into the per-page stage.
+RESIDUAL_REFUSAL = ("the residual source_type question (T-015 jev request, RC-D-023 B-Q3 a) and its supporting "
+                    "quote, not wired into the per-page stage")
 
 
 def pass1_activity_fields() -> tuple[str, ...]:
@@ -211,6 +230,11 @@ def pass1_activity_fields() -> tuple[str, ...]:
 PRODUCED_ACTIVITY_ITEMS = ("core.unit_credit", *pass1_activity_fields(), *REPORTED_GATES)
 #: Items produced on some pages and refused on others, with when they refuse.
 CONDITIONAL_ITEMS: Mapping[str, str] = {
+    sf.OFFICIAL: ("refused without the run's official sites (official_site_v27.load_run_official_sites) and for "
+                  "an institution whose site is unresolved (bypassed master-column site, failed or unfinished "
+                  "official-site step)"),
+    sf.SOURCE_TYPE: f"refused on a readable residual page (neither official nor archive): {RESIDUAL_REFUSAL}",
+    sf.CREDIBILITY: "refused when source_type is refused and the publication date is not unknown/not_documented",
     sf.SNIPPET: "refused when the page verdict's support carries no quote (no signed rule for that case)",
     "core.content_vendor": ("refused on a GenAI-bearing page whose activities state no contracting party: it then "
                             "reads developer (PI A8.1 a needs codebook r16)"),
@@ -610,6 +634,76 @@ def publication_date_value(page: Any, page_fields: Any, extraction: Any, sources
 
 
 # ---------------------------------------------------------------------------
+# PI ruling 70 b: official domain, source_type rules/0 routing, credibility
+# ---------------------------------------------------------------------------
+
+
+OFFICIAL_SITES = ("official sites this run found (PI ruling 70 b; "
+                  "official_site_v27.load_run_official_sites)")
+
+
+def official_value(page: Any, official_sites: Any) -> sf.FieldValue:
+    """X37 of the page from the run's official sites (:class:`~g3o.run.presweep.official_site_v27.RunOfficialSites`)."""
+    if official_sites is None:
+        raise sf.MissingUpstreamError(OFFICIAL_SITES, [sf.OFFICIAL])
+    return official_sites.official(page.url, page.institution_id)
+
+
+def source_type_value(page: Any, official: sf.FieldValue, archive_address: Any, sources: sc.PageSources,
+                      prov: Provenance) -> tuple[QuoteValue, sf.SourceTyping]:
+    """``items/core.source_type/rules/0``: typed automatically (official domain, then archive address), or
+    a residual page; an unreadable residual page is not sent (R-015). Each is ``not_asked`` set by its rule
+    (R-045) with a mechanical record. A readable residual page is refused (:data:`RESIDUAL_REFUSAL`)."""
+    if not isinstance(archive_address, bool):
+        raise sf.MissingUpstreamError("A2 archive-address test (PageSourceFields.archive_address)", [sf.SOURCE_TYPE])
+    basis = sf.route_source_type(official, archive_address)
+    typing = sf.auto_source_type(basis) if basis is not None else sf.readability_source_type(page)
+    if typing is None:
+        raise sf.MissingUpstreamError(RESIDUAL_REFUSAL, [sf.SOURCE_TYPE])
+    fv = typing.field
+    code = rule_code(sf.SOURCE_TYPE, fv.value, str(fv.rule_name), None, sources, prov)
+    return QuoteValue(RowValue(sf.SOURCE_TYPE, fv.value, f"{fv.basis} ({fv.rule_name})"), (code,)), typing
+
+
+def credibility_value(typing: sf.SourceTyping | None, date: sf.FieldValue) -> RowValue:
+    """X22: ``low`` for an undated source whatever its type (rules/0); otherwise the map cell of its type."""
+    dated = sf.credibility_from_date(date)
+    if dated is not None:
+        return _from(dated)
+    if typing is None:
+        raise sf.MissingUpstreamError(f"{sf.SOURCE_TYPE} (refused)", [sf.CREDIBILITY])
+    return _from(sf.source_credibility(typing, date))
+
+
+def typed_source_values(page: Any, page_fields: Any, rows: AssembledRows, date: sf.FieldValue | None, *,
+                        official_sites: Any, sources: sc.PageSources | None, provenance: Provenance | None) -> None:
+    """``source_on_official_domain``, ``source_type`` and ``source_credibility`` into ``rows`` (ruling 70 b)."""
+    out = rows.source
+    try:
+        official = official_value(page, official_sites)
+    except _REFUSALS as exc:
+        rows.refused[sf.OFFICIAL] = str(exc)
+        rows.refused[sf.SOURCE_TYPE] = f"rules/0 reads {sf.OFFICIAL} (refused)"
+        official = None
+    else:
+        out[sf.OFFICIAL] = _from(official)
+    typing = None
+    if official is not None:
+        try:
+            qv, typing = source_type_value(page, official, getattr(page_fields, "archive_address", None),
+                                           _need(sources, sf.SOURCE_TYPE), _need(provenance, sf.SOURCE_TYPE))
+        except _REFUSALS as exc:
+            rows.refused[sf.SOURCE_TYPE] = str(exc)
+        else:
+            out[sf.SOURCE_TYPE] = qv.row
+            rows.source_codes.extend(qv.codes)
+    if date is None:
+        rows.refused[sf.CREDIBILITY] = f"reads {sf.DATE} (refused)"
+        return
+    _try(rows, out, sf.CREDIBILITY, lambda: credibility_value(typing, date))
+
+
+# ---------------------------------------------------------------------------
 # The assembler
 # ---------------------------------------------------------------------------
 
@@ -675,7 +769,7 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
                        followed: bool | None = None, sources: sc.PageSources | None = None,
                        verdict_support: sc.SupportResult | None = None,
                        provenance: Provenance | None = None, extraction: Any = None,
-                       hop: int | None = None) -> None:
+                       hop: int | None = None, official_sites: Any = None) -> None:
     """The page-level source-row values (see the module docstring) into ``rows.source``."""
     out = rows.source
     for item, attr in ((sf.URL, "url"), (sf.ACCESS_DATE, "access_date"), (sf.LANGUAGE, "language"),
@@ -711,10 +805,14 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
     except _REFUSALS as exc:
         rows.refused[sf.DATE] = str(exc)
         rows.refused[sf.UPPER_BOUND] = f"reads {sf.DATE} (refused)"
+        date = None
     else:
         out[sf.DATE] = dated.quote.row
         rows.source_codes.extend(dated.quote.codes)
         _try(rows, out, sf.UPPER_BOUND, lambda: _from(sf.date_upper_bound(dated.field)))
+        date = dated.field
+    typed_source_values(page, page_fields, rows, date, official_sites=official_sites, sources=sources,
+                        provenance=provenance)
 
 
 def _need(value: Any, item: str) -> Any:
@@ -749,7 +847,8 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
              activities: Mapping[str, Mapping[str, Any]], *, followed: bool | None = None,
              extraction: Any = None, sources: sc.PageSources | None = None,
              verdict_support: sc.SupportResult | None = None,
-             provenance: Provenance | None = None, hop: int | None = None) -> AssembledRows:
+             provenance: Provenance | None = None, hop: int | None = None,
+             official_sites: Any = None) -> AssembledRows:
     """Build every producible row value of one coded page and name every refused item.
 
     ``page`` is the :class:`~g3o.classify.jev_page_code.PageInput`,
@@ -763,7 +862,9 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
     ``PerPageProviders.page_extraction``), ``sources`` the coded page's parts,
     ``verdict_support`` the T-024 support of the final verdict and ``provenance``
     what the coder records carry (:meth:`Provenance.of`). Without them every
-    quote-step item is refused.
+    quote-step item is refused. ``official_sites`` is the run's
+    :class:`~g3o.run.presweep.official_site_v27.RunOfficialSites` (PI ruling 70 b);
+    without it ``source_on_official_domain`` and what reads it are refused.
     """
     if page_fields is None:
         raise sf.MissingUpstreamError("perpage_inputs_v27.PageSourceFields (PageUpstream.page_fields)",
@@ -773,7 +874,8 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
     if activities:
         rows.refused.update(REFUSED_ACTIVITY_ITEMS)
     page_source_values(page, page_fields, page_values, activities, rows, followed=followed, sources=sources,
-                       verdict_support=verdict_support, provenance=provenance, extraction=extraction, hop=hop)
+                       verdict_support=verdict_support, provenance=provenance, extraction=extraction, hop=hop,
+                       official_sites=official_sites)
     activity_row_values(activities, rows, extraction=extraction, sources=sources, provenance=provenance)
     return rows
 

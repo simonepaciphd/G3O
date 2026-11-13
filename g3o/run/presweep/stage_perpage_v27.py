@@ -198,6 +198,7 @@ from g3o.persist.stage6_adapters import (
 )
 from g3o.run.presweep import source_row_v27 as srow
 from g3o.run.presweep import stage_activity_code, stage_page_code
+from g3o.run.presweep.official_site_v27 import load_run_official_sites
 from g3o.run.presweep.stage_validate_v27 import DONE_MARKER as STAGE6_DONE_MARKER
 from g3o.run.presweep.stage_validate_v27 import (
     EXTRACT_REJECT_CAP,
@@ -664,11 +665,13 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                  activity_round: ActivityRoundResult | None, pairs: Sequence[PairResult],
                  pair_support: Sequence[SupportResult], page_config: PageCoderConfig,
                  activity_config: ActivityCoderConfig, instrument: dict[str, Any],
-                 extraction: Any = None) -> PageProduct:
+                 extraction: Any = None, official_sites: Any = None) -> PageProduct:
     """Final per-page values and their support -> the Stage 6 per-page inputs of one coded page.
 
     ``extraction`` is the page's T-022 pass-1 page request (``PerPageProviders.page_extraction``),
-    read by the T-015 source-row assembler when no row values are injected (PI ruling 35 a).
+    read by the T-015 source-row assembler when no row values are injected (PI ruling 35 a);
+    ``official_sites`` the run's official sites it reads (PI ruling 70 b,
+    :func:`g3o.run.presweep.official_site_v27.load_run_official_sites`).
 
     Uncertainty flags (PI A6.1 a / A6.3 a): each node carries its own code's flags
     (:func:`g3o.validate.uncertainty_flags_v27.code_flags`); an observation row's
@@ -706,7 +709,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         rows = srow.assemble(page, up.page_fields, outcome_values(page_round.final.items),
                              {aid: outcome_values(f.outcomes) for aid, f in finals.items()},
                              followed=up.followed, hop=up.hop, extraction=extraction, sources=sources,
-                             verdict_support=vsr,
+                             verdict_support=vsr, official_sites=official_sites,
                              provenance=srow.Provenance.of(instrument, extraction,
                                                            rule_coder_version=activity_config.coder_version))
         if rows.refused:
@@ -1212,6 +1215,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
     clear_done(run_dir, STAGE6_DONE_MARKER)
     metrics = PerPageMetrics()
     ready: list[Stage6Institution] = []
+    official_sites = load_run_official_sites(run_dir)  # PI ruling 70 b: read from the run folder every pass
     # The journal key binds the setup: a response recorded under another setup is never replayed.
     setup = {"setup_pointer": page_config.setup_pointer,
              "page": {"configured_model": page_config.configured_model, "coder_version": page_config.coder_version},
@@ -1266,7 +1270,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                     page_order=order, first_source=next_source, page_round=st.page_round,
                     activity_input=st.activity_input, activity_round=st.activity_round, pairs=st.pairs,
                     pair_support=st.pair_support, page_config=page_config, activity_config=activity_config,
-                    instrument=instrument, extraction=st.extraction))
+                    instrument=instrument, extraction=st.extraction, official_sites=official_sites))
             except UncarriedCombinedValue as exc:  # Y3 b: refused as a per-institution hold
                 uncarried = exc
                 break
