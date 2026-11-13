@@ -1310,3 +1310,53 @@ def test_resumed_run_reports_and_budgets_first_session_metered_spend(tmp_path, m
     assert unl["requests_succeeded"] == 2
     assert second["metered_total_usd"] == pytest.approx(2 * first["metered_total_usd"])
     assert second["abort_stage"] == "discovery_general"
+
+
+# ---------------------------------------------------------------------------
+# v2.7 stage pricing (RC-D-021 cost_monitor hunks; PI ruling 1 a)
+# ---------------------------------------------------------------------------
+
+
+def _v27_usage(**kw):
+    base = {"jev_responses": 3, "jev_unidentified": 1, "jev_incomplete": 0, "quote_responses": 0,
+            "input_tokens": 2_000_000, "output_tokens": 500, "extractor_calls": 0,
+            "extractor_input_tokens": 0, "extractor_output_tokens": 0, "x35_calls": 0, "x35_failed": 0,
+            "request_ms": 10}
+    return {**base, **kw}
+
+
+def test_v27_jev_only_stage_is_priced_from_the_jev_row():
+    from g3o.common.cost_monitor import price_v27_usage
+    from g3o.common.pricing import JEV_1_13_0_PRICING
+
+    out = price_v27_usage(_v27_usage(), jev_model="jev-1.13.0")
+    expected = 2.0 * JEV_1_13_0_PRICING["standard_input_per_1m_usd"]  # output tokens are free
+    assert out["priced"] is True and out["unpriced_parts"] == []
+    assert out["total_usd"] == pytest.approx(expected)
+    assert out["parts"]["jev"]["usd"] == pytest.approx(expected) and out["parts"]["jev"]["calls"] == 4
+
+
+def test_v27_extractor_and_x35_calls_leave_the_total_unpriced():
+    """An unpriced part with calls makes the total None, never the jev-only partial sum."""
+    from g3o.common.cost_monitor import V27_UNPRICED_PARTS, price_v27_usage
+
+    out = price_v27_usage(_v27_usage(extractor_calls=2, extractor_input_tokens=900, x35_failed=1),
+                          jev_model="jev-1.13.0")
+    assert out["priced"] is False and out["total_usd"] is None
+    assert out["unpriced_parts"] == ["extractor", "x35"]
+    assert out["parts"]["jev"]["usd"] is not None  # the priced part is still reported
+    assert out["parts"]["extractor"]["usd"] is None and out["parts"]["x35"]["calls"] == 1
+    assert out["parts"]["extractor"]["reason"] == V27_UNPRICED_PARTS["extractor"]
+
+
+def test_v27_unknown_jev_model_and_unitemised_quote_step_are_unpriced():
+    from g3o.common.cost_monitor import price_v27_usage
+
+    out = price_v27_usage(_v27_usage(), jev_model="fake-jev")
+    assert out["total_usd"] is None and out["unpriced_parts"] == ["jev"]
+    assert "fake-jev" in out["parts"]["jev"]["reason"]
+    quote = price_v27_usage(_v27_usage(quote_responses=2), jev_model="jev-1.13.0")
+    assert quote["unpriced_parts"] == ["quote_step"] and quote["total_usd"] is None
+    assert price_v27_usage(None, jev_model="jev-1.13.0") is None
+    empty = price_v27_usage({}, jev_model="fake-jev")  # no calls at all: nothing to price
+    assert empty["priced"] is True and empty["total_usd"] == 0.0

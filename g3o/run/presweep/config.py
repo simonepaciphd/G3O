@@ -82,8 +82,11 @@ V27_PRICED_STAGES: tuple[str, ...] = (
 def refuse_v27_budget_settings(config: Any) -> None:
     """Refuse v2.7-stage budget figures on a v2.7 config (PI ruling 1 a, 2026-11-11).
 
-    The cost monitor has no v2.7 stage pricing yet (the RC-D-021 cost_monitor
-    hunks are owed). ``budget_usd``, ``projection_safety_factor``,
+    The cost monitor prices only the jev part of a v2.7 stage
+    (:func:`g3o.common.cost_monitor.price_v27_usage`); the extractor and X35 parts
+    stay unpriced (:data:`g3o.common.cost_monitor.V27_UNPRICED_PARTS`, open PI
+    questions), so no v2.7 stage has a complete price and none can carry a budget
+    figure or a within-stage check. ``budget_usd``, ``projection_safety_factor``,
     ``preflight_estimate_usd`` and ``cost_monitor_dry_run`` stay valid: they act
     on Stages 1-4, which a v2.7 run executes and which are priced (the preflight
     prices only those stages on a v2.7 run). ``preflight_stage_estimates`` is
@@ -101,7 +104,8 @@ def refuse_v27_budget_settings(config: Any) -> None:
     if found:
         raise ValueError(
             f"pipeline_version='v2.7' refuses preflight_stage_estimates for {', '.join(found)}: "
-            "v2.7 has no stage pricing yet (the RC-D-021 cost_monitor hunks are owed), so only "
+            "v2.7 has no stage pricing yet (jev calls are priced; extractor and X35 calls are not, "
+            "see g3o.common.cost_monitor.V27_UNPRICED_PARTS), so only "
             f"Stages 1-4 can carry a budget figure ({', '.join(V27_PRICED_STAGES)})"
         )
 

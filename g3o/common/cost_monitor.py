@@ -903,10 +903,100 @@ class CostMonitor:
         return report
 
 
+# ---------------------------------------------------------------------------
+# v2.7 stage pricing (RC-D-021 procedural: the cost_monitor hunks; PI ruling 1 a)
+# ---------------------------------------------------------------------------
+
+#: Parts of a v2.7 stage's usage (``RequestJournal.usage``) this module cannot price
+#: yet, with the reason. While a part has calls, the stage's total stays ``None``,
+#: and :func:`g3o.run.presweep.config.refuse_v27_budget_settings` keeps refusing
+#: v2.7-stage budget figures (PI ruling 1 a, 2026-11-11). Each is an open PI
+#: question; no rate is chosen here.
+V27_UNPRICED_PARTS: dict[str, str] = {
+    "extractor": (
+        "billing mode not determined: RS-031 names Messages (sync, testing) and Message "
+        "Batches (full runs), the v2.7 extract_fn is a per-job call, and the claude-haiku-5-5 "
+        "batch and standard rates differ 2x; the journal totals also drop the cache-token "
+        "counts and the per-request prompt length the long-prompt tier needs"
+    ),
+    "x35": (
+        "no X35 model or rate in signed text (RC-D-033 pins the model name only in the "
+        "instrument), and the X35 client reports no tokens to the journal"
+    ),
+}
+
+
+def price_v27_usage(usage: dict[str, Any] | None, *, jev_model: str) -> dict[str, Any] | None:
+    """Price one v2.7 stage's journal usage totals as far as signed rates allow.
+
+    ``usage`` is the stage's summed :meth:`RequestJournal.usage` (the orchestrator's
+    ``v27_unpriced_usage[<stage>]``). The jev part (``input_tokens`` /
+    ``output_tokens``; jev responses, unidentified and incomplete ones included) is
+    priced from ``jev_model``'s rate row at its standard rates (jev is synchronous;
+    RS-031 names jev-1.13.0). The extractor and X35 parts are reported with
+    ``usd: None`` and the reason in :data:`V27_UNPRICED_PARTS`.
+
+    ``total_usd`` is a number only when every part with calls is priced: an
+    unpriced part with calls makes it ``None``, never a partial sum (review F2). A
+    part with no calls costs nothing and does not block the total. ``None`` in,
+    ``None`` out.
+    """
+    if usage is None:
+        return None
+
+    def n(key: str) -> int:
+        return int(usage.get(key) or 0)
+
+    row = pricing_for(jev_model)
+    jev_in, jev_out = n("input_tokens"), n("output_tokens")
+    jev_usd = (
+        None if row is None
+        else usd(jev_in, row["standard_input_per_1m_usd"])
+        + usd(jev_out, row["standard_output_per_1m_usd"])
+    )
+    jev_calls = n("jev_responses") + n("jev_unidentified") + n("jev_incomplete")
+    parts: dict[str, dict[str, Any]] = {
+        "jev": {
+            "model": jev_model, "calls": jev_calls, "input_tokens": jev_in,
+            "output_tokens": jev_out, "usd": _round_usd(jev_usd),
+            **({} if row is not None else {"reason": f"no rate row for {jev_model!r}"}),
+        },
+        "extractor": {
+            "calls": n("extractor_calls"), "input_tokens": n("extractor_input_tokens"),
+            "output_tokens": n("extractor_output_tokens"), "usd": None,
+            "reason": V27_UNPRICED_PARTS["extractor"],
+        },
+        "x35": {
+            "calls": n("x35_calls") + n("x35_failed"), "usd": None,
+            "reason": V27_UNPRICED_PARTS["x35"],
+        },
+    }
+    if n("quote_responses") and not (parts["extractor"]["calls"] or parts["x35"]["calls"]):
+        # A Stage 6 quote step without seams journals only its answers: its extractor
+        # and X35 calls happened but are not itemised, so they cannot be priced either.
+        parts["quote_step"] = {
+            "calls": n("quote_responses"), "usd": None,
+            "reason": "quote step without seams: its extractor and X35 calls are not itemised",
+        }
+    blocking = [
+        name for name, part in parts.items()
+        if part["usd"] is None and (part["calls"] or part.get("input_tokens") or part.get("output_tokens"))
+    ]
+    total = None if blocking else (jev_usd or 0.0)
+    return {
+        "priced": not blocking,
+        "unpriced_parts": blocking,
+        "total_usd": _round_usd(total),
+        "parts": parts,
+    }
+
+
 __all__ = [
+    "V27_UNPRICED_PARTS",
     "BudgetExceededError",
     "CostMonitor",
     "ProjectedBudgetExceededError",
     "StageCost",
     "UnpricedModelError",
+    "price_v27_usage",
 ]

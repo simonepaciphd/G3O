@@ -410,6 +410,63 @@ V27_USAGE_KEY = "v27_unpriced_usage"
 #: Cost-report key and value stating what a v2.7 run's budget covers (PI ruling 1 a).
 V27_BUDGET_SCOPE_KEY = "budget_scope"
 V27_BUDGET_SCOPE = "stages_1_4"
+#: Cost-report key of the v2.7 stages' priced parts (RC-D-021 cost_monitor hunks):
+#: ``{stage: price_v27_usage(...)}``. Outside ``total_usd`` and the budget (ruling 1 a).
+V27_COST_KEY = "v27_stage_cost"
+
+
+def _v27_journal_usage(run_dir: Path) -> dict[str, dict[str, int]]:
+    """The v2.7 stages' usage summed from the request journals on disk (RC-D-021: the
+    partial cost of an interrupted v2.7 run).
+
+    Covers every journaled call of every institution, this and earlier sessions,
+    including a stage that stopped before it returned its metrics. A stage with no
+    journal on disk is left out. Loading a journal repairs a torn final record exactly
+    as the next run's load would.
+    """
+    from g3o.common.paths import iter_institution_dirs
+    from g3o.run.presweep import stage_perpage_v27 as spv
+    from g3o.run.presweep import stage_validate_v27 as svv
+
+    out: dict[str, dict[str, int]] = {}
+    for span, work_dir, journal_name in ((V27_PERPAGE_SPAN, spv.WORK_DIR, spv.JOURNAL),
+                                         (V27_STAGE6_SPAN, svv.WORK_DIR, svv.JOURNAL)):
+        totals: dict[str, int] = {}
+        n_inst = 0
+        for inst_dir in iter_institution_dirs(run_dir):
+            path = inst_dir / work_dir / journal_name
+            if not path.is_file():
+                continue
+            n_inst += 1
+            for key, value in svv.RequestJournal(path).usage().items():
+                totals[key] = totals.get(key, 0) + int(value)
+        if n_inst:
+            out[span] = {"n_institutions": n_inst, **dict(sorted(totals.items()))}
+    return out
+
+
+def _v27_cost_block(run_dir: Path, summary: dict[str, Any], jev_model: str) -> dict[str, Any]:
+    """The cost report's :data:`V27_COST_KEY` block.
+
+    A stage that finished is priced from its returned usage (``summary``); a stage that
+    stopped (no usage returned) is priced from its journals on disk and marked
+    ``interrupted``. A stage that never journaled a call is absent.
+    """
+    from g3o.common.cost_monitor import price_v27_usage
+
+    returned = summary.get(V27_USAGE_KEY) or {}
+    on_disk: dict[str, dict[str, int]] | None = None
+    block: dict[str, Any] = {}
+    for span in (V27_PERPAGE_SPAN, V27_STAGE6_SPAN):
+        if span in returned:
+            block[span] = {"source": "stage_metrics", **price_v27_usage(returned[span], jev_model=jev_model)}
+            continue
+        if on_disk is None:
+            on_disk = _v27_journal_usage(run_dir)
+        if span in on_disk:
+            block[span] = {"source": "journals_on_disk", "interrupted": True, "usage": on_disk[span],
+                           **price_v27_usage(on_disk[span], jev_model=jev_model)}
+    return block
 
 
 def _usage_totals(metrics: Any) -> dict[str, int]:
@@ -475,9 +532,11 @@ def run_v27_dispatch(
     stage (``SupportGateError``, ``MissingUpstreamError`` in the per-page stage
     and in the Stage 6 executor, ``JevAccountError``, ...) propagate unchanged.
     Within-stage budget checks are not wired here (no ``cost_check_callback``): the
-    cost monitor has no v2.7 stage pricing yet, so a v2.7 run's ``budget_usd``
+    cost monitor prices only the jev part of a v2.7 stage (the extractor and X35 parts
+    are unpriced, ``cost_monitor.V27_UNPRICED_PARTS``), so a v2.7 run's ``budget_usd``
     covers Stages 1-4 only (PI ruling 1 a, 2026-11-11) and the config refuses
-    preflight estimates for any other stage.
+    preflight estimates for any other stage. The priced parts are reported under
+    :data:`V27_COST_KEY` in the cost report, outside ``total_usd``.
     The two stages' raw token and call counts go under :data:`V27_USAGE_KEY`
     (``{"perpage_v27": ..., "stage6_v27": ...}``), unpriced; a stage that stops
     records none there (its journals on disk keep them).
@@ -1241,6 +1300,15 @@ def run_presweep(
                 # PI ruling 1 a: budget_usd, budget_exceeded and total_usd cover
                 # Stages 1-4 only on a v2.7 run.
                 cost_report[V27_BUDGET_SCOPE_KEY] = V27_BUDGET_SCOPE
+                # RC-D-021 cost_monitor hunks: the priced parts of each v2.7 stage,
+                # an interrupted stage's from its journals; outside total_usd.
+                if v27 is not None:
+                    try:
+                        cost_report[V27_COST_KEY] = _v27_cost_block(
+                            plan.run_dir, summary, v27.settings.jev_model)
+                    except Exception:
+                        logger.exception("v2.7 stage pricing failed for %s (non-fatal)", plan.run_dir)
+                        cost_report[V27_COST_KEY] = None
             # Include preflight vs actual comparison if preflight was run
             if config.preflight_estimate_usd is not None and cost_report["total_usd"] is not None:
                 actual_usd = cost_report["total_usd"]
