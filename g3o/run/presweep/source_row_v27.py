@@ -54,11 +54,31 @@ Produced here (source row, page-level, the same on every source row of a page):
   on the page is ``yes`` on ``has_human_oversight`` / ``has_risk_assessment``
   / ``has_transparency_notice``, otherwise ``no``.
 
+- ``source_snippet`` (X25): the final page verdict's supporting quote
+  (:func:`g3o.common.source_fields.source_snippet`, R-042), with a quote-step
+  coder record carrying the page's T-022 pass-1 request provenance. A verdict
+  support with no quote is refused (no signed rule).
+
 Produced here (activity row, per observation):
 
 - ``unit_credit``: ``yes`` if and only if the ``relationship`` part of
   ``observed_actor_relationship`` is ``unit_of_institution`` (PI A8.7 a,
   2026-11-11).
+- The T-022 pass-1 activity fields (``activity_name``, ``observed_actor_name``,
+  ``tool_name``, ``model_name``, ``contracting_party``,
+  ``deployment_scale_number``), from the activity's span in the page's pass-1
+  request (``PerPageProviders.page_extraction``): the signed applicability gate
+  first (a ``not_asked`` cell sets ``not_asked`` by rule ``gated_out:<gate
+  item>``, the T-023 convention); then the extracted value with its quote,
+  checked by T-024 (no X35: none of these items has an entailment label); no
+  value returned gives ``not_documented``. Each code carries a quote-step coder
+  record (``answer_type`` ``extracted``; the instrument's extractor model and
+  question-set version; the response's actual model and request id, refused
+  when absent, D-007). A part id the coded page no longer has (superseded, e.g.
+  after an extra-round halving) is refused, never looked up.
+- ``reported_outcomes`` / ``reported_incidents``: ``not_asked`` by rule when
+  their gate item is ``none_reported``; refused otherwise (see
+  :func:`reported_value`).
 
 Built but not yet usable (its input is refused): :func:`vendor_claim_only`
 (PI A8.9 a) reads ``source_type``.
@@ -70,10 +90,13 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
+from g3o.classify.jev_activity_code import GATE_RULE
 from g3o.common import source_fields as sf
 from g3o.common import support_check as sc
+from g3o.common.jev_record import CoderRecord
 from g3o.common.storage import METADATA_ITEMS, table_fields
 from g3o.common.storage_fields import FIELDS
+from g3o.extract import request_v27
 
 ASSEMBLER = "T-015 source-row assembler (PI ruling 35 a)"
 
@@ -107,9 +130,14 @@ VENDOR = "vendor"
 
 _QUOTE_STEP_PLUMBING = (
     "a quote-step value needs its T-022 coder record (extractor model, response model, request id of "
-    "the pass-1 response) and its T-024 support result; the pass-1 extraction "
-    "(Pass1Extraction) stays inside the provider adapter (perpage_providers_v27) and is not passed to "
-    "produce_page")
+    "the pass-1 response) and its T-024 support result")
+#: The pass-1 activity quote-step fields T-022 asks (request_v27.Pass1Rules.activity_fields).
+REPORTED_GATES = {"core.reported_outcomes": "core.outcome_kind", "core.reported_incidents": "core.incident_kind"}
+#: The gate value at which both readings of the reported_* gates agree it is closed.
+NONE_REPORTED = "none_reported"
+MISSING_EXTRACTION = "T-022 pass-1 page request of this page (PerPageProviders.page_extraction)"
+#: coder_version of a quote-step coder record: the pass-1 parser and its prompt version (procedural label).
+QUOTE_STEP_CODER_VERSION = f"g3o.extract.parser_v27/{request_v27.PROMPT_VERSION}"
 
 #: Source-row items refused here, with the reason (signed source text or the missing producer).
 REFUSED_SOURCE_ITEMS: Mapping[str, str] = {
@@ -125,7 +153,6 @@ REFUSED_SOURCE_ITEMS: Mapping[str, str] = {
               "for it and no signed support representation exists for a metadata date; a quote-step date "
               f"is Pass1Extraction.publication_date, and {_QUOTE_STEP_PLUMBING}"),
     sf.UPPER_BOUND: "reads source_publication_date (refused)",
-    sf.SNIPPET: f"quote_step item: {_QUOTE_STEP_PLUMBING}",
     "core.content_tool_or_model": ("reads tool_name / model_name (activity quote-step values, refused); whether "
                                    "an extracted name that fails R-042 counts as 'stated' is not ruled"),
     "core.content_vendor": ("reads developer (PI A8.1 a needs codebook r16) and contracting_party (activity "
@@ -134,10 +161,6 @@ REFUSED_SOURCE_ITEMS: Mapping[str, str] = {
 
 #: Activity-row items refused here, with the reason.
 REFUSED_ACTIVITY_ITEMS: Mapping[str, str] = {
-    **{item: f"quote_step item: {_QUOTE_STEP_PLUMBING}" for item in (
-        "core.activity_name", "core.observed_actor_name", "core.tool_name", "core.model_name",
-        "core.contracting_party", "core.deployment_scale_number", "core.reported_outcomes",
-        "core.reported_incidents")},
     "core.developer": ("PI A8.1 a (page-stated developer as a quote-step item) needs codebook r16 and a "
                        "re-signature; A8.2 a: no lookup table, looked_up never set"),
     "core.developer_basis": "reads developer (refused); PI A8.1 a / A8.2 a",
@@ -166,10 +189,25 @@ def activity_row_items() -> frozenset[str]:
 #: Source-row items produced by :func:`page_source_values`.
 PRODUCED_SOURCE_ITEMS = (
     sf.URL, sf.ACCESS_DATE, sf.LANGUAGE, sf.SYNDICATION, sf.TITLE, sf.REVIEW_STATE, sf.DISCOVERY,
-    sf.TEXT_SOURCE, sc.CONTACT_ITEM, sc.CONTACT_EMAILS_ITEM, *STATED_FIELDS, *SAFEGUARDS,
+    sf.TEXT_SOURCE, sc.CONTACT_ITEM, sc.CONTACT_EMAILS_ITEM, *STATED_FIELDS, *SAFEGUARDS, sf.SNIPPET,
 )
-#: Activity-row items produced by :func:`activity_row_values`.
-PRODUCED_ACTIVITY_ITEMS = ("core.unit_credit",)
+
+
+def pass1_activity_fields() -> tuple[str, ...]:
+    """The activity quote-step items T-022 pass 1 asks (``request_v27`` rules from the signed codebook)."""
+    return tuple(request_v27.default_rules().activity_fields)
+
+
+#: Activity-row items produced by :func:`activity_row_values` (the reported_* lists only when gated out).
+PRODUCED_ACTIVITY_ITEMS = ("core.unit_credit", *pass1_activity_fields(), *REPORTED_GATES)
+#: Items produced on some pages and refused on others, with when they refuse.
+CONDITIONAL_ITEMS: Mapping[str, str] = {
+    sf.SNIPPET: "refused when the page verdict's support carries no quote (no signed rule for that case)",
+    **{item: (f"refused when {gate} opens the gate (no extractor produces the list: pass 'none', not a "
+              f"T-022 pass-1 field), and when {gate} is a value other than {NONE_REPORTED!r} or the gate "
+              "values (the signed gate values and its 'as ruled: not none_reported' note disagree)")
+       for item, gate in REPORTED_GATES.items()},
+}
 
 
 def unproduced_items() -> tuple[str, ...]:
@@ -308,6 +346,175 @@ def vendor_claim_only(source_type: str) -> RowValue:
 
 
 # ---------------------------------------------------------------------------
+# Quote-step codes: T-022 values, their T-024 support, their T-027 coder records
+# ---------------------------------------------------------------------------
+
+
+NOT_DOCUMENTED = "not_documented"
+Code = tuple[sc.SupportResult, CoderRecord]
+
+
+@dataclass(frozen=True)
+class Provenance:
+    """What this page's quote-step and rule coder records carry.
+
+    ``extractor_model`` / ``question_set_version`` / ``setup_pointer`` come from the
+    instrument (``CoderRecord.storage_projection`` checks them against it);
+    ``response_model`` / ``request_id`` from the actual pass-1 response (D-007: "Setup
+    configuration is not proof of a response model or request ID"), so a record
+    without them is refused. ``rule_coder_version`` is the coder version of the
+    gated-out (mechanical) records, the activity coder's, as ``produce_page`` uses.
+    """
+
+    setup_pointer: str
+    question_set_version: str
+    extractor_model: str
+    rule_coder_version: str
+    response_model: str | None = None
+    request_id: str | None = None
+
+    @classmethod
+    def of(cls, instrument: Mapping[str, Any], extraction: Any, *, rule_coder_version: str) -> Provenance:
+        payload = instrument["payload"]
+        return cls(instrument["instrument_id"], payload["question_set_version"], payload["extractor_model_id"],
+                   rule_coder_version, getattr(extraction, "response_model", None),
+                   getattr(extraction, "request_id", None))
+
+    def quote_record(self, item: str, value: Any, chunk_id: str) -> CoderRecord:
+        if not self.response_model or not self.request_id:
+            raise sf.MissingUpstreamError("actual response model and request id of the T-022 pass-1 response "
+                                          "(D-007)", [item])
+        return CoderRecord(item_id=item, item_part=None, question_id=None, support_id=None, observation_id=None,
+                           chunk_id=chunk_id, coder_type="quote_step", coder_version=QUOTE_STEP_CODER_VERSION,
+                           configured_model=self.extractor_model, actual_response_model=self.response_model,
+                           request_id=self.request_id, question_set_version=self.question_set_version,
+                           setup_pointer=self.setup_pointer, answer_type="extracted", chosen_value=value,
+                           confidence=None, probability_distribution=None)
+
+    def rule_record(self, item: str, value: Any, rule: str) -> CoderRecord:
+        return CoderRecord(item_id=item, item_part=None, question_id=None, support_id=None, observation_id=None,
+                           chunk_id=None, coder_type="mechanical", coder_version=self.rule_coder_version,
+                           configured_model=None, actual_response_model=None, request_id=None,
+                           question_set_version=self.question_set_version, setup_pointer=self.setup_pointer,
+                           answer_type="rule", chosen_value=value, confidence=None, probability_distribution=None,
+                           rule_reference=rule)
+
+
+@dataclass(frozen=True)
+class QuoteValue:
+    """A row value with the codes (support result, coder record) that carry it."""
+
+    row: RowValue
+    codes: tuple[Code, ...]
+
+
+def _known_part(sources: sc.PageSources, chunk_id: str | None, item: str) -> str:
+    """A part id the stored page still has; a superseded or unknown part (e.g. after an
+    extra-round halving re-split the page) is refused, never looked up."""
+    if chunk_id is None or chunk_id not in sources.parts:
+        raise sf.MissingUpstreamError(f"part {chunk_id!r} among the coded page's parts (superseded or unknown)",
+                                      [item])
+    return chunk_id
+
+
+def rule_code(item: str, value: Any, rule: str, activity_id: str | None, sources: sc.PageSources,
+              prov: Provenance) -> Code:
+    """A value fixed by a rule: ``set_by_rule`` support naming it and a mechanical record (R-045)."""
+    sr = sc.check_code(sc.CodeEvidence(item, str(value), None, rule_name=rule, activity_id=activity_id), sources)
+    return sr, prov.rule_record(item, value, rule)
+
+
+def _gated(item: str, gate: Mapping[str, Any], activity_id: str, sources: sc.PageSources, prov: Provenance,
+           why: str) -> QuoteValue:
+    """Gated out: the gate's value (``not_asked`` unless it names one), rule ``gated_out:<gate item>``,
+    the convention of the T-023 gated-out records (``jev_activity_code._gated``)."""
+    value = gate["gated_out_value"] if isinstance(gate.get("gated_out_value"), str) else "not_asked"
+    rule = GATE_RULE + str(gate["item"])
+    return QuoteValue(RowValue(item, value, f"{rule}: {why}"), (rule_code(item, value, rule, activity_id,
+                                                                           sources, prov),))
+
+
+def activity_quote_value(item: str, activity_id: str, span: Any, activity_values: Mapping[str, Any],
+                         sources: sc.PageSources, prov: Provenance) -> QuoteValue:
+    """One T-022 pass-1 activity field: gate, then the extracted value checked by T-024 (R-042).
+
+    Applicability gate (the signed table on ``activity_type``): a ``not_asked`` cell
+    gates the item out; a value with no cell is unruled. Asked: the span's field
+    value with its quote, checked by :func:`~g3o.common.support_check.check_code`
+    (a failed check takes the item's ``downgrade_target``); a list item stores
+    ``[value]``. No field value (pass 1 returned none): ``not_documented``.
+    """
+    gate = sf.default_codebook().items[item].get("gate")
+    if isinstance(gate, Mapping):
+        if not isinstance(gate.get("cells"), Mapping):
+            raise ValueError(f"{item}: gate is not an applicability table")
+        key = activity_values.get(str(gate["item"]))
+        cell = None if key is None else gate["cells"].get(str(key))
+        if cell == "not_asked":
+            return _gated(item, gate, activity_id, sources, prov, f"applicability cell for {gate['item']} = {key!r}")
+        if cell != "ask":
+            raise sf.UnruledError(item, f"applicability table has no ask/not_asked cell for {gate['item']} = {key!r}")
+    elif gate != "none":
+        raise ValueError(f"{item}: unexpected gate {gate!r} on a pass-1 field")
+    found = [f for f in span.fields if f.item_id == item]
+    if len(found) > 1:
+        raise ValueError(f"{item}: pass 1 returned {len(found)} values for activity {activity_id}")
+    if found:
+        f = found[0]
+        chunk = _known_part(sources, f.chunk_id, item)
+        sr = sc.check_code(sc.CodeEvidence(item, f.value, chunk, quote=f.supporting_text, quote_chunk_id=chunk,
+                                           activity_id=activity_id), sources)
+        listed = FIELDS[item]["answer_type"] == "list" and sr.value == f.value
+        value = [f.value] if listed else sr.value
+        return QuoteValue(RowValue(item, value, f"T-022 pass-1 field, T-024 {sr.support_status}"),
+                          ((sr, prov.quote_record(item, f.value, chunk)),))
+    chunk = _known_part(sources, span.chunk_id, item)
+    sr = sc.check_code(sc.CodeEvidence(item, NOT_DOCUMENTED, chunk, activity_id=activity_id), sources)
+    return QuoteValue(RowValue(item, NOT_DOCUMENTED, "T-022 pass 1 returned no value for the field"),
+                      ((sr, prov.quote_record(item, NOT_DOCUMENTED, chunk)),))
+
+
+def reported_value(item: str, activity_id: str, activity_values: Mapping[str, Any], sources: sc.PageSources,
+                   prov: Provenance) -> QuoteValue:
+    """``reported_outcomes`` / ``reported_incidents``: produced only when their gate is closed.
+
+    The gate item at ``none_reported`` closes the gate under both readings of the
+    signed gate (its ``values`` list and its "as ruled: not none_reported" note).
+    An open gate needs the list itself, which no extractor produces (pass ``none``,
+    not a T-022 pass-1 field): refused. Any other gate value: the two readings
+    disagree, unruled.
+    """
+    gate = sf.default_codebook().items[item]["gate"]
+    if gate["item"] != REPORTED_GATES[item]:
+        raise ValueError(f"{item}: signed gate item {gate['item']!r} is not {REPORTED_GATES[item]!r}")
+    key = activity_values.get(gate["item"])
+    if key == NONE_REPORTED:
+        return _gated(item, gate, activity_id, sources, prov, f"{gate['item']} = {key!r}")
+    if key in gate["values"]:
+        raise sf.MissingUpstreamError(f"an extractor of {item} (pass 'none'; not a T-022 pass-1 field)", [item])
+    raise sf.UnruledError(item, f"{gate['item']} = {key!r}: the gate values {gate['values']} and the note "
+                                f"{gate.get('as_ruled')!r} disagree")
+
+
+def snippet_value(verdict_support: sc.SupportResult | None, sources: sc.PageSources,
+                  prov: Provenance) -> QuoteValue:
+    """X25: the page verdict's supporting quote (:func:`g3o.common.source_fields.source_snippet`).
+
+    The quote was copied by the page's T-022 pass-1 request, whose provenance the
+    record carries. A verdict support with no quote is refused: no signed rule
+    says what that page's snippet is.
+    """
+    if verdict_support is None:
+        raise sf.MissingUpstreamError("T-024 support of the final page verdict at its deciding part", [sf.SNIPPET])
+    if verdict_support.supporting_text is None:
+        raise sf.UnruledError(sf.SNIPPET, "the page verdict's support carries no quote")
+    chunk = _known_part(sources, verdict_support.quote_chunk_id or verdict_support.chunk_id, sf.SNIPPET)
+    fv = sf.source_snippet(verdict_support, sources)
+    return QuoteValue(RowValue(sf.SNIPPET, fv.value, fv.basis),
+                      ((fv.support, prov.quote_record(sf.SNIPPET, verdict_support.supporting_text, chunk)),))
+
+
+# ---------------------------------------------------------------------------
 # The assembler
 # ---------------------------------------------------------------------------
 
@@ -320,8 +527,9 @@ class AssembledRows:
     """What :func:`assemble` built for one coded page, and what it refused (item -> reason).
 
     ``source`` holds the page-level source-row values (the same on every source
-    row of the page); ``activities`` the activity-row values per T-022 activity
-    id. ``refused`` names every row item not produced: the standing refusals
+    row of the page) and ``source_codes`` their codes; ``activities`` the
+    activity-row values per T-022 activity id and ``activity_codes`` theirs.
+    ``refused`` names every row item not produced: the standing refusals
     (:data:`REFUSED_SOURCE_ITEMS`, :data:`REFUSED_ACTIVITY_ITEMS`) and any
     producer that refused on this page's data.
     """
@@ -329,6 +537,8 @@ class AssembledRows:
     source: dict[str, RowValue] = field(default_factory=dict)
     activities: dict[str, dict[str, RowValue]] = field(default_factory=dict)
     refused: dict[str, str] = field(default_factory=dict)
+    source_codes: list[Code] = field(default_factory=list)
+    activity_codes: dict[str, list[Code]] = field(default_factory=dict)
 
 
 def _try(rows: AssembledRows, out: dict[str, RowValue], item: str, make: Callable[[], RowValue]) -> None:
@@ -338,9 +548,22 @@ def _try(rows: AssembledRows, out: dict[str, RowValue], item: str, make: Callabl
         rows.refused[item] = str(exc)
 
 
+def _try_quote(rows: AssembledRows, out: dict[str, RowValue], codes: list[Code], item: str,
+               make: Callable[[], QuoteValue]) -> None:
+    try:
+        qv = make()
+    except _REFUSALS as exc:
+        rows.refused[item] = str(exc)
+        return
+    out[item] = qv.row
+    codes.extend(qv.codes)
+
+
 def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, Any],
                        activities: Mapping[str, Mapping[str, Any]], rows: AssembledRows, *,
-                       followed: bool | None = None) -> None:
+                       followed: bool | None = None, sources: sc.PageSources | None = None,
+                       verdict_support: sc.SupportResult | None = None,
+                       provenance: Provenance | None = None) -> None:
     """The page-level source-row values (see the module docstring) into ``rows.source``."""
     out = rows.source
     for item, attr in ((sf.URL, "url"), (sf.ACCESS_DATE, "access_date"), (sf.LANGUAGE, "language"),
@@ -364,17 +587,44 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
         _try(rows, out, item, lambda item=item: content_stated(item, verdict, acts))
     for item in SAFEGUARDS:
         _try(rows, out, item, lambda item=item: content_safeguard(item, acts))
+    _try_quote(rows, out, rows.source_codes, sf.SNIPPET,
+               lambda: snippet_value(verdict_support, _need(sources, sf.SNIPPET),
+                                     _need(provenance, sf.SNIPPET)))
 
 
-def activity_row_values(activities: Mapping[str, Mapping[str, Any]], rows: AssembledRows) -> None:
-    """The per-observation activity-row values (``unit_credit``) into ``rows.activities``."""
+def _need(value: Any, item: str) -> Any:
+    if value is None:
+        raise sf.MissingUpstreamError(MISSING_EXTRACTION, [item])
+    return value
+
+
+def activity_row_values(activities: Mapping[str, Mapping[str, Any]], rows: AssembledRows, *,
+                        extraction: Any = None, sources: sc.PageSources | None = None,
+                        provenance: Provenance | None = None) -> None:
+    """The per-observation activity-row values into ``rows.activities`` and their codes.
+
+    ``unit_credit``; the T-022 pass-1 fields (:func:`activity_quote_value`) from the
+    activity's span in ``extraction`` (the page's pass-1 request); the reported
+    lists when gated out (:func:`reported_value`).
+    """
+    spans = {s.activity_id: s for s in getattr(extraction, "activities", ())}
     for aid, values in activities.items():
         out = rows.activities.setdefault(aid, {})
+        codes = rows.activity_codes.setdefault(aid, [])
         _try(rows, out, "core.unit_credit", lambda values=values: unit_credit(values))
+        for item in pass1_activity_fields():
+            _try_quote(rows, out, codes, item, lambda item=item, aid=aid, values=values: activity_quote_value(
+                item, aid, _need(spans.get(aid), item), values, _need(sources, item), _need(provenance, item)))
+        for item in REPORTED_GATES:
+            _try_quote(rows, out, codes, item, lambda item=item, aid=aid, values=values: reported_value(
+                item, aid, values, _need(sources, item), _need(provenance, item)))
 
 
 def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
-             activities: Mapping[str, Mapping[str, Any]], *, followed: bool | None = None) -> AssembledRows:
+             activities: Mapping[str, Mapping[str, Any]], *, followed: bool | None = None,
+             extraction: Any = None, sources: sc.PageSources | None = None,
+             verdict_support: sc.SupportResult | None = None,
+             provenance: Provenance | None = None) -> AssembledRows:
     """Build every producible row value of one coded page and name every refused item.
 
     ``page`` is the :class:`~g3o.classify.jev_page_code.PageInput`,
@@ -382,6 +632,12 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
     ``page_values`` the final page values and ``activities`` the final values of
     each coded activity (``{activity_id: values}``; empty on a page with no activity).
     ``followed`` is ``PageUpstream.followed`` (T-025; None: no follow provenance).
+    ``extraction`` is the page's T-022 pass-1 request
+    (:class:`~g3o.extract.parser_v27.Pass1Extraction`, from
+    ``PerPageProviders.page_extraction``), ``sources`` the coded page's parts,
+    ``verdict_support`` the T-024 support of the final verdict and ``provenance``
+    what the coder records carry (:meth:`Provenance.of`). Without them every
+    quote-step item is refused.
     """
     if page_fields is None:
         raise sf.MissingUpstreamError("perpage_inputs_v27.PageSourceFields (PageUpstream.page_fields)",
@@ -390,8 +646,9 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
     rows.refused.update(REFUSED_SOURCE_ITEMS)
     if activities:
         rows.refused.update(REFUSED_ACTIVITY_ITEMS)
-    page_source_values(page, page_fields, page_values, activities, rows, followed=followed)
-    activity_row_values(activities, rows)
+    page_source_values(page, page_fields, page_values, activities, rows, followed=followed, sources=sources,
+                       verdict_support=verdict_support, provenance=provenance)
+    activity_row_values(activities, rows, extraction=extraction, sources=sources, provenance=provenance)
     return rows
 
 

@@ -655,8 +655,12 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                  page_round: PageRoundResult, activity_input: ActivityPageInput | None,
                  activity_round: ActivityRoundResult | None, pairs: Sequence[PairResult],
                  pair_support: Sequence[SupportResult], page_config: PageCoderConfig,
-                 activity_config: ActivityCoderConfig, instrument: dict[str, Any]) -> PageProduct:
+                 activity_config: ActivityCoderConfig, instrument: dict[str, Any],
+                 extraction: Any = None) -> PageProduct:
     """Final per-page values and their support -> the Stage 6 per-page inputs of one coded page.
+
+    ``extraction`` is the page's T-022 pass-1 page request (``PerPageProviders.page_extraction``),
+    read by the T-015 source-row assembler when no row values are injected (PI ruling 35 a).
 
     Uncertainty flags (PI A6.1 a / A6.3 a): each node carries its own code's flags
     (:func:`g3o.validate.uncertainty_flags_v27.code_flags`); an observation row's
@@ -687,9 +691,15 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
     if up.page_fields is not None and all(v is None for v in (up.activity_values, up.source_values, up.codes)):
         # PI ruling 35 a: the T-015 assembler builds the rows after coding. A row is published whole or
         # not at all, so any item it cannot produce yet is a wiring gap that stops the stage (RC-D-033 C2 a).
+        verdict = page_round.final.items[jpc.VERDICT]
+        vsr = None if verdict.state != "combined" else next(
+            (s for s in page_round.support if s.item_id == jpc.VERDICT and s.activity_id is None
+             and s.part is None and s.chunk_id == verdict.part_id), None)
         rows = srow.assemble(page, up.page_fields, outcome_values(page_round.final.items),
                              {aid: outcome_values(f.outcomes) for aid, f in finals.items()},
-                             followed=up.followed)
+                             followed=up.followed, extraction=extraction, sources=sources, verdict_support=vsr,
+                             provenance=srow.Provenance.of(instrument, extraction,
+                                                           rule_coder_version=activity_config.coder_version))
         if rows.refused:
             raise MissingUpstreamError(f"{VALUES_PRODUCER} ({srow.ASSEMBLER})", sorted(rows.refused))
     for name, value, need in (("activity_values", up.activity_values, list(acts)),
@@ -985,6 +995,7 @@ class _PageState:
     activity_round: ActivityRoundResult | None = None
     pairs: tuple[PairResult, ...] = ()
     pair_support: tuple[SupportResult, ...] = ()
+    extraction: Any = None  # the page's T-022 pass-1 page request (PerPageProviders.page_extraction)
     failure: str | None = None
     holds: list[dict[str, Any]] = field(default_factory=list)
 
@@ -1016,6 +1027,8 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
         return
     inp = providers.activity_input(page, st.page_round)
     st.activity_input = inp
+    page_extraction = getattr(providers, "page_extraction", None)  # absent on test fakes: None (refused)
+    st.extraction = None if page_extraction is None else page_extraction(page.page_id)
     if inp is None:
         return
     act_ckpt = Checkpoint(pdir / "activity.json", "activity")
@@ -1177,7 +1190,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                     page_order=order, first_source=next_source, page_round=st.page_round,
                     activity_input=st.activity_input, activity_round=st.activity_round, pairs=st.pairs,
                     pair_support=st.pair_support, page_config=page_config, activity_config=activity_config,
-                    instrument=instrument))
+                    instrument=instrument, extraction=st.extraction))
             except UncarriedCombinedValue as exc:  # Y3 b: refused as a per-institution hold
                 uncarried = exc
                 break
