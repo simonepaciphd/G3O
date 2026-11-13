@@ -570,6 +570,20 @@ class RequestJournal:
             return answer
         return wrapped
 
+    def extractor_usages(self) -> list[dict[str, Any] | None]:
+        """Each journaled extractor response's own ``usage`` (``None`` where it has none), for the
+        calls ``usage()["extractor_calls"]`` counts: successful, failed and rejected results.
+        Priced per request by :func:`g3o.common.cost_monitor.price_extractor_requests` (ruling 58 a).
+        """
+        out: list[dict[str, Any] | None] = []
+        for (kind, _, _), response in self._recorded.items():
+            if kind == "extract":
+                out.append(response.get("usage"))
+        for entry in self._accounting:
+            if entry["kind"] in ("extract_failed", EXTRACT_REJECTED):
+                out.append(entry["response"].get("usage"))
+        return out
+
     def usage(self) -> dict[str, int]:
         """Totals of every journaled call (this and earlier, interrupted runs).
 

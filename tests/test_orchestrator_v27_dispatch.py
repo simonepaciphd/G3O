@@ -875,26 +875,34 @@ def test_v27_unpriced_preflight_preview_is_labelled(tmp_path):
     assert "ruling 1 a" in preview["note"]
 
 
-def test_v27_cost_block_prices_finished_stages_and_reads_an_interrupted_one_from_its_journal(tmp_path):
-    """RC-D-021 cost_monitor hunks: a finished stage is priced from its returned usage; a stage that
-    stopped (no usage returned) from its journals on disk, marked interrupted; outside total_usd."""
+def test_v27_cost_block_prices_each_stage_from_its_journals_and_marks_an_interrupted_one(tmp_path):
+    """RC-D-021 cost_monitor hunks with rulings 57 a / 58 a: each stage is priced from its journals on
+    disk (the extractor per request from the journaled responses' own usage); a stage that returned no
+    usage (it stopped) is marked interrupted; outside total_usd."""
     from g3o.common.jev_client import JevResult
     from g3o.common.paths import institution_dir as inst_dir
+    from g3o.extract.anthropic_client import ExtractorJob, ExtractorResult
+    from g3o.run.presweep import stage_perpage_v27 as spv
     from g3o.run.presweep import stage_validate_v27 as svv
 
     run_dir = tmp_path / "run"
-    path = inst_dir(run_dir, "INST-0000001") / svv.WORK_DIR / svv.JOURNAL
-    journal = svv.RequestJournal(path, {"s": 1}, retry_incomplete=True)
     answer = JevResult(answers={}, response_model="jev-1.13.0", request_id="req-1",
                        input_tokens=1_000_000, output_tokens=7)
-    journal.ask(lambda state, questions: answer)({"x": 1}, {})
-    finished = {"n_institutions": 1, "jev_responses": 1, "input_tokens": 2_000_000, "output_tokens": 0}
-    summary = {orch.V27_USAGE_KEY: {orch.V27_PERPAGE_SPAN: finished}}
-    block = orch._v27_cost_block(run_dir, summary, "jev-1.13.0")
-    assert block[orch.V27_PERPAGE_SPAN]["source"] == "stage_metrics"
-    assert block[orch.V27_PERPAGE_SPAN]["priced"] is True
-    s6 = block[orch.V27_STAGE6_SPAN]
-    assert s6["source"] == "journals_on_disk" and s6["interrupted"] is True
-    assert s6["usage"]["input_tokens"] == 1_000_000 and s6["parts"]["jev"]["calls"] == 1
-    assert s6["total_usd"] == pytest.approx(1_000_000 / 1e6 * 0.042)
-    assert orch._v27_cost_block(tmp_path / "empty", {}, "jev-1.13.0") == {}  # nothing journaled
+    s6 = svv.RequestJournal(inst_dir(run_dir, "INST-0000001") / svv.WORK_DIR / svv.JOURNAL, {"s": 1},
+                            retry_incomplete=True)
+    s6.ask(lambda state, questions: answer)({"x": 1}, {})
+    pp = svv.RequestJournal(inst_dir(run_dir, "INST-0000001") / spv.WORK_DIR / spv.JOURNAL, {"s": 1})
+    usage = {"input_tokens": 1_000, "output_tokens": 200, "cache_read_input_tokens": 0,
+             "cache_creation_input_tokens": 0}
+    wrap, _ = pp.seams({"extractor_model": "claude-haiku-5-5"})
+    wrap(lambda job: ExtractorResult("cid-1", True, "{}", None, usage=usage))(ExtractorJob("cid-1", {"p": 1}, {}))
+    summary = {orch.V27_USAGE_KEY: {orch.V27_PERPAGE_SPAN: {"n_institutions": 1}}}  # Stage 6 stopped
+    block = orch._v27_cost_block(run_dir, summary, "jev-1.13.0", "claude-haiku-5-5")
+    per = block[orch.V27_PERPAGE_SPAN]
+    assert per["source"] == "journals_on_disk" and per["interrupted"] is False and per["priced"] is True
+    assert per["parts"]["extractor"]["usd"] == pytest.approx((1_000 * 0.05 + 200 * 0.25) / 1e6)
+    stage6 = block[orch.V27_STAGE6_SPAN]
+    assert stage6["interrupted"] is True and stage6["usage"]["input_tokens"] == 1_000_000
+    assert stage6["parts"]["jev"]["calls"] == 1
+    assert stage6["total_usd"] == pytest.approx(1_000_000 / 1e6 * 0.042)
+    assert orch._v27_cost_block(tmp_path / "empty", {}, "jev-1.13.0", "claude-haiku-5-5") == {}

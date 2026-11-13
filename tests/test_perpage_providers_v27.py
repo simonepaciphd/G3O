@@ -1362,3 +1362,31 @@ def test_unapproved_p2c_question_is_refused_before_any_extractor_call(tmp_path, 
     with pytest.raises(ValueError, match="PI-approved"):
         _providers(run_dir, bound, instrument, extract, FakeEntail())
     assert not extract.jobs
+
+
+def test_p2c_question_is_checked_again_before_each_pass2_job(tmp_path, monkeypatch):
+    """RC-D-021 P-2c a: wording changed after binding is refused at the pass-2 job, with no pass-2
+    extractor call made."""
+    from g3o.codebook.loader import load_codebook
+    from g3o.extract import pass2_support
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    calls = []
+    real = ppv._Adapter.activity_support
+
+    def spy(self, inp, result, records):
+        calls.append((inp, result, tuple(records)))
+        return real(self, inp, result, records)
+    monkeypatch.setattr(ppv._Adapter, "activity_support", spy)
+    _run(run_dir, bound, instrument, insts, _providers(run_dir, bound, instrument, FakeExtractor(world),
+                                                         FakeEntail()), FakeJev(ANSWERS, RELATIONS))
+    monkeypatch.setattr(ppv._Adapter, "activity_support", real)  # not undo(): keeps the layout fixture
+    inp, result, records = calls[0]  # a page's first activity call: the page's pass-2 request
+    extract = FakeExtractor(world)
+    providers = _providers(run_dir, bound, instrument, extract, FakeEntail())  # bound with the approved text
+    altered = pass2_support.rules_from_codebook(
+        load_codebook(), {"core.activity_segment": "How does this activity relate to the linked activity?"})
+    monkeypatch.setattr(pass2_support, "default_rules", lambda: altered)
+    with pytest.raises(ValueError, match="PI-approved"):
+        providers.activity_support(inp, result, records)
+    assert not [j for j in extract.jobs if j.metadata["stage"] == PASS2]
