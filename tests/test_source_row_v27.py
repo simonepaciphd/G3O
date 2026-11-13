@@ -608,3 +608,15 @@ def test_residual_source_type_refused_before_any_call_71b():
     rows = _typed(_page(), FIELDS_P1, ELSEWHERE)  # the assembler is handed no jev call at all
     assert rows.refused[sf.SOURCE_TYPE].endswith(f"{srow.RESIDUAL_REFUSAL}: {sf.SOURCE_TYPE}")
     assert sf.SOURCE_TYPE in srow.CONDITIONAL_ITEMS and sf.SOURCE_TYPE not in srow.unproduced_items()
+
+
+def test_gated_out_contracting_party_still_counts_for_content_vendor_74a():
+    """PI ruling 74 a: ruling 65 a read literally; the extracted value counts even when the item is gated out."""
+    span = _span(("core.contracting_party", "Contoso Ltd", "with Contoso Ltd"))
+    acts = {"p1#a001": _activity(**{"core.activity_type": "policy_guidance",  # contracting_party: not_asked cell
+                                    "core.outcome_kind": "none_reported", "core.incident_kind": "none_reported"})}
+    rows = srow.assemble(_page(), FIELDS_P1, GENAI, acts, followed=False, extraction=_Extraction(span),
+                         sources=SOURCES, verdict_support=_verdict("The council runs Copilot Chat"), provenance=PROV)
+    assert rows.activities["p1#a001"]["core.contracting_party"].value == "not_asked"
+    assert rows.source["core.content_vendor"].value == "yes"
+    assert "65 a" in rows.source["core.content_vendor"].basis

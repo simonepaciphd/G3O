@@ -371,7 +371,8 @@ def content_extracted(item: str, verdict: Any, activities: Sequence[str], spans:
 
     ``no`` off GenAI-bearing pages and on a page with no activity; ``yes`` when
     any activity's T-022 span has an extracted value in a matching field (any
-    extracted value counts, PI ruling 65 a). ``content_vendor`` with no extracted
+    extracted value counts, PI ruling 65 a, even when the activity-row item is
+    gated out to ``not_asked``: PI ruling 74 a). ``content_vendor`` with no extracted
     contracting party still reads the developer, which has no producer (PI A8.1 a
     needs codebook r16): refused. ``content_tool_or_model`` with none: ``no``.
     """
