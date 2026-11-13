@@ -63,7 +63,9 @@ Produced here (source row, page-level, the same on every source row of a page):
 - ``source_snippet`` (X25): the final page verdict's supporting quote
   (:func:`g3o.common.source_fields.source_snippet`, R-042), with a quote-step
   coder record carrying the page's T-022 pass-1 request provenance. A verdict
-  support with no quote is refused (no signed rule).
+  support with no quote (including a verdict set by rule, e.g. an unreadable
+  page) gives ``not_asked``, set by rule :data:`NO_VERDICT_QUOTE_RULE` (PI
+  ruling 72 a).
 
 - ``source_publication_date`` (X26): the A1 metadata/URL date with
   ``set_by_rule`` support naming ``deterministic_date:<A1.1 a tag>`` or
@@ -238,7 +240,6 @@ CONDITIONAL_ITEMS: Mapping[str, str] = {
                   "official-site step)"),
     sf.SOURCE_TYPE: f"refused on a readable residual page (neither official nor archive): {RESIDUAL_REFUSAL}",
     sf.CREDIBILITY: "refused when source_type is refused and the publication date is not unknown/not_documented",
-    sf.SNIPPET: "refused when the page verdict's support carries no quote (no signed rule for that case)",
     "core.content_vendor": ("refused on a GenAI-bearing page whose activities state no contracting party: it then "
                             "reads developer (PI A8.1 a needs codebook r16)"),
     **{item: (f"refused when {gate} opens the gate (no extractor produces the list: pass 'none', not a "
@@ -559,18 +560,28 @@ def reported_value(item: str, activity_id: str, activity_values: Mapping[str, An
                                 f"{gate.get('as_ruled')!r} disagree")
 
 
+#: PI ruling 72 a (2026-11-13): the rule that sets ``source_snippet`` to ``not_asked`` when the page verdict's
+#: support carries no quote.
+NO_VERDICT_QUOTE_RULE = "no_verdict_quote"
+
+
 def snippet_value(verdict_support: sc.SupportResult | None, sources: sc.PageSources,
                   prov: Provenance) -> QuoteValue:
     """X25: the page verdict's supporting quote (:func:`g3o.common.source_fields.source_snippet`).
 
     The quote was copied by the page's T-022 pass-1 request, whose provenance the
-    record carries. A verdict support with no quote is refused: no signed rule
-    says what that page's snippet is.
+    record carries. A verdict support with no quote (a rule-set verdict's support
+    included): ``not_asked``, ``set_by_rule`` support naming
+    :data:`NO_VERDICT_QUOTE_RULE` and a mechanical record (PI ruling 72 a).
     """
     if verdict_support is None:
         raise sf.MissingUpstreamError("T-024 support of the final page verdict at its deciding part", [sf.SNIPPET])
+    if verdict_support.item_id != sc.PAGE_VERDICT:
+        raise ValueError("source_snippet needs the page verdict's support record")
     if verdict_support.supporting_text is None:
-        raise sf.UnruledError(sf.SNIPPET, "the page verdict's support carries no quote")
+        value = "not_asked"
+        return QuoteValue(RowValue(sf.SNIPPET, value, f"PI ruling 72 a: {NO_VERDICT_QUOTE_RULE}"),
+                          (rule_code(sf.SNIPPET, value, NO_VERDICT_QUOTE_RULE, None, sources, prov),))
     chunk = _known_part(sources, verdict_support.quote_chunk_id or verdict_support.chunk_id, sf.SNIPPET)
     fv = sf.source_snippet(verdict_support, sources)
     return QuoteValue(RowValue(sf.SNIPPET, fv.value, fv.basis),

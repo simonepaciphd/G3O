@@ -334,10 +334,25 @@ def test_snippet_is_the_verdict_quote_with_pass1_provenance():
     (sr, rec), = qv.codes
     assert qv.row.value == quote and sr.item_id == sf.SNIPPET and sr.support_status == "supported"
     assert (rec.coder_type, rec.chosen_value, rec.request_id) == ("quote_step", quote, "req-1")
-    with pytest.raises(sf.UnruledError):  # a verdict support with no quote: no signed rule
-        srow.snippet_value(_verdict(None), SOURCES, PROV)
     with pytest.raises(sf.MissingUpstreamError):
         srow.snippet_value(None, SOURCES, PROV)
+
+
+def test_snippet_without_verdict_quote_is_not_asked_by_rule_72a():
+    """PI ruling 72 a: no quote on the verdict's support -> not_asked, set by a named rule."""
+    ruled = sc.check_code(sc.CodeEvidence("core.page_verdict", "not_assessable", None,
+                                          rule_name="readability_failure:low_letter_share"), SOURCES)
+    for support in (_verdict(None), ruled):  # a classifier verdict with no quote; a rule-set verdict
+        qv = srow.snippet_value(support, SOURCES, PROV)
+        (sr, rec), = qv.codes
+        assert qv.row.value == "not_asked" and sr.item_id == sf.SNIPPET
+        assert sr.support_status == "set_by_rule"
+        assert sr.support_rule_name == rec.rule_reference == srow.NO_VERDICT_QUOTE_RULE == "no_verdict_quote"
+        assert (rec.coder_type, rec.answer_type, rec.chosen_value) == ("mechanical", "rule", "not_asked")
+    assert sf.SNIPPET not in srow.CONDITIONAL_ITEMS
+    with pytest.raises(ValueError, match="page verdict"):
+        srow.snippet_value(sc.check_code(sc.CodeEvidence("core.tool_name", "x", None, rule_name="r"), SOURCES),
+                           SOURCES, PROV)
 
 
 def test_quote_record_needs_actual_response_metadata():

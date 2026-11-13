@@ -703,9 +703,12 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         # PI ruling 35 a: the T-015 assembler builds the rows after coding. A row is published whole or
         # not at all, so any item it cannot produce yet is a wiring gap that stops the stage (RC-D-033 C2 a).
         verdict = page_round.final.items[jpc.VERDICT]
-        vsr = None if verdict.state != "combined" else next(
-            (s for s in page_round.support if s.item_id == jpc.VERDICT and s.activity_id is None
-             and s.part is None and s.chunk_id == verdict.part_id), None)
+        if verdict.state == "combined":
+            vsr = next((s for s in page_round.support if s.item_id == jpc.VERDICT and s.activity_id is None
+                        and s.part is None and s.chunk_id == verdict.part_id), None)
+        else:  # a rule-set verdict (e.g. R-015): its set_by_rule support carries no quote (PI ruling 72 a)
+            vsr = next((_rule_support(r, None, sources) for r in result.records
+                        if r.item_id == jpc.VERDICT and r.coder_type != "classifier"), None)
         rows = srow.assemble(page, up.page_fields, outcome_values(page_round.final.items),
                              {aid: outcome_values(f.outcomes) for aid, f in finals.items()},
                              followed=up.followed, hop=up.hop, extraction=extraction, sources=sources,
