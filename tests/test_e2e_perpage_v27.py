@@ -32,11 +32,12 @@ from g3o.common.jev_client import JevAccountError, JevAnswer, JevResult
 from g3o.common.jev_record import CoderRecord
 from g3o.common.page_chunks import Chunk
 from g3o.common.paths import institution_dir
-from g3o.common.run_state import is_done
+from g3o.common.run_state import done_path, is_done
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import CodeEvidence, Entailment, PageSources, check_code
 from g3o.extract.parser_v27 import ActivitySpan, FieldValue
 from g3o.persist.writer import write_run_csvs
+from g3o.report.outcomes import compute_institution_report
 from g3o.run.presweep import stage_page_code
 from g3o.run.presweep import stage_perpage_v27 as pp
 from g3o.run.presweep import stage_validate_v27 as rt
@@ -720,6 +721,26 @@ def test_released_institution_is_not_concluded_on_stale_markers_after_a_resume_s
                               test_only_unbound_quote_fn=True)
     assert not is_done(run_dir, rt.DONE_MARKER)
     assert not (institution_dir(run_dir, "INST-0000002") / "6_validate.json").exists()
+
+    # The run report on this folder: B is not concluded. The pages reach this e2e in memory,
+    # so the run-level inputs the report reads (manifest, B's kept URL and scraped page, the
+    # upstream stages' markers) are declared here.
+    write_manifest(run_dir, {"run_id": RUN_ID, "institutions": ["INST-0000002"],
+                             "config": {"stop_after": "validate", "pipeline_version": "v2.7"},
+                             "storage_contract": {"codebook_release": "2.7"}})
+    b_dir = institution_dir(run_dir, "INST-0000002")
+    (b_dir / "3_triage.json").write_text(json.dumps({"decisions": [{"decision": "keep", "url": "u"}]}),
+                                         encoding="utf-8")
+    (b_dir / "scrape").mkdir(parents=True, exist_ok=True)
+    (b_dir / "scrape" / "page.json").write_text(json.dumps({"url": "u"}), encoding="utf-8")
+    for stage in ("classify_triage", "scrape"):
+        done_path(run_dir, stage).parent.mkdir(parents=True, exist_ok=True)
+        done_path(run_dir, stage).write_text(json.dumps({"stage": stage, "no_batch": True}), encoding="utf-8")
+    (rec,) = compute_institution_report(run_dir)
+    assert rec["institution_id"] == "INST-0000002"
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    stage = pp.DONE_MARKER if stop_in == "perpage" else rt.DONE_MARKER
+    assert f"run aborted before stage {stage!r} completed" in rec["reason"]
 
 
 # ---------------------------------------------------------------------------
