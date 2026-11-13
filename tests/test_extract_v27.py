@@ -35,6 +35,7 @@ from g3o.extract.request_v27 import (
     build_user_message,
     default_rules,
     output_schema,
+    quote_tasks_only,
     select_requests,
 )
 
@@ -241,6 +242,38 @@ def test_date_task_only_without_metadata_date_and_only_on_requested_pages():
     assert select_requests(make_page(codes=codes)).date_task
     assert not select_requests(make_page(codes=codes, has_date=True)).date_task
     assert not select_requests(make_page(verdict="no_genai")).date_task
+
+
+def test_quote_tasks_only_drops_link_span_and_date_tasks():
+    """C1 a (PI 2026-11-11): an extra-round plan keeps only the quote tasks; the prompt and schema
+    are those of every pass-1 request, and the first-round plan is unchanged."""
+    links = ({"url": "https://example.gov/more", "anchor_text": "More", "context": "Read more"},)
+    page = make_page(page_complete="yes", links=links, codes=[
+        PageCode("core.source_type", "P1#p001", "vendor"), PageCode("core.bogus", "P1#p001", "x")])
+    plan = select_requests(page)
+    assert plan.link_task and plan.activity_task and plan.date_task and plan.skipped_codes
+    extra = quote_tasks_only(plan)
+    assert extra.quote_tasks == plan.quote_tasks and extra.skipped_codes == plan.skipped_codes
+    assert (extra.links, extra.link_task, extra.activity_fields, extra.activity_task, extra.date_task,
+            extra.link_status) == ((), False, (), False, False, None)
+    tasks = json.loads(build_user_message(page, extra).split("\nTASKS:\n", 1)[1])
+    assert tasks == {"quote_tasks": [{"task_id": "q001", "part_id": "P1#p001",
+                                      "question": default_rules().questions["core.source_type"],
+                                      "answer": "vendor", "chrome_allowed": False}],
+                     "link_task": False, "activity_task": None, "date_task": False}
+    assert "STORED LINKS:" not in build_user_message(page, extra)
+    a, b = build_job(page, plan, system="s"), build_job(page, extra, system="s")
+    assert a.params["system"] == b.params["system"]
+    assert a.params["output_config"] == b.params["output_config"]  # same output schema
+    # an R-003 page whose new codes need no quote: no request (it used to ask spans again)
+    assert not quote_tasks_only(select_requests(make_page(
+        codes=[PageCode("core.source_type", "P1#p001", "not_documented")]))).needs_request
+    # a quote-only answer is parsed with no rejection
+    ext = parse_pass1_result(ok(empty_answer(quotes=[{"task_id": "q001", "part_id": "P1#p001",
+                                                       "quote": "The council launched the CivicBot chatbot"}])),
+                             page, extra)
+    assert [q.status for q in ext.quotes] == ["quoted"] and not ext.rejected
+    assert ext.links == () and ext.activities == () and ext.publication_date is None
 
 
 def test_unknown_item_or_value_is_skipped_and_recorded():

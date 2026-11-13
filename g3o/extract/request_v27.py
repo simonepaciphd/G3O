@@ -42,7 +42,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -329,6 +329,20 @@ def select_requests(page: Pass1Page, rules: Pass1Rules | None = None) -> Request
     return plan
 
 
+def quote_tasks_only(plan: RequestPlan) -> RequestPlan:
+    """The plan's quote tasks alone: no link, activity or date task (C1 a, PI 2026-11-11).
+
+    For an RC-D-024 extra round, which asks support only for the newly eligible
+    codes. The page's links, spans and date come from its first-round request,
+    which is already stored, so asking them again would only cost extractor
+    tokens. The system prompt and output schema are unchanged: the prompt
+    already says to do only the listed tasks and leave the other output lists
+    empty. Skipped codes are kept. A plan with no quote task needs no request.
+    """
+    return replace(plan, links=(), link_task=False, activity_fields=(), activity_task=False,
+                   date_task=False, link_status=None)
+
+
 # ---------------------------------------------------------------------------
 # Prompt and request assembly
 # ---------------------------------------------------------------------------
@@ -499,6 +513,7 @@ __all__ = [
     "build_user_message",
     "default_rules",
     "output_schema",
+    "quote_tasks_only",
     "rules_from_codebook",
     "select_requests",
 ]
