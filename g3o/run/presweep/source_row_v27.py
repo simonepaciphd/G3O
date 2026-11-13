@@ -49,6 +49,11 @@ Produced here (source row, page-level, the same on every source row of a page):
   ``governed_population``; status or date: ``adoption_stage`` or a year
   field), otherwise ``no``. "Stated" is read as: ``yes`` for a yes/no item,
   any value other than a signed missing token for the others.
+- ``content_tool_or_model``, ``content_vendor``: the same GenAI gate; ``yes``
+  when any activity's T-022 span has an extracted ``tool_name`` /
+  ``model_name`` (resp. ``contracting_party``), any extracted value counting (PI
+  ruling 65 a); otherwise ``no``, except that ``content_vendor`` then reads the
+  developer (no producer, PI A8.1 a needs codebook r16) and is refused.
 - ``content_human_oversight``, ``content_risk_assessment``,
   ``content_user_notification`` (``rules/2`` of each): ``yes`` if any activity
   on the page is ``yes`` on ``has_human_oversight`` / ``has_risk_assessment``
@@ -129,6 +134,12 @@ SAFEGUARDS: Mapping[str, str] = {
     "core.content_risk_assessment": "core.has_risk_assessment",
     "core.content_user_notification": "core.has_transparency_notice",
 }
+#: content_* items derived from extracted activity fields (rules/0; PI ruling 65 a: any extracted value
+#: counts as stated, whatever its T-024 check).
+EXTRACTED_FIELDS: Mapping[str, tuple[str, ...]] = {
+    "core.content_tool_or_model": ("core.tool_name", "core.model_name"),
+    "core.content_vendor": ("core.contracting_party",),
+}
 CONTACT_PARTS = ("core.content_contact_named", "core.content_contact_details")
 RELATIONSHIP = "core.observed_actor_relationship"
 RELATIONSHIP_PART = "relationship"
@@ -153,10 +164,6 @@ REFUSED_SOURCE_ITEMS: Mapping[str, str] = {
     sf.CREDIBILITY: "reads source_type and source_publication_date (both refused)",
     sf.CONFIDENCE: ("reads source_credibility (refused) and the claim's support records "
                     "(items/core.confidence/rules/1; association is T-026's, RC-D-025 P12)"),
-    "core.content_tool_or_model": ("reads tool_name / model_name (activity quote-step values, refused); whether "
-                                   "an extracted name that fails R-042 counts as 'stated' is not ruled"),
-    "core.content_vendor": ("reads developer (PI A8.1 a needs codebook r16) and contracting_party (activity "
-                            "quote-step value, refused)"),
 }
 
 #: Activity-row items refused here, with the reason.
@@ -190,7 +197,7 @@ def activity_row_items() -> frozenset[str]:
 PRODUCED_SOURCE_ITEMS = (
     sf.URL, sf.ACCESS_DATE, sf.LANGUAGE, sf.SYNDICATION, sf.TITLE, sf.REVIEW_STATE, sf.DISCOVERY,
     sf.TEXT_SOURCE, sc.CONTACT_ITEM, sc.CONTACT_EMAILS_ITEM, *STATED_FIELDS, *SAFEGUARDS, sf.SNIPPET,
-    sf.DATE, sf.UPPER_BOUND,
+    sf.DATE, sf.UPPER_BOUND, *EXTRACTED_FIELDS,
 )
 
 
@@ -204,6 +211,8 @@ PRODUCED_ACTIVITY_ITEMS = ("core.unit_credit", *pass1_activity_fields(), *REPORT
 #: Items produced on some pages and refused on others, with when they refuse.
 CONDITIONAL_ITEMS: Mapping[str, str] = {
     sf.SNIPPET: "refused when the page verdict's support carries no quote (no signed rule for that case)",
+    "core.content_vendor": ("refused on a GenAI-bearing page whose activities state no contracting party: it then "
+                            "reads developer (PI A8.1 a needs codebook r16)"),
     **{item: (f"refused when {gate} opens the gate (no extractor produces the list: pass 'none', not a "
               f"T-022 pass-1 field), and when {gate} is a value other than {NONE_REPORTED!r} or the gate "
               "values (the signed gate values and its 'as ruled: not none_reported' note disagree)")
@@ -316,6 +325,31 @@ def content_stated(item: str, verdict: Any, activities: Sequence[Mapping[str, An
     if hits:
         return _row(item, YES, f"items/core.content_contact/rules/0: stated in {hits}")
     return _row(item, NO, "items/core.content_contact/rules/0: no activity states a matching field")
+
+
+def content_extracted(item: str, verdict: Any, activities: Sequence[str], spans: Mapping[str, Any]) -> RowValue:
+    """``content_tool_or_model`` / ``content_vendor`` (rules/0, PI ruling 65 a).
+
+    ``no`` off GenAI-bearing pages and on a page with no activity; ``yes`` when
+    any activity's T-022 span has an extracted value in a matching field (any
+    extracted value counts, PI ruling 65 a). ``content_vendor`` with no extracted
+    contracting party still reads the developer, which has no producer (PI A8.1 a
+    needs codebook r16): refused. ``content_tool_or_model`` with none: ``no``.
+    """
+    if verdict not in genai_verdicts():
+        return _row(item, NO, f"items/core.content_contact/rules/0: page verdict {verdict!r} is not GenAI-bearing")
+    if not activities:
+        return _row(item, NO, "items/core.content_contact/rules/0: no activity on the page")
+    fields = EXTRACTED_FIELDS[item]
+    missing = [aid for aid in activities if aid not in spans]
+    if missing:
+        raise sf.MissingUpstreamError(MISSING_EXTRACTION, [item])
+    hits = sorted({f.item_id for aid in activities for f in spans[aid].fields if f.item_id in fields})
+    if hits:
+        return _row(item, YES, f"items/core.content_contact/rules/0, PI ruling 65 a: extracted {hits}")
+    if item == "core.content_vendor":
+        raise sf.MissingUpstreamError("core.developer (PI A8.1 a needs codebook r16)", [item])
+    return _row(item, NO, "items/core.content_contact/rules/0: no activity has an extracted tool or model name")
 
 
 def content_safeguard(item: str, activities: Sequence[Mapping[str, Any]]) -> RowValue:
@@ -647,6 +681,9 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
         _try(rows, out, item, lambda item=item: content_stated(item, verdict, acts))
     for item in SAFEGUARDS:
         _try(rows, out, item, lambda item=item: content_safeguard(item, acts))
+    spans = {s.activity_id: s for s in getattr(extraction, "activities", ())}
+    for item in EXTRACTED_FIELDS:
+        _try(rows, out, item, lambda item=item: content_extracted(item, verdict, list(activities), spans))
     _try_quote(rows, out, rows.source_codes, sf.SNIPPET,
                lambda: snippet_value(verdict_support, _need(sources, sf.SNIPPET),
                                      _need(provenance, sf.SNIPPET)))

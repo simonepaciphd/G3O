@@ -92,7 +92,8 @@ def test_page_level_values_from_page_fields_and_page():
     # CX-53: main text, then chrome (header/footer), then the page's e-mail links.
     assert v[sc.CONTACT_EMAILS_ITEM] == ["ai@one.example.gov", "help@one.example.gov", "info@one.example.gov"]
     # Without the pass-1 request and its provenance every quote-step item is refused as well.
-    quote_items = {sf.SNIPPET, sf.DATE, sf.UPPER_BOUND, *srow.pass1_activity_fields(), *srow.REPORTED_GATES}
+    quote_items = {sf.SNIPPET, sf.DATE, sf.UPPER_BOUND, *srow.pass1_activity_fields(), *srow.REPORTED_GATES,
+                   *srow.EXTRACTED_FIELDS}
     assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | quote_items
     assert all(srow.MISSING_EXTRACTION in rows.refused[i] for i in quote_items - {sf.UPPER_BOUND})
     assert not set(rows.source) & set(rows.refused)
@@ -430,3 +431,25 @@ def test_quote_step_date_supported_failed_or_absent():
     assert sf.date_upper_bound(dv.field).value == "not_asked"
     with pytest.raises(sf.MissingUpstreamError, match="no request"):
         srow.publication_date_value(_page(), FIELDS_P1, None, sources, PROV)
+
+
+# ---------------------------------------------------------------------------
+# content_tool_or_model / content_vendor (PI ruling 65 a)
+# ---------------------------------------------------------------------------
+
+
+def test_content_extracted_items_65a():
+    named = _span(("core.tool_name", "Copilot Chat", "a quote that fails R-042 still counts"))
+    party = _span(("core.contracting_party", "Contoso Ltd", "with Contoso Ltd"))
+    bare = _span()
+    aid = "p1#a001"
+    assert srow.content_extracted("core.content_tool_or_model", "confirms_activity", [aid], {aid: named}).value         == "yes"
+    assert srow.content_extracted("core.content_tool_or_model", "confirms_activity", [aid], {aid: bare}).value         == "no"
+    assert srow.content_extracted("core.content_vendor", "confirms_activity", [aid], {aid: party}).value == "yes"
+    with pytest.raises(sf.MissingUpstreamError, match="r16"):  # no contracting party: reads the developer
+        srow.content_extracted("core.content_vendor", "confirms_activity", [aid], {aid: bare})
+    with pytest.raises(sf.MissingUpstreamError):  # an activity with no span in the page request
+        srow.content_extracted("core.content_tool_or_model", "confirms_activity", [aid], {})
+    for item in srow.EXTRACTED_FIELDS:
+        assert srow.content_extracted(item, "no_genai", [aid], {aid: named}).value == "no"
+        assert srow.content_extracted(item, "confirms_activity", [], {}).value == "no"
