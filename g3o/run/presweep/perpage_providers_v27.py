@@ -50,7 +50,10 @@ parser's :class:`~g3o.extract.parser_v27.ExtractContractError`) raises
 :class:`~g3o.run.presweep.stage_perpage_v27.ExtractorResponseFailed` (C3 a, QA4
 M3): the per-page stage holds that institution as pending and goes on. The
 journal keeps a failed result (``extract_failed``) and rejects an unparsable one
-(``extract_rejected``) for accounting only, so the next run asks it again. An
+(``extract_rejected``) for accounting only, so the next run asks it again, up to
+three rejections of one request (ruling 34 b / 41 a): after that the journal makes
+no call and raises :class:`~g3o.run.presweep.stage_validate_v27.ExtractRejectCapReached`
+(this adapter names the pass on it) until the PI releases the request. An
 exception raised by the injected call itself is not a response and still leaves
 the stage.
 
@@ -111,6 +114,7 @@ from g3o.run.presweep.stage_perpage_v27 import (
     ExtractorResponseFailed,
     PerPageProviders,
 )
+from g3o.run.presweep.stage_validate_v27 import ExtractRejectCapReached
 
 ExtractFn = Callable[[ExtractorJob], ExtractorResult]
 EntailFn = Callable[[str, str], Entailment]
@@ -168,7 +172,11 @@ class _Adapter:
     def _parsed(self, name: str, job: ExtractorJob, parse: Callable[[ExtractorResult], Any]) -> Any:
         """The parsed answer to ``job``; a failed or unparsable response raises
         :class:`ExtractorResponseFailed` (C3 a), never a bare parser error."""
-        result = self._call(job)
+        try:
+            result = self._call(job)
+        except ExtractRejectCapReached as exc:  # ruling 34 b / 41 a: name the pass in the hold
+            exc.pass_name = name
+            raise
         request = {"custom_id": job.custom_id, "params": job.params}
         if not result.success or not result.text:
             self._responses.pop(_job_key(job), None)

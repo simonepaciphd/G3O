@@ -53,6 +53,24 @@ Rules carried here, not decided here:
   final: a failed one is journaled ``extract_failed`` and an unparsable one is
   rejected in the journal (``extract_rejected``), both kept for accounting only,
   so the next run asks the request again.
+- **Rejection cap and PI release (ruling 34 b / 41 a).** The journal counts
+  ``extract_rejected`` entries (never ``extract_failed``) per exact request key
+  (the journal's SHA256 over setup, prompt and request), across every run and
+  resume in this run folder. When a rejection brings a key to
+  :data:`~g3o.run.presweep.stage_validate_v27.EXTRACT_REJECT_CAP` (3), the
+  institution is held with stage :data:`EXTRACT_REJECTED_CAP` (``held.json``
+  names page, pass, ``custom_id``, ``request_key`` and ``rejections``); on every
+  later run the journal refuses a live call for that key
+  (:class:`~g3o.run.presweep.stage_validate_v27.ExtractRejectCapReached`) and the
+  institution is held the same way, with no extractor call. Only the PI releases
+  it, with ``<inst>/pi_release.json`` in the institution folder (format:
+  :func:`read_pi_release`): before any call, a valid file is recorded as a
+  ``pi_released`` journal entry (journal lines are never rewritten or deleted),
+  after which the rejections recorded before it no longer count for the released
+  keys, and the file is moved to ``<inst>/archive/pi_release/<NNN>/`` so it is
+  never re-applied (a file with the same bytes as a recorded release is only
+  moved). A malformed release file is refused explicitly: the institution is held
+  (:data:`PI_RELEASE_MALFORMED`) and the file stays in place.
 - **Stale page state on a C4 hold (ruling 33 a).** A C4 a hold (a pass-1 activity
   with no ``activity_name``; :attr:`ExtractorResponseFailed.archive_page_state`)
   moves that page's saved state (``page.json``, ``activity.json``, ``pairs.json``
@@ -107,10 +125,12 @@ Rules carried here, not decided here:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
+from datetime import date as iso_date
 from pathlib import Path
 from typing import Any
 
@@ -166,7 +186,13 @@ from g3o.persist.stage6_adapters import (
     support_nodes,
 )
 from g3o.run.presweep import stage_activity_code, stage_page_code
-from g3o.run.presweep.stage_validate_v27 import ObservationInput, RequestJournal, Stage6Institution
+from g3o.run.presweep.stage_validate_v27 import (
+    EXTRACT_REJECT_CAP,
+    ExtractRejectCapReached,
+    ObservationInput,
+    RequestJournal,
+    Stage6Institution,
+)
 from g3o.validate import uncertainty_flags_v27 as uf
 from g3o.validate.consolidate_v27 import (
     MISSING,
@@ -221,6 +247,20 @@ PAGE_ARCHIVE_PENDING = "archive_pending.json"
 #: ruling 33 a with ruling 28 a: a page-state archive that a filesystem error left incomplete holds the
 #: institution (held.json lists what was moved, what was left and the error); the next run finishes it
 ARCHIVE_FAILED = "page_state_archive_failed"
+#: ruling 34 b / 41 a: an extractor request rejected EXTRACT_REJECT_CAP times is a permanent hold
+#: (held.json names the page, pass, custom_id, request key and rejection count); only a PI release
+#: (:data:`PI_RELEASE_FILE`) lets the stage call it again
+EXTRACT_REJECTED_CAP = "extract_rejected_cap"
+#: ruling 34 b / 41 a: the PI release file, in the institution folder (``<inst>/pi_release.json``)
+PI_RELEASE_FILE = "pi_release.json"
+#: consumed release files are moved (never deleted) to ``<inst>/archive/pi_release/<NNN>/pi_release.json``
+PI_RELEASE_ARCHIVE = "pi_release"
+#: a release file that cannot be read or does not follow the format holds the institution (never ignored)
+PI_RELEASE_MALFORMED = "pi_release_malformed"
+#: ruling 28 a: a consumed release whose move to archive failed after the write retries holds the
+#: institution; the release is already recorded in the journal, so the next run only finishes the move
+PI_RELEASE_ARCHIVE_FAILED = "pi_release_archive_failed"
+_PI_RELEASE_FIELDS = frozenset({"released_by", "date", "keys", "all", "note"})
 #: Errors that stop the whole stage; every other producer error holds its institution only.
 #: Both ``MissingUpstreamError`` classes subclass ``ValueError``; they are listed here so the
 #: per-institution ``ValueError`` handlers never swallow a wiring gap (RC-D-033 C2 a).
@@ -1036,6 +1076,8 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
         # a producer error for one page: this institution is held. First, any page-state archive the
         # last run's held.json names as failed (even before its marker was written) is finished.
         broken: dict[str, Any] | None = _finish_failed_archives(run_dir, states, held_path)
+        if broken is None:  # ruling 34 b / 41 a: a PI release is recorded before any extractor call
+            broken = _apply_pi_release(inst_dir, journal)
         to_code = states if broken is None else []
         try:
             coded = stage_page_code.run_page_code_stage(run_dir, [s.spec.page for s in to_code], ask_fn=ask,
@@ -1060,11 +1102,19 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                 except PageArchiveIncomplete as exc:  # finishing an earlier archive failed again
                     broken = _archive_hold(page.page_id, exc)
                     break
+                except ExtractRejectCapReached as exc:  # ruling 34 b / 41 a: no call was made
+                    broken = _cap_hold(page.page_id, exc.pass_name, exc.custom_id, exc.key, exc.rejections,
+                                       "no extractor call made")
+                    break
                 except ExtractorResponseFailed as exc:  # C3 a: this institution is held as pending
+                    broken = _response_hold(page.page_id, exc)
                     if exc.request is not None and hasattr(providers, "journal_prompt"):
                         # never replayed as final: the next run asks the request again
                         journal.reject_extract(exc.request, providers.journal_prompt, exc.detail)
-                    broken = _response_hold(page.page_id, exc)
+                        key = journal.extract_key(exc.request, providers.journal_prompt)
+                        if journal.rejections(key) >= EXTRACT_REJECT_CAP:  # ruling 34 b / 41 a
+                            broken = _cap_hold(page.page_id, exc.pass_name, broken["custom_id"], key,
+                                               journal.rejections(key), exc.detail)
                     if exc.archive_page_state:  # ruling 33 a: the next run codes the page again
                         try:
                             broken["archived"] = _archive_page_state(run_dir, page)
@@ -1166,6 +1216,107 @@ def _response_hold(page_id: str, exc: ExtractorResponseFailed) -> dict[str, Any]
     request = exc.request or {}
     return {"page_id": page_id, "stage": EXTRACT_RESPONSE_FAILED, "pass": exc.pass_name,
             "custom_id": request.get("custom_id"), "error": exc.detail}
+
+
+def _cap_hold(page_id: str, pass_name: str | None, custom_id: Any, key: str, rejections: int,
+              detail: str) -> dict[str, Any]:
+    """Ruling 34 b / 41 a: the permanent hold of a request rejected :data:`EXTRACT_REJECT_CAP` times."""
+    return {"page_id": page_id, "stage": EXTRACT_REJECTED_CAP, "pass": pass_name, "custom_id": custom_id,
+            "request_key": key, "rejections": rejections,
+            "error": f"extractor request rejected {rejections} times (cap {EXTRACT_REJECT_CAP}): permanent hold "
+                     f"until the PI releases it with {PI_RELEASE_FILE} in the institution folder ({detail})"}
+
+
+def _release_hold(stage: str, path: Path, detail: str) -> dict[str, Any]:
+    return {"page_id": PI_RELEASE_FILE, "stage": stage, "path": path.name, "error": detail}
+
+
+def read_pi_release(path: Path) -> dict[str, Any]:
+    """Parse and check a PI release file (ruling 34 b / 41 a); raise ``ValueError`` naming the defect.
+
+    Format (UTF-8 JSON object; no other fields)::
+
+        {"released_by": "<name>", "date": "YYYY-MM-DD",
+         "keys": ["<64-hex request key>", ...]}        # or "all": true instead of "keys"
+         (optional "note": "<text>")
+
+    Exactly one of ``keys`` (a non-empty list of journal request keys, as
+    ``held.json`` names them in ``request_key``) or ``all`` (``true``: every key)
+    must be given.
+    """
+    try:
+        doc = json.loads(path.read_bytes().decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"not UTF-8 JSON: {exc}") from None
+    if not isinstance(doc, dict):
+        raise ValueError("not a JSON object")
+    unknown = sorted(set(doc) - _PI_RELEASE_FIELDS)
+    if unknown:
+        raise ValueError(f"unknown field(s) {unknown}; allowed: {sorted(_PI_RELEASE_FIELDS)}")
+    by = doc.get("released_by")
+    if not isinstance(by, str) or not by.strip():
+        raise ValueError("released_by must be a non-empty string")
+    when = doc.get("date")
+    try:
+        if not isinstance(when, str):
+            raise TypeError
+        iso_date.fromisoformat(when)
+    except (TypeError, ValueError):
+        raise ValueError("date must be an ISO date string (YYYY-MM-DD)") from None
+    if "note" in doc and not isinstance(doc["note"], str):
+        raise ValueError("note must be a string")
+    has_keys, has_all = "keys" in doc, "all" in doc
+    if has_keys == has_all:
+        raise ValueError('give exactly one of "keys" (a list of request keys) or "all": true')
+    if has_all:
+        if doc["all"] is not True:
+            raise ValueError('"all" must be true')
+        keys = None
+    else:
+        keys = doc["keys"]
+        if (not isinstance(keys, list) or not keys
+                or not all(isinstance(k, str) and len(k) == 64 and all(c in "0123456789abcdef" for c in k)
+                           for k in keys)):
+            raise ValueError('"keys" must be a non-empty list of 64-character lowercase hex request keys')
+        keys = sorted(set(keys))
+    return {"keys": keys, "all": has_all, "released_by": by, "date": when}
+
+
+def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any] | None:
+    """Consume ``<inst>/pi_release.json`` if present (ruling 34 b / 41 a); a hold dict when it cannot be.
+
+    A valid file is recorded in the per-page journal (:meth:`RequestJournal.record_release`,
+    unless a release with the same bytes is already there) and then moved to
+    ``<inst>/archive/pi_release/<NNN>/pi_release.json`` (never deleted, so it is not
+    re-applied). A malformed file holds the institution (:data:`PI_RELEASE_MALFORMED`)
+    and stays in place; a move that fails after the write retries holds it
+    (:data:`PI_RELEASE_ARCHIVE_FAILED`, ruling 28 a) with the release already recorded.
+    """
+    path = inst_dir / PI_RELEASE_FILE
+    if not path.exists():
+        return None
+    try:
+        release = read_pi_release(path)
+        sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError as exc:
+        return _release_hold(PI_RELEASE_MALFORMED, path, f"unreadable: {type(exc).__name__}: {exc}")
+    except ValueError as exc:
+        return _release_hold(PI_RELEASE_MALFORMED, path, f"refused (ruling 34 b / 41 a release format): {exc}")
+    if not journal.release_applied(sha):
+        journal.record_release({**release, "file_sha256": sha})
+    root = inst_dir / PAGE_ARCHIVE_DIR / PI_RELEASE_ARCHIVE
+    try:
+        taken = {p.name for p in root.iterdir()} if root.is_dir() else set()
+        n = 1
+        while f"{n:03d}" in taken:
+            n += 1
+        dest = root / f"{n:03d}"
+        dest.mkdir(parents=True, exist_ok=True)
+        replace_with_retry(path, dest / PI_RELEASE_FILE)
+    except OSError as exc:
+        return _release_hold(PI_RELEASE_ARCHIVE_FAILED, path,
+                             f"release recorded, move to archive failed: {type(exc).__name__}: {exc}")
+    return None
 
 
 def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | ReviewedPage]) -> Stage6Institution:

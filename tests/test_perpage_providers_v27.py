@@ -967,3 +967,158 @@ def test_extra_round_pass1_request_asks_only_the_new_quote_tasks(tmp_path):
     # round with no code at all, which also makes no call.
     providers.page_support(page, result, [no_quote])
     assert len(extract.jobs) == 2
+
+
+# ---------------------------------------------------------------------------
+# Ruling 34 b / 41 a: 3-attempt cap on rejected extractor requests, PI release
+# ---------------------------------------------------------------------------
+
+
+def _release_path(run_dir, inst):
+    return institution_dir(run_dir, inst) / pp.PI_RELEASE_FILE
+
+
+def _write_release(run_dir, inst, doc):
+    _release_path(run_dir, inst).parent.mkdir(parents=True, exist_ok=True)
+    _release_path(run_dir, inst).write_text(doc if isinstance(doc, str) else json.dumps(doc), encoding="utf-8")
+
+
+def test_third_rejection_is_a_permanent_hold_until_the_pi_releases_it(tmp_path):
+    """Ruling 34 b / 41 a: attempts 1 and 2 are called and held as C3; the 3rd rejection holds with the
+    cap stage; the next run holds without calling the extractor for that request; a PI release file lets
+    the next run call it again with the count restarted, and the file is archived, never re-applied."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst = "INST-0000001"
+    one = [i for i in insts if i.institution_id == inst]
+
+    def run(extract):
+        return _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, extract, FakeEntail()),
+                    FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+
+    failed_params = None
+    for attempt in (1, 2, 3):
+        bad = BadResponse(world, PASS1, "p1", "not_json", times=99)
+        ready, metrics = run(bad)
+        job = _bad_job(bad, PASS1, "p1")  # called live every attempt
+        failed_params = failed_params or job.params
+        assert job.params == failed_params and not ready and metrics.held == [inst]
+        (hold,) = _held(run_dir, inst)["held"]
+        assert _kinds(run_dir, inst).count("extract_rejected") == attempt
+        if attempt < 3:
+            assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED
+    assert hold["stage"] == pp.EXTRACT_REJECTED_CAP and hold["rejections"] == 3 and hold["pass"] == "pass1"
+    assert hold["page_id"] == "p1" and hold["custom_id"] == job.custom_id
+    key = hold["request_key"]
+    assert len(key) == 64 and "ExtractContractError" in hold["error"]
+
+    # Resume (twice): held without calling the extractor for that request; the hold persists.
+    for _ in range(2):
+        extract = FakeExtractor(world)
+        ready, metrics = run(extract)
+        assert not ready and metrics.held == [inst]
+        assert not any(j.params == failed_params for j in extract.jobs)
+        (hold,) = _held(run_dir, inst)["held"]
+        assert hold["stage"] == pp.EXTRACT_REJECTED_CAP and hold["request_key"] == key
+        assert hold["rejections"] == 3 and hold["pass"] == "pass1" and "no extractor call made" in hold["error"]
+        assert _kinds(run_dir, inst).count("extract_rejected") == 3
+
+    # PI release: the next run calls it again, and the count restarts (one rejection is a C3 hold again).
+    _write_release(run_dir, inst, {"released_by": "PI", "date": "2026-11-12", "keys": [key]})
+    bad = BadResponse(world, PASS1, "p1", "not_json", times=99)
+    ready, metrics = run(bad)
+    assert _bad_job(bad, PASS1, "p1").params == failed_params
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED
+    assert not _release_path(run_dir, inst).exists()
+    archived = institution_dir(run_dir, inst) / "archive" / pp.PI_RELEASE_ARCHIVE / "001" / pp.PI_RELEASE_FILE
+    assert json.loads(archived.read_text(encoding="utf-8"))["keys"] == [key]
+    kinds = _kinds(run_dir, inst)
+    assert kinds.count("pi_released") == 1 and kinds.count("extract_rejected") == 4
+    journal = rt.RequestJournal(institution_dir(run_dir, inst) / pp.WORK_DIR / pp.JOURNAL, {})
+    assert journal.rejections(key) == 1
+
+    # A good answer now completes the institution.
+    ready, metrics = run(FakeExtractor(world))
+    assert [i.institution_id for i in ready] == [inst] and not metrics.held
+    assert _kinds(run_dir, inst).count("pi_released") == 1  # the archived file is not re-applied
+
+
+@pytest.mark.parametrize("doc", [
+    "not json {",
+    {"released_by": "PI", "date": "2026-11-12"},  # neither keys nor all
+    {"released_by": "PI", "date": "2026-11-12", "keys": ["a" * 64], "all": True},  # both
+    {"released_by": "PI", "date": "12/11/2026", "all": True},
+    {"released_by": "", "date": "2026-11-12", "all": True},
+    {"released_by": "PI", "date": "2026-11-12", "all": "yes"},
+    {"released_by": "PI", "date": "2026-11-12", "keys": ["not-a-key"]},
+    {"released_by": "PI", "date": "2026-11-12", "key": ["a" * 64]},  # unknown field
+    ["a" * 64],
+])
+def test_malformed_release_is_an_explicit_hold(tmp_path, doc):
+    """Ruling 34 b / 41 a: a malformed release file is refused, never ignored: the institution is held
+    with a clear detail, no call is made, and the file stays in place."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst = "INST-0000001"
+    one = [i for i in insts if i.institution_id == inst]
+    _write_release(run_dir, inst, doc)
+    extract = FakeExtractor(world)
+    ready, metrics = _run(run_dir, bound, instrument, one,
+                          _providers(run_dir, bound, instrument, extract, FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not ready and metrics.held == [inst] and extract.jobs == []
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.PI_RELEASE_MALFORMED and hold["error"].startswith("refused")
+    assert _release_path(run_dir, inst).exists()
+    journal = institution_dir(run_dir, inst) / pp.WORK_DIR / pp.JOURNAL
+    assert not journal.exists() or "pi_released" not in _kinds(run_dir, inst)
+
+
+def _journal_call(path, job, prompt, result, *, reject):
+    """One run's call of ``job`` through a freshly loaded journal; ``reject`` rejects the answer."""
+    journal = rt.RequestJournal(path, {"s": 1})
+    wrap, _ = journal.seams(prompt)
+    out = wrap(lambda j: result)(job)
+    if reject:
+        assert journal.reject_extract({"custom_id": job.custom_id, "params": job.params}, prompt, "bad")
+    return out
+
+
+def test_cap_counts_rejections_per_request_key_only(tmp_path):
+    """Ruling 41 a: ``extract_failed`` entries do not count; each request key has its own count;
+    ``"all": true`` releases every key."""
+    from g3o.extract.anthropic_client import ExtractorJob
+
+    path, prompt = tmp_path / "journal.jsonl", {"extractor_model": "m"}
+    job_a = ExtractorJob("cid-a", {"model": "m", "messages": [{"a": 1}]}, {})
+    job_b = ExtractorJob("cid-b", {"model": "m", "messages": [{"b": 1}]}, {})
+    failed = ExtractorResult("cid-a", False, None, {"type": "errored"}, usage=dict(USAGE))
+    bad = ExtractorResult("cid-a", True, "bad", None, usage=dict(USAGE))
+    for _ in range(4):  # failed responses: always asked again, never capped
+        assert not _journal_call(path, job_a, prompt, failed, reject=False).success
+    for _ in range(3):
+        _journal_call(path, job_a, prompt, bad, reject=True)
+    journal = rt.RequestJournal(path, {"s": 1})
+    key_a = journal.extract_key({"custom_id": "cid-a", "params": job_a.params}, prompt)
+    assert journal.rejections(key_a) == 3
+    wrap, _ = journal.seams(prompt)
+    with pytest.raises(rt.ExtractRejectCapReached) as info:
+        wrap(lambda j: pytest.fail("called past the cap"))(job_a)
+    assert info.value.key == key_a and info.value.rejections == 3 and info.value.custom_id == "cid-a"
+    # another request key is still called (its own count)
+    for _ in range(2):
+        _journal_call(path, job_b, prompt, replace(bad, custom_id="cid-b"), reject=True)
+    journal = rt.RequestJournal(path, {"s": 1})
+    key_b = journal.extract_key({"custom_id": "cid-b", "params": job_b.params}, prompt)
+    assert journal.rejections(key_b) == 2 and journal.rejections(key_a) == 3
+    # "all": true releases both
+    journal.record_release({"keys": None, "all": True, "released_by": "PI", "date": "2026-11-12",
+                            "file_sha256": "f" * 64})
+    reloaded = rt.RequestJournal(path, {"s": 1})
+    assert reloaded.rejections(key_a) == reloaded.rejections(key_b) == 0 and reloaded.release_applied("f" * 64)
+    wrap, _ = reloaded.seams(prompt)
+    assert wrap(lambda j: bad)(job_a).text == "bad" and reloaded.live == 1
+
+
+def test_cap_error_is_not_a_stage_stop():
+    assert not issubclass(rt.ExtractRejectCapReached, pp.STAGE_STOPS)
+    assert not issubclass(rt.ExtractRejectCapReached, (ValueError, RuntimeError, pp.ExtractorResponseFailed))

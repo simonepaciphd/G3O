@@ -250,6 +250,30 @@ REPLAYED_KINDS = frozenset({"jev", "quote", "extract", "x35"})
 EXTRACT_REJECTED = "extract_rejected"
 ACCOUNTING_KINDS = frozenset({"jev_unidentified", "jev_incomplete", "extract_failed", "x35_failed",
                               EXTRACT_REJECTED})
+#: Ruling 34 b / 41 a: after this many ``extract_rejected`` entries for one exact extractor request
+#: key (``extract_failed`` entries do not count) the request is a permanent hold: the journal makes
+#: no further live call for it (:class:`ExtractRejectCapReached`) until the PI releases it.
+EXTRACT_REJECT_CAP = 3
+#: Ruling 34 b / 41 a: a PI release applied to this journal (written by
+#: :meth:`RequestJournal.record_release`); ``extract_rejected`` entries for the released keys that
+#: come before it no longer count towards :data:`EXTRACT_REJECT_CAP`. Never replayed or accounted.
+PI_RELEASED = "pi_released"
+
+
+class ExtractRejectCapReached(Exception):  # noqa: N818 - named after the ruling's event, like ExtractorResponseFailed
+    """Ruling 34 b / 41 a: an extractor request was rejected :data:`EXTRACT_REJECT_CAP` times.
+
+    Raised by the journaled extractor call *instead of* calling the extractor.
+    ``key`` is the journal's request key (SHA256 over setup, prompt and request),
+    ``rejections`` the count since the last PI release of that key, ``custom_id``
+    the request's id; ``pass_name`` is filled in by the provider adapter when it
+    knows the pass. Not a stage stop: the per-page stage holds the institution.
+    """
+
+    def __init__(self, key: str, rejections: int, custom_id: Any, pass_name: str | None = None) -> None:
+        super().__init__(f"extractor request {key} ({custom_id!r}) was rejected {rejections} times: permanent "
+                         f"hold, no further call until the PI releases it (ruling 34 b / 41 a)")
+        self.key, self.rejections, self.custom_id, self.pass_name = key, rejections, custom_id, pass_name
 
 
 def _tokens(usage: Mapping[str, Any] | None, name: str) -> int:
@@ -286,6 +310,9 @@ class RequestJournal:
         self._accounting: list[dict[str, Any]] = []
         self._elapsed: list[int] = []
         self._seen: dict[tuple[str, str], int] = {}
+        #: ruling 34 b / 41 a: request key -> ``extract_rejected`` entries since its last PI release
+        self._rejections: dict[str, int] = {}
+        self._releases: set[str] = set()  # file_sha256 of every PI release applied to this journal
         self.live = 0
         self.replayed = 0
         if path.exists():
@@ -308,10 +335,13 @@ class RequestJournal:
                 raise ValueError(f"corrupt Stage 6 journal line {n + 1}: {self.path}") from None
             keep.append(line)
             self._elapsed.append(int(entry.get("elapsed_ms", 0)))
-            if entry["kind"] in ACCOUNTING_KINDS:
+            if entry["kind"] == PI_RELEASED:
+                self._apply_release(entry["response"])
+            elif entry["kind"] in ACCOUNTING_KINDS:
                 self._accounting.append(entry)
                 if entry["kind"] == EXTRACT_REJECTED:
                     self._recorded.pop(("extract", entry["key"], entry["n"]), None)
+                    self._rejections[entry["key"]] = self._rejections.get(entry["key"], 0) + 1
             else:
                 self._recorded[(entry["kind"], entry["key"], entry["n"])] = entry["response"]
         if not complete:  # unterminated or torn tail: repair before the next append
@@ -327,21 +357,59 @@ class RequestJournal:
         self._seen[(kind, key)] = n + 1
         return kind, key, n
 
-    def _append(self, slot: tuple[str, str, int], response: dict[str, Any], elapsed_ms: int) -> None:
+    def _write(self, entry: Mapping[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        entry = {"kind": slot[0], "key": slot[1], "n": slot[2], "response": response, "elapsed_ms": elapsed_ms}
         line = json.dumps(entry, ensure_ascii=False, sort_keys=True)
         with self.path.open("ab") as stream:
             stream.write(line.encode("utf-8") + b"\n")
             stream.flush()
             os.fsync(stream.fileno())
+
+    def _append(self, slot: tuple[str, str, int], response: dict[str, Any], elapsed_ms: int) -> None:
+        entry = {"kind": slot[0], "key": slot[1], "n": slot[2], "response": response, "elapsed_ms": elapsed_ms}
+        self._write(entry)
         self._elapsed.append(elapsed_ms)
         if slot[0] in ACCOUNTING_KINDS:
             self._accounting.append(entry)
             if slot[0] == EXTRACT_REJECTED:
                 self._recorded.pop(("extract", slot[1], slot[2]), None)
+                self._rejections[slot[1]] = self._rejections.get(slot[1], 0) + 1
         else:
             self._recorded[slot] = response
+
+    # --- ruling 34 b / 41 a: the rejection cap and its PI release ------------
+
+    def _apply_release(self, release: Mapping[str, Any]) -> None:
+        if release.get("all") is True:
+            self._rejections.clear()
+        else:
+            for key in release["keys"]:
+                self._rejections.pop(key, None)
+        self._releases.add(release["file_sha256"])
+
+    def extract_key(self, request: Mapping[str, Any], prompt: Mapping[str, Any]) -> str:
+        """The journal key of an extractor request (``custom_id``, ``params``) under ``prompt``."""
+        return self._key(dict(request), dict(prompt))
+
+    def rejections(self, key: str) -> int:
+        """``extract_rejected`` entries for ``key`` since its last PI release (ruling 34 b / 41 a)."""
+        return self._rejections.get(key, 0)
+
+    def release_applied(self, file_sha256: str) -> bool:
+        """Whether a PI release file with these bytes was already recorded in this journal."""
+        return file_sha256 in self._releases
+
+    def record_release(self, release: Mapping[str, Any]) -> None:
+        """Append a :data:`PI_RELEASED` entry (ruling 34 b / 41 a); never rewrites earlier lines.
+
+        ``release`` holds ``keys`` (a list, or None with ``all`` true), ``all``,
+        ``released_by``, ``date`` and ``file_sha256``. From this entry on, the
+        rejections recorded before it no longer count for the released keys.
+        """
+        doc = dict(release)
+        self._write({"kind": PI_RELEASED, "key": doc["file_sha256"], "n": 0, "response": doc, "elapsed_ms": 0})
+        self._elapsed.append(0)
+        self._apply_release(doc)
 
     def ask(self, ask_fn: AskFn) -> AskFn:
         def wrapped(state: dict[str, Any], questions: dict[str, dict[str, Any]]) -> JevResult:
@@ -371,6 +439,8 @@ class RequestJournal:
             if slot in self._recorded:
                 self.replayed += 1
                 return ExtractorResult(**self._recorded[slot])
+            if self.rejections(slot[1]) >= EXTRACT_REJECT_CAP:  # ruling 34 b / 41 a: never called again
+                raise ExtractRejectCapReached(slot[1], self.rejections(slot[1]), job.custom_id)
             start = time.monotonic()
             result = extract_fn(job)  # an exception is not recorded: asked again on resume
             self.live += 1
