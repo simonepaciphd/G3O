@@ -118,8 +118,10 @@ Produced here (source row, page-level), PI ruling 70 b (2026-11-13):
   whatever the type; otherwise the signed map cell of the automatic basis or of
   the (missing) type. Refused when it needs a refused ``source_type``.
 
-Built but not yet usable (its input is refused): :func:`vendor_claim_only`
-(PI A8.9 a) reads ``source_type``.
+Built but not wired: :func:`vendor_claim_only` (PI A8.9 a) reads ``source_type``.
+Whether the per-page path or the Stage 6 A8 producer (branch
+``reclass/o1113-a8-merged``) produces it is open (PI question 78), and
+``source_type`` is still refused on readable residual pages.
 """
 from __future__ import annotations
 
@@ -189,7 +191,7 @@ QUOTE_STEP_CODER_VERSION = f"g3o.extract.parser_v27/{request_v27.PROMPT_VERSION}
 
 #: Source-row items refused here, with the reason (signed source text or the missing producer).
 REFUSED_SOURCE_ITEMS: Mapping[str, str] = {
-    sf.CONFIDENCE: ("reads source_credibility (refused) and the claim's support records "
+    sf.CONFIDENCE: ("reads source_credibility (refused on some pages) and the claim's support records "
                     "(items/core.confidence/rules/1; association is T-026's, RC-D-025 P12)"),
 }
 
@@ -201,7 +203,9 @@ REFUSED_ACTIVITY_ITEMS: Mapping[str, str] = {
     "core.stage_as_of": ("PI A8.3 a / A8.4 a: reads source_publication_date (refused), then the activity's "
                          "latest supported year code, then the access date"),
     "core.stage_as_of_basis": "PI A8.5 a (three step codes) needs codebook r16 and a re-signature",
-    "core.vendor_claim_only": "PI A8.9 a reads source_type (refused); vendor_claim_only() is built",
+    "core.vendor_claim_only": ("PI A8.9 a: owner open (per-page path vs the Stage 6 A8 producer, PI question 78); "
+                               "reads source_type (refused on readable residual pages); vendor_claim_only() is "
+                               "built"),
     "core.cx_display_rollup": ("PI A8.10 a: 'positive' for multi-value items is defined in the build and "
                                "shown to the PI first; not yet shown"),
     "core.date_upper_bound": "PI A8.11 a: reads stage_as_of (refused); A8.12 a: no archive lookup",
