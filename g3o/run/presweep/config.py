@@ -105,9 +105,11 @@ def refuse_v27_budget_settings(config: Any) -> None:
     if found:
         raise ValueError(
             f"pipeline_version='v2.7' refuses preflight_stage_estimates for {', '.join(found)}: "
-            "v2.7 has no stage pricing yet (jev and extractor calls are priced; X35 calls are not, "
-            "PI rulings 59 b / 60 a, see g3o.common.cost_monitor.V27_UNPRICED_PARTS), so only "
-            f"Stages 1-4 can carry a budget figure ({', '.join(V27_PRICED_STAGES)})"
+            "v2.7 stage budgets stay refused: X35 calls are unpriced until the X35 binding is "
+            "decided (PI ruling 59 b; g3o.common.cost_monitor.V27_UNPRICED_PARTS), so no v2.7 stage "
+            "has a complete price under the RC-D-021 cost_monitor hunks, and v2.7 stages stay "
+            "outside the budget (PI ruling 60 a); only Stages 1-4 can carry a budget figure "
+            f"({', '.join(V27_PRICED_STAGES)})"
         )
 
 

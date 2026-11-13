@@ -415,38 +415,51 @@ V27_BUDGET_SCOPE = "stages_1_4"
 V27_COST_KEY = "v27_stage_cost"
 
 
-def _v27_journal_usage(run_dir: Path) -> dict[str, tuple[dict[str, int], list[dict[str, Any] | None]]]:
+def _v27_journal_usage(run_dir: Path) -> dict[str, dict[str, Any]]:
     """The v2.7 stages' usage read from the request journals on disk (RC-D-021: the cost
     of a v2.7 run, an interrupted one included).
 
-    Per stage: the summed :meth:`RequestJournal.usage` and each extractor response's own
-    ``usage`` (:meth:`RequestJournal.extractor_usages`, priced per request; ruling 58 a).
-    Covers every journaled call of every institution, this and earlier sessions,
-    including a stage that stopped before it returned its metrics. A stage with no
-    journal on disk is left out. Loading a journal repairs a torn final record exactly
-    as the next run's load would.
+    Per stage: ``totals`` (the summed :meth:`RequestJournal.usage`), ``usages`` (each
+    extractor response's own ``usage``, :meth:`RequestJournal.extractor_usages`, priced
+    per request; ruling 58 a) and ``failed`` (journals that could not be read, with the
+    error). Covers every journaled call of every institution, this and earlier sessions.
+    A stage with no journal file on disk is left out.
+
+    Journals are opened read-only: a torn final record is skipped, never repaired, and
+    nothing is written (the next run's own load repairs it). One unreadable journal (a
+    corrupt middle line) is recorded in ``failed`` and does not stop the others.
     """
     from g3o.common.paths import iter_institution_dirs
     from g3o.run.presweep import stage_perpage_v27 as spv
     from g3o.run.presweep import stage_validate_v27 as svv
 
-    out: dict[str, tuple[dict[str, int], list[dict[str, Any] | None]]] = {}
+    out: dict[str, dict[str, Any]] = {}
     for span, work_dir, journal_name in ((V27_PERPAGE_SPAN, spv.WORK_DIR, spv.JOURNAL),
                                          (V27_STAGE6_SPAN, svv.WORK_DIR, svv.JOURNAL)):
         totals: dict[str, int] = {}
         usages: list[dict[str, Any] | None] = []
+        failed: list[dict[str, str]] = []
         n_inst = 0
         for inst_dir in iter_institution_dirs(run_dir):
             path = inst_dir / work_dir / journal_name
             if not path.is_file():
                 continue
+            try:
+                journal = svv.RequestJournal(path, read_only=True)
+                inst_totals = journal.usage()
+                inst_usages = journal.extractor_usages()
+            except Exception as exc:  # recorded: this stage's figure is then unpriced
+                rel = path.relative_to(run_dir).as_posix()
+                # run-relative in the report: the absolute local path is left out
+                failed.append({"journal": rel, "error": f"{type(exc).__name__}: {exc}".replace(str(path), rel)})
+                continue
             n_inst += 1
-            journal = svv.RequestJournal(path)
-            for key, value in journal.usage().items():
+            for key, value in inst_totals.items():
                 totals[key] = totals.get(key, 0) + int(value)
-            usages.extend(journal.extractor_usages())
-        if n_inst:
-            out[span] = ({"n_institutions": n_inst, **dict(sorted(totals.items()))}, usages)
+            usages.extend(inst_usages)
+        if n_inst or failed:
+            out[span] = {"totals": {"n_institutions": n_inst, **dict(sorted(totals.items()))},
+                         "usages": usages, "failed": failed}
     return out
 
 
@@ -456,17 +469,31 @@ def _v27_cost_block(run_dir: Path, summary: dict[str, Any], jev_model: str,
 
     Each stage is priced from its journals on disk (every journaled call of the run,
     earlier sessions included; the extractor per request, rulings 57 a / 58 a). A stage
-    that returned no usage to ``summary`` (it stopped) is marked ``interrupted``. A stage
     that never journaled a call is absent.
+
+    ``returned_this_session`` is True when the stage returned its usage to this
+    session's summary (it finished in this session). False means this session did not
+    finish it: it stopped mid-stage, or this session never reached it (e.g. a resumed
+    run that stopped before the v2.7 stages, whose journals come from an earlier
+    session). It does not say that the stage is incomplete.
+
+    A journal that could not be read is listed under ``unreadable_journals``; its calls
+    are unknown, so the stage is unpriced (``"journals"`` in ``unpriced_parts``,
+    ``total_usd`` None), not guessed.
     """
     from g3o.common.cost_monitor import price_v27_usage
 
     returned = summary.get(V27_USAGE_KEY) or {}
     block: dict[str, Any] = {}
-    for span, (totals, usages) in _v27_journal_usage(run_dir).items():
-        block[span] = {"source": "journals_on_disk", "interrupted": span not in returned, "usage": totals,
-                       **price_v27_usage(totals, jev_model=jev_model, extractor_model=extractor_model,
-                                         extractor_usages=usages)}
+    for span, read in _v27_journal_usage(run_dir).items():
+        priced = price_v27_usage(read["totals"], jev_model=jev_model, extractor_model=extractor_model,
+                                 extractor_usages=read["usages"])
+        entry = {"source": "journals_on_disk", "returned_this_session": span in returned,
+                 "usage": read["totals"], **priced}
+        if read["failed"]:
+            entry.update(unreadable_journals=read["failed"], priced=False, total_usd=None,
+                         unpriced_parts=[*priced["unpriced_parts"], "journals"])
+        block[span] = entry
     return block
 
 
@@ -1302,8 +1329,9 @@ def run_presweep(
                 # PI ruling 1 a: budget_usd, budget_exceeded and total_usd cover
                 # Stages 1-4 only on a v2.7 run.
                 cost_report[V27_BUDGET_SCOPE_KEY] = V27_BUDGET_SCOPE
-                # RC-D-021 cost_monitor hunks: the priced parts of each v2.7 stage,
-                # an interrupted stage's from its journals; outside total_usd.
+                # RC-D-021 cost_monitor hunks: the priced parts of each v2.7 stage, read
+                # read-only from its journals (an unreadable journal is listed per stage);
+                # outside total_usd. The catch below is a last-resort backstop only.
                 if v27 is not None:
                     try:
                         cost_report[V27_COST_KEY] = _v27_cost_block(
