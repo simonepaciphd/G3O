@@ -70,10 +70,9 @@ _PENDING = "extra_round_in_progress"
 _HELD = "extra_round_failed:"
 _OVER_LIMIT = "over_limit, not halved (RC-D-024 item 9): "
 HALVED = "halved"
-#: What the code before rulings 68 b / 69 b wrote when it stopped a page after a halving; read
-#: only to upgrade such a checkpoint (:func:`_upgrade_legacy_halving_stop`).
+#: Error prefix the unreleased pre-68 b / 69 b code gave a page stopped after a halving; read
+#: only to refuse such a checkpoint (:func:`_refuse_legacy_halving_stop`).
 _LEGACY_HALVING_STOP = "halving_stopped (open PI question): "
-_LEGACY_HALVING_STOPPED = "extra_round_halving_stopped"
 #: Failure reason (attrition reason) of a page whose failed verdict parts reach 75% of the leaf
 #: layout halved in an extra round, after the page was coded (PI ruling 69 b).
 HALVING_PAGE_FAILED = "verdict_parts_failed_after_extra_round_halving"
@@ -181,12 +180,9 @@ def complete_page_rounds(page: page_code.PageInput, result: page_code.PageCodeRe
     if result.codebook_sha256 != setup.qset["codebook_sha256"]:
         raise ValueError("page result and question set differ")
     _binding(result.records, config.setup_pointer)
+    _refuse_legacy_halving_stop(result)  # review LOW (c): never held silently
     support = tuple(support)
     rounds = 0
-    upgraded = _upgrade_legacy_halving_stop(result, setup)  # review LOW (c): an old checkpoint
-    if upgraded is not result:
-        result = upgraded
-        _save(checkpoint, result, support)
     # Each pass adds one formerly unasked question; ancestors are immutable.
     for _ in range(len(setup.questions) + 1):
         if result.status == "failed":  # ruling 69 b: nothing more is asked or checked (resume too)
@@ -250,23 +246,16 @@ def _close_question(result: page_code.PageCodeResult, setup: Any, q: dict[str, A
     return replace(result, items=items)
 
 
-def _upgrade_legacy_halving_stop(result: page_code.PageCodeResult, setup: Any) -> page_code.PageCodeResult:
-    """A checkpoint saved before rulings 68 b / 69 b with a page stopped after a halving.
+def _refuse_legacy_halving_stop(result: page_code.PageCodeResult) -> None:
+    """Refuse a checkpoint with an item stopped by the pre-68 b / 69 b halving stop.
 
-    That code stopped the extra question once every part had answered it (item ``stopped``,
-    error prefix :data:`_LEGACY_HALVING_STOP`, a ``failures`` entry :data:`_LEGACY_HALVING_STOPPED`)
-    and saved the other items un-recombined. The question is closed now as the current code
-    closes it (:func:`_close_question`): no request, the legacy entry kept as history.
-    More than one such item is not a state that code wrote: refused."""
-    stopped = [k for k, o in result.items.items()
-               if o.state == "stopped" and (o.error or "").startswith(_LEGACY_HALVING_STOP)]
-    if not stopped:
-        return result
-    if (len(stopped) > 1 or result.status != "coded" or not _halvings(result)
-            or not any(f.get("reason") == _LEGACY_HALVING_STOPPED for f in result.failures)):
-        raise ValueError(f"page {result.page_id}: legacy halving-stop checkpoint not upgradable "
-                         f"(items {sorted(stopped)}, status {result.status!r}); archive its page state")
-    return _close_question(result, setup, next(q for q in setup.questions if q["item_id"] == stopped[0]))
+    That code was never released (no real run wrote such a state), so it is not upgraded:
+    loading it is refused loudly instead of the page being held silently."""
+    stopped = sorted(k for k, o in result.items.items()
+                     if o.state == "stopped" and (o.error or "").startswith(_LEGACY_HALVING_STOP))
+    if stopped:
+        raise ValueError(f"page {result.page_id}: legacy halving-stop checkpoint from an unreleased build "
+                         f"(items {stopped}); archive its page state")
 
 
 # ---------------------------------------------------------------------------

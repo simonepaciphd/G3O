@@ -584,10 +584,9 @@ def test_page_halving_depth_limit_records_over_limit_votes_and_successful_part_c
     assert again.complete and again.rounds == 0 and again.final == done.final
 
 
-def test_legacy_halving_stop_checkpoint_is_upgraded_without_requests(monkeypatch, rules):
-    """Review LOW (c): a page.json saved by the code before rulings 68 b / 69 b (extra question
-    ``stopped`` after a halving) is closed as the current code closes it, with no request; the
-    upgrade is saved; a state that code never wrote is refused loudly, never held silently."""
+def test_legacy_halving_stop_checkpoint_is_refused(monkeypatch, rules):
+    """Review LOW (c): a page.json with an item stopped by the unreleased pre-68 b / 69 b halving
+    stop is refused loudly (never held silently), before any request, check or save."""
     from g3o.classify import question_rounds as qr
 
     page, result, support, config, fake = page_case(monkeypatch, rules)
@@ -595,25 +594,17 @@ def test_legacy_halving_stop_checkpoint_is_upgraded_without_requests(monkeypatch
     done = complete_page_rounds(page, result, support, config=config, ask_fn=_over_limit,
                                 check_support=lambda *_: pytest.fail("no answer to check"))
     assert done.failed
-    legacy_entry = {**done.failure, "reason": qr._LEGACY_HALVING_STOPPED}
     legacy = replace(done.result, status="coded",
                      items={**done.result.items, SCOPE: pc.ItemOutcome(
                          SCOPE, "stopped", None, error=qr._LEGACY_HALVING_STOP + done.failure["detail"])},
-                     failures=done.result.failures[:-1] + (legacy_entry,))
+                     failures=done.result.failures[:-1] + (
+                         {**done.failure, "reason": "extra_round_halving_stopped"},))
     legacy = pc.PageCodeResult.from_json(legacy.to_json())
-    saved = []
-    upgraded = complete_page_rounds(page, legacy, done.support, config=config,
-                                    ask_fn=lambda *_: pytest.fail("resent"),
-                                    check_support=lambda *_: pytest.fail("rechecked"),
-                                    checkpoint=lambda r, s: saved.append(r))
-    assert upgraded.failed and upgraded.failure["detail"] == done.failure["detail"]
-    assert legacy_entry in upgraded.result.failures  # history kept
-    assert saved and saved[-1].status == "failed"
-    twice = replace(legacy, items={**legacy.items, "core.content_data": replace(legacy.items[SCOPE],
-                                                                                 item_id="core.content_data")})
-    with pytest.raises(ValueError, match="legacy halving-stop"):
-        complete_page_rounds(page, twice, done.support, config=config, ask_fn=lambda *_: pytest.fail("resent"),
-                             check_support=lambda *_: pytest.fail("rechecked"))
+    with pytest.raises(ValueError, match="legacy halving-stop checkpoint from an unreleased build"):
+        complete_page_rounds(page, legacy, done.support, config=config,
+                             ask_fn=lambda *_: pytest.fail("resent"),
+                             check_support=lambda *_: pytest.fail("rechecked"),
+                             checkpoint=lambda *_: pytest.fail("saved"))
 
 
 @pytest.mark.parametrize(("failing", "stopped"), [(2, False), (3, True)])
