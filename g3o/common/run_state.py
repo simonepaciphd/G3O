@@ -353,6 +353,18 @@ def mark_done(
     return dst
 
 
+def clear_done(run_dir: Path, stage: str) -> None:
+    """Remove the stage's ``.done`` marker, if any; a missing marker is fine.
+
+    For stages that re-run their whole pass on every resume and write a
+    marker only when that pass finishes (the v2.7 per-page stage and Stage 6,
+    ruling 48.3 a): clearing it when a pass starts means a pass that stops
+    part-way leaves no marker from an earlier, finished pass behind.
+    Leaves any active state file alone.
+    """
+    done_path(run_dir, stage).unlink(missing_ok=True)
+
+
 def _chunk_metadata(run_id: str, stage: str, chunk: int | str) -> dict[str, str]:
     """Unique batch identity carried as OpenAI batch metadata (review F6).
 

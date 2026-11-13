@@ -676,6 +676,52 @@ def test_done_marker_written_when_the_pass_finishes_with_a_hold(tmp_path):
     assert is_done(run_dir, pp.DONE_MARKER)
 
 
+@pytest.mark.parametrize("stop_in", ["perpage", "stage6"])
+def test_released_institution_is_not_concluded_on_stale_markers_after_a_resume_stop(tmp_path, monkeypatch,
+                                                                                    stop_in):
+    """Ruling 48.3 a / 45 a: pass 1 finishes with B held (both v2.7 markers written); the resumed
+    per-page pass releases B, then a stage stop comes before B reaches Stage 6. No marker from
+    pass 1 may survive to tell the report that B was concluded."""
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    b = [i for i in insts if i.institution_id == "INST-0000002"]
+    c = [i for i in insts if i.institution_id == "INST-0000003"]
+
+    def fail_origin(state, questions, n):
+        return RuntimeError("extra round down") if list(questions) == ["core.model_origin"] else None
+    ready, metrics = _perpage(run_dir, bound, instrument, world, b, FakeJev(ANSWERS, RELATIONS, fail_origin))
+    assert not ready and metrics.held == ["INST-0000002"]
+    rt.run_stage6_v27(run_dir, ready, ask_fn=FakeJev(ANSWERS, RELATIONS), quote_fn=FakeQuotes(),
+                      config=bound.stage6_config(), instrument=instrument, now=CLOCK,
+                      test_only_unbound_quote_fn=True)
+    assert is_done(run_dir, pp.DONE_MARKER) and is_done(run_dir, rt.DONE_MARKER)
+
+    held_path = institution_dir(run_dir, "INST-0000002") / pp.WORK_DIR / pp.HELD_FILE
+    if stop_in == "perpage":  # B is released, then the pass stops on C before it finishes
+
+        def stop_on_c(state, questions, n):
+            if state.get("page_text", "").startswith("FAIL"):
+                return JevAccountError("simulated stop inside the per-page pass")
+            return None
+        with pytest.raises(JevAccountError):
+            _perpage(run_dir, bound, instrument, world, b + c, FakeJev(ANSWERS, RELATIONS, stop_on_c))
+        assert not held_path.exists()
+        assert not is_done(run_dir, pp.DONE_MARKER)
+    else:  # the per-page pass finishes and releases B; Stage 6 stops before B
+        ready, _ = _perpage(run_dir, bound, instrument, world, b, FakeJev(ANSWERS, RELATIONS))
+        assert [i.institution_id for i in ready] == ["INST-0000002"] and not held_path.exists()
+        assert is_done(run_dir, pp.DONE_MARKER)
+
+        def stopped(**kw):
+            raise JevAccountError("simulated stop before B's Stage 6")
+        monkeypatch.setattr(rt, "run_stage6", stopped)
+        with pytest.raises(JevAccountError):
+            rt.run_stage6_v27(run_dir, ready, ask_fn=FakeJev(ANSWERS, RELATIONS), quote_fn=FakeQuotes(),
+                              config=bound.stage6_config(), instrument=instrument, now=CLOCK,
+                              test_only_unbound_quote_fn=True)
+    assert not is_done(run_dir, rt.DONE_MARKER)
+    assert not (institution_dir(run_dir, "INST-0000002") / "6_validate.json").exists()
+
+
 # ---------------------------------------------------------------------------
 # RC-D-030 rulings
 # ---------------------------------------------------------------------------

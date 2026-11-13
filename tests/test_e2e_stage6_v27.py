@@ -373,3 +373,20 @@ def test_done_marker_written_when_the_pass_finishes_with_a_hold(tmp_path):
     _, metrics = _run(run_dir, bound, instrument, insts[:1], None)
     assert metrics.held == ["INST-0000001"]
     assert is_done(run_dir, rt.DONE_MARKER)
+
+
+def test_stale_done_marker_is_cleared_when_a_resumed_pass_stops(tmp_path, monkeypatch):
+    """Ruling 48.3 a / 45 a: a finished pass's marker does not outlive a later pass that stops,
+    so an institution queued behind the stop is never read as concluded."""
+    run_dir, bound, instrument = _setup(tmp_path)
+    insts = _institutions(run_dir, bound, instrument)
+    _run(run_dir, bound, instrument, insts[:1], FakeQuotes())
+    assert is_done(run_dir, rt.DONE_MARKER)
+
+    def stopped(**kw):
+        raise JevAccountError("simulated stop before the next institution")
+    monkeypatch.setattr(rt, "run_stage6", stopped)
+    with pytest.raises(JevAccountError):
+        _run(run_dir, bound, instrument, insts, FakeQuotes())
+    assert not is_done(run_dir, rt.DONE_MARKER)
+    assert not (institution_dir(run_dir, "INST-0000002") / "6_validate.json").exists()

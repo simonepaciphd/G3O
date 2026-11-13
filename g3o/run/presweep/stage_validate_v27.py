@@ -93,7 +93,7 @@ from g3o.common.jev_client import JevAnswer, JevResult
 from g3o.common.jev_record import CoderRecord
 from g3o.common.paths import institution_dir
 from g3o.common.response_v27 import InstitutionIdentityV27
-from g3o.common.run_state import mark_done
+from g3o.common.run_state import clear_done, mark_done
 from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
 from g3o.common.source_fields import aggregation_value, default_vocab
 from g3o.common.storage import METADATA_ITEMS, table_fields
@@ -195,17 +195,21 @@ class UpstreamRowMalformed(Exception):  # noqa: N818 - names the wiring defect, 
 #: Ruling 32 b: wiring errors that stop the stage here, beside :data:`STAGE_STOPS`.
 WIRING_STOPS = (UpstreamRowMalformed,)
 IDENTITY_COLUMNS = tuple(InstitutionIdentityV27.model_fields)
+#: identity columns the schema requires non-empty (``min_length=1``): an empty string there is missing
+NON_EMPTY_IDENTITY_COLUMNS = ("institution_id",)
 
 
 def require_identity(inst: Stage6Institution) -> None:
     """Ruling 32 b: refuse (stage stop) an institution row missing a master identity column, or with
-    a null (``None``) value in one; :func:`run_stage6_v27` checks every row before its first call."""
+    a null (``None``) value in one, or an empty ``institution_id`` (``InstitutionIdentityV27`` requires
+    ``min_length=1``); :func:`run_stage6_v27` checks every row before its first call."""
     row = inst.institution
-    missing = [c for c in IDENTITY_COLUMNS if row.get(c) is None]
+    missing = [c for c in IDENTITY_COLUMNS
+               if row.get(c) is None or (c in NON_EMPTY_IDENTITY_COLUMNS and row.get(c) == "")]
     if missing:
         ident = row.get("institution_id")
-        raise UpstreamRowMalformed(str(ident) if ident is not None else "<no institution_id>", ", ".join(missing),
-                                   "institution identity columns")
+        raise UpstreamRowMalformed(str(ident) if ident not in (None, "") else "<no institution_id>",
+                                   ", ".join(missing), "institution identity columns")
 ARTIFACTS_UNREADABLE = "stage6_artifacts_unreadable"  # existing Stage 6 artifacts fail to reload
 MISSING_RELATION = "missing_relation_decision"
 CONFLICTING_GROUPS = "conflicting_relation_groups"
@@ -1018,6 +1022,8 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
             and quote_fn.x35_model == instrument["payload"]["extractor_configuration"].get("x35_model")):
         raise ValueError("Stage 6 quote step is not bound to this instrument (or its X35 model differs from "
                          "the pinned one): build it with BoundRuntime.stage6_quote_fn")
+    # Ruling 48.3 a / 45 a: a marker from an earlier finished pass must not outlive a pass that stops.
+    clear_done(run_dir, DONE_MARKER)
     clock = now or (lambda: datetime.now(timezone.utc))
     metrics = Stage6Metrics()
     setup = {"setup_pointer": config.setup_pointer, "configured_model": config.configured_model,

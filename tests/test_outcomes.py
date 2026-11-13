@@ -840,7 +840,7 @@ def test_v27_hold_paths_match_the_stages() -> None:
 
 @pytest.mark.parametrize(
     "stage", ["extract_response_failed", "extract_rejected_cap", "pi_release_malformed",
-              "pi_release_archive_failed", "page_state_archive_failed"]
+              "pi_release_archive_failed", "pi_release_record_failed", "page_state_archive_failed"]
 )
 def test_v27_perpage_hold_is_not_concluded(tmp_path: Path, stage: str) -> None:
     run_dir = tmp_path / "run"
@@ -1141,6 +1141,41 @@ def test_v27_unheld_with_both_markers_is_no_evidence(tmp_path: Path) -> None:
     assert rec["final_status"] == "NO_EVIDENCE_FOUND"
     assert rec["reason"] == "pages scraped but no v2.7 Stage 6 output or hold for this institution"
     assert rec["error"] is None
+
+
+@pytest.mark.parametrize("stop_in, missing", [("perpage", "perpage_v27"), ("stage6", "stage6_v27")])
+def test_v27_released_then_stopped_on_resume_is_processing_failed(
+    tmp_path: Path, stop_in: str, missing: str,
+) -> None:
+    """Ruling 48.3 a / 45 a: pass 1 finished (both markers) with the institution held; the
+    resumed per-page pass released it, then a stage stop came before its Stage 6. The stages
+    clear their markers when a pass starts (per-page: both; Stage 6: its own), so the report
+    never reads the released, unrun institution as NO_EVIDENCE_FOUND."""
+    from g3o.common.run_state import clear_done, is_done
+    from g3o.run.presweep import stage_perpage_v27, stage_validate_v27
+
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    for stage in V27_MARKERS:  # pass 1 finished
+        _write(done_path(run_dir, stage), {"stage": stage, "no_batch": True})
+    _v27_upstream(run_dir, "INST-0000001")
+    _perpage_held(run_dir, "INST-0000001")
+    # resumed per-page pass: its entry clears both markers, then it releases the institution
+    clear_done(run_dir, stage_perpage_v27.DONE_MARKER)
+    clear_done(run_dir, stage_validate_v27.DONE_MARKER)
+    _attrition.record(run_dir, institution_id="INST-0000001", stage="perpage_v27",
+                      reason="perpage_held_released", detail="P1:extract_response_failed")
+    (inst_dir_of(run_dir, "INST-0000001") / "perpage_v27" / "held.json").unlink()
+    if stop_in == "stage6":  # the per-page pass finished; Stage 6 cleared its marker, then stopped
+        _write(done_path(run_dir, "perpage_v27"), {"stage": "perpage_v27", "no_batch": True})
+        clear_done(run_dir, stage_validate_v27.DONE_MARKER)
+    assert not is_done(run_dir, "stage6_v27")
+    clear_done(run_dir, "stage6_v27")  # a missing marker is fine
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert f"run aborted before stage {missing!r} completed" in rec["reason"]
+    assert rec["error"] == rec["reason"]
 
 
 def test_stage_completion_reads_v27_markers(tmp_path: Path) -> None:

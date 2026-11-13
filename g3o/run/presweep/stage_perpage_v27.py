@@ -165,7 +165,7 @@ from g3o.common.jev_client import JevAccountError
 from g3o.common.jev_record import CoderRecord
 from g3o.common.part_combine import NOT_COVERED
 from g3o.common.paths import institution_dir
-from g3o.common.run_state import mark_done
+from g3o.common.run_state import clear_done, mark_done
 from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
 from g3o.common.storage import METADATA_ITEMS, table_fields
 from g3o.common.storage_fields import FIELDS
@@ -191,6 +191,7 @@ from g3o.persist.stage6_adapters import (
     support_nodes,
 )
 from g3o.run.presweep import stage_activity_code, stage_page_code
+from g3o.run.presweep.stage_validate_v27 import DONE_MARKER as STAGE6_DONE_MARKER
 from g3o.run.presweep.stage_validate_v27 import (
     EXTRACT_REJECT_CAP,
     ExtractRejectCapReached,
@@ -1068,6 +1069,10 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             and hasattr(providers, "with_seams")):
         raise ValueError("per-page providers are not bound to this instrument (or their extractor / X35 model "
                          "differs from the pinned one): build them with build_perpage_providers")
+    # Ruling 48.3 a / 45 a: this pass may release a held institution, so neither marker from an
+    # earlier finished pass stands until this pass (and then Stage 6) finishes again.
+    clear_done(run_dir, DONE_MARKER)
+    clear_done(run_dir, STAGE6_DONE_MARKER)
     metrics = PerPageMetrics()
     ready: list[Stage6Institution] = []
     # The journal key binds the setup: a response recorded under another setup is never replayed.

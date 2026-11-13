@@ -578,6 +578,22 @@ def test_identity_checked_for_every_row_before_any_call(tmp_path, value):
     assert _ledger(run_dir) == [] and _ledger(run_dir, B) == []
 
 
+def test_empty_institution_id_stops_the_stage_before_any_call(tmp_path):
+    # InstitutionIdentityV27.institution_id requires min_length=1: an empty string is missing, as None is
+    # (ruling 32 b); checked for every row before the first institution is run.
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    row = {**b.institution, "institution_id": ""}
+    jev, quotes = e.FakeJev(e.RELATIONS, e._pooled_answers()), e.FakeQuotes()
+    with pytest.raises(rt.UpstreamRowMalformed, match="institution_id is missing") as info:
+        _run(run_dir, bound, instrument, [a, replace(b, institution=row)], quotes, jev=jev)
+    assert info.value.institution_id == "<no institution_id>" and info.value.field == "institution_id"
+    assert info.value.where == "institution identity columns"
+    assert jev.calls == [] and quotes.calls == 0
+    assert not any((institution_dir(run_dir, i) / rt.WORK_DIR).exists() for i in (A, B))
+    assert _ledger(run_dir) == [] and _ledger(run_dir, B) == []
+
+
 def test_wiring_stop_is_not_an_envelope_hold():
     assert not issubclass(rt.UpstreamRowMalformed, rt.ENVELOPE_HOLDS + rt.STAGE_STOPS)
 
