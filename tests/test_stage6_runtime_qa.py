@@ -530,6 +530,39 @@ def test_independence_groups_refused_when_no_activity_is_published(tmp_path):
     assert not _storage(run_dir, B)["activities"]
 
 
+def test_source_row_without_confidence_stops_the_stage(tmp_path):
+    # Ruling 32 b: a malformed upstream row (here a source row without core.confidence) is a wiring
+    # error: the stage stops, naming the institution and the field; nothing is held or written.
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    del a.sources["S1"]["values"]["core.confidence"]
+    with pytest.raises(rt.UpstreamRowMalformed, match=r"INST-\S+: 'core.confidence' is missing") as info:
+        _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+    assert info.value.institution_id == A and info.value.field == "'core.confidence'"
+    assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
+    assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in (A, B))
+    assert _ledger(run_dir) == []
+
+
+@pytest.mark.parametrize("column", list(rt.IDENTITY_COLUMNS))
+def test_institution_row_without_an_identity_column_stops_the_stage(tmp_path, column):
+    # Ruling 32 b: checked before the executor, so nothing is asked for that institution
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    broken = replace(a, institution={k: v for k, v in a.institution.items() if k != column})
+    with pytest.raises(rt.UpstreamRowMalformed, match=column) as info:
+        _run(run_dir, bound, instrument, [broken, b], e.FakeQuotes())
+    assert info.value.field == column and info.value.where == "institution identity columns"
+    expected = A if column != "institution_id" else "<no institution_id>"
+    assert info.value.institution_id == expected
+    assert not (institution_dir(run_dir, A) / rt.WORK_DIR).exists()
+    assert _ledger(run_dir) == []
+
+
+def test_wiring_stop_is_not_an_envelope_hold():
+    assert not issubclass(rt.UpstreamRowMalformed, rt.ENVELOPE_HOLDS + rt.STAGE_STOPS)
+
+
 class OutsideQuotes(e.FakeQuotes):
     """Copies a shown quote's words but names an input that was not shown in the request part."""
 
@@ -847,8 +880,11 @@ def test_envelope_programming_error_stops_the_stage_and_is_not_held(tmp_path, mo
     def broken(*args, **kw):
         raise error("simulated programming error")
     monkeypatch.setattr(rt, target, broken)
-    with pytest.raises(error):
+    # ruling 32 b: a KeyError there is a malformed upstream row: the stage stops, explicitly typed
+    with pytest.raises(rt.UpstreamRowMalformed if error is KeyError else error) as info:
         _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+    if error is KeyError:
+        assert isinstance(info.value.__cause__, KeyError) and info.value.institution_id == A
     assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
     assert _ledger(run_dir) == []
 

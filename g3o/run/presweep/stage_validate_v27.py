@@ -92,6 +92,7 @@ from g3o.common.instrument import canonical_json
 from g3o.common.jev_client import JevAnswer, JevResult
 from g3o.common.jev_record import CoderRecord
 from g3o.common.paths import institution_dir
+from g3o.common.response_v27 import InstitutionIdentityV27
 from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
 from g3o.common.source_fields import aggregation_value, default_vocab
 from g3o.common.storage import METADATA_ITEMS, table_fields
@@ -168,6 +169,36 @@ STAGE_STOPS = STAGE6_STOPS
 #: R1 refusals among them, and pydantic validation errors), ``RuntimeError``, and ``OSError`` from
 #: the artifact writes (held as before B3). Stage stops and programming errors propagate.
 ENVELOPE_HOLDS = (ConsolidationError, ValueError, RuntimeError, OSError)
+
+
+class UpstreamRowMalformed(Exception):  # noqa: N818 - names the wiring defect, as MissingUpstreamError does
+    """Ruling 32 b: a malformed upstream row reached Stage 6 (a wiring error, not institution data).
+
+    Raised for an institution row missing one of the master identity columns
+    (checked before the executor, so nothing is asked for it) and for a
+    ``KeyError`` while building the storage envelope (e.g. a source row without
+    ``core.confidence``). It stops the stage (:data:`WIRING_STOPS`); it is never a
+    per-institution hold. ``institution_id`` and ``field`` name what is missing.
+    """
+
+    def __init__(self, institution_id: str, field: str, where: str) -> None:
+        super().__init__(f"malformed upstream row for {institution_id}: {field} is missing ({where}); a wiring "
+                         "error, the stage stops (ruling 32 b)")
+        self.institution_id, self.field, self.where = institution_id, field, where
+
+
+#: Ruling 32 b: wiring errors that stop the stage here, beside :data:`STAGE_STOPS`.
+WIRING_STOPS = (UpstreamRowMalformed,)
+IDENTITY_COLUMNS = tuple(InstitutionIdentityV27.model_fields)
+
+
+def require_identity(inst: Stage6Institution) -> None:
+    """Ruling 32 b: refuse (stage stop) an institution row missing a master identity column."""
+    row = inst.institution
+    missing = [c for c in IDENTITY_COLUMNS if c not in row]
+    if missing:
+        raise UpstreamRowMalformed(str(row.get("institution_id", "<no institution_id>")), ", ".join(missing),
+                                   "institution identity columns")
 ARTIFACTS_UNREADABLE = "stage6_artifacts_unreadable"  # existing Stage 6 artifacts fail to reload
 MISSING_RELATION = "missing_relation_decision"
 CONFLICTING_GROUPS = "conflicting_relation_groups"
@@ -957,6 +988,16 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     The envelope build and artifact writes hold only :data:`ENVELOPE_HOLDS`
     (B3); a stage stop or a programming error there propagates.
 
+    Malformed upstream rows (ruling 32 b) stop the stage with
+    :class:`UpstreamRowMalformed`, naming the institution and the missing field:
+    an institution row missing a master identity column (checked first, before
+    the executor asks anything), and any ``KeyError`` while building the storage
+    envelope or writing the artifacts (e.g. a source row without
+    ``core.confidence``). The holds the rulings require are unchanged: a source
+    with no syndication group holds the institution (A7 13 a, a
+    ``MissingUpstreamError`` from the independence groups), and an ``OSError``
+    that survives the write retries holds it (28 a).
+
     ``quote_fn`` must come from :meth:`~g3o.run.presweep.instrument_binding.BoundRuntime.stage6_quote_fn`
     for this instrument, on its pinned X35 model (or be ``None``: every answer needing a quote is held);
     ``test_only_unbound_quote_fn`` lifts that check for offline fakes in tests only.
@@ -974,6 +1015,7 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     setup = {"setup_pointer": config.setup_pointer, "configured_model": config.configured_model,
              "coder_version": config.coder_version}
     for inst in institutions:
+        require_identity(inst)  # ruling 32 b: a malformed row stops the stage before anything is asked
         inst_dir = institution_dir(run_dir, inst.institution_id)
         try:
             done = _done(inst_dir)
@@ -1024,6 +1066,9 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
                                  provenance=provenance)
         except STAGE_STOPS:
             raise
+        except KeyError as exc:  # ruling 32 b: a malformed upstream row is a wiring error: the stage stops
+            raise UpstreamRowMalformed(inst.institution_id, repr(exc.args[0]) if exc.args else "a key",
+                                       "storage envelope build") from exc
         except ENVELOPE_HOLDS as exc:  # B3: this institution only (MissingUpstreamError included, B1 a)
             error = f"{type(exc).__name__}: {exc}"
             _hold(run_dir, inst_dir, inst.institution_id, [ENVELOPE_FAILED], {"error": error},
@@ -1043,4 +1088,6 @@ __all__ = [
     "ENVELOPE_FAILED", "ENVELOPE_HOLDS", "EXECUTOR_FAILED", "MISSING_UPSTREAM", "HELD_REASON", "STAGE_STOPS", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
     "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_REFUSED_R1", "MERGE_UNION", "MERGE_UNRULED",
     "Stage6Metrics", "build_envelope", "hold_reasons", "independence_groups_of", "merge_values", "run_stage6_v27",
+    "EXTRACT_REJECT_CAP", "IDENTITY_COLUMNS", "PI_RELEASED", "WIRING_STOPS", "ExtractRejectCapReached",
+    "UpstreamRowMalformed", "require_identity",
 ]
