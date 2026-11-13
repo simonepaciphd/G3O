@@ -594,6 +594,23 @@ def test_empty_institution_id_stops_the_stage_before_any_call(tmp_path):
     assert _ledger(run_dir) == [] and _ledger(run_dir, B) == []
 
 
+@pytest.mark.parametrize("langs", ["English", "en,", "EN", "en\n", 7])
+def test_malformed_search_languages_stops_the_stage_before_any_call(tmp_path, langs):
+    # InstitutionIdentityV27.institution_search_languages carries the schema's LANGS_PATTERN: a value
+    # outside it is a malformed upstream row (ruling 32 b), checked for every row before the first call.
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    row = {**b.institution, "institution_search_languages": langs}
+    jev, quotes = e.FakeJev(e.RELATIONS, e._pooled_answers()), e.FakeQuotes()
+    with pytest.raises(rt.UpstreamRowMalformed, match="institution_search_languages is malformed") as info:
+        _run(run_dir, bound, instrument, [a, replace(b, institution=row)], quotes, jev=jev)
+    assert info.value.institution_id == B and info.value.field == "institution_search_languages"
+    assert info.value.where == "institution identity columns"
+    assert jev.calls == [] and quotes.calls == 0
+    assert not any((institution_dir(run_dir, i) / rt.WORK_DIR).exists() for i in (A, B))
+    assert _ledger(run_dir) == [] and _ledger(run_dir, B) == []
+
+
 def test_wiring_stop_is_not_an_envelope_hold():
     assert not issubclass(rt.UpstreamRowMalformed, rt.ENVELOPE_HOLDS + rt.STAGE_STOPS)
 

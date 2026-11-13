@@ -76,6 +76,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
@@ -87,6 +88,7 @@ from g3o.classify.jev_activity_code import NOT_COVERED
 from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE
 from g3o.classify.questions.v27 import load_set
 from g3o.common import attrition
+from g3o.common.contract import LANGS_PATTERN
 from g3o.common.independence import independence_groups_for_sources
 from g3o.common.instrument import canonical_json
 from g3o.common.jev_client import JevAnswer, JevResult
@@ -183,11 +185,12 @@ class UpstreamRowMalformed(Exception):  # noqa: N818 - names the wiring defect, 
     (checked before the executor, so nothing is asked for it) and for a
     ``KeyError`` while building the storage envelope (e.g. a source row without
     ``core.confidence``). It stops the stage (:data:`WIRING_STOPS`); it is never a
-    per-institution hold. ``institution_id`` and ``field`` name what is missing.
+    per-institution hold. ``institution_id`` and ``field`` name what is missing
+    (or, with ``problem``, what is malformed, e.g. a language value outside the schema pattern).
     """
 
-    def __init__(self, institution_id: str, field: str, where: str) -> None:
-        super().__init__(f"malformed upstream row for {institution_id}: {field} is missing ({where}); a wiring "
+    def __init__(self, institution_id: str, field: str, where: str, problem: str = "is missing") -> None:
+        super().__init__(f"malformed upstream row for {institution_id}: {field} {problem} ({where}); a wiring "
                          "or programming error, the stage stops (ruling 32 b)")
         self.institution_id, self.field, self.where = institution_id, field, where
 
@@ -197,19 +200,28 @@ WIRING_STOPS = (UpstreamRowMalformed,)
 IDENTITY_COLUMNS = tuple(InstitutionIdentityV27.model_fields)
 #: identity columns the schema requires non-empty (``min_length=1``): an empty string there is missing
 NON_EMPTY_IDENTITY_COLUMNS = ("institution_id",)
+#: the schema's own constraint on ``institution_search_languages`` (``InstitutionIdentityV27``)
+_LANGS = re.compile(LANGS_PATTERN)
 
 
 def require_identity(inst: Stage6Institution) -> None:
     """Ruling 32 b: refuse (stage stop) an institution row missing a master identity column, or with
     a null (``None``) value in one, or an empty ``institution_id`` (``InstitutionIdentityV27`` requires
-    ``min_length=1``); :func:`run_stage6_v27` checks every row before its first call."""
+    ``min_length=1``), or an ``institution_search_languages`` value outside the schema's
+    ``LANGS_PATTERN``; :func:`run_stage6_v27` checks every row before its first call."""
     row = inst.institution
     missing = [c for c in IDENTITY_COLUMNS
                if row.get(c) is None or (c in NON_EMPTY_IDENTITY_COLUMNS and row.get(c) == "")]
+    ident = row.get("institution_id")
+    label = str(ident) if ident not in (None, "") else "<no institution_id>"
     if missing:
-        ident = row.get("institution_id")
-        raise UpstreamRowMalformed(str(ident) if ident not in (None, "") else "<no institution_id>",
-                                   ", ".join(missing), "institution identity columns")
+        raise UpstreamRowMalformed(label, ", ".join(missing), "institution identity columns")
+    langs = row["institution_search_languages"]
+    if not isinstance(langs, str) or _LANGS.fullmatch(langs) is None:
+        raise UpstreamRowMalformed(label, "institution_search_languages", "institution identity columns",
+                                   problem=f"is malformed ({langs!r} does not match LANGS_PATTERN)")
+
+
 ARTIFACTS_UNREADABLE = "stage6_artifacts_unreadable"  # existing Stage 6 artifacts fail to reload
 MISSING_RELATION = "missing_relation_decision"
 CONFLICTING_GROUPS = "conflicting_relation_groups"
