@@ -7,7 +7,7 @@ import gc
 import json
 import logging
 import sys
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -429,7 +429,7 @@ def _usage_totals(metrics: Any) -> dict[str, int]:
 
 
 class V27InputsChanged(RuntimeError):
-    """The per-page inputs' run pass saw other pages than the ``require_complete`` pass counted.
+    """The per-page inputs' run pass saw other pages than the ``require_complete`` pass saw.
 
     A re-iterable ``perpage_inputs`` output must give the same institutions and pages on
     each pass (ruling 40 a checks the first pass only); one that empties or changes on the
@@ -437,19 +437,26 @@ class V27InputsChanged(RuntimeError):
     """
 
 
-def _same_pages(institutions: Iterable[Any], expected: int) -> Iterator[Any]:
-    """Yield ``institutions`` (the run pass), raising :class:`V27InputsChanged` as soon as the
-    pages seen exceed ``expected``, or at the end when they fall short of it."""
+def _same_pages(institutions: Iterable[Any], expected: Sequence[tuple[str, str]]) -> Iterator[Any]:
+    """Yield ``institutions`` (the run pass), raising :class:`V27InputsChanged` as soon as its
+    ordered ``(institution_id, page_id)`` list departs from ``expected`` (the ``require_complete``
+    pass's, in order): more pages, or other pages or another order; at the end when it falls short."""
     seen = 0
     for inst in institutions:
-        seen += len(inst.pages)
-        if seen > expected:
-            raise V27InputsChanged(f"v2.7 per-page inputs: the run pass yielded more than the {expected} page(s) "
-                                   "require_complete counted (the builder's output changed between passes)")
+        got = [(inst.institution_id, spec.page.page_id) for spec in inst.pages]
+        if seen + len(got) > len(expected):
+            raise V27InputsChanged(f"v2.7 per-page inputs: the run pass yielded more than the {len(expected)} "
+                                   "page(s) require_complete counted (the builder's output changed between passes)")
+        if got != list(expected[seen:seen + len(got)]):
+            raise V27InputsChanged(f"v2.7 per-page inputs: the run pass yielded {got} where require_complete saw "
+                                   f"{list(expected[seen:seen + len(got)])} (the builder's output changed between "
+                                   "passes)")
+        seen += len(got)
         yield inst
-    if seen != expected:
+    if seen != len(expected):
         raise V27InputsChanged(f"v2.7 per-page inputs: the run pass yielded {seen} page(s), require_complete "
-                               f"counted {expected} (a re-iterable that empties or changes on the second pass)")
+                               f"counted {len(expected)} (a re-iterable that empties or changes on the second "
+                               "pass)")
 
 
 def run_v27_dispatch(
@@ -509,14 +516,15 @@ def run_v27_dispatch(
     # (a first pass that keeps no page text; it also counts the pages).
     from g3o.run.presweep.perpage_inputs_v27 import require_complete
 
-    n_pages = require_complete(institutions)
+    page_keys: list[tuple[str, str]] = []
+    n_pages = require_complete(institutions, page_keys)
     out: dict[str, Any] = into if into is not None else {}
     out.update({"pipeline_version": PIPELINE_V27, "instrument_id": bound.instrument_id})
     usage: dict[str, dict[str, int]] = {}
 
     span = tel.stage_start(V27_PERPAGE_SPAN, counts_in=n_pages)
     ready, pm = run_perpage_v27(
-        run_dir, _same_pages(institutions, n_pages), ask_fn=v27.jev_ask_fn, providers=providers,
+        run_dir, _same_pages(institutions, page_keys), ask_fn=v27.jev_ask_fn, providers=providers,
         page_config=bound.page_config, activity_config=bound.activity_config,
         instrument=instrument,
     )

@@ -211,7 +211,8 @@ def build_perpage_inputs(run_dir: Path, sample: Sequence[Mapping[str, Any]], scr
     return PerPageInputs(run_dir, sample, scraped, str(run_id), institution_uid_map(run_dir))
 
 
-def require_complete(institutions: Iterable[pp.PerPageInstitution]) -> int:
+def require_complete(institutions: Iterable[pp.PerPageInstitution],
+                     keys: list[tuple[str, str]] | None = None) -> int:
     """Raise the per-page stage's ``MissingUpstreamError`` for values no producer supplies yet.
 
     The per-page stage refuses these only after coding a page (``failed_page`` /
@@ -222,12 +223,17 @@ def require_complete(institutions: Iterable[pp.PerPageInstitution]) -> int:
     and ``codes`` must not be ``None``. Which keys they must cover (one per coded
     activity, or :data:`~g3o.run.presweep.stage_perpage_v27.NO_ACTIVITY`) is known
     only after coding, so key coverage is still checked by ``produce_page``.
+
+    ``keys``, when given, receives ``(institution_id, page_id)`` for every page, in
+    the order seen (the dispatch checks the run pass against it).
     """
     follow, values = [], []
     n_pages = 0
     for inst in institutions:
         for spec in inst.pages:
             n_pages += 1
+            if keys is not None:
+                keys.append((inst.institution_id, spec.page.page_id))
             key = f"{inst.institution_id}/{spec.page.page_id}"
             up = spec.upstream
             if up.followed is None:
