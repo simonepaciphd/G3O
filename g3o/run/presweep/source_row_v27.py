@@ -634,6 +634,22 @@ class AssembledRows:
     source_codes: list[Code] = field(default_factory=list)
     activity_codes: dict[str, list[Code]] = field(default_factory=dict)
 
+    def to_upstream(self, keys: Sequence[str]) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]],
+                                                         dict[str, list[Code]]]:
+        """``(activity_values, source_values, codes)`` in the ``PageUpstream`` shape.
+
+        ``keys`` are the page's source-row units (one per activity, or the
+        no-activity key): each gets the page-level source values and codes, plus
+        its activity's codes. Refused while anything is refused.
+        """
+        if self.refused:
+            raise sf.MissingUpstreamError(ASSEMBLER, sorted(self.refused))
+        activity_values = {aid: {i: v.value for i, v in row.items()} for aid, row in self.activities.items()}
+        source = {i: v.value for i, v in self.source.items()}
+        source_values = {key: dict(source) for key in keys}
+        codes = {key: [*self.source_codes, *self.activity_codes.get(key, ())] for key in keys}
+        return activity_values, source_values, codes
+
 
 def _try(rows: AssembledRows, out: dict[str, RowValue], item: str, make: Callable[[], RowValue]) -> None:
     try:

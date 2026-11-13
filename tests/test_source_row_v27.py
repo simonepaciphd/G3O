@@ -453,3 +453,22 @@ def test_content_extracted_items_65a():
     for item in srow.EXTRACTED_FIELDS:
         assert srow.content_extracted(item, "no_genai", [aid], {aid: named}).value == "no"
         assert srow.content_extracted(item, "confirms_activity", [], {}).value == "no"
+
+
+def test_to_upstream_shape_and_refusal():
+    """The assembled rows in the PageUpstream shape (per source-row unit), refused while anything is."""
+    span = _span(("core.tool_name", "Copilot Chat", "runs Copilot Chat"))
+    acts = {"p1#a001": _activity(**{"core.activity_type": "internal_operational",
+                                    "core.outcome_kind": "none_reported", "core.incident_kind": "none_reported"})}
+    rows = srow.assemble(_page(), FIELDS_P1, GENAI, acts, followed=False, extraction=_Extraction(span),
+                         sources=SOURCES, verdict_support=_verdict("The council runs Copilot Chat"), provenance=PROV)
+    with pytest.raises(sf.MissingUpstreamError, match="core.source_type"):
+        rows.to_upstream(["p1#a001"])
+    rows.refused.clear()  # as if every standing refusal were lifted
+    a_vals, s_vals, codes = rows.to_upstream(["p1#a001"])
+    assert a_vals["p1#a001"]["core.tool_name"] == ["Copilot Chat"]
+    assert s_vals["p1#a001"]["core.source_snippet"] == "The council runs Copilot Chat"
+    assert codes["p1#a001"][:len(rows.source_codes)] == rows.source_codes
+    assert {sr.item_id for sr, _ in codes["p1#a001"]} >= {"core.tool_name", "core.source_snippet"}
+    _, s_na, c_na = rows.to_upstream(["_NA_"])
+    assert c_na["_NA_"] == rows.source_codes and s_na["_NA_"] == s_vals["p1#a001"]

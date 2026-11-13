@@ -702,6 +702,8 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                                                            rule_coder_version=activity_config.coder_version))
         if rows.refused:
             raise MissingUpstreamError(f"{VALUES_PRODUCER} ({srow.ASSEMBLER})", sorted(rows.refused))
+        a_vals, s_vals, codes = rows.to_upstream(keys)
+        up = replace(up, activity_values=a_vals, source_values=s_vals, codes=codes)
     for name, value, need in (("activity_values", up.activity_values, list(acts)),
                               ("source_values", up.source_values, keys), ("codes", up.codes, keys)):
         if need and (value is None or set(need) - set(value)):
