@@ -496,6 +496,23 @@ def test_malformed_anchors_and_ids_are_contract_errors_not_type_errors():
             parse_pass1_result(ok(bad), page, plan)
 
 
+@pytest.mark.parametrize("shape", [5, "x", {"k": 1}, True])
+@pytest.mark.parametrize("where", ["quotes", "links", "activities", "activity fields"])
+def test_array_field_of_the_wrong_shape_is_a_contract_error(where, shape):
+    """Ruling 30 a: an array field that is not a list raises ExtractContractError (never a
+    TypeError/KeyError/AttributeError); null still reads as empty."""
+    page = _activity_page()
+    plan = select_requests(page)
+    activity = {"part_id": "P1#p001", "start_text": "The", "end_text": "2024.", "fields": []}
+    if where == "activity fields":
+        bad, null = (empty_answer(activities=[{**activity, "fields": v}]) for v in (shape, None))
+    else:
+        bad, null = empty_answer(**{where: shape}), empty_answer(**{where: None})
+    with pytest.raises(ExtractContractError, match="must be an array"):
+        parse_pass1_result(ok(bad), page, plan)
+    parse_pass1_result(ok(null), page, plan)
+
+
 def test_empty_anchor_activity_is_kept_unresolved_and_the_page_parses():
     page = _activity_page()
     out = parse_pass1_result(ok(empty_answer(activities=[

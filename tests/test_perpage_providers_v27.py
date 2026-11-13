@@ -11,11 +11,14 @@ from __future__ import annotations
 
 import importlib
 import json
+from dataclasses import replace
 
 import pytest
 
 from g3o.classify import jev_page_code as jpc
 from g3o.common import attrition, support_check
+from g3o.common.cost_monitor import BudgetExceededError
+from g3o.common.jev_client import JevAccountError
 from g3o.common.part_combine import NOT_COVERED
 from g3o.common.paths import institution_dir
 from g3o.common.support_check import SupportGateError
@@ -307,29 +310,538 @@ def test_extra_round_asks_only_the_new_codes(tmp_path):
     assert {o.item_id: o.value for o in obs.final_outcomes.values()}["core.model_origin"] == "commercial"
 
 
-def test_failed_extractor_response_raises_and_is_asked_again(tmp_path):
-    """A failed response is not a missing quote: the parser's error leaves the stage; the journal
-    keeps it for accounting only, so the next run asks it again."""
-    run_dir, bound, instrument, world, insts = _world(tmp_path)
-    b = [i for i in insts if i.institution_id == "INST-0000002"]
+def _held(run_dir, inst):
+    return json.loads((institution_dir(run_dir, inst) / pp.WORK_DIR / pp.HELD_FILE).read_text(encoding="utf-8"))
 
-    class Failing(FakeExtractor):
-        def __call__(self, job):
-            self.jobs.append(job)
+
+def _kinds(run_dir, inst):
+    journal = (institution_dir(run_dir, inst) / pp.WORK_DIR / pp.JOURNAL).read_text(encoding="utf-8")
+    return [json.loads(x)["kind"] for x in journal.splitlines()]
+
+
+class BadResponse(FakeExtractor):
+    """The first ``times`` jobs of ``stage`` on ``page`` get a bad response: unparsable (not JSON),
+    outside the answer schema, or failed (``success`` false)."""
+
+    def __init__(self, world, stage, page, kind="not_json", times=1):
+        super().__init__(world)
+        self.stage, self.page, self.kind, self.left = stage, page, kind, times
+
+    def __call__(self, job):
+        if job.metadata["stage"] != self.stage or job.metadata["page_id"] != self.page or not self.left:
+            return super().__call__(job)
+        self.left -= 1
+        self.jobs.append(job)
+        if self.kind == "failed":
             return ExtractorResult(job.custom_id, False, None, {"type": "errored"}, usage=dict(USAGE))
-    failing = Failing(world)
-    with pytest.raises(RuntimeError, match="failed"):
-        _run(run_dir, bound, instrument, b, _providers(run_dir, bound, instrument, failing, FakeEntail()),
-             FakeJev(ANSWERS, RELATIONS))
-    assert len(failing.jobs) == 1
-    journal = (institution_dir(run_dir, "INST-0000002") / pp.WORK_DIR / pp.JOURNAL).read_text(encoding="utf-8")
-    assert [json.loads(x)["kind"] for x in journal.splitlines()].count("extract_failed") == 1
+        text = "not json {" if self.kind == "not_json" else json.dumps({"unexpected": []})
+        return ExtractorResult(job.custom_id, True, text, None, "fake-extractor-response", "msg-bad", "x-bad",
+                               "end_turn", dict(USAGE))
+
+
+def _assert_not_archived(run_dir, insts, inst, page, hold):
+    """A C3 hold leaves the page's saved state in place: no archive folder, no pending marker, no
+    ``archived`` (or archive-failure) entry in the hold."""
+    spec = next(s for i in insts if i.institution_id == inst for s in i.pages if s.page.page_id == page)
+    pdir = pp._page_dir(run_dir, spec.page)
+    assert not (pdir / pp.PAGE_ARCHIVE_DIR).exists() and not (pdir / pp.PAGE_ARCHIVE_PENDING).exists()
+    assert "archived" not in hold and "archive_error" not in hold
+
+
+def _bad_job(bad, stage, page):
+    return next(j for j in bad.jobs if j.metadata["page_id"] == page and j.metadata["stage"] == stage)
+
+
+@pytest.mark.parametrize(("stage", "page", "inst"), [(PASS1, "p1", "INST-0000001"), (PASS2, "b1", "INST-0000002")])
+@pytest.mark.parametrize("kind", ["not_json", "off_schema", "failed"])
+def test_bad_extractor_response_holds_that_institution_and_the_stage_goes_on(tmp_path, stage, page, inst, kind):
+    """C3 a / QA4 M3: a failed or unparsable pass-1/pass-2 response holds only its institution as
+    pending (never published); the later institutions complete."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    bad = BadResponse(world, stage, page, kind)
+    ready, metrics = _run(run_dir, bound, instrument, insts,
+                          _providers(run_dir, bound, instrument, bad, FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    others = [i for i in ("INST-0000001", "INST-0000002", "INST-0000003") if i != inst]
+    assert metrics.held == [inst]
+    assert [i.institution_id for i in ready] == others == metrics.ready
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED and hold["page_id"] == page
+    assert hold["pass"] == ("pass1" if stage == PASS1 else "pass2")
+    assert hold["custom_id"] == _bad_job(bad, stage, page).custom_id
+    assert ("ExtractContractError" in hold["error"]) == (kind != "failed")
+    assert any(r["institution_id"] == inst and r["reason"] == pp.HELD_REASON
+               and r["detail"] == f"{page}:{pp.EXTRACT_RESPONSE_FAILED}" for r in attrition.read_records(run_dir))
+    kinds = _kinds(run_dir, inst)
+    if kind == "failed":
+        assert kinds.count("extract_failed") == 1 and "extract_rejected" not in kinds
+    else:  # recorded, then rejected: kept for accounting only, never replayed as final
+        assert kinds.count("extract_rejected") == 1 and "extract_failed" not in kinds
+    # every extractor call counted once: a rejection entry cancels its recorded entry, never adds a call
+    assert metrics.usage[inst]["extractor_calls"] == kinds.count("extract") + kinds.count("extract_failed")
+    _assert_not_archived(run_dir, insts, inst, page, hold)  # ruling 33 a is for C4 holds only
+
+
+@pytest.mark.parametrize(("stage", "page", "inst"), [(PASS1, "p1", "INST-0000001"), (PASS2, "b1", "INST-0000002")])
+@pytest.mark.parametrize("kind", ["not_json", "failed"])
+def test_bad_extractor_response_is_asked_again_on_the_next_run(tmp_path, stage, page, inst, kind):
+    """The held institution's bad request is asked again live on resume (not replayed) and, with a
+    good response, the institution completes and its hold is released."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    one = [i for i in insts if i.institution_id == inst]
+    bad = BadResponse(world, stage, page, kind)
+    ready, metrics = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, bad, FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not ready and metrics.held == [inst]
+    failed_job = _bad_job(bad, stage, page)
+
     extract = FakeExtractor(world)
-    ready, metrics = _run(run_dir, bound, instrument, b, _providers(run_dir, bound, instrument, extract, FakeEntail()),
-                          FakeJev(ANSWERS, RELATIONS))
-    assert [i.institution_id for i in ready] == ["INST-0000002"]
-    assert extract.jobs[0].params == failing.jobs[0].params  # asked again, live
-    assert metrics.usage["INST-0000002"]["extractor_calls"] == len(extract.jobs) + 1  # the failed one counted
+    ready, metrics = _run(run_dir, bound, instrument, one,
+                          _providers(run_dir, bound, instrument, extract, FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and not metrics.held
+    assert any(j.params == failed_job.params for j in extract.jobs)  # asked again, live
+    assert not (institution_dir(run_dir, inst) / pp.WORK_DIR / pp.HELD_FILE).exists()
+    assert any(r["institution_id"] == inst and r["reason"] == pp.HELD_RELEASED
+               for r in attrition.read_records(run_dir))
+    assert metrics.usage[inst]["extractor_calls"] == len(bad.jobs) + len(extract.jobs)
+
+    # A third run replays the good responses only: nothing is sent live.
+    again = FakeExtractor(world)
+    ready, _ = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, again, FakeEntail()),
+                    FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and again.jobs == []
+
+
+def test_rejected_response_is_not_replayed_by_a_reloaded_journal(tmp_path):
+    """``reject_extract`` cancels the recorded entry for every later load; a new response to the same
+    request is replayed after it."""
+    from g3o.extract.anthropic_client import ExtractorJob
+
+    path = tmp_path / "journal.jsonl"
+    job = ExtractorJob("cid-1", {"model": "m", "messages": []}, {})
+    prompt = {"extractor_model": "m"}
+    answers = iter([ExtractorResult("cid-1", True, "bad", None, usage=dict(USAGE)),
+                    ExtractorResult("cid-1", True, "good", None, usage=dict(USAGE))])
+    journal = rt.RequestJournal(path, {"s": 1})
+    wrap, _ = journal.seams(prompt)
+    assert wrap(lambda j: next(answers))(job).text == "bad"
+    request = {"custom_id": job.custom_id, "params": job.params}
+    assert journal.reject_extract(request, prompt, "ExtractContractError: answer is not JSON")
+    assert not journal.reject_extract(request, prompt, "twice")  # nothing recorded is left to reject
+    reloaded = rt.RequestJournal(path, {"s": 1})
+    wrap2, _ = reloaded.seams(prompt)
+    assert wrap2(lambda j: next(answers))(job).text == "good" and reloaded.live == 1
+    third = rt.RequestJournal(path, {"s": 1})
+    wrap3, _ = third.seams(prompt)
+    assert wrap3(lambda j: pytest.fail("asked again"))(job).text == "good" and third.replayed == 1
+    assert third.usage()["extractor_calls"] == 2 and third.usage()["extractor_input_tokens"] == 200
+
+
+@pytest.mark.parametrize("error", [JevAccountError("account stopped"), BudgetExceededError(2.0, 1.0, "perpage_v27"),
+                                   pp.MissingUpstreamError("simulated absent producer", ["p1"]),
+                                   RuntimeError("client connection reset")])
+def test_extractor_call_errors_still_stop_the_stage(tmp_path, error):
+    """A stage stop raised by the call (or any exception it raises: not a response) still stops."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+
+    class Raising(FakeExtractor):
+        def __call__(self, job):
+            raise error
+    with pytest.raises(type(error)):
+        _run(run_dir, bound, instrument, insts, _providers(run_dir, bound, instrument, Raising(world), FakeEntail()),
+             FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not any(r["reason"] == pp.HELD_REASON for r in attrition.read_records(run_dir))
+
+
+def test_missing_upstream_after_a_response_hold_still_stops_the_stage(tmp_path, monkeypatch):
+    """RC-D-033 C2 a is unchanged: a held bad response does not turn a later wiring gap into a hold."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    real = pp.produce_page
+
+    def missing(**kw):
+        if kw["spec"].page.institution_id == "INST-0000002":
+            raise pp.MissingUpstreamError("simulated absent producer", [kw["spec"].page.page_id])
+        return real(**kw)
+    monkeypatch.setattr(pp, "produce_page", missing)
+    with pytest.raises(pp.MissingUpstreamError, match="simulated absent"):
+        _run(run_dir, bound, instrument, insts,
+             _providers(run_dir, bound, instrument, BadResponse(world, PASS1, "p1"), FakeEntail()),
+             FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert _held(run_dir, "INST-0000001")["held"][0]["stage"] == pp.EXTRACT_RESPONSE_FAILED
+
+
+class WrongShape(FakeExtractor):
+    """The first pass job of ``stage`` on ``page`` answers one array field with ``5`` (ruling 30 a):
+    a top-level field, or ``activity fields`` (every activity's ``fields``)."""
+
+    def __init__(self, world, stage, page, where):
+        super().__init__(world)
+        self.stage, self.page, self.where, self.left = stage, page, where, 1
+
+    def __call__(self, job):
+        result = super().__call__(job)
+        if job.metadata["stage"] != self.stage or job.metadata["page_id"] != self.page or not self.left:
+            return result
+        self.left -= 1
+        payload = json.loads(result.text)
+        if self.where == "activity fields":
+            assert payload["activities"]
+            for act in payload["activities"]:
+                act["fields"] = 5
+        else:
+            payload[self.where] = 5
+        return replace(result, text=json.dumps(payload))
+
+
+@pytest.mark.parametrize(("stage", "where"), [(PASS1, "quotes"), (PASS1, "links"), (PASS1, "activities"),
+                                              (PASS1, "activity fields"), (PASS2, "quotes"), (PASS2, "fields")])
+def test_wrong_shape_array_field_holds_that_institution(tmp_path, stage, where):
+    """Ruling 30 a: an array field of the wrong shape (``"quotes": 5``) is an ExtractContractError, so
+    the institution is held under C3 a (never a TypeError stage stop); the others complete."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    bad = WrongShape(world, stage, page, where)
+    ready, metrics = _run(run_dir, bound, instrument, insts, _providers(run_dir, bound, instrument, bad, FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert metrics.held == [inst]
+    assert [i.institution_id for i in ready] == ["INST-0000001", "INST-0000003"] == metrics.ready
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED and hold["page_id"] == page
+    assert hold["pass"] == ("pass1" if stage == PASS1 else "pass2")
+    assert hold["custom_id"] == _bad_job(bad, stage, page).custom_id
+    assert "ExtractContractError" in hold["error"] and "must be an array" in hold["error"]
+    assert _kinds(run_dir, inst).count("extract_rejected") == 1
+    _assert_not_archived(run_dir, insts, inst, page, hold)  # a C3 hold: the page state is not archived
+
+
+def test_response_failure_is_not_a_stage_stop():
+    assert not issubclass(pp.ExtractorResponseFailed, pp.STAGE_STOPS)
+    assert not issubclass(pp.ExtractorResponseFailed, (ValueError, RuntimeError))
+
+
+# ---------------------------------------------------------------------------
+# C4 a: a pass-1 activity with no activity_name, where an activity-form X35 question needs it
+# ---------------------------------------------------------------------------
+
+
+class NamelessActivity(FakeExtractor):
+    """The first ``times`` pass-1 jobs on ``page`` give its activities no ``activity_name``: the field
+    left out (``absent``), null, or whitespace only (the parser records both as an empty result)."""
+
+    def __init__(self, world, page, kind="absent", times=1):
+        super().__init__(world)
+        self.page, self.kind, self.left = page, kind, times
+
+    def __call__(self, job):
+        result = super().__call__(job)
+        if job.metadata["stage"] != PASS1 or job.metadata["page_id"] != self.page or not self.left:
+            return result
+        self.left -= 1
+        payload = json.loads(result.text)
+        name = field_name("core.activity_name")
+        for act in payload["activities"]:
+            if self.kind == "absent":
+                act["fields"] = [f for f in act["fields"] if f["field"] != name]
+            else:
+                for f in act["fields"]:
+                    if f["field"] == name:
+                        f["value"] = None if self.kind == "null" else "   "
+        return replace(result, text=json.dumps(payload))
+
+
+def _activity_form(questions):
+    """X35 questions in the activity form (the page form never names an activity)."""
+    rules = support_check.default_rules()
+    before = rules.entailment_activity_form.split("<activity name>", 1)[0].rsplit(">", 1)[-1]
+    assert before and before not in rules.entailment_page_form
+    return [q for q in questions if before in q]
+
+
+@pytest.mark.parametrize("kind", ["absent", "null", "blank"])
+def test_nameless_activity_holds_that_institution_and_the_stage_goes_on(tmp_path, kind):
+    """C4 a: an activity-form X35 question for an activity pass 1 gave no name holds that
+    institution as pending (the hold names the page's pass-1 request); the others complete."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    extract, entail = NamelessActivity(world, page, kind), FakeEntail()
+    ready, metrics = _run(run_dir, bound, instrument, insts, _providers(run_dir, bound, instrument, extract, entail),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert metrics.held == [inst]
+    assert [i.institution_id for i in ready] == ["INST-0000001", "INST-0000003"] == metrics.ready
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED and hold["page_id"] == page and hold["pass"] == "pass1"
+    assert hold["custom_id"] == _bad_job(extract, PASS1, page).custom_id
+    assert "activity_name" in hold["error"] and "C4 a" in hold["error"]
+    assert any(r["institution_id"] == inst and r["reason"] == pp.HELD_REASON
+               and r["detail"] == f"{page}:{pp.EXTRACT_RESPONSE_FAILED}" for r in attrition.read_records(run_dir))
+    kinds = _kinds(run_dir, inst)
+    assert kinds.count("extract_rejected") == 1 and "extract_failed" not in kinds
+    assert metrics.usage[inst]["extractor_calls"] == kinds.count("extract")
+    # page-form X35 questions (no name needed) still ran; none was asked with an empty name
+    questions = [q for q, _ in entail.calls]
+    assert len(_activity_form(questions)) < len(questions)
+    assert not any("  " in q for q in _activity_form(questions))
+
+
+def test_nameless_activity_is_asked_again_on_the_next_run(tmp_path):
+    """The held institution's pass-1 request is asked again live (its nameless response is rejected,
+    never replayed); with a named activity it completes, and a third run replays only."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    one = [i for i in insts if i.institution_id == inst]
+    bad = NamelessActivity(world, page)
+    ready, metrics = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, bad, FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not ready and metrics.held == [inst]
+    failed_job = _bad_job(bad, PASS1, page)
+
+    extract, entail = FakeExtractor(world), FakeEntail()
+    ready, metrics = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, extract, entail),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and not metrics.held
+    assert any(j.params == failed_job.params for j in extract.jobs)  # asked again, live
+    assert any("Bin rules" in q for q in _activity_form(q for q, _ in entail.calls))  # now named
+    assert not (institution_dir(run_dir, inst) / pp.WORK_DIR / pp.HELD_FILE).exists()
+    assert any(r["institution_id"] == inst and r["reason"] == pp.HELD_RELEASED
+               for r in attrition.read_records(run_dir))
+
+    again = FakeExtractor(world)
+    ready, _ = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, again, FakeEntail()),
+                    FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and again.jobs == []
+
+
+def test_c4_hold_archives_the_page_state_and_the_next_run_codes_it_from_the_new_answer(tmp_path, monkeypatch):
+    """Ruling 33 a: on a C4 hold the page's saved state (page.json, activity.json, pairs.json, T-023
+    activity artifact) is moved to ``<page dir>/archive/001/``; the next run codes the page again from
+    the new pass-1 answer (T-023 runs on the new spans), using none of the archived state."""
+    from g3o.common.artifact_io import artifact_exists
+    from g3o.run.presweep import stage_activity_code
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    one = [i for i in insts if i.institution_id == inst]
+    spec = next(s for s in one[0].pages if s.page.page_id == page)
+    pdir = pp._page_dir(run_dir, spec.page)
+    inst_dir = institution_dir(run_dir, inst)
+    art = stage_activity_code.artifact_path(inst_dir / pp.ACTIVITY_DIR, page)
+
+    ready, metrics = _run(run_dir, bound, instrument, one,
+                          _providers(run_dir, bound, instrument, NamelessActivity(world, page), FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not ready and metrics.held == [inst]
+    (hold,) = _held(run_dir, inst)["held"]
+    archive = pdir / pp.PAGE_ARCHIVE_DIR / "001"
+    # nothing is left at the live paths; everything that was saved is in the archive folder
+    assert not any((pdir / n).exists() for n in pp.PAGE_STATE_FILES) and not artifact_exists(art)
+    assert (archive / "page.json").exists() and (archive / "activity.json").exists()
+    assert list((archive / pp.ACTIVITY_DIR).iterdir())
+    assert hold["archived"] and all((inst_dir / p).exists() for p in hold["archived"])
+    archived_activity = json.loads((archive / "activity.json").read_text(encoding="utf-8"))
+
+    coded = []
+    real = stage_activity_code.run_stage
+
+    def spy(pages, *a, **kw):
+        pages = list(pages)
+        coded.extend(pages)
+        return real(pages, *a, **kw)
+    monkeypatch.setattr(stage_activity_code, "run_stage", spy)
+    extract, entail = FakeExtractor(world), FakeEntail()
+    ready, metrics = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, extract, entail),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and not metrics.held
+    # T-023 ran again for b1, on the spans of the new pass-1 answer (the activity is named now)
+    (b1_input,) = [p for p in coded if p.page.page_id == page]
+    names = [f.value for s in b1_input.spans for f in s.fields if f.item_id == "core.activity_name"]
+    assert names == ["Bin rules"]
+    # the stale state stays archived (never deleted); fresh state is written at the live paths
+    assert (pdir / "page.json").exists() and (pdir / "activity.json").exists() and artifact_exists(art)
+    assert json.loads((archive / "activity.json").read_text(encoding="utf-8")) == archived_activity
+    assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
+
+
+def test_archive_page_state_moves_every_state_file_and_numbers_each_archive(tmp_path):
+    """Unit: all four kinds of saved state are moved (none deleted), each call into the next ``NNN``;
+    a page with no saved state archives nothing."""
+    from g3o.classify.jev_page_code import PageInput
+    from g3o.common.artifact_io import write_artifact
+    from g3o.run.presweep import stage_activity_code
+
+    run_dir = tmp_path / "run"
+    page = PageInput(page_id="z1", institution_id="INST-0000009", institution="Z", country=None,
+                     level_of_government=None, url="https://example.gov/z1", title=None, text="z")
+    assert pp._archive_page_state(run_dir, page) == []
+    pdir = pp._page_dir(run_dir, page)
+    inst_dir = institution_dir(run_dir, page.institution_id)
+    art = stage_activity_code.artifact_path(inst_dir / pp.ACTIVITY_DIR, page.page_id)
+    for n in (1, 2):
+        pdir.mkdir(parents=True, exist_ok=True)
+        for name in pp.PAGE_STATE_FILES:
+            (pdir / name).write_text(f"{name} {n}", encoding="utf-8")
+        art.parent.mkdir(parents=True, exist_ok=True)
+        write_artifact(art, json.dumps({"n": n}))
+        moved = pp._archive_page_state(run_dir, page)
+        dest = pdir / pp.PAGE_ARCHIVE_DIR / f"{n:03d}"
+        assert len(moved) == 4 and all((inst_dir / p).exists() for p in moved)
+        assert all((dest / name).read_text(encoding="utf-8") == f"{name} {n}" for name in pp.PAGE_STATE_FILES)
+        assert len(list((dest / pp.ACTIVITY_DIR).iterdir())) == 1
+        assert not any((pdir / name).exists() for name in pp.PAGE_STATE_FILES)
+
+
+def _failing_moves(monkeypatch, fail):
+    """Patch the stage's ``replace_with_retry`` so the archive moves (target under an ``archive`` folder)
+    or the pending-marker writes for which ``fail(kind, n)`` is true raise ``PermissionError``, as after
+    exhausted retries; ``n`` counts the calls of that kind (1-based)."""
+    real = pp.replace_with_retry
+    seen = {"move": 0, "marker": 0}
+
+    def fake(src, dst):
+        kind = ("move" if pp.PAGE_ARCHIVE_DIR in dst.parts else
+                "marker" if dst.name == pp.PAGE_ARCHIVE_PENDING else None)
+        if kind is not None:
+            seen[kind] += 1
+            if fail(kind, seen[kind]):
+                raise PermissionError(13, "Access is denied", str(dst))
+        return real(src, dst)
+    monkeypatch.setattr(pp, "replace_with_retry", fake)
+
+
+def _spy_activity_code(monkeypatch):
+    from g3o.run.presweep import stage_activity_code
+    coded = []
+    real = stage_activity_code.run_stage
+
+    def spy(pages, *a, **kw):
+        pages = list(pages)
+        coded.extend(p.page.page_id for p in pages)
+        return real(pages, *a, **kw)
+    monkeypatch.setattr(stage_activity_code, "run_stage", spy)
+    return coded
+
+
+def test_c4_archive_failing_midway_holds_and_no_run_resumes_from_the_partial_state(tmp_path, monkeypatch):
+    """Ruling 33 a with 28 a: a PermissionError on the 2nd archive move is a hold, not a crash. The page's
+    pending marker stays, so the stale activity.json left at its live path is never loaded: a run whose
+    archive fails again holds again (ARCHIVE_FAILED) without coding the page, and the next run finishes the
+    same ``archive/001`` (no second folder) and codes the page again from the new pass-1 answer."""
+    from g3o.common.artifact_io import artifact_exists
+    from g3o.run.presweep import stage_activity_code
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    one = [i for i in insts if i.institution_id == inst]
+    spec = next(s for s in one[0].pages if s.page.page_id == page)
+    pdir = pp._page_dir(run_dir, spec.page)
+    inst_dir = institution_dir(run_dir, inst)
+    art = stage_activity_code.artifact_path(inst_dir / pp.ACTIVITY_DIR, page)
+    archive = pdir / pp.PAGE_ARCHIVE_DIR / "001"
+    marker = pdir / pp.PAGE_ARCHIVE_PENDING
+
+    with monkeypatch.context() as m:
+        _failing_moves(m, lambda kind, n: kind == "move" and n == 2)
+        ready, metrics = _run(run_dir, bound, instrument, one,
+                              _providers(run_dir, bound, instrument, NamelessActivity(world, page), FakeEntail()),
+                              FakeJev(ANSWERS, RELATIONS, _fail_verdict))  # no exception escapes
+    assert not ready and metrics.held == [inst]
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED and hold["page_id"] == page
+    assert hold["archive_error"].startswith("PermissionError")
+    rel = pdir.relative_to(inst_dir).as_posix()
+    assert hold["archived"] == [f"{rel}/{pp.PAGE_ARCHIVE_DIR}/001/page.json"]
+    assert f"{rel}/activity.json" in hold["archive_left"]
+    assert f"{rel}/{pp.PAGE_ARCHIVE_PENDING}" in hold["archive_left"]
+    assert any(r["institution_id"] == inst and r["reason"] == pp.HELD_REASON
+               and r["detail"] == f"{page}:{pp.EXTRACT_RESPONSE_FAILED}:{pp.ARCHIVE_FAILED}"
+               for r in attrition.read_records(run_dir))
+    # documented state: page.json archived, the rest still at the live paths behind the pending marker
+    assert marker.exists() and (archive / "page.json").exists() and not (pdir / "page.json").exists()
+    assert (pdir / "activity.json").exists() and artifact_exists(art)
+    stale_activity = json.loads((pdir / "activity.json").read_text(encoding="utf-8"))
+
+    coded = _spy_activity_code(monkeypatch)
+    with monkeypatch.context() as m:  # the archive still fails: held again, nothing of the page is loaded
+        _failing_moves(m, lambda kind, n: kind == "move")
+        loaded = []
+        real_load = pp.Checkpoint.load
+        m.setattr(pp.Checkpoint, "load", lambda self: loaded.append(self.path) or real_load(self))
+        ready, metrics = _run(run_dir, bound, instrument, one,
+                              _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+                              FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not ready and metrics.held == [inst]
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["stage"] == pp.ARCHIVE_FAILED and hold["archive_error"].startswith("PermissionError")
+    assert not any(p.parent == pdir for p in loaded) and page not in coded and marker.exists()
+
+    ready, metrics = _run(run_dir, bound, instrument, one,
+                          _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and not metrics.held
+    assert page in coded  # T-023 ran again on the new spans, not resumed from the stale activity.json
+    # the same archive folder was finished (marker moved in last); no second folder was taken
+    assert not marker.exists() and (archive / pp.PAGE_ARCHIVE_PENDING).exists()
+    assert json.loads((archive / "activity.json").read_text(encoding="utf-8")) == stale_activity
+    assert list((archive / pp.ACTIVITY_DIR).iterdir())
+    assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
+    assert json.loads((pdir / "activity.json").read_text(encoding="utf-8")) != stale_activity
+
+
+def test_c4_archive_failing_before_its_marker_is_finished_from_held_json(tmp_path, monkeypatch):
+    """The pending-marker write itself fails: nothing is moved and no marker exists, so the hold in
+    held.json (``archive_error``) is what the next run reads to archive the stale state before coding."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    inst, page = "INST-0000002", "b1"
+    one = [i for i in insts if i.institution_id == inst]
+    spec = next(s for s in one[0].pages if s.page.page_id == page)
+    pdir = pp._page_dir(run_dir, spec.page)
+
+    with monkeypatch.context() as m:
+        _failing_moves(m, lambda kind, n: kind == "marker")
+        ready, metrics = _run(run_dir, bound, instrument, one,
+                              _providers(run_dir, bound, instrument, NamelessActivity(world, page), FakeEntail()),
+                              FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not ready and metrics.held == [inst]
+    (hold,) = _held(run_dir, inst)["held"]
+    assert hold["archived"] == [] and hold["archive_error"].startswith("PermissionError")
+    assert not (pdir / pp.PAGE_ARCHIVE_PENDING).exists() and not (pdir / pp.PAGE_ARCHIVE_DIR).exists()
+    stale_activity = json.loads((pdir / "activity.json").read_text(encoding="utf-8"))
+
+    coded = _spy_activity_code(monkeypatch)
+    ready, metrics = _run(run_dir, bound, instrument, one,
+                          _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert [i.institution_id for i in ready] == [inst] and not metrics.held
+    assert page in coded
+    archive = pdir / pp.PAGE_ARCHIVE_DIR / "001"
+    assert json.loads((archive / "activity.json").read_text(encoding="utf-8")) == stale_activity
+    assert not (pdir / pp.PAGE_ARCHIVE_PENDING).exists()
+
+
+def test_missing_name_check_covers_the_activity_form_only(tmp_path, monkeypatch):
+    """Unit: a page-form X35 question needs no name; an activity-form one without a name raises
+    ``ExtractorResponseFailed`` for the given pass-1 request before ``entailment_question`` is called;
+    with no activity id (the page seam) the check does not apply and ``entailment_question``'s own
+    ``ValueError`` is left alone."""
+    adapter = ppv._Adapter(None, tmp_path, lambda job: pytest.fail("no extractor call"), FakeEntail())
+    monkeypatch.setattr(support_check, "_needs_quote", lambda *a: True)
+    monkeypatch.setattr(support_check, "_quote_source", lambda *a: "The council pilots a chatbot.")
+    monkeypatch.setattr(support_check, "match_quote", lambda q, s: type("M", (), {"matched": True})())
+    monkeypatch.setattr(support_check, "entailment_window", lambda q, s: (s, True))
+    request = {"custom_id": "cid-b1", "params": {"p": 1}}
+
+    def ev(item, value, activity_id="b1#a001"):
+        return support_check.CodeEvidence(item, value, "b1#p0", quote="chatbot", activity_id=activity_id)
+
+    assert adapter._entailment(ev("core.page_verdict", "confirms_activity"), None, None, request) is TRUE
+    for name in (None, "", "  "):
+        with pytest.raises(pp.ExtractorResponseFailed) as info:
+            adapter._entailment(ev("core.activity_type", "pilot_experiment"), None, name, request)
+        assert info.value.pass_name == "pass1" and info.value.request == request
+    assert adapter._entailment(ev("core.activity_type", "pilot_experiment"), None, "Bin rules", request) is TRUE
+    assert any("Bin rules" in q for q, _ in adapter.entail_fn.calls)
+    with pytest.raises(ValueError, match="activity form needs the activity name"):
+        adapter._entailment(ev("core.activity_type", "pilot_experiment", activity_id=None), None, None, request)
 
 
 # ---------------------------------------------------------------------------

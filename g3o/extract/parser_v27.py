@@ -19,7 +19,8 @@ Rules applied:
   locating the extractor's verbatim start and end anchors in the page text.
   An anchor that cannot be found, or is empty or whitespace only, leaves the
   span unresolved; no offset is guessed. An anchor or id of the wrong JSON
-  type is a contract error, never a ``TypeError``.
+  type is a contract error, never a ``TypeError``; so is an array field that is
+  not a list (ruling 30 a; null reads as empty).
 - **Quote length** (PI 2026-11-04, display cap 200, also stated in the prompt):
   a quote, link passage or supporting text longer than ``QUOTE_MAX_CHARS`` is
   kept whole and flagged ``quote_over_cap``; code never truncates it.
@@ -147,6 +148,17 @@ def _id_or_none(v: Any, where: str) -> str | None:
     raise ExtractContractError(f"{where} must be a string or null")
 
 
+def _array(v: Any, where: str) -> list[Any]:
+    """An answer-schema array field: a JSON list, else a contract error (ruling 30 a), so a
+    wrong shape such as ``"quotes": 5`` never leaks as a ``TypeError``. Null reads as empty,
+    as before."""
+    if v is None:
+        return []
+    if not isinstance(v, list):
+        raise ExtractContractError(f"{where} must be an array, got {type(v).__name__}")
+    return v
+
+
 def _anchor(v: Any) -> str:
     if not isinstance(v, str):
         raise ExtractContractError("span anchors must be strings")
@@ -228,7 +240,7 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
     # -- quotes ------------------------------------------------------------
     tasks = {t.task_id: t for t in plan.quote_tasks}
     got: dict[str, QuoteSupport] = {}
-    for raw in payload["quotes"] or []:
+    for raw in _array(payload["quotes"], "quotes"):
         _check_keys(raw, _QUOTE_KEYS, "quote")
         _id_or_none(raw["part_id"], "quote part_id")
         task = tasks.get(_id_or_none(raw["task_id"], "quote task_id"))
@@ -258,7 +270,7 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
     stored = {ln.link_id: ln for ln in plan.links}
     links: list[SelectedLink] = []
     seen_links: set[str] = set()
-    for raw in payload["links"] or []:
+    for raw in _array(payload["links"], "links"):
         _check_keys(raw, _LINK_KEYS, "link")
         _id_or_none(raw["link_id"], "link_id")
         _id_or_none(raw["part_id"], "link part_id")
@@ -282,11 +294,12 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
     # -- activities --------------------------------------------------------
     wanted = {field_name(i): i for i in plan.activity_fields}
     activities: list[ActivitySpan] = []
-    for raw in payload["activities"] or []:
+    for raw in _array(payload["activities"], "activities"):
         _check_keys(raw, _ACTIVITY_KEYS, "activity")
         _id_or_none(raw["part_id"], "activity part_id")
         _anchor(raw["start_text"])
         _anchor(raw["end_text"])
+        raw_fields = _array(raw["fields"], "activity fields")
         if not plan.activity_task:
             rejected.append(Rejected("activity", "not_requested", raw))
             continue
@@ -296,7 +309,7 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
         start, end, status = resolve_span(page, raw["part_id"], raw["start_text"], raw["end_text"])
         values: list[FieldValue] = []
         seen_fields: set[str] = set()
-        for fraw in raw["fields"] or []:
+        for fraw in raw_fields:
             _check_keys(fraw, _FIELD_KEYS, "field")
             _id_or_none(fraw["part_id"], "field part_id")
             item_id = wanted.get(_id_or_none(fraw["field"], "field name"))
