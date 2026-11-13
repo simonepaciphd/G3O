@@ -134,8 +134,24 @@ class LoadedInstitution:
 STORAGE_UNREADABLE = "stage7_storage_unreadable"
 
 
+def _check_storage_matches(storage: StorageEnvelope, response: AnyValidateResponse, *,
+                           declared_release: str | None, institution_id: str,
+                           institution_uid: str, is_v27: bool) -> None:
+    """Refuse a ``6_storage.json`` whose content does not belong to this institution's
+    ``6_validate.json`` (release, identity, row keys; v2.7 binding). Raises ValueError."""
+    if declared_release is not None and declared_release != storage.data["codebook_release"]:
+        raise ValueError("manifest/envelope codebook release mismatch")
+    if storage.data["institution_uid"] != institution_uid or storage.data["institution_id"] != institution_id:
+        raise ValueError("storage envelope is bound to another institution")
+    if set(storage.data["activities"]) != {a.activity_id for a in response.activities} or set(storage.data["sources"]) != {v.source_id for v in response.sources}:
+        raise ValueError("storage row identifiers differ from consolidated rows")
+    if is_v27 and isinstance(response, ConsolidatedInstitutionResponseV27):
+        check_storage_binding(response, storage.data)
+
+
 def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
                               missing_storage: list[str] | None = None,
+                              unreadable_storage: list[tuple[str, str]] | None = None,
                               ) -> tuple[list[LoadedInstitution], list[str]]:
     """Walk ``institutions/<shard>/<inst>/6_validate.json``; validate each.
 
@@ -160,8 +176,17 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
         attrition ledger (``stage7_storage_unreadable``) instead of raising.
         With ``missing_storage`` (a list; the run report's path, ruling 48.2 a),
         a v2.7 ``6_validate.json`` whose ``6_storage.json`` is absent is appended
-        there and skipped instead of raising; nothing is recorded. Stage 7
-        passes no list, so it still refuses the run.
+        there and skipped instead of raising; nothing is recorded. With
+        ``unreadable_storage`` (a list; the run report's path, ruling 54 a), an
+        institution whose ``6_storage.json`` exists but does not load or does
+        not match its ``6_validate.json`` (release, identity, row keys, v2.7
+        binding), or whose legacy ``6_validate.json`` has no ``6_storage.json``
+        in a 2.7 run, is appended there as ``(institution_id, reason)`` and
+        skipped; nothing is recorded, and it takes precedence over ``held``.
+        Run-level checks (manifest release, v2.7 payload in a non-2.7 run,
+        unstamped uids) still raise. Stage 7 passes neither of these two lists,
+        so it still refuses the run (or, with ``held``, holds an unreadable
+        storage).
 
     Raises:
         RuntimeError: when the manifest carries no ``institution_uids`` block,
@@ -210,6 +235,10 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
                 storage = StorageEnvelope.load(storage_path, run_dir / "final" / "instruments",
                                                artifact_root=run_dir)
             except (ValueError, UnicodeDecodeError) as exc:
+                if unreadable_storage is not None:  # ruling 54 a: report only, nothing recorded
+                    unreadable_storage.append(
+                        (institution_id, f"6_storage.json does not load: {type(exc).__name__}: {exc}"))
+                    continue
                 if held is None:
                     raise
                 # One unreadable (e.g. truncated) storage file holds that institution only:
@@ -218,15 +247,23 @@ def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None,
                                  reason=STORAGE_UNREADABLE, detail=f"{type(exc).__name__}: {exc}")
                 held.append(institution_id)
                 continue
-            if declared_release is not None and declared_release != storage.data["codebook_release"]:
-                raise ValueError("manifest/envelope codebook release mismatch")
-            if storage.data["institution_uid"] != institution_uid or storage.data["institution_id"] != institution_id:
-                raise ValueError("storage envelope is bound to another institution")
-            if set(storage.data["activities"]) != {a.activity_id for a in response.activities} or set(storage.data["sources"]) != {v.source_id for v in response.sources}:
-                raise ValueError("storage row identifiers differ from consolidated rows")
-            if is_v27:
-                check_storage_binding(response, storage.data)
+            try:
+                _check_storage_matches(storage, response, declared_release=declared_release,
+                                       institution_id=institution_id, institution_uid=institution_uid,
+                                       is_v27=is_v27)
+            except ValueError as exc:
+                if unreadable_storage is None:
+                    raise
+                # Ruling 54 a: a per-institution integrity mismatch is that file's content
+                # problem; the report marks this institution alone.
+                unreadable_storage.append(
+                    (institution_id, f"6_storage.json does not match 6_validate.json: {exc}"))
+                continue
         elif declared_release == "2.7":
+            if unreadable_storage is not None:  # ruling 54 a
+                unreadable_storage.append(
+                    (institution_id, "legacy-format 6_validate.json without 6_storage.json in a 2.7 run"))
+                continue
             raise ValueError(f"{institution_id}: 2.7 run lacks explicit 6_storage.json")
         loaded.append(
             LoadedInstitution(

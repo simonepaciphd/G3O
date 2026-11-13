@@ -15,7 +15,10 @@ statuses:
                           the branch comment in
                           :func:`compute_institution_outcomes`. Measured at
                           23.8%-33.3% of every run's positives, all of which
-                          previously reported ``PROCESSING_FAILED``.
+                          previously reported ``PROCESSING_FAILED``. v2.5 only:
+                          a v2.7 ``yes`` with attrition failures is
+                          ``EVIDENCE_FOUND``, attrition named in the reason
+                          (ruling 53 b).
 - ``NO_EVIDENCE_FOUND`` — the run was configured to reach Stage 6 and this
                           institution was genuinely evaluated that far (or ran
                           out of legitimate upstream input, e.g. zero URLs
@@ -32,7 +35,11 @@ statuses:
                           — see :func:`_v27_hold_reason`. Also a v2.7
                           institution whose verdict is ``unclear`` (ruling
                           48.1 b) or whose ``6_validate.json`` has no
-                          ``6_storage.json`` (ruling 48.2 a).
+                          ``6_storage.json`` (ruling 48.2 a). Also an
+                          institution whose ``6_storage.json`` exists but does
+                          not load or does not match its ``6_validate.json``,
+                          or whose legacy ``6_validate.json`` has no storage in
+                          a 2.7 run (ruling 54 a; that institution only).
 - ``RUN_TRUNCATED``     — the run itself was configured to stop before Stage 6
                           (``--stop-after``); this institution was never
                           evaluated for evidence, independent of what its
@@ -369,11 +376,17 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
     # collected here (nothing recorded) and decided for that institution alone;
     # Stage 7 passes no list and still refuses it.
     missing_storage: list[str] = []
+    # Ruling 54 a: a 6_storage.json that exists but does not load (or does not
+    # match its 6_validate.json), or a legacy 6_validate.json without storage in
+    # a 2.7 run, is likewise collected (nothing recorded; the report is
+    # read-only) and fails that institution alone. Stage 7 still refuses it.
+    unreadable_storage: list[tuple[str, str]] = []
     loaded, validate_parse_failures = load_consolidated_outputs(
-        run_dir, missing_storage=missing_storage
+        run_dir, missing_storage=missing_storage, unreadable_storage=unreadable_storage
     )
     validate_parse_failures = set(validate_parse_failures)
     missing_storage_ids = set(missing_storage)
+    unreadable_storage_reasons: dict[str, str] = dict(unreadable_storage)
     # Ruling 48.1 b: a v2.7 6_validate.json carries no verdict; it is the
     # storage summary row's core.has_genai_activity. Only the verdicts are kept.
     v27_verdicts: dict[str, str] = {
@@ -400,6 +413,8 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
         consolidated_row_count = 0
         if validate_path.exists() and inst_id in missing_storage_ids:
             validation_status = "storage_missing"  # ruling 48.2 a
+        elif validate_path.exists() and inst_id in unreadable_storage_reasons:
+            validation_status = "storage_unreadable"  # ruling 54 a
         elif validate_path.exists() and inst_id not in validate_parse_failures:
             payload = json.loads(validate_path.read_text(encoding="utf-8"))
             if inst_id in v27_verdicts:  # ruling 48.1 b
@@ -429,12 +444,18 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
             and has_genai_activity == "yes"
             and consolidated_row_count > 0
         )
-        # A v2.7 institution that reached Stage 6 output but is not concluded.
+        # An institution that reached Stage 6 output but is not concluded
+        # (v2.7 rulings 48.1 b / 48.2 a; storage rulings 54 a).
         v27_open: str | None = None
         if validation_status == "storage_missing":  # ruling 48.2 a
             v27_open = (
                 "v2.7 6_validate.json present but its 6_storage.json is missing; "
                 "verdict not read, not concluded"
+            )
+        elif validation_status == "storage_unreadable":  # ruling 54 a
+            v27_open = (
+                f"{unreadable_storage_reasons[inst_id]}; verdict not read, not "
+                "concluded; Stage 7 will not publish it"
             )
         elif inst_id in v27_verdicts and has_genai_activity == "unclear":  # ruling 48.1 b
             v27_open = "has_genai_activity='unclear' (v2.7 verdict unclear; not concluded)"
@@ -449,6 +470,16 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
             final_status = "PROCESSING_FAILED"
             reason = held_reason + (f"; {attrition_detail}" if attrition_detail else "")
             error = reason
+        elif failures and concluded_positive and inst_id in v27_verdicts:
+            # Ruling 53 b: a v2.7 yes verdict with attrition failures is
+            # EVIDENCE_FOUND, not EVIDENCE_FOUND_PARTIAL (v2.5 below is
+            # unchanged). The attrition stays visible in the reason; ``error``
+            # is None as for every EVIDENCE_FOUND.
+            final_status = "EVIDENCE_FOUND"
+            reason = (
+                f"has_genai_activity=yes with {consolidated_row_count} "
+                f"consolidated activity(ies); attrition: {attrition_detail}"
+            )
         elif failures and concluded_positive:
             # EVIDENCE_FOUND_PARTIAL, 2026-08-31. Measured on five runs: this
             # branch is 23.8%–33.3% of every run's positives — 104 of 437 on
