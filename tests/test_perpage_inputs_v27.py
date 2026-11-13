@@ -203,7 +203,9 @@ def test_unproduced_values_still_refuse(tmp_path):
         pin.require_complete(followed)
     assert f"{I1}/{url_hash(P_META.url)}" in exc.value.missing
     # Ruling 35 a: the row values are left to the T-015 assembler, which names what it still refuses.
-    assert "source-row assembler" in str(exc.value) and "core.source_type" in str(exc.value)
+    assert "source-row assembler" in str(exc.value) and "core.confidence" in str(exc.value)
+    # Review M2: an item refused only on some pages (here source_type) is named too.
+    assert "core.source_type" in str(exc.value) and "refuses on some pages" in str(exc.value)
     assert all(s.upstream.page_fields is not None for i in followed for s in i.pages)
 
 
@@ -214,7 +216,7 @@ def test_require_complete_passes_assembler_pages_once_nothing_is_refused(tmp_pat
     insts = _built(tmp_path)
     followed = [replace(i, pages=[replace(s, upstream=replace(s.upstream, followed=False)) for s in i.pages])
                 for i in insts.values()]
-    monkeypatch.setattr(pin.srow, "unproduced_items", lambda: ())
+    monkeypatch.setattr(pin.srow, "entry_refused_items", lambda: ())
     assert pin.require_complete(followed) == 5
     one = followed[0]
     for broken_up in (replace(one.pages[0].upstream, source_values={}),

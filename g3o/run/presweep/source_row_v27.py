@@ -268,6 +268,13 @@ def unproduced_items() -> tuple[str, ...]:
     return tuple(sorted({*REFUSED_SOURCE_ITEMS, *REFUSED_ACTIVITY_ITEMS}))
 
 
+def entry_refused_items() -> tuple[str, ...]:
+    """The items a run is refused on before any spend (PI rulings 36 a / 40 a), sorted: every unproduced
+    item and every :data:`CONDITIONAL_ITEMS` item, since a conditional refusal would otherwise only stop the
+    per-page stage after coding was paid for (review M2)."""
+    return tuple(sorted({*unproduced_items(), *CONDITIONAL_ITEMS}))
+
+
 # ---------------------------------------------------------------------------
 # Values
 # ---------------------------------------------------------------------------
@@ -920,6 +927,7 @@ __all__ = [
     "ASSEMBLER", "PRODUCED_ACTIVITY_ITEMS", "PRODUCED_SOURCE_ITEMS", "REFUSED_ACTIVITY_ITEMS",
     "REFUSED_SOURCE_ITEMS", "AssembledRows", "RowValue", "activity_row_items", "activity_row_values", "assemble",
     "content_contact", "content_contact_emails", "content_safeguard", "content_stated", "genai_verdicts",
-    "page_source_values", "source_row_items", "source_title", "stated", "unit_credit", "unproduced_items",
+    "entry_refused_items", "page_source_values", "source_row_items", "source_title", "stated", "unit_credit",
+    "unproduced_items",
     "vendor_claim_only",
 ]

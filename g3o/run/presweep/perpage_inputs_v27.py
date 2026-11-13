@@ -90,9 +90,13 @@ INSTITUTION_FILE = "institution.json"
 #: its producer is wired into :func:`build_perpage_inputs`; once empty, the entry
 #: refusal is gone and :func:`require_complete` remains the per-value guard.
 #: The row-values entry names the row items the T-015 source-row assembler still refuses (PI ruling 35 a,
-#: :func:`g3o.run.presweep.source_row_v27.unproduced_items`); it drops out once that list is empty.
+#: :func:`g3o.run.presweep.source_row_v27.unproduced_items`) and those it refuses on some pages
+#: (:data:`~g3o.run.presweep.source_row_v27.CONDITIONAL_ITEMS`, review M2: a conditional refusal stops the
+#: stage only after coding was paid for); it drops out once both are empty
+#: (:func:`~g3o.run.presweep.source_row_v27.entry_refused_items`).
 VALUES_MISSING = (f"{pp.VALUES_PRODUCER} (activity_values, source_values, codes); {srow.ASSEMBLER} "
-                  f"refuses: {', '.join(srow.unproduced_items())}")
+                  f"refuses: {', '.join(srow.unproduced_items())}; refuses on some pages: "
+                  f"{', '.join(sorted(srow.CONDITIONAL_ITEMS))}")
 #: The T-025 entry left: ``followed`` / hop are produced (searched pages here, followed pages by
 #: :mod:`g3o.run.presweep.follow_v27`), but the Stage 6 entry of a URL tried and not fetched or a
 #: link not followed is a PI question; the stage holds such an institution
@@ -101,7 +105,7 @@ FOLLOW_ATTEMPTS_MISSING = ("T-025 attempted pages not reviewed (fetch failed, ro
                            "followed: cap or hops): Stage 6 entry unruled")
 MISSING_PRODUCERS: tuple[str, ...] = (
     FOLLOW_ATTEMPTS_MISSING,
-    *((VALUES_MISSING,) if srow.unproduced_items() else ()),
+    *((VALUES_MISSING,) if srow.entry_refused_items() else ()),
 )
 
 
@@ -259,8 +263,8 @@ def require_complete(institutions: Iterable[pp.PerPageInstitution],
     must be injected (``activity_values``, ``source_values`` and ``codes`` not
     ``None``) or left wholly to the T-015 source-row assembler (all three ``None``
     with ``page_fields`` set; PI ruling 35 a), which is refused while it still
-    refuses any row item (:func:`g3o.run.presweep.source_row_v27.unproduced_items`,
-    named in the error). Which keys injected values must cover (one per coded
+    refuses any row item, on every page or on some
+    (:func:`g3o.run.presweep.source_row_v27.entry_refused_items`, named in the error). Which keys injected values must cover (one per coded
     activity, or :data:`~g3o.run.presweep.stage_perpage_v27.NO_ACTIVITY`) is known
     only after coding, so key coverage is still checked by ``produce_page``.
 
@@ -280,12 +284,12 @@ def require_complete(institutions: Iterable[pp.PerPageInstitution],
                 follow.append(key)
             given = (up.activity_values, up.source_values, up.codes)
             assembled = up.page_fields is not None and all(v is None for v in given)  # ruling 35 a path
-            if (assembled and srow.unproduced_items()) or (not assembled and any(v is None for v in given)):
+            if (assembled and srow.entry_refused_items()) or (not assembled and any(v is None for v in given)):
                 values.append(key)
     if follow:
         raise MissingUpstreamError(pp.FOLLOW_PRODUCER, follow)
     if values:
-        label = VALUES_MISSING if srow.unproduced_items() else \
+        label = VALUES_MISSING if srow.entry_refused_items() else \
             f"{pp.VALUES_PRODUCER} (activity_values, source_values, codes)"
         raise MissingUpstreamError(label, values)
     return n_pages

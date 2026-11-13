@@ -226,6 +226,18 @@ def test_missing_producers_names_the_refused_items():
     assert pin.MISSING_PRODUCERS == (pin.FOLLOW_ATTEMPTS_MISSING, pin.VALUES_MISSING)
     for item in srow.unproduced_items():
         assert item in pin.VALUES_MISSING
+
+
+def test_entry_gate_keeps_the_values_entry_for_conditional_refusals(monkeypatch):
+    """Review M2 (rulings 36 a / 40 a): items refused on some pages keep the entry refusal."""
+    assert set(srow.entry_refused_items()) == set(srow.unproduced_items()) | set(srow.CONDITIONAL_ITEMS)
+    for item in srow.CONDITIONAL_ITEMS:
+        assert item in pin.VALUES_MISSING
+    monkeypatch.setattr(srow, "REFUSED_SOURCE_ITEMS", {})
+    monkeypatch.setattr(srow, "REFUSED_ACTIVITY_ITEMS", {})
+    assert srow.unproduced_items() == () and srow.entry_refused_items() == tuple(sorted(srow.CONDITIONAL_ITEMS))
+    monkeypatch.setattr(srow, "CONDITIONAL_ITEMS", {})
+    assert srow.entry_refused_items() == ()
     assert "core.source_url" not in pin.VALUES_MISSING
 
 
