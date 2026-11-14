@@ -118,10 +118,13 @@ Produced here (source row, page-level), PI ruling 70 b (2026-11-13):
   whatever the type; otherwise the signed map cell of the automatic basis or of
   the (missing) type. Refused when it needs a refused ``source_type``.
 
-Built but not wired: :func:`vendor_claim_only` (PI A8.9 a) reads ``source_type``.
-Whether the per-page path or the Stage 6 A8 producer (branch
-``reclass/o1113-a8-merged``) produces it is open (PI question 78), and
-``source_type`` is still refused on readable residual pages.
+Built but not wired: :func:`vendor_claim_only` (PI A8.9 a) reads ``source_type``
+and, for a ``not_asked`` type, its stored ``set_by_rule`` rule name: a page typed
+automatically counts as typed and not ``vendor`` (ruling 88 a), the same rule as
+the Stage 6 producer (:mod:`g3o.validate.merged_activity_v27`). PI ruling 78 a:
+Stage 6 produces the A8 values (``stage_as_of``, ``date_upper_bound``,
+``unit_credit``, ``vendor_claim_only``, ``cx_display_rollup``) for every
+published activity, single-observation ones included.
 """
 from __future__ import annotations
 
@@ -203,11 +206,9 @@ REFUSED_ACTIVITY_ITEMS: Mapping[str, str] = {
     "core.stage_as_of": ("PI A8.3 a / A8.4 a: reads source_publication_date (refused), then the activity's "
                          "latest supported year code, then the access date"),
     "core.stage_as_of_basis": "PI A8.5 a (three step codes) needs codebook r16 and a re-signature",
-    "core.vendor_claim_only": ("PI A8.9 a: owner open (per-page path vs the Stage 6 A8 producer, PI question 78); "
-                               "reads source_type (refused on readable residual pages); vendor_claim_only() is "
-                               "built"),
-    "core.cx_display_rollup": ("PI A8.10 a: 'positive' for multi-value items is defined in the build and "
-                               "shown to the PI first; not yet shown"),
+    "core.vendor_claim_only": ("PI ruling 78 a: produced by Stage 6 (merged_activity_v27), not per page; "
+                               "vendor_claim_only() is built (ruling 88 a)"),
+    "core.cx_display_rollup": "PI ruling 78 a / 77 a: produced by Stage 6 (merged_activity_v27), not per page",
     "core.date_upper_bound": "PI A8.11 a: reads stage_as_of (refused); A8.12 a: no archive lookup",
 }
 
@@ -421,14 +422,20 @@ def unit_credit(activity_values: Mapping[str, Any]) -> RowValue:
                                            f"{parts[RELATIONSHIP_PART]!r}")
 
 
-def vendor_claim_only(source_type: str) -> RowValue:
-    """PI A8.9 a for one source: ``yes`` when its type is ``vendor``; a missing type gives ``unknown``."""
-    if source_type in _missing_tokens(sf.SOURCE_TYPE):
-        return _row("core.vendor_claim_only", "unknown", f"PI A8.9 a: source_type {source_type!r} is missing")
-    if source_type not in (sf.default_codebook().codes(sf.SOURCE_TYPE) or ()):
-        raise ValueError(f"source_type {source_type!r} is not a signed code")
-    value = YES if source_type == VENDOR else NO
-    return _row("core.vendor_claim_only", value, f"PI A8.9 a: source_type {source_type!r}")
+def vendor_claim_only(source_type: str, rule_name: str | None = None) -> RowValue:
+    """PI A8.9 a for one source: ``yes`` when its type is ``vendor``; a missing type gives ``unknown``.
+
+    Ruling 88 a: a page typed automatically (``not_asked`` set by rule
+    ``source_type_auto:<basis>``, ``rule_name``) has a type and is not ``vendor``:
+    ``no``. The same rule as the Stage 6 producer
+    (:func:`g3o.common.source_fields.vendor_claim_type` /
+    :func:`~g3o.common.source_fields.vendor_claim_only_value`).
+    """
+    typed = sf.vendor_claim_type(source_type, rule_name)
+    value = sf.vendor_claim_only_value([typed])
+    why = "missing" if typed is None else f"typed {typed!r}"
+    return _row("core.vendor_claim_only", value, f"PI A8.9 a / ruling 88 a: source_type {source_type!r} "
+                                                 f"(rule {rule_name!r}) is {why}")
 
 
 # ---------------------------------------------------------------------------

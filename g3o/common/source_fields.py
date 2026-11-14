@@ -620,6 +620,56 @@ def readability_source_type(page: Any, *, vocab: SourceVocab | None = None) -> S
                         typed_by="readability")
 
 
+# ---------------------------------------------------------------------------
+# vendor_claim_only (PI A8.9 a, ruling 88 a): one rule for the per-page and the Stage 6 producers
+# ---------------------------------------------------------------------------
+
+VENDOR_CLAIM_ONLY = "core.vendor_claim_only"
+VENDOR = "vendor"
+
+
+def vendor_claim_type(source_type: Any, rule_name: str | None) -> str | None:
+    """The type ``vendor_claim_only`` reads for one source (PI A8.9 a, ruling 88 a).
+
+    A signed ``source_type`` code is returned as is. A page typed automatically by
+    ``items/core.source_type/rules/0`` is stored ``not_asked`` with ``set_by_rule``
+    rule ``source_type_auto:<basis>``: it has a type and is not ``vendor`` (ruling
+    88 a), and its basis (``official_domain`` / ``archive_address``) is returned.
+    None: the type is missing (A8.9 a: any other missing token, and ``not_asked``
+    set by ``readability_failure:<reason>``). ``rule_name`` is the stored rule
+    name of a ``not_asked`` value (read, never re-derived); its absence raises
+    :class:`MissingUpstreamError`. A value outside the signed form, or another
+    rule name, raises ``ValueError``.
+    """
+    if source_type in (default_codebook().codes(SOURCE_TYPE) or ()):
+        return str(source_type)
+    missing = default_codebook().items[SOURCE_TYPE].get("missing_tokens") or ()
+    if not isinstance(source_type, str) or source_type not in missing:
+        raise ValueError(f"{SOURCE_TYPE} {source_type!r} is not a signed code or missing token")
+    if source_type != "not_asked":
+        return None
+    if rule_name is None:
+        raise MissingUpstreamError(f"set_by_rule rule name of the stored not_asked {SOURCE_TYPE}", [SOURCE_TYPE])
+    if rule_name.startswith(AUTO_RULE) and rule_name[len(AUTO_RULE):] in (AUTO_OFFICIAL, AUTO_ARCHIVE):
+        return rule_name[len(AUTO_RULE):]
+    if rule_name.startswith(READABILITY_RULE) and rule_name[len(READABILITY_RULE):].strip():
+        return None
+    raise ValueError(f"not_asked {SOURCE_TYPE} set by rule {rule_name!r}: not a rules/0 or R-015 rule name")
+
+
+def vendor_claim_only_value(types: Sequence[str | None]) -> str:
+    """PI A8.9 a over the supporting sources' types (:func:`vendor_claim_type`): ``yes`` only if every
+    one is ``vendor``; any missing type (None) gives ``unknown``; otherwise ``no``."""
+    if not types:
+        raise ValueError(f"{VENDOR_CLAIM_ONLY} needs at least one supporting source")
+    if any(t is None for t in types):
+        return "unknown"
+    yes, no = "yes", "no"
+    if not {yes, no} <= set(default_codebook().codes(VENDOR_CLAIM_ONLY) or ()):
+        raise RuntimeError(f"{VENDOR_CLAIM_ONLY} codes are not yes/no in the signed codebook")
+    return yes if all(t == VENDOR for t in types) else no
+
+
 def code_source_type(page: Any, ask_fn: Any, config: Any, *, vocab: SourceVocab | None = None,
                      on_response: Any = None) -> SourceTyping:
     """Ask the residual ``source_type`` question of a page not typed automatically.
@@ -1178,4 +1228,5 @@ __all__ = [
     "source_language_of_page",
     "source_on_official_domain", "source_snippet", "source_title", "source_type_evidence", "source_type_label",
     "source_url", "source_values", "syndication_group", "syndication_group_for", "text_source", "vocab_from_codebook",
+    "vendor_claim_only_value", "vendor_claim_type",
 ]
