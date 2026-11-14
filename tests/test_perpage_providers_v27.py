@@ -778,6 +778,32 @@ def test_archive_page_state_moves_every_state_file_and_numbers_each_archive(tmp_
         assert not any((pdir / name).exists() for name in pp.PAGE_STATE_FILES)
 
 
+def test_c4_archive_keeps_the_residual_source_type_answers_m1(tmp_path):
+    """Review M-1 (PI ruling 105 b with 33 a): the C4 archive moves the page's other saved state but leaves
+    the residual source_type answers at their live path, untouched, so the next run loads them instead of
+    asking again (they depend on no pass-1 answer). A second archive leaves them too."""
+    from g3o.classify.jev_page_code import PageInput
+
+    run_dir = tmp_path / "run"
+    page = PageInput(page_id="z1", institution_id="INST-0000009", institution="Z", country=None,
+                     level_of_government=None, url="https://example.gov/z1", title=None, text="z")
+    assert pp.SOURCE_TYPE_FILE not in pp.PAGE_STATE_FILES
+    pdir = pp._page_dir(run_dir, page)
+    pdir.mkdir(parents=True)
+    kept = pdir / pp.SOURCE_TYPE_FILE
+    kept.write_text("saved residual answers", encoding="utf-8")
+    for n in (1, 2):
+        for name in pp.PAGE_STATE_FILES:
+            (pdir / name).write_text(f"{name} {n}", encoding="utf-8")
+        moved = pp._archive_page_state(run_dir, page)
+        dest = pdir / pp.PAGE_ARCHIVE_DIR / f"{n:03d}"
+        assert len(moved) == len(pp.PAGE_STATE_FILES) and not any(pp.SOURCE_TYPE_FILE in p for p in moved)
+        assert not (dest / pp.SOURCE_TYPE_FILE).exists()
+        assert kept.read_text(encoding="utf-8") == "saved residual answers"
+    # only the residual answers left: nothing to archive (no empty NNN folder is taken)
+    assert pp._archive_page_state(run_dir, page) == [] and not (pdir / pp.PAGE_ARCHIVE_DIR / "003").exists()
+
+
 def _failing_moves(monkeypatch, fail):
     """Patch the stage's ``replace_with_retry`` so the archive moves (target under an ``archive`` folder)
     or the pending-marker writes for which ``fail(kind, n)`` is true raise ``PermissionError``, as after

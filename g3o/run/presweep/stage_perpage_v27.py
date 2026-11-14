@@ -39,7 +39,8 @@ Rules carried here, not decided here:
   the institution (:data:`PASS2_NOT_JOURNALED`) instead of being sent live. PI ruling 105 b: the same for
   a resumed page's pass-1 page request (:data:`PASS1_NOT_JOURNALED`) and 87 c activity-only request
   (:data:`ACTIVITY_ONLY_NOT_JOURNALED`); the residual ``source_type`` answers are saved before the first
-  pass-1 request and loaded on a resume (:data:`SOURCE_TYPE_FILE`), never asked again.
+  pass-1 request and loaded on a resume (:data:`SOURCE_TYPE_FILE`), never asked again, also after a C4
+  archive (review M-1).
 - **Publication.** A page with any pending or stopped question (an extra
   round that failed, a gate awaiting it) holds its whole institution: the
   holds go to ``perpage_v27/held.json`` and the attrition ledger, nothing is
@@ -287,7 +288,14 @@ SOURCE_TYPE_FILE = "source_type.json"
 #: request; their ``custom_id``, or None), written once ``activity_input`` returned; a later process reads it
 #: to know a rebuild is a resume
 PASS1_FILE = "pass1_requests.json"
-PAGE_STATE_FILES = ("page.json", "activity.json", PAIRS_FILE, SOURCE_TYPE_FILE, PASS1_FILE)
+#: the page-dir files the C4 archive (ruling 33 a, :func:`_archive_page_state`) moves. Review M-1:
+#: :data:`SOURCE_TYPE_FILE` is not among them. The residual answers depend on no pass-1 answer (asked on the
+#: T-021 parts, which the archive keeps), so ruling 105 b's "saved and never asked again" survives a C4 archive:
+#: archiving them would make the next run ask the residual question again, a part that failed live (paid, with
+#: no journal guard), and a changed first pass-1 request key would drop the 34 b rejection count. The C4 archive
+#: is the only path that resets a page's saved state; a future path that resets ALL of it must also archive
+#: :data:`SOURCE_TYPE_FILE`.
+PAGE_STATE_FILES = ("page.json", "activity.json", PAIRS_FILE, PASS1_FILE)
 #: written in the page dir before a C4 archive moves anything and moved into the archive folder last;
 #: while it is in the page dir the archive is incomplete and the page's saved state is never loaded
 PAGE_ARCHIVE_PENDING = "archive_pending.json"
@@ -1092,7 +1100,8 @@ def _archive_page_state(run_dir: Path, page: PageInput) -> list[str]:
 
     The per-page checkpoints (:data:`PAGE_STATE_FILES`) and the T-023 activity
     artifact (either stored form, kept under ``activity_code_v27/`` in the archive
-    folder) are moved; each call takes the next free ``NNN``. Returns the archived
+    folder) are moved; the residual ``source_type`` answers (:data:`SOURCE_TYPE_FILE`)
+    stay (review M-1). Each call takes the next free ``NNN``. Returns the archived
     paths relative to the institution dir (empty when the page had no saved state).
 
     All or nothing across runs (ruling 28 a): the folder is first recorded in
@@ -1235,7 +1244,8 @@ def _residual_source_type(run_dir: Path, spec: PageSpec, ask: Any, page_config: 
     pass-1 request is built, and a later run loads them instead of asking again: a part that failed in an
     earlier run (an exception or a response with no request id, never replayed by the journal) is not asked
     again live, so the first pass-1 request is rebuilt with the same parameters and replayed from the journal.
-    The file is page state, archived with it (ruling 33 a, :data:`PAGE_STATE_FILES`)."""
+    The file is kept across a C4 archive (ruling 33 a; review M-1, :data:`PAGE_STATE_FILES`): the answers
+    depend on no pass-1 answer."""
     page, up = spec.page, spec.upstream
     if up.page_fields is None or any(v is not None for v in (up.activity_values, up.source_values, up.codes)):
         return None
