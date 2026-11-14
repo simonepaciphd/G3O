@@ -248,13 +248,12 @@ def test_conditional_refusals_happen_on_page_data_m2():
                          verdict_support=_verdict(None), provenance=PROV, official_sites=OWN)
     assert "no request" in rows.refused[sf.DATE]
     assert sf.DATE in rows.refused[sf.UPPER_BOUND] and sf.DATE in rows.refused[sf.CREDIBILITY]
-    # A relationship object without its relationship part: unit_credit refused.
+    # A stored relationship object without its relationship part: unit_credit refused. (A bare token is
+    # not a storable shape: storage.validate_value requires the two-part object; it is malformed.)
     rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"a1": _activity(**{"core.observed_actor_relationship":
                                                                          {"searched_institution_role": "unit"}})},
                          followed=False)
     assert "core.unit_credit" in rows.refused
-    # A whole-item missing token reads literally as no (ruling 66 a).
-    assert srow.unit_credit({"core.observed_actor_relationship": "unknown"}).value == "no"
 
 
 @pytest.mark.parametrize("basis", [sf.AUTO_OFFICIAL, sf.AUTO_ARCHIVE])

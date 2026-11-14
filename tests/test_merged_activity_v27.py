@@ -377,8 +377,6 @@ def test_supporting_sources_are_the_pooled_observations_sources_only_ruling_89a(
     {"relationship": "unit_of_institution", "searched_institution_role": "unit"},
     {"relationship": "this_institution", "searched_institution_role": "contracting_authority"},
     {"relationship": "unknown", "searched_institution_role": "not_asked"},
-    "unknown",  # ruling 66 a: a whole-item missing token reads literally as no
-    "not_asked",
 ])
 def test_unit_credit_agrees_with_the_t015_assembler(relationship):
     per_page = srow.unit_credit({"core.observed_actor_relationship": relationship}).value
@@ -387,7 +385,7 @@ def test_unit_credit_agrees_with_the_t015_assembler(relationship):
 
 
 @pytest.mark.parametrize("relationship,kind", [
-    ("this_institution", "malformed"),  # neither the stored two-part object nor a missing token
+    ("not_asked", "malformed"),  # not the stored two-part object
     ({"relationship": "subsidiary", "searched_institution_role": "unit"}, "malformed"),  # unsigned part
     ({"searched_institution_role": "unit"}, "missing"),  # absent part
     (None, "missing"),  # absent value

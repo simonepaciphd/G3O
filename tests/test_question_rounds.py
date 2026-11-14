@@ -810,8 +810,11 @@ def test_page_halving_reask_without_answer_is_one_failed_part_vote(monkeypatch, 
     assert all(f["reason"] != "extra_round_failed" for f in done.result.failures)
     missing = [f for f in done.result.failures if f["reason"] == pc.ANSWER_MISSING]
     assert [(f["chunk_id"], f["question_ids"], f["reasked"]) for f in missing] == [("p:1.2", [VERDICT], True)]
-    entry = next(e for e in done.result.requests if e.get("request_id") == billed[0].request_id)
-    assert (entry["chunk_id"], entry["outcome"], entry["reasked"]) == ("p:1.2", "ok", True)
+    entries = [e for e in done.result.requests if e.get("request_id") == billed[0].request_id]
+    # exactly one log entry for the billed re-ask (a duplicate would show here with its keys)
+    assert [(e.get("chunk_id"), e.get("outcome"), e.get("reasked")) for e in entries] == [("p:1.2", "ok", True)], \
+        entries
+    entry, = entries
     assert entry["input_tokens"] == 10 and entry["output_tokens"] == 1
     # the group's other answers on p:1.2 are recorded; the verdict there is not
     on_half = {r.item_id for r in done.result.records if r.chunk_id == "p:1.2" and r.coder_type == "classifier"}

@@ -902,13 +902,20 @@ def independence_groups_of(inst: Stage6Institution) -> Mapping[str, str]:
         raise MissingUpstreamError(f"{INDEPENDENCE_PRODUCER}; {exc.producer}", exc.missing) from exc
 
 
+#: The A8 items the per-page T-015 assembler produces (source_row_v27.unit_credit); A8 review L6.
+PER_PAGE_A8_ITEMS = frozenset({ma.UNIT_CREDIT})
+
+
 def _agree_with_fragment(fragment: Mapping[str, Any], a8: Mapping[str, Any], oid: str) -> None:
     """A8 review L6: a single observation's stored fragment value of an A8 item (e.g. the per-page
     ``unit_credit``, T-015) must equal the value Stage 6 produces from the same rule; a disagreement is
     a wiring error (ruling 32 b: :class:`~g3o.validate.merged_activity_v27.MalformedA8Value`, the
-    stage stops), never silently overwritten."""
+    stage stops), never silently overwritten. Only the A8 items the per-page stage itself produces are
+    compared (``unit_credit``); the Stage-6-only items (stage_as_of, date_upper_bound,
+    vendor_claim_only, cx_display_rollup) carry no per-page producer, so a fragment value there is not
+    a rival rule's output."""
     for item, value in a8.items():
-        if item in fragment and fragment[item] != value:
+        if item in PER_PAGE_A8_ITEMS and item in fragment and fragment[item] != value:
             raise ma.MalformedA8Value(item, f"observation {oid}", f"stored fragment value {fragment[item]!r} "
                                                                   f"disagrees with the A8 value {value!r}")
 
