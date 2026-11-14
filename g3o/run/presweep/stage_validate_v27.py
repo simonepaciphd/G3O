@@ -104,7 +104,7 @@ from g3o.common import attrition
 from g3o.common.contract import LANGS_PATTERN
 from g3o.common.independence import independence_groups_for_sources
 from g3o.common.instrument import canonical_json
-from g3o.common.jev_client import JevAnswer, JevResult
+from g3o.common.jev_client import JevAnswer, JevResult, has_request_id
 from g3o.common.jev_record import CoderRecord
 from g3o.common.paths import institution_dir
 from g3o.common.response_v27 import InstitutionIdentityV27
@@ -325,6 +325,7 @@ def _quote_from_json(doc: Mapping[str, Any]) -> Stage6Quote:
 REPLAYED_KINDS = frozenset({"jev", "quote", "extract", "x35"})
 #: Entry kinds kept for accounting only: billed or attempted calls that did not complete.
 #: They are never replayed; the request is asked again (a failed request, PI 2026-11-08 2.17).
+#: One exception: :data:`JEV_UNIDENTIFIED` for a re-ask after a page halving (ruling 75 a).
 #: ``jev_incomplete``: a response with a request id that lacks the answer to a question it was
 #: asked (RC-D-030 Z1 b, a pooled Stage 6 rule: the question is held and asked again on the next
 #: run, never replayed). Only a journal built with ``retry_incomplete=True`` (Stage 6) writes it.
@@ -332,7 +333,10 @@ REPLAYED_KINDS = frozenset({"jev", "quote", "extract", "x35"})
 #: parse (:meth:`RequestJournal.reject_extract`); it cancels that ``extract`` entry, so the request
 #: is asked again on the next run, and carries the response so its tokens are counted once.
 EXTRACT_REJECTED = "extract_rejected"
-ACCOUNTING_KINDS = frozenset({"jev_unidentified", "jev_incomplete", "extract_failed", "x35_failed",
+#: A billed jev response without a request id. Accounting only, except that a re-ask after a page
+#: halving replays it as its final failure (PI ruling 75 a; :meth:`RequestJournal.ask`, ``reask``).
+JEV_UNIDENTIFIED = "jev_unidentified"
+ACCOUNTING_KINDS = frozenset({JEV_UNIDENTIFIED, "jev_incomplete", "extract_failed", "x35_failed",
                               EXTRACT_REJECTED})
 #: Ruling 34 b / 41 a: after this many ``extract_rejected`` entries for one exact extractor request
 #: key (``extract_failed`` entries do not count) the request is a permanent hold: the journal makes
@@ -383,6 +387,14 @@ class RequestJournal:
     (accounting only, never replayed), so the next run asks it again. Off (the per-page
     stage), such a response is a completed response and is replayed on resume, where the
     missing answer is a failed part vote exactly as in an uninterrupted run.
+
+    The function :meth:`ask` returns also has a ``reask`` attribute, used by
+    :func:`~g3o.classify.question_rounds.complete_page_rounds` for a re-ask after a page
+    halving (PI ruling 75 a). It differs only for a ``jev_unidentified`` entry of that
+    exact request key: the recorded response is replayed (no new call, nothing appended),
+    so the re-ask is read again as its final ``jev_missing_request_id`` failure on a resume
+    interrupted before the page state was saved, or after the page state was archived and
+    the page recoded (ruling 33 a). The billed request is sent and accounted once.
     """
 
     def __init__(self, path: Path, setup: Mapping[str, Any] | None = None, *,
@@ -394,6 +406,8 @@ class RequestJournal:
         #: it, and any append raises; the file is never written
         self.read_only = read_only
         self._recorded: dict[tuple[str, str, int], dict[str, Any]] = {}
+        #: ``jev_unidentified`` responses by (key, n), first written kept: replayed only by ``ask(...).reask``
+        self._unidentified: dict[tuple[str, int], dict[str, Any]] = {}
         self._accounting: list[dict[str, Any]] = []
         self._elapsed: list[int] = []
         self._seen: dict[tuple[str, str], int] = {}
@@ -426,6 +440,8 @@ class RequestJournal:
                 self._apply_release(entry["response"])
             elif entry["kind"] in ACCOUNTING_KINDS:
                 self._accounting.append(entry)
+                if entry["kind"] == JEV_UNIDENTIFIED:
+                    self._unidentified.setdefault((entry["key"], entry["n"]), entry["response"])
                 if entry["kind"] == EXTRACT_REJECTED:
                     self._recorded.pop(("extract", entry["key"], entry["n"]), None)
                     self._rejections[entry["key"]] = self._rejections.get(entry["key"], 0) + 1
@@ -460,6 +476,8 @@ class RequestJournal:
         self._elapsed.append(elapsed_ms)
         if slot[0] in ACCOUNTING_KINDS:
             self._accounting.append(entry)
+            if slot[0] == JEV_UNIDENTIFIED:
+                self._unidentified.setdefault((slot[1], slot[2]), response)
             if slot[0] == EXTRACT_REJECTED:
                 self._recorded.pop(("extract", slot[1], slot[2]), None)
                 self._rejections[slot[1]] = self._rejections.get(slot[1], 0) + 1
@@ -501,25 +519,46 @@ class RequestJournal:
         self._apply_release(doc)
 
     def ask(self, ask_fn: AskFn) -> AskFn:
+        """``ask_fn`` journaled; the returned function's ``reask`` attribute is the same call for a
+        re-ask after a page halving, which also replays a ``jev_unidentified`` entry (ruling 75 a)."""
         def wrapped(state: dict[str, Any], questions: dict[str, dict[str, Any]]) -> JevResult:
-            request = {"state": state, "questions": questions}
-            slot = self._slot("jev", request)
-            if slot in self._recorded:
-                self.replayed += 1
-                return _jev_from_json(self._recorded[slot])
-            start = time.monotonic()
-            result = ask_fn(state, questions)  # an exception is not recorded: asked again on resume
-            self.live += 1
-            if not (isinstance(result.request_id, str) and result.request_id.strip()):
-                # billed but unidentified: a failed request (asked again), still accounted
-                self._append(self._slot("jev_unidentified", request), _jev_to_json(result), _elapsed_ms(start))
-            elif self.retry_incomplete and set(questions) - set(result.answers):
-                # an asked answer is missing: that question is held and asked again next run (Z1 b)
-                self._append(self._slot("jev_incomplete", request), _jev_to_json(result), _elapsed_ms(start))
-            else:
-                self._append(slot, _jev_to_json(result), _elapsed_ms(start))
-            return result
+            return self._ask(ask_fn, state, questions, final_unidentified=False)
+
+        def reask(state: dict[str, Any], questions: dict[str, dict[str, Any]]) -> JevResult:
+            return self._ask(ask_fn, state, questions, final_unidentified=True)
+
+        wrapped.reask = reask  # type: ignore[attr-defined]
         return wrapped
+
+    def _ask(self, ask_fn: AskFn, state: dict[str, Any], questions: dict[str, dict[str, Any]], *,
+             final_unidentified: bool) -> JevResult:
+        request = {"state": state, "questions": questions}
+        slot = self._slot("jev", request)
+        if slot in self._recorded:
+            self.replayed += 1
+            return _jev_from_json(self._recorded[slot])
+        if final_unidentified:
+            # ruling 75 a: this exact re-ask was billed and came back without a request id; that is
+            # its final failure, so the recorded response is read again instead of a new call
+            seen = (JEV_UNIDENTIFIED, slot[1])
+            n = self._seen.get(seen, 0)
+            recorded = self._unidentified.get((slot[1], n))
+            if recorded is not None:
+                self._seen[seen] = n + 1
+                self.replayed += 1
+                return _jev_from_json(recorded)
+        start = time.monotonic()
+        result = ask_fn(state, questions)  # an exception is not recorded: asked again on resume
+        self.live += 1
+        if not has_request_id(result.request_id):
+            # billed but unidentified: a failed request (asked again, unless a re-ask), still accounted
+            self._append(self._slot(JEV_UNIDENTIFIED, request), _jev_to_json(result), _elapsed_ms(start))
+        elif self.retry_incomplete and set(questions) - set(result.answers):
+            # an asked answer is missing: that question is held and asked again next run (Z1 b)
+            self._append(self._slot("jev_incomplete", request), _jev_to_json(result), _elapsed_ms(start))
+        else:
+            self._append(slot, _jev_to_json(result), _elapsed_ms(start))
+        return result
 
     def _extract(self, extract_fn: Any, prompt: Mapping[str, Any]) -> Any:
         def wrapped(job: Any) -> ExtractorResult:

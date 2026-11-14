@@ -845,6 +845,87 @@ def test_page_halving_reask_without_request_id_is_one_failed_part_vote(monkeypat
     assert again.result == done.result and again.final == done.final
 
 
+def _no_request_id(res):
+    return JevResult(res.answers, res.response_model, None, res.input_tokens, res.output_tokens)
+
+
+@pytest.mark.parametrize("crash", ["before_page_save", "recoded"])
+def test_page_halving_reask_without_request_id_is_not_resent_after_a_crash(monkeypatch, rules, tmp_path, crash):
+    """PI ruling 75 a, durable: the request journal records the billed no-request-id re-ask
+    (``jev_unidentified``) before the page state is saved. A run interrupted between the two, or a
+    page whose state was archived and recoded (ruling 33 a: the extra rounds start again from the
+    first-round result), replays that response through the journal's ``reask`` seam: the re-ask is
+    not sent or billed again, its failure is counted once, and the page ends as an uninterrupted run."""
+    from g3o.classify.question_rounds import REASK_SEAM
+    from g3o.run.presweep.stage_validate_v27 import RequestJournal
+
+    page, result, support, config, fake, ask, billed = _reask_case(monkeypatch, rules, _no_request_id)
+    path = tmp_path / "journal.jsonl"
+    journal = RequestJournal(path, {"s": 1})
+    assert callable(getattr(journal.ask(ask), REASK_SEAM))
+    saved, stops = [], []
+
+    def checkpoint(updated, checked):
+        if not stops and any(f.get("reasked") and f["reason"] == pc.MISSING_REQUEST_ID for f in updated.failures):
+            stops.append(True)
+            raise KeyboardInterrupt  # the journal entry is written; this page state is not
+        saved.append((pc.PageCodeResult.from_json(updated.to_json()), checked))
+
+    with pytest.raises(KeyboardInterrupt):
+        complete_page_rounds(page, result, support, ask_fn=journal.ask(ask), config=config,
+                             check_support=_page_check, checkpoint=checkpoint)
+    assert stops and len(billed) == 1 and journal.usage()["jev_unidentified"] == 1
+    assert not any(f["reason"] == pc.MISSING_REQUEST_ID for st, _ in saved for f in st.failures)
+
+    reloaded = RequestJournal(path, {"s": 1})
+    start = saved[-1] if crash == "before_page_save" else (result, support)
+    resumed = complete_page_rounds(page, *start, ask_fn=reloaded.ask(ask), config=config,
+                                   check_support=_page_check)
+    assert len(billed) == 1  # the re-ask was not sent again
+    assert reloaded.usage()["jev_unidentified"] == 1  # billed and accounted once
+    if crash == "recoded":
+        assert reloaded.replayed >= 1  # the requests sent before the crash, the re-ask included
+    failed = [f for f in resumed.result.failures if f["reason"] == pc.MISSING_REQUEST_ID]
+    assert [(f["chunk_id"], f["reasked"]) for f in failed] == [("p:1.2", True)]  # one failed part vote
+
+    ref_page, ref_result, ref_support, ref_config, ref_fake, ref_ask, ref_billed = _reask_case(
+        monkeypatch, rules, _no_request_id)
+    ref = complete_page_rounds(ref_page, ref_result, ref_support, ask_fn=ref_ask, config=ref_config,
+                               check_support=_page_check)
+    assert len(ref_billed) == 1
+    assert _calls(fake) == _calls(ref_fake)  # across both runs, every request sent once, as uninterrupted
+    assert resumed.result.to_json() == ref.result.to_json() and resumed.final == ref.final
+    again = _no_calls(page, resumed, config)
+    assert again.result == resumed.result and again.final == resumed.final
+
+
+def test_journal_replays_an_unidentified_response_only_through_the_reask_seam(tmp_path):
+    """Outside a re-ask, an unidentified jev response stays a failed request asked again on the
+    next run (PI 2026-11-08 2.17); only ``reask`` replays it (ruling 75 a), once per recorded call."""
+    from g3o.classify.question_rounds import REASK_SEAM
+    from g3o.run.presweep.stage_validate_v27 import RequestJournal
+
+    sent = []
+
+    def ask(state, questions):
+        sent.append(state["page_part"])
+        return JevResult({}, "jev-fixture", None, 10, 1)
+
+    path = tmp_path / "journal.jsonl"
+    state, questions = {"page_part": "1 of 2"}, {"q": {"instructions": "x", "criteria": {}}}
+    RequestJournal(path, {"s": 1}).ask(ask)(state, questions)
+    assert len(sent) == 1
+    first = RequestJournal(path, {"s": 1})
+    assert first.ask(ask)(state, questions).request_id is None and len(sent) == 2  # first round: asked again
+    assert first.usage()["jev_unidentified"] == 2
+    seam = getattr(RequestJournal(path, {"s": 1}).ask(ask), REASK_SEAM)
+    replayed = seam(state, questions)
+    assert len(sent) == 2 and replayed.request_id is None and replayed.input_tokens == 10  # replayed, not sent
+    other = getattr(RequestJournal(path, {"s": 1}).ask(ask), REASK_SEAM)
+    other({"page_part": "2 of 2"}, questions)  # another request key: sent
+    assert sent == ["1 of 2", "1 of 2", "2 of 2"]
+
+
 def test_page_halving_of_a_half_during_a_reask_owes_the_full_plan_to_its_halves(monkeypatch, rules):
     page, result, support, config, fake = page_case(monkeypatch, rules)
     second = result.chunks[1]
