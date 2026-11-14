@@ -53,6 +53,8 @@ def _values(table: str) -> dict[str, Any]:
         values.update({"core.page_verdict": "confirms_activity", "core.source_url": "https://example.gov/page",
                        "core.source_title": "Fixture page", "core.source_access_date": "2026-11-01",
                        "core.source_publication_date": "2025-01", "core.source_language": "en",
+                       # no beside a real publication date (yes only for an archive_upper_bound origin)
+                       "core.date_upper_bound": "no",
                        "core.source_credibility": "high", "core.confidence": "high",
                        "core.content_contact_emails": ["Ada@EXAMPLE.GOV", "Ada@example.gov", "ada@example.gov", "Ada+pilot@example.gov"],
                        "core.evaluation_documented": "results_reported"})
