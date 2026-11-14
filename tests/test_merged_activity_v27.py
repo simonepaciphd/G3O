@@ -330,13 +330,15 @@ def test_vendor_claim_only_reads_the_stored_typing_rule_ruling_88a():
         assert ma.merged_vendor_claim_only(inst, ["o1", "o2"]) == expect
 
 
-def test_vendor_claim_only_typing_rule_absent_holds_unknown_or_ambiguous_rule_is_malformed():
+def test_vendor_claim_only_typing_node_absent_unknown_or_ambiguous_rule_is_malformed():
+    # A not_asked type is always stored with its set_by_rule node: without it (or without any
+    # support list) the row is structurally broken, a wiring error (32 b), never re-derived.
     not_asked = {"S-o1": _src(**{"core.source_type": "not_asked"})}
-    with pytest.raises(MissingUpstreamError):  # no set_by_rule node: the rule is never re-derived
+    with pytest.raises(ma.MalformedA8Value, match="set_by_rule support node"):
         ma.merged_vendor_claim_only(_inst({"o1": _obs()}, not_asked), ["o1"])
     inst = _inst({"o1": _obs()}, not_asked)
     del inst.sources["S-o1"]["item_support"]
-    with pytest.raises(MissingUpstreamError):
+    with pytest.raises(ma.MalformedA8Value, match="no item_support list"):
         ma.merged_vendor_claim_only(inst, ["o1"])
     for nodes in ([_typed_node("source_type_auto:somewhere")],
                   [_typed_node(sf.AUTO_RULE + sf.AUTO_OFFICIAL), _typed_node(sf.AUTO_RULE + sf.AUTO_ARCHIVE)]):

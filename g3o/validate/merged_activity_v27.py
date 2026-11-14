@@ -366,16 +366,22 @@ def merged_unit_credit(inst: Any, order: Sequence[str]) -> str:
 
 
 def _not_asked_rule(row: Mapping[str, Any], where: str) -> str:
-    """The stored ``set_by_rule`` rule name of a ``not_asked`` ``source_type`` (its support node)."""
+    """The stored ``set_by_rule`` rule name of a ``not_asked`` ``source_type`` (its support node).
+
+    A stored ``not_asked`` type is always written with its ``set_by_rule`` node
+    (``stage6_adapters.support_nodes``), so a row without a support list, or a
+    ``not_asked`` type without that node, is structurally broken: a wiring error
+    (ruling 32 b), not an absent value.
+    """
     nodes = row.get("item_support")
-    if not isinstance(nodes, Sequence):
-        raise MissingUpstreamError(f"{PRODUCER}: support nodes of {where}", [SOURCE_TYPE])
+    if isinstance(nodes, (str, bytes)) or not isinstance(nodes, Sequence):
+        raise MalformedA8Value(SOURCE_TYPE, where, f"no item_support list ({type(nodes).__name__}) beside a "
+                                                   "not_asked type")
     rules = {n.get("support_rule_name") for n in nodes
-             if n.get("item_id") == SOURCE_TYPE and n.get("value_json") == NOT_ASKED
+             if isinstance(n, Mapping) and n.get("item_id") == SOURCE_TYPE and n.get("value_json") == NOT_ASKED
              and n.get("support_status") == SET_BY_RULE}
     if not rules:
-        raise MissingUpstreamError(f"{PRODUCER}: set_by_rule support node of the not_asked type of {where}",
-                                   [SOURCE_TYPE])
+        raise MalformedA8Value(SOURCE_TYPE, where, "not_asked type without its set_by_rule support node")
     if len(rules) > 1 or not all(isinstance(r, str) and r for r in rules):
         raise MalformedA8Value(SOURCE_TYPE, where, f"not_asked set by several or empty rule names {sorted(map(str, rules))}")
     return rules.pop()
