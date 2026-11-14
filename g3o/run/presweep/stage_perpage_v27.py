@@ -281,13 +281,16 @@ PI_RELEASE_ARCHIVE_FAILED = "pi_release_archive_failed"
 PI_RELEASE_RECORD_FAILED = "pi_release_record_failed"
 _PI_RELEASE_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 _PI_RELEASE_FIELDS = frozenset({"released_by", "date", "keys", "all", "note"})
+
+
 class FollowWiringError(ValueError):
     """A T-025 follow-leg error that is a wiring gap, not institution data (review L5): the fetch seam
     broke its contract (unknown outcome; a page without ``fetched`` or ``fetched`` without a page), the
-    leg was handed a page of another institution or a page already followed, a round mixed hops, or a
-    followed page id was already coded. It stops the stage (:data:`STAGE_STOPS`); any other error of
-    the follow leg (e.g. a stored follow state written for another release or rules, a fetched page
-    whose URL is not the URL tried) holds its institution (:data:`FOLLOW_FAILED`)."""
+    leg was handed no page, a page of another institution or a page already followed, a round mixed
+    hops, a followed page id was already coded, or the stored follow state is unusable (review M3: not
+    UTF-8 JSON, another format, release, back-fill flag or rules, a missing key or a malformed field).
+    It stops the stage (:data:`STAGE_STOPS`); any other ``ValueError`` of the follow leg (e.g. a fetched
+    page whose URL is not the URL tried) holds its institution (:data:`FOLLOW_FAILED`)."""
 
 
 #: Review L5: an error of the T-025 follow leg that is institution data, not wiring: per-institution hold.
@@ -678,13 +681,15 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                  activity_round: ActivityRoundResult | None, pairs: Sequence[PairResult],
                  pair_support: Sequence[SupportResult], page_config: PageCoderConfig,
                  activity_config: ActivityCoderConfig, instrument: dict[str, Any],
-                 extraction: Any = None, official_sites: Any = None) -> PageProduct:
+                 extraction: Any = None, official_sites: Any = None, pass2: Any = None) -> PageProduct:
     """Final per-page values and their support -> the Stage 6 per-page inputs of one coded page.
 
     ``extraction`` is the page's T-022 pass-1 page request (``PerPageProviders.page_extraction``),
     read by the T-015 source-row assembler when no row values are injected (PI ruling 35 a);
     ``official_sites`` the run's official sites it reads (PI ruling 70 b,
-    :func:`g3o.run.presweep.official_site_v27.load_run_official_sites`).
+    :func:`g3o.run.presweep.official_site_v27.load_run_official_sites`); ``pass2`` the page's
+    T-032 pass-2 page request (``PerPageProviders.page_pass2``), whose field tasks it reads for
+    an open reported_* gate (PI ruling 73.1 b).
 
     Uncertainty flags (PI A6.1 a / A6.3 a): each node carries its own code's flags
     (:func:`g3o.validate.uncertainty_flags_v27.code_flags`); an observation row's
@@ -725,7 +730,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         rows = srow.assemble(page, up.page_fields, outcome_values(page_round.final.items),
                              {aid: outcome_values(f.outcomes) for aid, f in finals.items()},
                              followed=up.followed, hop=up.hop, extraction=extraction, sources=sources,
-                             verdict_support=vsr, official_sites=official_sites,
+                             verdict_support=vsr, official_sites=official_sites, pass2=pass2,
                              provenance=srow.Provenance.of(instrument, extraction,
                                                            rule_coder_version=activity_config.coder_version))
         if rows.refused:
@@ -1026,6 +1031,7 @@ class _PageState:
     pairs: tuple[PairResult, ...] = ()
     pair_support: tuple[SupportResult, ...] = ()
     extraction: Any = None  # the page's T-022 pass-1 page request (PerPageProviders.page_extraction)
+    pass2: Any = None  # the page's T-032 pass-2 page request (PerPageProviders.page_pass2; PI ruling 73.1 b)
     failure: str | None = None
     holds: list[dict[str, Any]] = field(default_factory=list)
 
@@ -1091,6 +1097,10 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
             f"{a.activity_id}:{q}" for a in st.activity_round.final for q, o in a.outcomes.items()
             if o.state in ("pending", "stopped"))})
         return
+    # PI ruling 73.1 b: the page's pass-2 page request, whose field tasks hold the open reported_* lists
+    # (absent on test fakes: None, and an open gate is refused by the assembler).
+    page_pass2 = getattr(providers, "page_pass2", None)
+    st.pass2 = None if page_pass2 is None else page_pass2(inp)
     result_now = st.activity_round.result
     if result_now.pairs:
         pair_path = pdir / "pairs.json"
@@ -1157,6 +1167,15 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
     return broken
 
 
+def _first_complete(run_dir: Path, page: PageInput) -> str | None:
+    """The combined ``core.page_complete`` the page's first pass-1 request was built on: its stored T-021
+    result, as ``jev_page_code.to_pass1_page`` reads it (PI ruling 82 c)."""
+    first = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(run_dir, page.institution_id,
+                                                                                 page.url)))
+    complete = first.page_complete
+    return complete.value if complete is not None and complete.state == "combined" else None
+
+
 def _follow_rounds(run_dir: Path, inst: PerPageInstitution, states: list[_PageState], follow: Any,
                    held_path: Path, **code: Any) -> dict[str, Any] | None:
     """The T-025 follow leg of one institution (RC-D-023 C-1 a), after its searched pages are coded.
@@ -1177,7 +1196,8 @@ def _follow_rounds(run_dir: Path, inst: PerPageInstitution, states: list[_PageSt
     leg = follow.start(run_dir, inst)
     current = list(states)
     while True:
-        pages = [round_page(st.spec, st.page_round, st.extraction) for st in current
+        pages = [round_page(st.spec, st.page_round, st.extraction,
+                            first_complete=_first_complete(run_dir, st.spec.page)) for st in current
                  if st.failure is None and st.page_round is not None]
         new_specs = leg.round(pages)
         if not new_specs:
@@ -1273,7 +1293,10 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                                             metrics=metrics, cost_check_callback=cost_check_callback)
                 except STAGE_STOPS:
                     raise
-                except (ValueError, OSError) as exc:  # institution data: this institution is held
+                except ValueError as exc:  # institution data: this institution is held
+                    # Review L4: no OSError here. As on the searched-page path, an OSError holds only
+                    # where ruling 28 a says so (a page-state archive that survived the write retries,
+                    # held inside _code_states / _finish_failed_archives); any other leaves the stage.
                     broken = {"page_id": inst.institution_id, "stage": FOLLOW_FAILED,
                               "error": f"{type(exc).__name__}: {exc}"}
         finally:
@@ -1300,7 +1323,8 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                     page_order=order, first_source=next_source, page_round=st.page_round,
                     activity_input=st.activity_input, activity_round=st.activity_round, pairs=st.pairs,
                     pair_support=st.pair_support, page_config=page_config, activity_config=activity_config,
-                    instrument=instrument, extraction=st.extraction, official_sites=official_sites))
+                    instrument=instrument, extraction=st.extraction, official_sites=official_sites,
+                    pass2=st.pass2))
             except UncarriedCombinedValue as exc:  # Y3 b: refused as a per-institution hold
                 uncarried = exc
                 break

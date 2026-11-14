@@ -139,12 +139,35 @@ def test_round_page_reads_final_complete_and_supported_pass1_quotes():
                  SimpleNamespace(support_status="downgraded_no_quote", supporting_text="Quote B"),
                  SimpleNamespace(support_status="supported", supporting_text=None),
                  SimpleNamespace(support_status="supported", supporting_text="Quote A")))
-    spec = SimpleNamespace(page="page")
-    rp = fv.round_page(spec, page_round, "ext")
-    assert (rp.page, rp.page_complete, rp.extraction, rp.supported) == ("page", "yes", "ext", ("Quote A",))
+    page = SimpleNamespace(links=())
+    spec = SimpleNamespace(page=page)
+    rp = fv.round_page(spec, page_round, "ext", first_complete="yes")
+    assert (rp.page, rp.page_complete, rp.extraction, rp.supported, rp.links_collected) == \
+        (page, "yes", "ext", ("Quote A",), True)
     stopped = SimpleNamespace(final=SimpleNamespace(items={COMPLETE: ItemOutcome(COMPLETE, "pending", None)}),
                               support=())
-    assert fv.round_page(spec, stopped, None).page_complete is None
+    assert fv.round_page(spec, stopped, None, first_complete="yes").page_complete is None
+    # PI ruling 82 c: yes only after an extra round (first request built on another answer), or links not
+    # measured: the links were not collected.
+    for first in ("no", "unknown", None):
+        assert fv.round_page(spec, page_round, "ext", first_complete=first).links_collected is False
+    unmeasured = SimpleNamespace(page=SimpleNamespace(links=None))
+    assert fv.round_page(unmeasured, page_round, "ext", first_complete="yes").links_collected is False
+
+
+def test_complete_page_with_links_not_collected_is_recorded_and_not_followed_82c(tmp_path):
+    run_dir, inst = _one(tmp_path)
+    fetch = FakeFetch({F1: "x"})
+    page = inst.pages[0].page
+    leg = fv.FollowLeg(fetch).start(run_dir, inst)
+    out = leg.round([fv.RoundPage(page, "yes", selection(page, [F1]), (), links_collected=False),
+                     fv.RoundPage(inst.pages[1].page, "yes", None, (), links_collected=False)])
+    assert out == [] and fetch.calls == [] and leg.hold() is None
+    assert set(ledger(run_dir)) == {(fv.STAGE, fv.LINKS_NOT_COLLECTED, page.url),
+                                    (fv.STAGE, fv.LINKS_NOT_COLLECTED, inst.pages[1].page.url)}
+    # A page whose final answer is not yes is neither followed nor recorded.
+    leg.round([fv.RoundPage(inst.pages[2].page, "no", None, (), links_collected=False)])
+    assert (fv.STAGE, fv.LINKS_NOT_COLLECTED, inst.pages[2].page.url) not in ledger(run_dir)
 
 
 def test_resume_reuses_the_state_and_the_stored_page_without_fetching_again(tmp_path):
@@ -446,18 +469,69 @@ def test_zero_page_institution_is_not_followed_l5(tmp_path):
 
 
 def test_follow_data_error_holds_the_institution_l5(tmp_path):
-    """Review L5: a follow-leg error that is institution data (here a stored follow state in another
-    format) holds that institution instead of stopping the stage."""
+    """Review L5: a follow-leg error that is institution data (here a fetched page whose URL is not the
+    URL tried) holds that institution instead of stopping the stage."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+
+    def moved(url):
+        return FetchResult(fl.FETCHED, rendered("https://elsewhere.example.org/x", REPORT))
+
+    ready, metrics = _run(run_dir, bound, instrument, providers, inst, WorldLeg(moved, world=world), _jev())
+    assert ready == [] and metrics.held == [INST]
+    held = json.loads((institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).read_text(encoding="utf-8"))
+    (hold,) = held["held"]
+    assert hold["stage"] == pp.FOLLOW_FAILED and "is not the URL tried" in hold["error"]
+
+
+@pytest.mark.parametrize("raw, match", [
+    (json.dumps({"format": "another-format"}).encode("utf-8"), "unsupported follow state format"),
+    (b"{not json", "not UTF-8 JSON"),
+    (b"\xff\xfe", "not UTF-8 JSON"),
+    (json.dumps([1, 2]).encode("utf-8"), "not a JSON object"),
+    (json.dumps({"format": fv.STATE_FORMAT}).encode("utf-8"), "malformed: KeyError"),
+])
+def test_unusable_stored_follow_state_stops_the_stage_m3(tmp_path, raw, match):
+    """Review M3: a stored follow state of another format, undecodable JSON, a missing key: a stage stop."""
     run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
     state = institution_dir(run_dir, INST) / fv.FOLLOW_DIR / fv.STATE_FILE
     state.parent.mkdir(parents=True, exist_ok=True)
-    state.write_text(json.dumps({"format": "another-format"}), encoding="utf-8")
+    state.write_bytes(raw)
     fetch = FakeFetch({REPORT_URL: REPORT})
-    ready, metrics = _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), _jev())
-    assert ready == [] and metrics.held == [INST] and fetch.calls == []
-    held = json.loads((institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).read_text(encoding="utf-8"))
-    (hold,) = held["held"]
-    assert hold["stage"] == pp.FOLLOW_FAILED and "unsupported follow state format" in hold["error"]
+    with pytest.raises(pp.FollowWiringError, match=match):
+        _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), _jev())
+    assert fetch.calls == []
+
+
+def test_load_state_mismatch_and_bad_count_are_wiring_errors_m3(tmp_path):
+    run_dir, inst = _one(tmp_path)
+    page = inst.pages[0].page
+    fv.FollowLeg(FakeFetch({F1: "x"})).start(run_dir, inst).round(
+        [fv.RoundPage(page, "yes", selection(page, [F1]), ())])
+    doc = json.loads((institution_dir(run_dir, I1) / fv.FOLLOW_DIR / fv.STATE_FILE).read_text(encoding="utf-8"))
+    rules = fl.FollowRules()
+    with pytest.raises(pp.FollowWiringError, match="another institution"):
+        fv.load_state(doc, institution_id=I1, release_id="R-OTHER", rules=rules)
+    with pytest.raises(pp.FollowWiringError, match="disagrees with its records"):
+        fv.load_state({**doc, "followed": 7}, institution_id=I1, release_id=inst.run_id, rules=rules)
+    with pytest.raises(pp.FollowWiringError, match="malformed: TypeError"):
+        fv.load_state({**doc, "records": [{"bogus": 1}]}, institution_id=I1, release_id=inst.run_id, rules=rules)
+    with pytest.raises(pp.FollowWiringError, match="no searched page"):
+        fv.FollowLeg(FakeFetch({})).start(run_dir, replace(inst, pages=[]))
+
+
+def test_follow_state_write_failure_leaves_the_stage_l4(tmp_path, monkeypatch):
+    """Review L4: an OSError writing the follow state is not held as follow_failed (the searched-page
+    path holds an OSError only for a page-state archive, ruling 28 a): it leaves the stage."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+
+    def broken(path, text):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(fv, "_atomic_write", broken)
+    with pytest.raises(OSError, match="disk full"):
+        _run(run_dir, bound, instrument, providers, inst, WorldLeg(FakeFetch({REPORT_URL: REPORT}), world=world),
+             _jev())
+    assert not (institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).exists()
 
 
 def test_follow_wiring_error_stops_the_stage_l5(tmp_path):
