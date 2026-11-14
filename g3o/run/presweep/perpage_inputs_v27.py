@@ -250,6 +250,22 @@ def build_perpage_inputs(run_dir: Path, sample: Sequence[Mapping[str, Any]], scr
     return PerPageInputs(run_dir, sample, scraped, str(run_id), institution_uid_map(run_dir))
 
 
+#: The ``PageSourceFields`` values the T-015 assembler reads, with the item each must carry.
+PAGE_FIELD_ITEMS = (("url", sf.URL), ("access_date", sf.ACCESS_DATE), ("language", sf.LANGUAGE),
+                    ("syndication_group", sf.SYNDICATION), ("text_source", sf.TEXT_SOURCE))
+
+
+def page_fields_gaps(fields: Any) -> list[str]:
+    """The wiring gaps of one page's ``PageSourceFields`` (PI ruling 97 b with 40 a), as the T-015 assembler
+    would refuse them after coding: a value that is absent or not a ``FieldValue`` of its item
+    (``source_row_v27._field``), and an ``archive_address`` that is not a bool (``source_type_value``)."""
+    gaps = [f"{attr} ({item})" for attr, item in PAGE_FIELD_ITEMS
+            if not isinstance(getattr(fields, attr, None), sf.FieldValue) or getattr(fields, attr).item_id != item]
+    if not isinstance(getattr(fields, "archive_address", None), bool):
+        gaps.append(f"archive_address ({sf.SOURCE_TYPE})")
+    return gaps
+
+
 def require_complete(institutions: Iterable[pp.PerPageInstitution],
                      keys: list[tuple[str, str]] | None = None) -> int:
     """Raise the per-page stage's ``MissingUpstreamError`` for values no producer supplies yet.
@@ -269,10 +285,17 @@ def require_complete(institutions: Iterable[pp.PerPageInstitution],
     activity, or :data:`~g3o.run.presweep.stage_perpage_v27.NO_ACTIVITY`) is known
     only after coding, so key coverage is still checked by ``produce_page``.
 
+    PI ruling 97 b with 40 a: a page left to the assembler must also carry every wiring
+    input the assembler stops the stage on (:func:`page_fields_gaps`: the ``PageSourceFields``
+    values, ``text_source`` included, and a bool ``archive_address``), since those refusals are
+    no longer covered by the entry gate; a gap is refused here, before any paid call. (The run's
+    official sites, the other wiring input, are loaded by ``run_perpage_v27`` before its first
+    call, and its load refuses an unreadable record.)
+
     ``keys``, when given, receives ``(institution_id, page_id)`` for every page, in
     the order seen (the dispatch checks the run pass against it).
     """
-    follow, values = [], []
+    follow, values, fields = [], [], []
     n_pages = 0
     for inst in institutions:
         for spec in inst.pages:
@@ -285,10 +308,15 @@ def require_complete(institutions: Iterable[pp.PerPageInstitution],
                 follow.append(key)
             given = (up.activity_values, up.source_values, up.codes)
             assembled = up.page_fields is not None and all(v is None for v in given)  # ruling 35 a path
+            if assembled:
+                fields.extend(f"{key}:{gap}" for gap in page_fields_gaps(up.page_fields))
             if (assembled and srow.entry_refused_items()) or (not assembled and any(v is None for v in given)):
                 values.append(key)
     if follow:
         raise MissingUpstreamError(pp.FOLLOW_PRODUCER, follow)
+    if fields:
+        raise MissingUpstreamError(f"{srow.PAGE_FIELDS} (wiring inputs of the T-015 assembler; PI rulings 97 b, "
+                                   "40 a)", fields)
     if values:
         label = VALUES_MISSING if srow.entry_refused_items() else \
             f"{pp.VALUES_PRODUCER} (activity_values, source_values, codes)"
