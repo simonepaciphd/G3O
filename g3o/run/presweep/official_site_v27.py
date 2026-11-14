@@ -25,6 +25,9 @@ Per institution (:func:`load_run_official_sites`):
   (an attrition record of the step with a known failure reason,
   :data:`FAILURE_REASONS`, and no file); the step is not done and there is no
   file; the ``url`` has no host; or the file cannot be read.
+- Refused for the whole run (review L-5, :class:`OfficialSiteWiringError`, a
+  stage stop): an attrition reason recorded under the official-site stages
+  that is neither in :data:`FAILURE_REASONS` nor in :data:`NON_FAILURE_REASONS`.
 
 The comparison (:func:`g3o.common.source_fields.official_from_hosts`) is the
 signed one, P13 and RC-D-026 9 a: the page's host equal to its own
@@ -55,10 +58,20 @@ OFFICIAL_SITE_FILE = "2_official_site.json"
 RULING = "PI ruling 70 b"
 #: The attrition reasons the official-site step (and its fallback) records when it fails for an institution:
 #: ``stage_classify`` (batch ``parse_failed``, jev ``jev_parse_failed``) and ``jev_stage_runner``
-#: (``jev_request_failed``, ``jev_result_processing_failed``). Review L1: any other record of the step is
-#: not a failure.
+#: (``jev_request_failed``, ``jev_result_processing_failed``).
 FAILURE_REASONS = frozenset({"parse_failed", "jev_parse_failed", "jev_request_failed",
                              "jev_result_processing_failed"})
+#: Attrition reasons recorded under the official-site stages that are known NOT to be a failure of the step.
+#: None today: the step and its fallback record only :data:`FAILURE_REASONS`. Review L-5: a reason in neither
+#: set is refused (:class:`OfficialSiteWiringError`), never read as "no site"; a new reason is added here or
+#: to :data:`FAILURE_REASONS` deliberately.
+NON_FAILURE_REASONS: frozenset[str] = frozenset()
+
+
+class OfficialSiteWiringError(ValueError):
+    """The run's official-site records cannot be read as signed (review L-5): an attrition reason recorded
+    under the official-site stages that is neither a known failure nor a known non-failure. A wiring gap,
+    not institution data: it stops the per-page stage (PI 32 b)."""
 
 
 @dataclass(frozen=True)
@@ -83,8 +96,14 @@ class RunOfficialSites:
 
 def _failed(run_dir: Path) -> set[str]:
     stages = {OFFICIAL_SITE_STAGE, OFFICIAL_SITE_FALLBACK_STAGE}
-    return {str(r.get("institution_id")) for r in attrition.read_records(run_dir)
-            if r.get("stage") in stages and r.get("reason") in FAILURE_REASONS}
+    records = [r for r in attrition.read_records(run_dir) if r.get("stage") in stages]
+    unknown = sorted({(str(r.get("stage")), repr(r.get("reason"))) for r in records
+                      if r.get("reason") not in FAILURE_REASONS | NON_FAILURE_REASONS})
+    if unknown:  # review L-5: never silently read as "no site"
+        raise OfficialSiteWiringError(
+            f"{RULING}: attrition reason(s) recorded under the official-site stages that are neither a known "
+            f"failure nor a known non-failure: {', '.join(f'{s}: {r}' for s, r in unknown)}")
+    return {str(r.get("institution_id")) for r in records if r.get("reason") in FAILURE_REASONS}
 
 
 def load_run_official_sites(run_dir: Path) -> RunOfficialSites:
@@ -129,5 +148,5 @@ def load_run_official_sites(run_dir: Path) -> RunOfficialSites:
                             unresolved)
 
 
-__all__ = ["FAILURE_REASONS", "OFFICIAL_SITE_FALLBACK_STAGE", "OFFICIAL_SITE_FILE", "OFFICIAL_SITE_STAGE", "RunOfficialSites",
-           "load_run_official_sites"]
+__all__ = ["FAILURE_REASONS", "NON_FAILURE_REASONS", "OFFICIAL_SITE_FALLBACK_STAGE", "OFFICIAL_SITE_FILE",
+           "OFFICIAL_SITE_STAGE", "OfficialSiteWiringError", "RunOfficialSites", "load_run_official_sites"]
