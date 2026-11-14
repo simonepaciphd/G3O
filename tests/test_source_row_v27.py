@@ -310,7 +310,7 @@ def test_vendor_claim_only_not_asked_without_automatic_typing():
 
 
 def test_missing_producers_names_the_refused_items():
-    assert pin.MISSING_PRODUCERS == (pin.FOLLOW_ATTEMPTS_MISSING, pin.VALUES_MISSING)
+    assert pin.MISSING_PRODUCERS == (pin.VALUES_MISSING,)  # the T-025 entry is gone (PI ruling 102 a)
     for item in srow.unproduced_items():
         assert item in pin.VALUES_MISSING
 

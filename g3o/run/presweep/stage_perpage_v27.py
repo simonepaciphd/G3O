@@ -370,7 +370,7 @@ class Pass2RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as Ex
     def __init__(self, page_id: str, custom_id: str, key: str) -> None:
         super().__init__(f"page {page_id}: the rebuilt pass-2 page request {custom_id!r} (journal key {key}) has "
                          "no recorded response in the request journal; no live call made on a resume (PI ruling "
-                         "98 b)")
+                         f"98 b); naming this key in {PI_RELEASE_FILE} authorises one live re-ask (PI ruling 104 b)")
         self.page_id, self.custom_id, self.key = page_id, custom_id, key
 
 
@@ -1488,7 +1488,7 @@ def _first_complete(run_dir: Path, page: PageInput) -> str | None:
 
 
 def _follow_rounds(run_dir: Path, inst: PerPageInstitution, states: list[_PageState], follow: Any,
-                   held_path: Path, **code: Any) -> dict[str, Any] | None:
+                   held_path: Path, unread: list[dict[str, Any]], **code: Any) -> dict[str, Any] | None:
     """The T-025 follow leg of one institution (RC-D-023 C-1 a), after its searched pages are coded.
 
     Each round follows the links of the last round's coded pages
@@ -1497,10 +1497,10 @@ def _follow_rounds(run_dir: Path, inst: PerPageInstitution, states: list[_PageSt
     and extractor call, the same request journal). A round stops the leg when a
     page holds the institution; the next run resumes from the follow state and the
     journal. Once no round fetches a page, the specs get their follow page fields
-    (:meth:`~g3o.run.presweep.follow_v27.InstitutionLeg.finish`), and an
-    institution with a URL tried and not fetched, or a link not followed, is held
-    (:data:`g3o.run.presweep.follow_v27.FOLLOW_ATTEMPTS_UNRULED`, a PI question).
-    Returns the hold, or None.
+    (:meth:`~g3o.run.presweep.follow_v27.InstitutionLeg.finish`), and each URL
+    tried and not fetched, or link not followed, is appended to ``unread`` (PI
+    rulings 79 b / 96 a / 102 a: it enters Stage 6 through
+    :func:`g3o.run.presweep.follow_v27.unread_products`). Returns the hold, or None.
     """
     from g3o.run.presweep.follow_v27 import round_page
 
@@ -1526,7 +1526,8 @@ def _follow_rounds(run_dir: Path, inst: PerPageInstitution, states: list[_PageSt
             return broken
     for st, spec in zip(states, leg.finish([st.spec for st in states]), strict=True):
         st.spec = spec
-    return leg.hold()
+    unread.extend(leg.unreviewed())  # PI rulings 79 b / 96 a / 102 a
+    return None
 
 
 def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *, ask_fn: Any,
@@ -1590,6 +1591,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
         if broken is None:  # ruling 34 b / 41 a: a PI release is recorded before any extractor call
             broken = _apply_pi_release(inst_dir, journal)
         to_code = states if broken is None else []
+        unread: list[dict[str, Any]] = []  # PI rulings 79 b / 96 a / 102 a: unread follow attempts
         try:
             broken = _code_states(run_dir, to_code, broken, ask=ask, providers=providers,
                                   inst_providers=inst_providers, journal=journal, page_config=page_config,
@@ -1598,7 +1600,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             # Review L5: an institution with no page has nothing to follow from (not an error).
             if follow is not None and broken is None and states and not any(st.holds for st in states):
                 try:
-                    broken = _follow_rounds(run_dir, inst, states, follow, held_path, ask=ask,
+                    broken = _follow_rounds(run_dir, inst, states, follow, held_path, unread, ask=ask,
                                             providers=providers, inst_providers=inst_providers, journal=journal,
                                             page_config=page_config, activity_config=activity_config,
                                             metrics=metrics, cost_check_callback=cost_check_callback,
@@ -1652,6 +1654,12 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                 broken = _producer_hold(st.spec.page.page_id, exc)
                 break
             next_source += len(products[-1].sources)
+        if unread and uncarried is None and broken is None:  # PI rulings 79 b / 96 a / 102 a
+            from g3o.run.presweep.follow_v27 import unread_products
+            products += unread_products(unread, run_id=inst.run_id, institution_uid=inst.institution_uid,
+                                        institution_id=inst.institution_id, first_source=next_source,
+                                        coder_version=page_config.coder_version, instrument=instrument,
+                                        known_pages=[st.spec.page.page_id for st in states])
         if uncarried is not None or broken is not None:
             hold = broken if broken is not None else {
                 "page_id": uncarried.page_id, "stage": UNCARRIED_STAGE, "items": sorted(uncarried.values)}
@@ -1799,8 +1807,35 @@ def parse_pi_release(raw: bytes) -> dict[str, Any]:
     return {"keys": keys, "all": has_all, "released_by": by, "date": when}
 
 
+#: PI ruling 104 b: the hold stages whose ``request_key`` a ``pi_release.json`` key may name for one live
+#: re-ask (the pass-1 and activity-only holds are 98 b holds too, PI ruling 105 b).
+#: PI ruling 103 b: a 97 b page-data hold (:data:`ROW_VALUE_REFUSED`) is never releasable this way.
+REASK_RELEASABLE = frozenset({PASS2_NOT_JOURNALED, PASS1_NOT_JOURNALED, ACTIVITY_ONLY_NOT_JOURNALED})
+
+
+def _reaskable_keys(inst_dir: Path) -> frozenset[str]:
+    """The request keys the last run's ``held.json`` holds under :data:`REASK_RELEASABLE` (PI ruling 104 b).
+
+    An absent or unreadable ``held.json`` gives none, so a release naming such a key is refused."""
+    try:
+        doc = json.loads((inst_dir / WORK_DIR / HELD_FILE).read_bytes().decode("utf-8"))
+        holds = doc.get("held", []) if isinstance(doc, dict) else []
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return frozenset()
+    return frozenset(h["request_key"] for h in holds if isinstance(h, dict) and h.get("stage") in REASK_RELEASABLE
+                     and isinstance(h.get("request_key"), str))
+
+
 def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any] | None:
     """Consume ``<inst>/pi_release.json`` if present (ruling 34 b / 41 a); a hold dict when it cannot be.
+
+    PI ruling 104 b: a key the release names may also be the ``request_key`` of a 98 b hold
+    (:data:`REASK_RELEASABLE`) in the last run's ``held.json``; it is recorded in the release's
+    ``reask_keys`` and authorises ONE live re-ask of that request
+    (:meth:`~g3o.run.presweep.stage_validate_v27.RequestJournal.reask_authorised`), used up once that call
+    is journaled; a second re-ask needs a new release file. ``all`` authorises no re-ask. A key that is
+    neither rejected nor so held is refused (:data:`PI_RELEASE_MALFORMED`); PI ruling 103 b: a 97 b
+    page-data hold carries no request key and stays unreleasable.
 
     The file's bytes are read once; the same bytes are parsed and hashed. A valid
     file is recorded in the per-page journal (:meth:`RequestJournal.record_release`,
@@ -1827,14 +1862,17 @@ def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any]
         return _release_hold(PI_RELEASE_MALFORMED, path, f"refused (ruling 34 b / 41 a release format): {exc}")
     sha = hashlib.sha256(raw).hexdigest()
     if not journal.release_applied(sha):
-        unrejected = [k for k in release["keys"] or () if journal.rejections(k) == 0]
+        reaskable = _reaskable_keys(inst_dir)  # ruling 104 b: request keys held under 98 b
+        unrejected = [k for k in release["keys"] or () if journal.rejections(k) == 0 and k not in reaskable]
         if unrejected:
             return _release_hold(PI_RELEASE_MALFORMED, path,
-                                 f"refused (ruling 34 b / 41 a): key(s) with no extract_rejected entry counted "
-                                 f"in this journal since their last release: {unrejected}; drop these keys "
-                                 f"from {PI_RELEASE_FILE} and run again")
+                                 f"refused (ruling 34 b / 41 a / 104 b): key(s) with no extract_rejected entry "
+                                 f"counted in this journal since their last release and no {PASS2_NOT_JOURNALED} "
+                                 f"hold in {HELD_FILE}: {unrejected}; drop these keys from {PI_RELEASE_FILE} and "
+                                 f"run again")
+        reask = sorted(k for k in release["keys"] or () if k in reaskable)
         try:
-            journal.record_release({**release, "file_sha256": sha})
+            journal.record_release({**release, "file_sha256": sha, "reask_keys": reask})
         except OSError as exc:
             return _release_hold(PI_RELEASE_RECORD_FAILED, path,
                                  f"release not recorded, journal write failed: {type(exc).__name__}: {exc}")

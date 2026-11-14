@@ -96,14 +96,9 @@ INSTITUTION_FILE = "institution.json"
 #: per-page stage and is no longer named here.
 VALUES_MISSING = (f"{pp.VALUES_PRODUCER} (activity_values, source_values, codes); {srow.ASSEMBLER} "
                   f"refuses: {', '.join(srow.entry_refused_items())}")
-#: The T-025 entry left: ``followed`` / hop are produced (searched pages here, followed pages by
-#: :mod:`g3o.run.presweep.follow_v27`), but the Stage 6 entry of a URL tried and not fetched or a
-#: link not followed is a PI question; the stage holds such an institution
-#: (``follow_v27.FOLLOW_ATTEMPTS_UNRULED``). Drop this entry once that is ruled and built.
-FOLLOW_ATTEMPTS_MISSING = ("T-025 attempted pages not reviewed (fetch failed, robots refused, link not "
-                           "followed: cap or hops): Stage 6 entry unruled")
+#: The T-025 entry is gone: a URL tried and not fetched or a link not followed enters Stage 6 as a failed
+#: unreviewed page and its source row (PI rulings 79 b / 96 a / 102 a, :func:`g3o.run.presweep.follow_v27.unread_products`).
 MISSING_PRODUCERS: tuple[str, ...] = (
-    FOLLOW_ATTEMPTS_MISSING,
     *((VALUES_MISSING,) if srow.entry_refused_items() else ()),
 )
 
@@ -336,6 +331,6 @@ def default_perpage_inputs(run_dir: Path, sample: Sequence[Mapping[str, Any]], s
     return build_perpage_inputs(run_dir, sample, scraped, bound, instrument)
 
 
-__all__ = ["FOLLOW_ATTEMPTS_MISSING", "IDENTITY_COLUMNS", "MISSING_PRODUCERS", "VALUES_MISSING", "PageSourceFields",
+__all__ = ["IDENTITY_COLUMNS", "MISSING_PRODUCERS", "VALUES_MISSING", "PageSourceFields",
            "PerPageInputs", "build_perpage_inputs", "default_perpage_inputs",
            "page_input", "page_source_fields", "rendered_page_input", "require_complete"]

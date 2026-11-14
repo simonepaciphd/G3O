@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter, defaultdict
+from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,20 @@ SUPPORT_STATES = {"supported", "downgraded_no_quote", "downgraded_low_confidence
                   "downgraded_quote_not_stating_value", "set_by_rule", "not_required"}
 METADATA_ITEMS = {"core.codebook_release", "core.setup_pointer", "core.evidence_channel"}
 VERDICTS = tuple(FIELDS["core.page_verdict"]["codes"])
+#: PI ruling 102 a (2026-11-14, building 96 a / 79 b): the signed ``core.page_review_state`` codes other than
+#: ``reviewed`` (codebook ``items/core.page_review_state/rules/0``; pinned against the signed vocabulary by
+#: tests/test_storage.py). A source row carrying one is a page that was not reviewed: it may carry no page
+#: artifact (path and hash both null), it is not counted as a reviewed page in ``core.review_depth``, it is
+#: exempt from the single-row-per-page check, and the Stage 6 A8 pre-check and the A7 independence grouping
+#: skip it. Every other row (``reviewed``, or a value outside these codes) keeps the reviewed-row contract.
+REVIEW_STATE_ITEM = "core.page_review_state"
+UNREVIEWED_STATES = frozenset({"fetch_failed", "no_usable_text", "link_not_followed_cap", "link_not_followed_hops"})
+
+
+def unreviewed_source(row: Any) -> bool:
+    """Whether a source row's ``core.page_review_state`` is a signed non-``reviewed`` state (PI ruling 102 a)."""
+    values = row.get("values") if isinstance(row, Mapping) else None
+    return isinstance(values, Mapping) and values.get(REVIEW_STATE_ITEM) in UNREVIEWED_STATES
 
 
 def table_fields(table: str) -> dict[str, dict[str, Any]]:
@@ -275,7 +290,15 @@ class StorageEnvelope:
             page_level = table == "sources" and row["activity_id"] == "_NA_"
             if not row["observation_ids"] and not page_level:
                 raise ValueError("2.7 source/activity rows must retain original observations")
-        if table == "sources":
+        if table == "sources" and unreviewed_source(row) and \
+                row["page_artifact_path"] is None and row["page_content_sha256"] is None:
+            # PI ruling 102 a: a page that was not reviewed may carry no artifact; it names no observation
+            # and no quote can be located on it (its text is empty here).
+            if row["observation_ids"]:
+                raise ValueError("a source row with no page artifact (page not reviewed) names no observation")
+            row["_page_text"] = ""
+            row["_page_path"] = None
+        elif table == "sources":
             path = Path(row["page_artifact_path"])
             if not path.is_absolute():
                 path = self.artifact_root / path
@@ -402,11 +425,13 @@ class StorageEnvelope:
         # RC-D-030 Y2 a, the ruled case only: a source row with no observation is the page-level
         # row of a reviewed page with no activity, so it is the only source row of its page (same
         # stored artifact or same URL); X3 a (i) `_NA_` rows keep their observation ids.
+        # PI ruling 102 a: a row of a page that was not reviewed is exempt from this check, on either side.
         for sid, row in sources.items():
-            if row["observation_ids"]:
+            if row["observation_ids"] or unreviewed_source(row):
                 continue
             path, url = self.pages[sid][:2]
-            if any(other != sid and (self.pages[other][0] == path or self.pages[other][1] == url)
+            if any(other != sid and not unreviewed_source(sources[other])
+                   and (self.pages[other][0] == path or self.pages[other][1] == url)
                    for other in sources):
                 raise ValueError("a page-level _NA_ source row (no observation) must be the only source row "
                                  "of its page")
@@ -609,7 +634,9 @@ class StorageEnvelope:
             if channel == self._data["evidence_channel"]:
                 unique: dict[tuple[Any, ...], str] = {}
                 for sid, page in self.pages.items():
-                    verdict = self._data["sources"][sid]["values"]["core.page_verdict"]
+                    if unreviewed_source(self._data["sources"][sid]):
+                        continue  # PI ruling 102 a: not a reviewed page
+                    verdict =self._data["sources"][sid]["values"]["core.page_verdict"]
                     if page in unique and unique[page] != verdict:
                         raise ValueError("same actual page has conflicting page verdicts")
                     unique[page] = verdict

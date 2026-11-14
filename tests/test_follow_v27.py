@@ -3,8 +3,9 @@
 No network: every fetch is a fake, every jev / extractor answer is a fake. Covers the leg's rounds
 (candidates from the page request's selected links on a page whose final ``core.page_complete`` is
 ``yes``, provenance, hop), resume (stored state and stored pages: no second fetch, no second paid
-call), the hold for attempts whose Stage 6 entry is unruled, the A4 regrouping over searched and
-followed pages, ``discovery_path`` from the hop, and the dispatch's ``follow_fetch`` seam.
+call), the Stage 6 entry of attempts not reviewed (PI rulings 79 b / 96 a / 102 a: a failed unreviewed
+page and its source row), the A4 regrouping over searched and followed pages, ``discovery_path`` from
+the hop, and the dispatch's ``follow_fetch`` seam.
 """
 from __future__ import annotations
 
@@ -30,6 +31,7 @@ from g3o.run.presweep import orchestrator as orch
 from g3o.run.presweep import perpage_inputs_v27 as pin
 from g3o.run.presweep import source_row_v27 as srow
 from g3o.run.presweep import stage_perpage_v27 as pp
+from g3o.run.presweep import stage_validate_v27 as rt
 from g3o.run.presweep.instrument_binding import bind_runtime
 from g3o.run.presweep.stage_follow import FetchResult
 from g3o.scrape import follow as fl
@@ -119,7 +121,7 @@ def test_searched_pages_are_followed_false_and_round_records_provenance(tmp_path
     assert (rec["parent_page_id"], rec["hop"], rec["outcome"], rec["fetch_date"], rec["release_id"],
             rec["backfill"], rec["counted"]) == (page.page_id, 1, fl.FETCHED, ACCESS, inst.run_id, False, True)
     assert doc["cap"]["cap_reached"] is False and doc["followed"] == 1
-    assert leg.hold() is None
+    assert leg.unreviewed() == []
 
 
 def test_final_page_complete_not_yes_offers_no_link(tmp_path):
@@ -163,7 +165,7 @@ def test_complete_page_with_links_not_collected_is_recorded_and_not_followed_82c
     leg = fv.FollowLeg(fetch).start(run_dir, inst)
     out = leg.round([fv.RoundPage(page, "yes", selection(page, [F1]), (), links_collected=False),
                      fv.RoundPage(inst.pages[1].page, "yes", None, (), links_collected=False)])
-    assert out == [] and fetch.calls == [] and leg.hold() is None
+    assert out == [] and fetch.calls == [] and leg.unreviewed() == []
     assert set(ledger(run_dir)) == {(fv.STAGE, fv.LINKS_NOT_COLLECTED, page.url),
                                     (fv.STAGE, fv.LINKS_NOT_COLLECTED, inst.pages[1].page.url)}
     # A page whose final answer is not yes is neither followed nor recorded.
@@ -196,9 +198,9 @@ def test_stored_state_for_other_rules_is_refused(tmp_path):
         fv.FollowLeg(FakeFetch({})).start(run_dir, replace(inst, run_id="R-OTHER"))
 
 
-def test_failed_robots_and_cap_attempts_hold_the_institution(tmp_path):
-    """Every URL tried counts against the cap (C-Q5 b); attempts not reviewed are recorded and hold the
-    institution (their Stage 6 entry is a PI question)."""
+def test_failed_robots_and_cap_attempts_are_recorded_as_unreviewed(tmp_path):
+    """Every URL tried counts against the cap (C-Q5 b); attempts not reviewed are recorded (attrition,
+    follow state) and listed for their Stage 6 entry (PI rulings 79 b / 96 a / 102 a)."""
     f3 = "https://one.example.gov/minutes"
     run_dir, inst = _one(tmp_path, links=(F1, F2, f3))
     fetch = FakeFetch({}, fail={F1}, robots={F2})
@@ -206,18 +208,18 @@ def test_failed_robots_and_cap_attempts_hold_the_institution(tmp_path):
     page = inst.pages[0].page
     assert leg.round([fv.RoundPage(page, "yes", selection(page, [F1, F2, f3]), ())]) == []
     assert fetch.calls == [F1, F2]
-    hold = leg.hold()
-    assert hold["stage"] == fv.FOLLOW_ATTEMPTS_UNRULED and hold["page_id"] == fv.FOLLOW_HOLD_PAGE
-    assert [(a["url"], a["state"]) for a in hold["attempts"]] == [
-        (F1, fl.FETCH_FAILED), (F2, fv.ROBOTS_DISALLOWED), (f3, fl.LINK_NOT_FOLLOWED_CAP)]
-    assert hold["cap"]["cap_reached"] is True and hold["cap"]["followed"] == 2
-    assert "PI question" in hold["error"]
+    attempts = leg.unreviewed()
+    assert [(a["url"], a["state"], a["hop"], a["parent_page_id"]) for a in attempts] == [
+        (F1, fl.FETCH_FAILED, 1, page.page_id), (F2, fv.ROBOTS_DISALLOWED, 1, page.page_id),
+        (f3, fl.LINK_NOT_FOLLOWED_CAP, 1, page.page_id)]
+    cap = leg.state.cap_record()
+    assert cap.cap_reached is True and cap.followed == 2
     assert set(ledger(run_dir)) == {(fv.STAGE, fl.FETCH_FAILED, F1), (fv.STAGE, fv.ROBOTS_DISALLOWED, F2),
                                     (fv.STAGE, fl.LINK_NOT_FOLLOWED_CAP, f3), (fv.STAGE, fv.CAP_REACHED, None)}
-    # A resumed leg tries none of them again (R-034, reading 4).
+    # A resumed leg tries none of them again (R-034, reading 4) and lists the same attempts.
     again = fv.FollowLeg(fetch, fl.FollowRules(url_cap=2)).start(run_dir, inst)
     again.round([fv.RoundPage(page, "yes", selection(page, [F1, F2, f3]), ())])
-    assert fetch.calls == [F1, F2] and again.hold() == hold
+    assert fetch.calls == [F1, F2] and again.unreviewed() == attempts
 
 
 def test_attrition_is_recorded_before_the_state_save_l4(tmp_path, monkeypatch):
@@ -393,30 +395,146 @@ def test_perpage_without_a_follow_leg_follows_nothing(tmp_path):
     assert not (institution_dir(run_dir, INST) / fv.FOLLOW_DIR).exists()
 
 
-def test_perpage_failed_follow_fetch_holds_the_institution(tmp_path):
+REVIEW_STATE, PAGE_VERDICT = "core.page_review_state", "core.page_verdict"
+
+
+def _unread(st):
+    """The unreviewed pages of a ready institution and their source rows."""
+    pages = [p for p in st.pages if not p.reviewed]
+    return pages, {p.page_id: st.sources[p.source_ids[0]] for p in pages}
+
+
+def test_perpage_failed_follow_fetch_enters_stage6_as_an_unread_page_102a(tmp_path):
+    """PI rulings 79 b / 96 a / 102 a: a URL tried and not fetched is a failed unreviewed page plus one
+    page-level source row (review state, URL, verdict not_assessable, every other item not_asked, all by
+    the named rule follow_not_reviewed), with no artifact; the institution is no longer held."""
     run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
     fetch = FakeFetch({}, fail={REPORT_URL})
     ready, metrics = _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), _jev())
-    assert ready == [] and metrics.held == [INST] and fetch.calls == [REPORT_URL]
-    held = json.loads((institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).read_text(encoding="utf-8"))
-    (hold,) = held["held"]
-    assert hold["stage"] == fv.FOLLOW_ATTEMPTS_UNRULED
-    assert [(a["url"], a["state"]) for a in hold["attempts"]] == [(REPORT_URL, fl.FETCH_FAILED)]
-    assert any(r["reason"] == pp.HELD_REASON and fv.FOLLOW_ATTEMPTS_UNRULED in r["detail"]
-               for r in attrition.read_records(run_dir))
+    assert metrics.ready == [INST] and metrics.held == [] and fetch.calls == [REPORT_URL]
+    assert not (institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).exists()
+    (st,) = ready
+    (page,), rows = _unread(st)
+    assert (page.page_id, page.page_verdict, page.support_status, page.reviewed, page.failed, page.followed,
+            page.failure_reason) == (url_hash(REPORT_URL), fv.NOT_ASSESSABLE, "set_by_rule", False, True, True,
+                                     fl.FETCH_FAILED)
+    row = rows[page.page_id]
+    (sid,) = page.source_ids
+    assert sid not in st.artifacts and sid == f"S{len(st.sources)}"  # numbered after the coded pages' rows
+    assert (row["page_artifact_path"], row["page_content_sha256"], row["observation_ids"]) == (None, None, [])
+    values = row["values"]
+    assert (values[REVIEW_STATE], values[sf.URL], values[PAGE_VERDICT]) == (fl.FETCH_FAILED, REPORT_URL,
+                                                                           fv.NOT_ASSESSABLE)
+    assert set(values) == set(pp.SOURCE_ITEMS)
+    assert {v for k, v in values.items() if k not in (REVIEW_STATE, sf.URL, PAGE_VERDICT)} == {fv.NOT_ASKED}
+    coded = {k for k in values if pp.FIELDS[k]["coder"] in ("classifier", "quote_step")}
+    assert {s["item_id"] for s in row["item_support"]} == coded
+    assert all((s["support_status"], s["support_rule_name"], s["supporting_text"], s["page_content_sha256"],
+                s["source_id"], s["observation_id"]) == ("set_by_rule", fv.FOLLOW_NOT_REVIEWED, "", None, sid, None)
+               for s in row["item_support"])
+    assert {(c["coder_type"], c["support_id"]) for c in row["coder_records"]} == {
+        ("mechanical", s["support_id"]) for s in row["item_support"]}
+    assert {r["support_id"] for r in st.provenance} >= {s["support_id"] for s in row["item_support"]}
 
 
-def test_failed_follow_hold_persists_on_resume_with_no_live_call_l8(tmp_path):
-    """Review L8: the follow_attempts_unruled hold is found again on the next run from the stored follow
-    state and the journal: no fetch and no live jev or extractor call."""
+def test_robots_refusal_and_link_not_followed_review_states_79b(tmp_path):
+    """79 b: a robots refusal enters as fetch_failed (the failure reason keeps the outcome); a link not
+    followed (cap) is not counted as a followed link."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    leg = WorldLeg(FakeFetch({}, robots={REPORT_URL}), world=world)
+    (st,), _ = _run(run_dir, bound, instrument, providers, inst, leg, _jev())
+    (page,), rows = _unread(st)
+    assert (page.failure_reason, page.followed) == (fv.ROBOTS_DISALLOWED, True)
+    assert rows[page.page_id]["values"][REVIEW_STATE] == fl.FETCH_FAILED
+    capped = tmp_path / "capped"
+    capped.mkdir()
+    run_dir, bound, instrument, world, inst, providers = _follow_world(capped)
+    fetch = FakeFetch({REPORT_URL: REPORT})
+    (st,), _ = _run(run_dir, bound, instrument, providers, inst,
+                    WorldLeg(fetch, fl.FollowRules(url_cap=0), world=world), _jev())
+    assert fetch.calls == []
+    (page,), rows = _unread(st)
+    assert (page.failure_reason, page.followed, page.failed) == (fl.LINK_NOT_FOLLOWED_CAP, False, True)
+    assert rows[page.page_id]["values"][REVIEW_STATE] == fl.LINK_NOT_FOLLOWED_CAP
+
+
+def test_unread_follow_page_reaches_stage6_storage_102a(tmp_path):
+    """102 a end to end: the unread row passes the Stage 6 A8 pre-check and the storage envelope (no
+    artifact, not counted as a reviewed page, exempt from the single-row check) and is stored as built."""
+    from tests.test_e2e_perpage_v27 import CLOCK, FakeQuotes
+
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    ready, _ = _run(run_dir, bound, instrument, providers, inst,
+                    WorldLeg(FakeFetch({}, fail={REPORT_URL}), world=world), _jev())
+    (page,), rows = _unread(ready[0])
+    s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=_jev(), quote_fn=FakeQuotes(), config=bound.stage6_config(),
+                            instrument=instrument, now=CLOCK, test_only_unbound_quote_fn=True)
+    assert s6m.written == [INST] and s6m.held == [] and s6m.failed == []
+    storage = json.loads((institution_dir(run_dir, INST) / "6_storage.json").read_text(encoding="utf-8"))
+    (sid,) = page.source_ids
+    stored = storage["sources"][sid]
+    assert (stored["activity_id"], stored["page_artifact_path"], stored["page_content_sha256"]) == ("_NA_", None, None)
+    assert stored["values"] == rows[page.page_id]["values"]
+    depth = storage["summary"]["values"]["core.review_depth"]["web_extract"]
+    reviewed = [p for p in ready[0].pages if p.reviewed]
+    assert (depth["n_pages_reviewed"], depth["n_pages_failed"], depth["n_followed_links"]) == (len(reviewed), 1, 1)
+    assert depth["n_pages_by_verdict"][fv.NOT_ASSESSABLE] == 0
+    assert storage["summary"]["values"]["core.has_genai_activity"] != "no"  # an unresolved signal (rules/0)
+
+
+def test_unread_follow_rows_survive_a_resume_with_no_call_l8(tmp_path):
+    """Review L8 (kept for 102 a): the next run finds the same unread attempt from the stored follow state
+    and the journal: no fetch, no live jev or extractor call, the same row."""
     run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
     fetch = FakeFetch({}, fail={REPORT_URL})
-    _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), _jev())
+    first, _ = _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), _jev())
     ready, metrics = _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), _jev())
-    assert ready == [] and metrics.held == [INST] and metrics.live_requests == 0
+    assert metrics.ready == [INST] and metrics.held == [] and metrics.live_requests == 0
     assert fetch.calls == [REPORT_URL]  # R-034: the URL is not tried again
-    held = json.loads((institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).read_text(encoding="utf-8"))
-    assert [h["stage"] for h in held["held"]] == [fv.FOLLOW_ATTEMPTS_UNRULED]
+    assert _unread(ready[0])[1] == _unread(first[0])[1]
+
+
+def test_a8_precheck_skips_unread_rows_only_102a():
+    """102 a: the Stage 6 A8 pre-check (source_type check included) skips a non-reviewed row; the same
+    malformed value on a reviewed row still stops the stage (ruling 32 b)."""
+    from g3o.validate import merged_activity_v27 as ma
+
+    def inst(state):
+        return SimpleNamespace(sources={"S1": {"values": {REVIEW_STATE: state, "core.source_access_date": "garbage",
+                                                          "core.source_type": "garbage"}}},
+                               observation_inputs={})
+
+    for state in (fl.FETCH_FAILED, fl.LINK_NOT_FOLLOWED_CAP, fl.LINK_NOT_FOLLOWED_HOPS, "no_usable_text"):
+        ma.check_a8_inputs(inst(state))
+    with pytest.raises(ma.MalformedA8Value):
+        ma.check_a8_inputs(inst("reviewed"))
+
+
+def test_a7_grouping_exempts_unread_rows_named_exception_to_13a():
+    """96 a / 102 a: an unread row's not_asked syndication group does not hold the institution (named
+    exception to A7 13 a); a reviewed row without one still does."""
+    reviewed = {"values": {REVIEW_STATE: "reviewed", sf.SYNDICATION: "sg-1", sf.URL: "https://a.example.gov/x"}}
+    unread = {"values": {REVIEW_STATE: fl.FETCH_FAILED, sf.SYNDICATION: fv.NOT_ASKED, sf.URL: REPORT_URL}}
+    inst = SimpleNamespace(independence_groups=None, institution_id=INST, sources={"S1": reviewed, "S2": unread})
+    assert set(rt.independence_groups_of(inst)) == {"S1"}
+    assert "follow_not_reviewed" in rt.A7_UNREVIEWED_EXCEPTION
+    held = {"values": {**unread["values"], REVIEW_STATE: "reviewed"}}
+    with pytest.raises(MissingUpstreamError):
+        rt.independence_groups_of(SimpleNamespace(independence_groups=None, institution_id=INST,
+                                                  sources={"S1": reviewed, "S2": held}))
+
+
+def test_unread_products_refuse_unknown_outcomes_and_repeated_pages(tmp_path):
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    kw = {"run_id": RUN_ID, "institution_uid": uid_for(INST), "institution_id": INST, "first_source": 3,
+          "coder_version": bound.page_config.coder_version, "instrument": instrument}
+    ok = {"url": REPORT_URL, "state": fl.LINK_NOT_FOLLOWED_HOPS, "hop": 4, "parent_page_id": "s1"}
+    (product,) = fv.unread_products([ok], **kw)
+    assert list(product.sources) == ["S3"] and product.page.followed is False
+    with pytest.raises(pp.FollowWiringError, match="no signed non-reviewed review state"):
+        fv.unread_products([{**ok, "state": fl.FETCHED}], **kw)
+    with pytest.raises(pp.FollowWiringError, match="repeats page id"):
+        fv.unread_products([ok], known_pages=[url_hash(REPORT_URL)], **kw)
 
 
 def test_resume_interrupted_while_coding_a_followed_page_l8(tmp_path):
@@ -591,8 +709,10 @@ def test_follow_wiring_error_stops_the_stage_l5(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_missing_producers_keep_the_attempted_pages_entry():
-    assert pin.MISSING_PRODUCERS[0] == pin.FOLLOW_ATTEMPTS_MISSING
+def test_missing_producers_no_longer_name_the_attempted_pages_102a():
+    """PI rulings 79 b / 96 a / 102 a: attempted pages not reviewed enter Stage 6; the entry is gone."""
+    assert not hasattr(pin, "FOLLOW_ATTEMPTS_MISSING")
+    assert not any("T-025" in m for m in pin.MISSING_PRODUCERS)
     assert pp.FOLLOW_PRODUCER not in pin.MISSING_PRODUCERS
 
 

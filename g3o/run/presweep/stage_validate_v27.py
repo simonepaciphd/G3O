@@ -111,7 +111,7 @@ from g3o.common.response_v27 import InstitutionIdentityV27
 from g3o.common.run_state import clear_done, mark_done
 from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
 from g3o.common.source_fields import aggregation_value, default_vocab
-from g3o.common.storage import METADATA_ITEMS, table_fields
+from g3o.common.storage import METADATA_ITEMS, table_fields, unreviewed_source
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import (
     CodeEvidence,
@@ -363,7 +363,12 @@ EXTRACT_REJECT_CAP = 3
 #: Ruling 34 b / 41 a: a PI release applied to this journal (written by
 #: :meth:`RequestJournal.record_release`); ``extract_rejected`` entries for the released keys that
 #: come before it no longer count towards :data:`EXTRACT_REJECT_CAP`. Never replayed or accounted.
+#: PI ruling 104 b (2026-11-14): its ``reask_keys`` (request keys held under 98 b, named in the release file)
+#: each authorise ONE live re-ask: the next journaled ``extract`` / ``extract_failed`` entry of that key
+#: consumes it (:meth:`RequestJournal.reask_authorised`), on this run and on every later load.
 PI_RELEASED = "pi_released"
+#: the journal entry kinds that record a live extractor call (they consume a 104 b re-ask authorisation)
+_LIVE_EXTRACT_KINDS = frozenset({"extract", "extract_failed"})
 
 
 class ExtractRejectCapReached(Exception):  # noqa: N818 - named after the ruling's event, like ExtractorResponseFailed
@@ -432,6 +437,8 @@ class RequestJournal:
         #: ruling 34 b / 41 a: request key -> ``extract_rejected`` entries since its last PI release
         self._rejections: dict[str, int] = {}
         self._releases: set[str] = set()  # file_sha256 of every PI release applied to this journal
+        #: PI ruling 104 b: request keys a PI release authorised for one live re-ask, not yet used
+        self._reask: set[str] = set()
         self.live = 0
         self.replayed = 0
         if path.exists():
@@ -454,6 +461,8 @@ class RequestJournal:
                 raise ValueError(f"corrupt Stage 6 journal line {n + 1}: {self.path}") from None
             keep.append(line)
             self._elapsed.append(int(entry.get("elapsed_ms", 0)))
+            if entry["kind"] in _LIVE_EXTRACT_KINDS:  # ruling 104 b: a live call uses up its re-ask
+                self._reask.discard(entry["key"])
             if entry["kind"] == PI_RELEASED:
                 self._apply_release(entry["response"])
             elif entry["kind"] in ACCOUNTING_KINDS:
@@ -492,6 +501,8 @@ class RequestJournal:
         entry = {"kind": slot[0], "key": slot[1], "n": slot[2], "response": response, "elapsed_ms": elapsed_ms}
         self._write(entry)
         self._elapsed.append(elapsed_ms)
+        if slot[0] in _LIVE_EXTRACT_KINDS:  # ruling 104 b: a live call uses up its re-ask
+            self._reask.discard(slot[1])
         if slot[0] in ACCOUNTING_KINDS:
             self._accounting.append(entry)
             if slot[0] == JEV_UNIDENTIFIED:
@@ -511,6 +522,12 @@ class RequestJournal:
             for key in release["keys"]:
                 self._rejections.pop(key, None)
         self._releases.add(release["file_sha256"])
+        self._reask.update(release.get("reask_keys") or ())  # ruling 104 b (absent in older entries)
+
+    def reask_authorised(self, key: str) -> bool:
+        """PI ruling 104 b: a recorded PI release named ``key`` (held under 98 b) for one live re-ask, and no
+        live extractor call of ``key`` (``extract`` / ``extract_failed``) has been journaled since."""
+        return key in self._reask
 
     def extract_key(self, request: Mapping[str, Any], prompt: Mapping[str, Any]) -> str:
         """The journal key of an extractor request (``custom_id``, ``params``) under ``prompt``."""
@@ -598,9 +615,12 @@ class RequestJournal:
 
         def peek(job: Any) -> tuple[str, bool]:
             """``(request key, recorded)`` for the next call of ``job``: whether this journal holds a
-            response it would replay, without using the slot (PI ruling 98 b reads it before a rebuild)."""
+            response it would replay, without using the slot (PI ruling 98 b reads it before a rebuild).
+            PI ruling 104 b: ``recorded`` is also True while a PI release authorises one live re-ask of the
+            key (:meth:`reask_authorised`); that call, once journaled, uses the authorisation up."""
             key = self._key({"custom_id": job.custom_id, "params": job.params}, prompt)
-            return key, ("extract", key, self._seen.get(("extract", key), 0)) in self._recorded
+            recorded = ("extract", key, self._seen.get(("extract", key), 0)) in self._recorded
+            return key, recorded or self.reask_authorised(key)
 
         wrapped.peek = peek  # type: ignore[attr-defined]
         return wrapped
@@ -947,6 +967,12 @@ def merge_values(inst: Stage6Institution, order: Sequence[str]) -> dict[str, Any
     return out
 
 
+#: PI rulings 96 a / 102 a (2026-11-14): the named exception to A7 13 a. A source row of a page that was not
+#: reviewed is not grouped (:func:`independence_groups_of`), so its ``not_asked`` syndication group never
+#: holds the institution.
+A7_UNREVIEWED_EXCEPTION = "follow_not_reviewed (PI rulings 96 a / 102 a): unreviewed source rows are not grouped"
+
+
 def independence_groups_of(inst: Stage6Institution) -> Mapping[str, str]:
     """Source independence groups for ``core.confidence`` (PI A7.1 b, A7.2 a, 2026-11-11).
 
@@ -961,11 +987,16 @@ def independence_groups_of(inst: Stage6Institution) -> Mapping[str, str]:
     institution's source rows, including sources no published activity cites;
     one source without a syndication group holds the whole institution; an
     injected mapping wins over the producer.
+
+    Named exception to 13 a (:data:`A7_UNREVIEWED_EXCEPTION`, PI rulings 96 a / 102 a): the source row of a
+    page that was not reviewed (an unread follow attempt, :func:`g3o.common.storage.unreviewed_source`) is
+    left out of the grouping: its syndication group is ``not_asked`` by rule and no activity cites it.
     """
     if inst.independence_groups is not None:
         return inst.independence_groups
+    grouped = {sid: row for sid, row in inst.sources.items() if not unreviewed_source(row)}
     try:
-        return independence_groups_for_sources(inst.sources, institution_id=inst.institution_id)
+        return independence_groups_for_sources(grouped, institution_id=inst.institution_id)
     except SourceFieldsMissingUpstreamError as exc:
         raise MissingUpstreamError(f"{INDEPENDENCE_PRODUCER}; {exc.producer}", exc.missing) from exc
 
