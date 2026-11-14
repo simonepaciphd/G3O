@@ -210,7 +210,13 @@ class World:
                   if k in pp.ACTIVITY_ITEMS and FIELDS[k]["coder"] != "classifier"
                   and k != "core.uncertainty_flags"}  # produced per page (A6)
             av.update({"core.activity_name": name, "core.tool_name": [tool], "core.reported_outcomes": [],
-                       "core.deployment_scale_number": "not_documented"})
+                       "core.deployment_scale_number": "not_documented",
+                       # T-015 rule (A8.7 a): yes iff the coded observed_actor_relationship is
+                       # unit_of_institution. FakeJev codes that classifier item with its default
+                       # no-evidence code (ANSWERS sets none), so the rule gives no; the generic
+                       # placeholder (first signed code, yes) is not what the rule produces and Stage 6
+                       # refuses the disagreement (A8 review L6).
+                       "core.unit_credit": "no"})
             sv = {k: v for k, v in _values("sources").items()
                   if k in pp.SOURCE_ITEMS and (FIELDS[k]["coder"] != "classifier" or k == "core.source_type")}
             sv.update({"core.source_url": page.url, "core.source_title": f"Page {pid}",
