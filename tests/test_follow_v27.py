@@ -332,11 +332,13 @@ class WorldLeg(fv.FollowLeg):
         return replace(self.world.upstream(page.page_id), followed=True, hop=hop)
 
 
-def _follow_world(tmp_path):
+def _follow_world(tmp_path, *, activity=True):
+    """``activity`` False: the searched page s1 has no activity (pair it with a non-confirming verdict)."""
     run_dir = tmp_path / "run"
     bound = bind_runtime(run_dir, SETTINGS)
     instrument = load_instrument(run_dir / "final" / "instruments", bound.instrument_id)
-    searched = Page(INST, "s1", [SEARCHED], [("a1", "Copilot drafting", "Copilot", SEARCHED, None)])
+    acts = [("a1", "Copilot drafting", "Copilot", SEARCHED, None)] if activity else []
+    searched = Page(INST, "s1", [SEARCHED], acts)
     searched.input = replace(searched.input, links=({"href": REPORT_URL, "text": "full report"},))
     report = Page(INST, "r", [REPORT])
     rid = url_hash(REPORT_URL)
@@ -358,9 +360,10 @@ def _follow_world(tmp_path):
     return run_dir, bound, instrument, world, inst, providers
 
 
-def _jev():
+def _jev(searched_verdict="confirms_activity"):
+    """``searched_verdict``: the verdict of the searched page (its text has FOLLOW); a page_complete-gated one."""
     complete = lambda st: "yes" if "FOLLOW" in st.get("page_text", "") else None  # noqa: E731
-    verdict = lambda st: "confirms_activity" if "FOLLOW" in st.get("page_text", "") else "no_genai"  # noqa: E731
+    verdict = lambda st: searched_verdict if "FOLLOW" in st.get("page_text", "") else "no_genai"  # noqa: E731
     return FakeJev({**ANSWERS, COMPLETE: complete, pp.jpc.VERDICT: verdict}, RELATIONS)
 
 
@@ -458,16 +461,24 @@ def test_robots_refusal_and_link_not_followed_review_states_79b(tmp_path):
     assert rows[page.page_id]["values"][REVIEW_STATE] == fl.LINK_NOT_FOLLOWED_CAP
 
 
-def test_unread_follow_page_reaches_stage6_storage_102a(tmp_path):
+@pytest.mark.parametrize("activity, searched_verdict, expected", [
+    # s1 confirms a supported activity: positive evidence decides (consolidate_v27.summary_values)
+    (True, "confirms_activity", "yes"),
+    # s1 is a reviewed negative page (other_body is in NEGATIVE and opens the page_complete gate, so the link is
+    # still followed): alone it would give "no"; the failed unread page breaks "clear", so the verdict is "unclear"
+    (False, "other_body", "unclear"),
+])
+def test_unread_follow_page_reaches_stage6_storage_102a(tmp_path, activity, searched_verdict, expected):
     """102 a end to end: the unread row passes the Stage 6 A8 pre-check and the storage envelope (no
     artifact, not counted as a reviewed page, exempt from the single-row check) and is stored as built."""
     from tests.test_e2e_perpage_v27 import CLOCK, FakeQuotes
 
-    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path, activity=activity)
     ready, _ = _run(run_dir, bound, instrument, providers, inst,
-                    WorldLeg(FakeFetch({}, fail={REPORT_URL}), world=world), _jev())
+                    WorldLeg(FakeFetch({}, fail={REPORT_URL}), world=world), _jev(searched_verdict))
     (page,), rows = _unread(ready[0])
-    s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=_jev(), quote_fn=FakeQuotes(), config=bound.stage6_config(),
+    s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=_jev(searched_verdict), quote_fn=FakeQuotes(),
+                            config=bound.stage6_config(),
                             instrument=instrument, now=CLOCK, test_only_unbound_quote_fn=True)
     assert s6m.written == [INST] and s6m.held == [] and s6m.failed == []
     storage = json.loads((institution_dir(run_dir, INST) / "6_storage.json").read_text(encoding="utf-8"))
@@ -479,7 +490,7 @@ def test_unread_follow_page_reaches_stage6_storage_102a(tmp_path):
     reviewed = [p for p in ready[0].pages if p.reviewed]
     assert (depth["n_pages_reviewed"], depth["n_pages_failed"], depth["n_followed_links"]) == (len(reviewed), 1, 1)
     assert depth["n_pages_by_verdict"][fv.NOT_ASSESSABLE] == 0
-    assert storage["summary"]["values"]["core.has_genai_activity"] != "no"  # an unresolved signal (rules/0)
+    assert storage["summary"]["values"]["core.has_genai_activity"] == expected
 
 
 def test_unread_follow_rows_survive_a_resume_with_no_call_l8(tmp_path):
