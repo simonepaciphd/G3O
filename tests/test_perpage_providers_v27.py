@@ -1787,6 +1787,60 @@ def test_residual_source_type_step_of_the_stage_95a_105b(tmp_path):
         pp.load_source_typing(saved, t021.chunks[:-1] if len(t021.chunks) > 1 else ())
 
 
+def test_malformed_105b_page_state_is_refused_like_the_page_checkpoints(tmp_path):
+    """Malformed ``source_type.json`` / ``pass1_requests.json`` follow the convention of the page checkpoints
+    (``Checkpoint.load`` on page.json / activity.json, the pairs.json read): another kind or format raises
+    ``ValueError("unsupported per-page checkpoint ...")``, and bytes that are not JSON raise
+    ``json.JSONDecodeError`` (a ``ValueError``). None of them is caught on the searched-page path: a stage
+    stop (``test_pairs_checkpoint_of_another_kind_or_format_is_refused``)."""
+    from g3o.classify.jev_page_code import PageInput
+
+    run_dir = tmp_path / "run"
+    page = PageInput(page_id="z1", institution_id="INST-0000009", institution="Z", country=None,
+                     level_of_government=None, url="https://example.gov/z1", title=None, text="z")
+    pdir = pp.page_state_dir(run_dir, page)
+    assert pp.read_pass1_requests(run_dir, page) is None
+    assert pp.load_source_typing(pdir / pp.SOURCE_TYPE_FILE, ()) is None
+    pp._record_pass1_requests(pdir, SimpleNamespace(custom_id="c-1"), None)
+    doc = pp.read_pass1_requests(run_dir, page)
+    assert (doc["page_request"], doc["activity_only"]) == ("c-1", None)
+    page_ckpt = pp.Checkpoint(pdir / "page.json", "page")
+    files = ((pdir / pp.PASS1_FILE, lambda: pp.read_pass1_requests(run_dir, page), "pass1_requests"),
+             (pdir / pp.SOURCE_TYPE_FILE, lambda: pp.load_source_typing(pdir / pp.SOURCE_TYPE_FILE, ()),
+              "source_type"),
+             (page_ckpt.path, page_ckpt.load, "page"))  # the reference convention
+    for path, load, kind in files:
+        for damage in ({"kind": "other-kind"}, {"format": "another-format"}):
+            path.write_text(json.dumps({"format": pp.CHECKPOINT_FORMAT, "kind": kind, **damage}), encoding="utf-8")
+            with pytest.raises(ValueError, match="unsupported per-page checkpoint"):
+                load()
+        path.write_bytes(b"{not json")
+        with pytest.raises(json.JSONDecodeError):
+            load()
+
+
+@pytest.mark.parametrize("damage", [{"kind": "page"}, {"format": "another-format"}])
+def test_malformed_source_type_file_stops_the_stage_like_pairs_json(tmp_path, monkeypatch, damage):
+    """As a pairs.json of another kind or format (test_e2e_perpage_v27), a saved residual source_type file of
+    another kind or format stops the stage (ValueError) on the next run, before anything is asked again."""
+    from g3o.common import source_fields as sf
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
+    inst = [_residual_inst(insts)]
+    saved = pp.page_state_dir(run_dir, inst[0].pages[0].page) / pp.SOURCE_TYPE_FILE
+    answers = {**ANSWERS, sf.SOURCE_TYPE: "vendor"}
+    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler"):
+        _run(run_dir, bound, instrument, inst,
+             _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()), FakeJev(answers, RELATIONS))
+    doc = json.loads(saved.read_text(encoding="utf-8"))
+    saved.write_text(json.dumps({**doc, **damage}), encoding="utf-8")
+    jev, extract = FakeJev(answers, RELATIONS), FakeExtractor(world)
+    with pytest.raises(ValueError, match="unsupported per-page checkpoint"):
+        _run(run_dir, bound, instrument, inst, _providers(run_dir, bound, instrument, extract, FakeEntail()), jev)
+    assert _source_type_calls(jev) == [] and extract.jobs == []
+
+
 def test_rounds_for_page_applies_the_verdict_downgrade_109a(tmp_path):
     """Review M3: ``_rounds_for_page`` applies the adapter's verdict downgrade (here PI ruling 109 a): the
     page's T-022 page request, rebuilt on a resume, gives no activity while its first plan asked for one and

@@ -1312,7 +1312,12 @@ def _record_pass1_requests(pdir: Path, extraction: Any, activity_extraction: Any
 
 
 def read_pass1_requests(run_dir: Path, page: Any) -> dict[str, Any] | None:
-    """The page's :data:`PASS1_FILE` record (:func:`_record_pass1_requests`), or None when no process wrote it."""
+    """The page's :data:`PASS1_FILE` record (:func:`_record_pass1_requests`), or None when no process wrote it.
+
+    A record of another kind or format raises ``ValueError`` and bytes that are not JSON raise
+    ``json.JSONDecodeError``, as :meth:`Checkpoint.load` does for page.json / activity.json: neither is caught
+    on the searched-page path, so the stage stops (the page checkpoints' convention). The same holds for
+    :func:`load_source_typing`."""
     path = page_state_dir(run_dir, page) / PASS1_FILE
     if not path.exists():
         return None
