@@ -537,6 +537,38 @@ def test_unread_products_refuse_unknown_outcomes_and_repeated_pages(tmp_path):
         fv.unread_products([ok], known_pages=[url_hash(REPORT_URL)], **kw)
 
 
+def test_unread_rows_error_holds_the_institution_wiring_stops_the_stage_m3(tmp_path, monkeypatch):
+    """Review M-3: a ValueError while the unread rows are built (e.g. from check_code, support_nodes or
+    coder_nodes) holds that institution as a producer failure, as a per-page producer error does; the stage
+    goes on. A wiring error from the same call (FollowWiringError, in STAGE_STOPS) still stops the stage."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+
+    def data_error(*args, **kwargs):
+        raise ValueError("simulated support-node refusal")
+
+    monkeypatch.setattr(fv, "unread_products", data_error)
+    ready, metrics = _run(run_dir, bound, instrument, providers, inst,
+                          WorldLeg(FakeFetch({}, fail={REPORT_URL}), world=world), _jev())
+    assert ready == [] and metrics.held == [INST] and metrics.ready == []
+    held = json.loads((institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).read_text(encoding="utf-8"))
+    (hold,) = held["held"]
+    assert (hold["page_id"], hold["stage"], hold["error"]) == (INST, pp.PRODUCER_FAILED,
+                                                             "ValueError: simulated support-node refusal")
+
+    other = tmp_path / "wiring"
+    other.mkdir()
+    run_dir, bound, instrument, world, inst, providers = _follow_world(other)
+
+    def wiring_error(*args, **kwargs):
+        raise pp.FollowWiringError("simulated wiring gap")
+
+    monkeypatch.setattr(fv, "unread_products", wiring_error)
+    with pytest.raises(pp.FollowWiringError, match="simulated wiring gap"):
+        _run(run_dir, bound, instrument, providers, inst, WorldLeg(FakeFetch({}, fail={REPORT_URL}), world=world),
+             _jev())
+    assert not (institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).exists()
+
+
 def test_resume_interrupted_while_coding_a_followed_page_l8(tmp_path):
     """Review L8: a stop while the followed page is coded; the next run does not fetch it again and
     finishes the institution."""

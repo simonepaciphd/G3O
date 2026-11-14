@@ -1666,10 +1666,15 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             next_source += len(products[-1].sources)
         if unread and uncarried is None and broken is None:  # PI rulings 79 b / 96 a / 102 a
             from g3o.run.presweep.follow_v27 import unread_products
-            products += unread_products(unread, run_id=inst.run_id, institution_uid=inst.institution_uid,
-                                        institution_id=inst.institution_id, first_source=next_source,
-                                        coder_version=page_config.coder_version, instrument=instrument,
-                                        known_pages=[st.spec.page.page_id for st in states])
+            try:
+                products += unread_products(unread, run_id=inst.run_id, institution_uid=inst.institution_uid,
+                                            institution_id=inst.institution_id, first_source=next_source,
+                                            coder_version=page_config.coder_version, instrument=instrument,
+                                            known_pages=[st.spec.page.page_id for st in states])
+            except STAGE_STOPS:  # FollowWiringError / MissingUpstreamError: a wiring gap stops the stage
+                raise
+            except (ConsolidationError, ValueError, RuntimeError) as exc:  # review M-3: this institution only
+                broken = _producer_hold(inst.institution_id, exc)
         if uncarried is not None or broken is not None:
             hold = broken if broken is not None else {
                 "page_id": uncarried.page_id, "stage": UNCARRIED_STAGE, "items": sorted(uncarried.values)}
