@@ -291,8 +291,8 @@ CONDITIONAL_ITEMS: Mapping[str, str] = {
                      "publication date is not unknown/not_documented"),
     "core.content_vendor": ("refused on a GenAI-bearing page whose activities state no contracting party: it then "
                             "reads developer (PI A8.1 a needs codebook r16)"),
-    "core.unit_credit": ("refused when the final observed_actor_relationship has no relationship part (e.g. a "
-                         "missing token)"),
+    "core.unit_credit": ("refused when the final observed_actor_relationship two-part object has no relationship "
+                         "part (a whole-item missing token reads no, ruling 66 a)"),
     **{item: ("refused when the signed applicability table has no ask/not_asked cell for the activity's gate value "
               f"(e.g. _NA_), at {SUPERSEDED}, and when a quote-step record has no actual response model or "
               "request id")
@@ -469,6 +469,10 @@ def unit_credit(activity_values: Mapping[str, Any]) -> RowValue:
     if RELATIONSHIP not in activity_values:
         raise sf.MissingUpstreamError(f"T-023 final {RELATIONSHIP}", ["core.unit_credit"])
     parts = activity_values[RELATIONSHIP]
+    if isinstance(parts, str) and parts in _missing_tokens(RELATIONSHIP):
+        # PI ruling 66 a: read literally; a whole-item missing token (storage allows it) is not
+        # unit_of_institution, so no.
+        return _row("core.unit_credit", NO, f"PI A8.7 a / ruling 66 a: {RELATIONSHIP} = {parts!r}")
     if not isinstance(parts, Mapping):
         raise ValueError(f"{RELATIONSHIP} = {parts!r} is not the stored two-part object")
     if RELATIONSHIP_PART not in parts:

@@ -337,11 +337,14 @@ def observation_unit_credit(inst: Any, oid: str) -> str:
     """A8.7 a / ruling 66 a: ``yes`` iff the relationship part is ``unit_of_institution``, read literally.
 
     Reads the stored two-part object as the T-015 assembler
-    (:func:`g3o.run.presweep.source_row_v27.unit_credit`) does; an absent part
-    is a missing input, a non-object value or an unsigned part value is malformed.
+    (:func:`g3o.run.presweep.source_row_v27.unit_credit`) does; a whole-item missing
+    token reads ``no`` (ruling 66 a); an absent part is a missing input; any other
+    non-object value or an unsigned part value is malformed.
     """
     where = f"observation {oid}"
     value = _get(inst.observation_inputs[oid].row, RELATIONSHIP, where)
+    if isinstance(value, str) and value in _tokens(RELATIONSHIP):
+        return _signed(UNIT_CREDIT, NO)  # ruling 66 a: a whole-item missing token, read literally
     if not isinstance(value, Mapping):
         raise MalformedA8Value(RELATIONSHIP, where, f"{value!r} is not the stored two-part object")
     if RELATIONSHIP_PART not in value:
