@@ -355,8 +355,8 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
       instruction pin and X35 model (``BoundRuntime.stage6_quote_fn``);
     - a run on the default per-page builder (``perpage_inputs`` None) while
       :data:`g3o.run.presweep.perpage_inputs_v27.MISSING_PRODUCERS` is non-empty
-      (PI ruling 36 a: the T-025 attempted pages and the T-015/T-022/T-024 row values have
-      no producer yet, so the builder could only refuse after Stages 1-4 had
+      (PI ruling 36 a: the T-015/T-022/T-024 row values have no producer yet; the T-025
+      attempted pages have one since PI ruling 102 a, so the builder could only refuse after Stages 1-4 had
       spent). The default builder passed explicitly (``default_perpage_inputs`` or
       ``build_perpage_inputs``) is refused the same way; any other injected
       ``perpage_inputs`` is not refused here.

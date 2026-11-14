@@ -275,7 +275,7 @@ def test_default_builder_run_is_refused_at_entry_while_producers_are_missing(tmp
     from g3o.run.presweep import perpage_inputs_v27 as pin
     from g3o.run.presweep import perpage_providers_v27 as ppv
 
-    assert pin.MISSING_PRODUCERS  # T-025 / T-015 / T-022 / T-024 not wired on this branch
+    assert pin.MISSING_PRODUCERS  # T-015 / T-022 / T-024 not wired on this branch (T-025 is, PI ruling 102 a)
     _no_planning(monkeypatch)
     _refuse_stages_1_to_4(monkeypatch)
     _refuse_clients(monkeypatch)
@@ -289,7 +289,10 @@ def test_default_builder_run_is_refused_at_entry_while_producers_are_missing(tmp
     with pytest.raises(MissingUpstreamError, match="ruling 36 a") as exc:
         orch.run_presweep(_v27_config(tmp_path), v27=v27)
     assert exc.value.missing == pin.MISSING_PRODUCERS
-    assert "T-025 attempted pages" in str(exc.value) and "T-015 / T-022 / T-024" in str(exc.value)
+    # The only entry left is the row-values one (PI ruling 102 a dropped the T-025 attempted-pages entry).
+    assert pin.MISSING_PRODUCERS == (pin.VALUES_MISSING,)
+    assert pin.VALUES_MISSING in str(exc.value) and "T-015 / T-022 / T-024" in str(exc.value)
+    assert "T-025" not in str(exc.value)
     assert not (tmp_path / "runs").exists()
     # run_v27_dispatch itself refuses the same way, on an existing run directory, before binding.
     run_dir, _bound, _instrument, _world_ = _world_run(tmp_path / "w")
