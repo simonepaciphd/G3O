@@ -270,7 +270,11 @@ EXTRACT_RESPONSE_FAILED = "extract_response_failed"
 #: (the project's ``archive`` folder name, as :data:`g3o.run.archive.ARCHIVE_DIRNAME`)
 PAGE_ARCHIVE_DIR = "archive"
 #: the per-page checkpoint files under the page dir (the T-023 activity artifact lives in ACTIVITY_DIR)
-PAGE_STATE_FILES = ("page.json", "activity.json", "pairs.json")
+#: the pair-support checkpoint, written after the page's pass-2 page request was built (``page_pass2``,
+#: then ``pair_support``); its presence on a later run means that request was made by an earlier process
+#: (PI ruling 98 b reads it)
+PAIRS_FILE = "pairs.json"
+PAGE_STATE_FILES = ("page.json", "activity.json", PAIRS_FILE)
 #: written in the page dir before a C4 archive moves anything and moved into the archive folder last;
 #: while it is in the page dir the archive is incomplete and the page's saved state is never loaded
 PAGE_ARCHIVE_PENDING = "archive_pending.json"
@@ -1028,8 +1032,12 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
 # ---------------------------------------------------------------------------
 
 
-def _page_dir(run_dir: Path, page: PageInput) -> Path:
+def page_state_dir(run_dir: Path, page: Any) -> Path:
+    """``<inst>/perpage_v27/<url_hash>``: the page's checkpoints (``page`` needs ``institution_id`` and ``url``)."""
     return institution_dir(run_dir, page.institution_id) / WORK_DIR / url_hash(page.url)
+
+
+_page_dir = page_state_dir
 
 
 def _archive_page_state(run_dir: Path, page: PageInput) -> list[str]:
@@ -1186,7 +1194,7 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
     st.pass2 = None if page_pass2 is None else page_pass2(inp)
     result_now = st.activity_round.result
     if result_now.pairs:
-        pair_path = pdir / "pairs.json"
+        pair_path = pdir / PAIRS_FILE
         if pair_path.exists():
             doc = json.loads(pair_path.read_bytes().decode("utf-8"))
             if doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != "pairs":

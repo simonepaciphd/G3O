@@ -1337,6 +1337,59 @@ def test_resumed_pass2_page_request_missing_from_the_journal_holds_ruling_98b(tm
     assert hold["custom_id"] and len(hold["request_key"]) == 64 and "98 b" in hold["error"]
 
 
+def test_pair_only_page_resumed_rebuild_is_checked_first_build_is_not_ruling_98b(tmp_path, monkeypatch):
+    """PI ruling 98 b on a pair-only page (no ordinary code, so round 1 never made the page request): its
+    request is first built by page_pass2 / pair_support. On a later process the page's pair checkpoint
+    (pairs.json) shows that build happened, so a rebuild with no journaled response is held before any call;
+    with no pair checkpoint the rebuild is the first build and is sent; once journaled it is replayed."""
+    from g3o.classify.jev_activity_code import PAIR_ITEMS
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    a = [i for i in insts if i.institution_id == "INST-0000001"]
+    seen = []
+    real_pairs = ppv._Adapter.pair_support
+
+    def spy(self, inp, result):
+        seen.append(inp)
+        return real_pairs(self, inp, result)
+    monkeypatch.setattr(ppv._Adapter, "pair_support", spy)
+    _run(run_dir, bound, instrument, a, _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+         FakeJev(ANSWERS, RELATIONS))
+    monkeypatch.setattr(ppv._Adapter, "pair_support", real_pairs)  # not undo(): keeps the layout fixture
+    inp = seen[0]  # a page with a within-page pair (its pairs.json written by that run)
+    real_p2 = ppv.to_pass2_page
+
+    def pair_only(result, page_input):  # the stored result as a pair-only page's
+        full = real_p2(result, page_input)
+        return replace(full, activities=tuple(replace(x, codes=tuple(c for c in x.codes if c.item_id in PAIR_ITEMS))
+                                              for x in full.activities))
+    monkeypatch.setattr(ppv, "to_pass2_page", pair_only)
+    pairs = pp.page_state_dir(run_dir, inp.page) / pp.PAIRS_FILE
+    aside = pairs.with_name("pairs-moved-aside.json")
+    assert pairs.exists()
+    path = tmp_path / "pair-only-journal.jsonl"
+
+    def journaled(extract):
+        journal = rt.RequestJournal(path, {"s": 1})
+        base = _providers(run_dir, bound, instrument, extract, FakeEntail())
+        return base.with_seams(*journal.seams(base.journal_prompt))
+    # resumed (pairs.json from the earlier process), the journal holds no response: held, no call
+    ex1 = FakeExtractor(world)
+    with pytest.raises(pp.Pass2RequestNotJournaled):
+        journaled(ex1).page_pass2(inp)
+    assert ex1.jobs == []
+    # first build (no pair checkpoint yet): unaffected, the request is sent and journaled
+    pairs.rename(aside)
+    ex2 = FakeExtractor(world)
+    journaled(ex2).page_pass2(inp)
+    assert ex2.stages() == [PASS2]
+    # resumed again with that journal: replayed, no call
+    aside.rename(pairs)
+    ex3 = FakeExtractor(world)
+    journaled(ex3).page_pass2(inp)
+    assert ex3.jobs == []
+
+
 def test_journal_peek_reads_the_next_slot_without_using_it_ruling_98b(tmp_path):
     """The journal's ``peek`` (read by the 98 b check) says whether the next call of a job would be replayed,
     without using a slot: the call after it is still replayed."""
