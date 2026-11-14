@@ -1424,10 +1424,23 @@ def _type_ask(choice="vendor", p=0.95):
     return ask
 
 
+def _never_asked(state, questions):
+    """A jev call that must not be made (``pytest.fail`` is not an ``Exception``, so no coder swallows it)."""
+    pytest.fail(f"jev asked {sorted(questions)} on {state.get('page_part')}")
+
+
+def _bare_spec(page):
+    """A spec of ``page`` whose rows the T-015 assembler builds: declared page fields, nothing injected."""
+    return SimpleNamespace(page=page, upstream=SimpleNamespace(page_fields=_page_fields(page), activity_values=None,
+                                                               source_values=None, codes=None))
+
+
 def test_residual_source_type_quote_rides_in_the_first_pass1_request_95a(tmp_path):
     """PI ruling 95 a: the residual source_type answers (asked on the page's T-021 parts) join the page's
     FIRST pass-1 request as quote tasks (the signed question and jev's answer); each answer is checked by
-    T-024 on that request's quote; a resume rebuilds the same request."""
+    T-024 on that request's quote; a resume rebuilds the same request. The resumed typing is a fresh object,
+    obtained as the per-page stage obtains it on a resume (review M3 / H2, PI ruling 105 b: loaded from the
+    page's saved answers, never asked again)."""
     from g3o.classify.question_rounds import PageRoundResult
     from g3o.common import source_fields as sf
     from g3o.extract import request_v27
@@ -1435,8 +1448,10 @@ def test_residual_source_type_quote_rides_in_the_first_pass1_request_95a(tmp_pat
     run_dir, bound, instrument, world, page = _flip_world(tmp_path)
     result, _, records, _ = _flipped_round(run_dir, bound, page, flipped=False)
     ask = _type_ask()
-    typing = sf.code_source_type(page, ask, bound.page_config, layout=result.chunks)
-    assert typing.typed_by == "classifier" and typing.result.question_set_version == sf.RESIDUAL_SET_VERSION
+    spec = _bare_spec(page)
+    typing = pp._residual_source_type(run_dir, spec, ask, bound.page_config, _elsewhere())
+    assert ask.calls and typing.typed_by == "classifier"
+    assert typing.result.question_set_version == sf.RESIDUAL_SET_VERSION
     assert [c.chunk_id for c in typing.result.chunks] == [c.chunk_id for c in result.chunks]
 
     extract = FakeExtractor(world)
@@ -1454,9 +1469,13 @@ def test_residual_source_type_quote_rides_in_the_first_pass1_request_95a(tmp_pat
     assert {rec.chunk_id for _, rec in codes} == {t["part_id"] for t in tasks}
     assert all(sr.item_id == sf.SOURCE_TYPE and sr.supporting_text for sr, _ in codes)
 
-    resumed = FakeExtractor(world)  # a fresh adapter: the first request rebuilt from T-021, the same params
+    # a resume: the stage loads the saved answers (a fresh object, equal; no jev call) for a fresh adapter,
+    # which rebuilds the first request from T-021 with the same params
+    reloaded = pp._residual_source_type(run_dir, spec, _never_asked, bound.page_config, _elsewhere())
+    assert reloaded == typing and reloaded is not typing
+    resumed = FakeExtractor(world)
     fresh = _providers(run_dir, bound, instrument, resumed, FakeEntail())
-    fresh.set_source_typing(page.page_id, typing)
+    fresh.set_source_typing(page.page_id, reloaded)
     fresh.activity_input(page, page_round)
     assert (resumed.jobs[0].custom_id, resumed.jobs[0].params) == (first.custom_id, first.params)
     assert [sr for sr, _ in fresh.source_type_codes(page.page_id)] == [sr for sr, _ in codes]
@@ -1702,6 +1721,67 @@ def test_resumed_activity_only_request_missing_from_the_journal_holds_105b(tmp_p
     ex3 = NoFirstRoundActivities(world)
     providers, page_round = journaled(ex3)
     assert providers.activity_input(page, page_round) is not None and ex3.jobs == []
+
+
+def test_residual_source_type_step_of_the_stage_95a_105b(tmp_path):
+    """Review M3: the stage's residual step (``_residual_source_type``). Not asked for a page with injected
+    rows, or one typed by rule (an own official site); asked once on the page's T-021 parts for a readable
+    residual page and saved; on a resume loaded (a fresh, equal object) and never asked again; a saved file
+    asked on other parts is refused."""
+    from g3o.classify.jev_page_code import PageCodeResult
+    from g3o.common import source_fields as sf
+    from g3o.common.artifact_io import read_artifact
+    from g3o.common.urlnorm import site_host
+    from g3o.run.presweep import official_site_v27 as osv
+    from g3o.run.presweep import stage_page_code
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    spec = _bare_spec(page)
+    saved = pp.page_state_dir(run_dir, page) / pp.SOURCE_TYPE_FILE
+    injected = SimpleNamespace(page=page, upstream=SimpleNamespace(
+        page_fields=spec.upstream.page_fields, activity_values=None, source_values=None, codes={}))
+    assert pp._residual_source_type(run_dir, injected, _never_asked, bound.page_config, _elsewhere()) is None
+    own = osv.RunOfficialSites("fixture", {page.institution_id: site_host(page.url)}, frozenset())
+    assert pp._residual_source_type(run_dir, spec, _never_asked, bound.page_config, own) is None
+    assert not saved.exists()
+
+    ask = _type_ask()
+    typing = pp._residual_source_type(run_dir, spec, ask, bound.page_config, _elsewhere())
+    t021 = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(run_dir, page.institution_id,
+                                                                                page.url)))
+    assert typing.typed_by == "classifier" and saved.exists()
+    assert len(ask.calls) >= len(t021.chunks)  # every T-021 part asked
+    assert [c.chunk_id for c in typing.result.chunks] == [c.chunk_id for c in t021.chunks]
+    assert typing.field.value == "vendor"
+    again = pp._residual_source_type(run_dir, spec, _never_asked, bound.page_config, _elsewhere())
+    assert again == typing and again is not typing and again.result == typing.result
+    assert sf.classifier_source_typing(typing.result) == typing  # the rebuild is deterministic in the result
+
+    with pytest.raises(ValueError, match="T-021 parts"):
+        pp.load_source_typing(saved, t021.chunks[:-1] if len(t021.chunks) > 1 else ())
+
+
+def test_rounds_for_page_applies_the_verdict_downgrade_109a(tmp_path):
+    """Review M3: ``_rounds_for_page`` applies the adapter's verdict downgrade (here PI ruling 109 a): the
+    page's T-022 page request, rebuilt on a resume, gives no activity while its first plan asked for one and
+    the saved final verdict is confirms_activity. The page round carries the downgraded verdict support
+    (downgraded_no_quote at the deciding part, the value kept), the metrics name the reason, and no activity
+    is coded."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    a = [i for i in insts if i.institution_id == "INST-0000001"]
+    _run(run_dir, bound, instrument, a, _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+         FakeJev(ANSWERS, RELATIONS))
+    spec = next(s for s in a[0].pages if s.page.page_id == "p1")
+    ask = rt.RequestJournal(tmp_path / "journal109a.jsonl", {"s": 1}).ask(FakeJev(ANSWERS, RELATIONS))
+    providers = _providers(run_dir, bound, instrument, NoActivitiesAnywhere(world), FakeEntail())
+    st, metrics = pp._PageState(spec), pp.PerPageMetrics()
+    pp._rounds_for_page(run_dir, st, ask, providers, bound.page_config, bound.activity_config, metrics)
+    assert metrics.verdict_downgrades == {"p1": ppv.FIRST_PLAN_NO_ACTIVITY}
+    assert st.activity_input is None and st.activity_round is None and not st.holds
+    verdict = st.page_round.final.items[jpc.VERDICT]
+    assert (verdict.state, verdict.value) == ("combined", "confirms_activity")
+    sr = {pp._support_key(s): s for s in st.page_round.support}[(None, jpc.VERDICT, None, verdict.part_id, None)]
+    assert sr.support_status == support_check.NO_QUOTE and sr.value == "confirms_activity"
 
 
 def test_downgrade_is_refused_for_a_verdict_other_than_confirms_activity(tmp_path):
