@@ -74,6 +74,40 @@ def test_every_row_item_is_produced_or_refused_exactly_once():
     assert act == {i for i in pp.ACTIVITY_ITEMS if FIELDS[i]["coder"] != "classifier"} - {"core.uncertainty_flags"}
 
 
+STAGE6_ONLY = {"core.stage_as_of", "core.date_upper_bound", "core.vendor_claim_only", "core.cx_display_rollup"}
+
+
+def test_stage6_only_items_leave_the_per_page_rows_ruling_94a():
+    """PI ruling 94 a: Stage 6 is the only producer of the four activity-level A8 items; a per-page
+    fragment carries none of them and they no longer block entry (stage_as_of_basis stays refused)."""
+    from g3o.validate import merged_activity_v27 as ma
+
+    assert set(srow.STAGE6_ACTIVITY_ITEMS) == STAGE6_ONLY and STAGE6_ONLY < set(ma.PRODUCED)
+    assert not STAGE6_ONLY & set(srow.REFUSED_ACTIVITY_ITEMS)
+    assert not STAGE6_ONLY & set(srow.unproduced_items()) and not STAGE6_ONLY & set(srow.entry_refused_items())
+    assert not STAGE6_ONLY & srow.activity_row_items() and not STAGE6_ONLY & pp.ACTIVITY_ITEMS
+    assert "core.stage_as_of_basis" in srow.REFUSED_ACTIVITY_ITEMS
+    assert sf.UPPER_BOUND in srow.PRODUCED_SOURCE_ITEMS and sf.UPPER_BOUND in pp.SOURCE_ITEMS  # source level stays
+    rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"a1": _activity()}, followed=False)
+    assert not STAGE6_ONLY & set(rows.activities["a1"]) and not STAGE6_ONLY & set(rows.refused)
+
+
+def test_quote_stage_as_of_reads_the_stage6_rule_ruling_94a():
+    """InputQuote.stage_as_of (R-044 order fallback) comes from merged_activity_v27.observation_stage_as_of,
+    not from a fragment value: a supported publication date, else the latest stated year, else access date."""
+    from g3o.run.presweep.stage_validate_v27 import ObservationInput
+
+    def product(pub, year):
+        out = pp.PageProduct(page=None)
+        out.observation_inputs["p1.a1"] = ObservationInput("p1.a1", "S1", {"values": _activity(
+            **{"core.year_announced": year})})
+        out.sources["S1"] = {"values": {sf.DATE: pub, sf.ACCESS_DATE: "2026-11-10"}}
+        return out
+    assert pp.quote_stage_as_of(product("2025-03", "2024"), "p1.a1", "S1") == "2025-03"
+    assert pp.quote_stage_as_of(product("not_documented", "2024"), "p1.a1", "S1") == "2024"
+    assert pp.quote_stage_as_of(product("not_documented", "not_documented"), "p1.a1", "S1") == "2026-11-10"
+
+
 def test_discovery_path_and_text_source_rulings_61a_62a():
     for item in (sf.DISCOVERY, sf.TEXT_SOURCE):
         assert item in srow.PRODUCED_SOURCE_ITEMS and item not in srow.unproduced_items()

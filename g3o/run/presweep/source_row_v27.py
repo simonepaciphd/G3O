@@ -131,7 +131,11 @@ automatically counts as typed and not ``vendor`` (ruling 88 a), the same rule as
 the Stage 6 producer (:mod:`g3o.validate.merged_activity_v27`). PI ruling 78 a:
 Stage 6 produces the A8 values (``stage_as_of``, ``date_upper_bound``,
 ``unit_credit``, ``vendor_claim_only``, ``cx_display_rollup``) for every
-published activity, single-observation ones included.
+published activity, single-observation ones included. PI ruling 94 a: Stage 6 is
+the only producer of the activity-level ``stage_as_of``, ``date_upper_bound``,
+``vendor_claim_only`` and ``cx_display_rollup`` (:data:`STAGE6_ACTIVITY_ITEMS`); a
+per-page activity fragment carries none of them (``unit_credit`` stays produced
+here too, and Stage 6 checks it against its own value).
 """
 from __future__ import annotations
 
@@ -223,13 +227,17 @@ REFUSED_ACTIVITY_ITEMS: Mapping[str, str] = {
     "core.developer": ("PI A8.1 a (page-stated developer as a quote-step item) needs codebook r16 and a "
                        "re-signature; A8.2 a: no lookup table, looked_up never set"),
     "core.developer_basis": "reads developer (refused); PI A8.1 a / A8.2 a",
-    "core.stage_as_of": ("PI A8.3 a / A8.4 a: reads source_publication_date (refused), then the activity's "
-                         "latest supported year code, then the access date"),
     "core.stage_as_of_basis": "PI A8.5 a (three step codes) needs codebook r16 and a re-signature",
-    "core.vendor_claim_only": ("PI ruling 78 a: produced by Stage 6 (merged_activity_v27), not per page; "
-                               "vendor_claim_only() is built (ruling 88 a)"),
-    "core.cx_display_rollup": "PI ruling 78 a / 77 a: produced by Stage 6 (merged_activity_v27), not per page",
-    "core.date_upper_bound": "PI A8.11 a: reads stage_as_of (refused); A8.12 a: no archive lookup",
+}
+
+#: PI ruling 94 a (2026-11-14): activity-row items whose only producer is Stage 6
+#: (:mod:`g3o.validate.merged_activity_v27`, ruling 78 a: every published activity, single-observation ones
+#: included). A per-page activity fragment carries no value for them, so they are neither produced nor refused
+#: here, and they do not block the run's entry. (``core.date_upper_bound`` here is the activity-level item;
+#: the source row's ``core.date_upper_bound`` stays this assembler's, :data:`PRODUCED_SOURCE_ITEMS`.)
+STAGE6_ACTIVITY_ITEMS: Mapping[str, str] = {
+    item: "PI ruling 94 a: produced by Stage 6 only (merged_activity_v27, ruling 78 a)"
+    for item in ("core.stage_as_of", "core.date_upper_bound", "core.vendor_claim_only", "core.cx_display_rollup")
 }
 
 
@@ -240,8 +248,9 @@ def source_row_items() -> frozenset[str]:
 
 
 def activity_row_items() -> frozenset[str]:
-    """Activity-row items that are row values (not produced by the coders or the per-page stage)."""
-    items = set(table_fields("activities")) - set(METADATA_ITEMS) - STAGE_ACTIVITY_ITEMS
+    """Activity-row items that are per-page row values (not produced by the coders, the per-page stage or,
+    PI ruling 94 a, Stage 6 alone: :data:`STAGE6_ACTIVITY_ITEMS`)."""
+    items = set(table_fields("activities")) - set(METADATA_ITEMS) - STAGE_ACTIVITY_ITEMS - set(STAGE6_ACTIVITY_ITEMS)
     return frozenset(i for i in items if FIELDS[i]["coder"] not in CODER_PRODUCED)
 
 
@@ -1066,7 +1075,8 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
 __all__ = [
     "ASSEMBLER", "CONDITIONAL_ITEMS", "NEVER_REFUSED_ITEMS", "WIRING_ONLY_ITEMS", "reported_field_value",
     "reported_open", "reported_value", "PRODUCED_ACTIVITY_ITEMS", "PRODUCED_SOURCE_ITEMS", "REFUSED_ACTIVITY_ITEMS",
-    "REFUSED_SOURCE_ITEMS", "AssembledRows", "RowValue", "activity_row_items", "activity_row_values", "assemble",
+    "REFUSED_SOURCE_ITEMS", "STAGE6_ACTIVITY_ITEMS", "AssembledRows", "RowValue", "activity_row_items",
+    "activity_row_values", "assemble",
     "content_contact", "content_contact_emails", "content_safeguard", "content_stated", "genai_verdicts",
     "entry_refused_items", "page_source_values", "source_row_items", "source_title", "stated", "unit_credit",
     "unproduced_items",

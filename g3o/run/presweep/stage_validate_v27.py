@@ -712,7 +712,10 @@ class ObservationInput:
     """One observation's per-page storage fragment (T-023 final values with T-028 nodes).
 
     ``row`` has ``values`` (every activities-table item except ``core.n_sources``
-    and ``core.confidence``, which Stage 6 computes), ``item_support`` and
+    and ``core.confidence``, which Stage 6 computes, and, PI ruling 94 a, the
+    Stage-6-only A8 items ``stage_as_of``, ``date_upper_bound``, ``vendor_claim_only``
+    and ``cx_display_rollup``, produced only in :func:`build_envelope` by
+    :func:`g3o.validate.merged_activity_v27.merged_values_a8`), ``item_support`` and
     ``coder_records``. ``source_id`` is the observation's source claim.
     """
 

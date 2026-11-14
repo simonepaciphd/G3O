@@ -144,6 +144,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from datetime import date as iso_date
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from g3o.classify import jev_activity_code as jac
@@ -209,6 +210,7 @@ from g3o.run.presweep.stage_validate_v27 import (
     RequestJournal,
     Stage6Institution,
 )
+from g3o.validate import merged_activity_v27 as ma
 from g3o.validate import uncertainty_flags_v27 as uf
 from g3o.validate.consolidate_v27 import (
     MISSING,
@@ -235,7 +237,10 @@ CHECKPOINT_FORMAT = "g3o-perpage-checkpoint-v1"
 PIPELINE = "web_extract"
 FAILED_PAGE_VERDICT = "not_assessable"  # an unreviewed page keeps a signed verdict code; never counted
 FAILED_PAGE_SUPPORT = "not_asked"  # R-045: no support check ran on a page that was not coded
-ACTIVITY_ITEMS = frozenset(table_fields("activities")) - {"core.n_sources", "core.confidence"} - set(METADATA_ITEMS)
+#: The items of a per-page activity fragment. PI ruling 94 a: the Stage-6-only items
+#: (:data:`~g3o.run.presweep.source_row_v27.STAGE6_ACTIVITY_ITEMS`) are not among them.
+ACTIVITY_ITEMS = (frozenset(table_fields("activities")) - {"core.n_sources", "core.confidence"} - set(METADATA_ITEMS)
+                  - set(srow.STAGE6_ACTIVITY_ITEMS))
 SOURCE_ITEMS = frozenset(table_fields("sources")) - set(METADATA_ITEMS)
 PRODUCED_CODERS = frozenset({"classifier"})
 T015_CLASSIFIER = "core.source_type"  # a classifier item T-015 owns: an upstream value and code
@@ -677,6 +682,21 @@ def failed_page(spec: PageSpec, reason: str) -> ReviewedPage:
                         spec.upstream.followed, (), (), (), failure_reason=reason)
 
 
+def quote_stage_as_of(product: PageProduct, oid: str, sid: str) -> str:
+    """``InputQuote.stage_as_of``: the pooled-quote order's fallback date for an undated source (R-044).
+
+    PI ruling 94 a: a per-page fragment carries no ``core.stage_as_of`` (Stage 6 is its only
+    producer), so the observation's date is read with the Stage 6 rule itself
+    (:func:`g3o.validate.merged_activity_v27.observation_stage_as_of`) over this observation's
+    fragment and its source row. It orders quotes only; it is never a row value. An absent input
+    raises ``MissingUpstreamError`` (a stage stop, as any absent upstream value here) and a
+    malformed one :class:`~g3o.validate.merged_activity_v27.MalformedA8Value` (ruling 32 b).
+    """
+    view = SimpleNamespace(observation_inputs={oid: product.observation_inputs[oid]},
+                           sources={sid: product.sources[sid]})
+    return ma.observation_stage_as_of(view, oid).date
+
+
 def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: PageSpec, page_order: int,
                  first_source: int,
                  page_round: PageRoundResult, activity_input: ActivityPageInput | None,
@@ -842,6 +862,10 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                                       and k != T015_CLASSIFIER)
             if given_classifier:
                 raise ValueError(f"classifier values must come from the coders: {given_classifier}")
+            if table is ACTIVITY_ITEMS:
+                stage6_only = sorted(set(given) & set(srow.STAGE6_ACTIVITY_ITEMS))
+                if stage6_only:  # PI ruling 94 a: one producer per item, and it is Stage 6
+                    raise ValueError(f"per-page activity values name Stage-6-only items (ruling 94 a): {stage6_only}")
             row.values.update({**given, **produced})
             missing = sorted(table - set(row.values))
             if missing:
@@ -928,6 +952,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         date = src_values.get("core.source_publication_date")
         date = date if isinstance(date, str) and date not in MISSING else None
         type_label = value_label("core.source_type", None, src_values.get("core.source_type"), labels)
+        stage_as_of: str | None = None  # read only when the observation has a quote (below)
         quotes = []
         by_id = {n["support_id"]: n for n in frag["item_support"]}
         all_sr = [*(sr for sr, rec in activity_codes(aid)), *(sr for sr, _ in up.codes[aid])]
@@ -937,8 +962,10 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
             node = next(n for n in by_id.values() if n["item_id"] == sr.item_id and n["item_part"] == sr.part
                         and n["chunk_id"] == sr.chunk_id and n["value_json"] == sr.original_value
                         and n["input_support_ids"] == [])
+            if stage_as_of is None:
+                stage_as_of = quote_stage_as_of(out, oid, sid)
             quotes.append(InputQuote(node["support_id"], oid, sid, sources, sr.chunk_id, sr.quote_chunk_id,
-                                     sr.supporting_text, type_label, date, str(frag["values"]["core.stage_as_of"]),
+                                     sr.supporting_text, type_label, date, stage_as_of,
                                      page.url, page_order, _passage_order(artifact, sr)))
         quotes.sort(key=lambda q: (q.passage_order, q.support_id))
         out.quotes.extend(quotes)
