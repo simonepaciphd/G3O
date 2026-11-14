@@ -209,6 +209,13 @@ def test_unit_credit_a87():
     assert srow.unit_credit(_activity()).value == "no"
     with pytest.raises(sf.MissingUpstreamError):
         srow.unit_credit({})
+    with pytest.raises(sf.MissingUpstreamError):  # absent part: missing
+        srow.unit_credit({"core.observed_actor_relationship": {"searched_institution_role": "unit"}})
+    # a non-object value or an unsigned part is malformed (a wiring error, not a refusal)
+    for bad in ("not_asked", {"relationship": "subsidiary", "searched_institution_role": "unit"}):
+        with pytest.raises(ValueError) as info:
+            srow.unit_credit({"core.observed_actor_relationship": bad})
+        assert not isinstance(info.value, sf.MissingUpstreamError)
     rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"a1": _activity(**{"core.observed_actor_relationship": unit}),
                                                      "a2": _activity()})
     assert {a: r["core.unit_credit"].value for a, r in rows.activities.items()} == {"a1": "yes", "a2": "no"}
@@ -245,6 +252,21 @@ def test_conditional_refusals_happen_on_page_data_m2():
     rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"a1": _activity(**{"core.observed_actor_relationship":
                                                                          "unknown"})}, followed=False)
     assert "core.unit_credit" in rows.refused
+
+
+@pytest.mark.parametrize("basis", [sf.AUTO_OFFICIAL, sf.AUTO_ARCHIVE])
+def test_vendor_claim_only_automatic_type_is_typed_not_vendor_ruling_88a(basis):
+    # Ruling 88 a: an official-domain / archive page stored not_asked (rule source_type_auto:<basis>) is no.
+    fv = sf.auto_source_type(basis).field
+    assert srow.vendor_claim_only(fv.value, fv.rule_name).value == "no"
+
+
+def test_vendor_claim_only_not_asked_without_automatic_typing():
+    assert srow.vendor_claim_only("not_asked", sf.READABILITY_RULE + "too_short").value == "unknown"
+    with pytest.raises(sf.MissingUpstreamError):
+        srow.vendor_claim_only("not_asked")  # the stored rule name is read, never re-derived
+    with pytest.raises(ValueError, match="not a rules/0 or R-015 rule name"):
+        srow.vendor_claim_only("not_asked", "source_type_auto:somewhere")
 
 
 def test_missing_producers_names_the_refused_items():

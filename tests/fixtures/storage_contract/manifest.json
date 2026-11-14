@@ -22,7 +22,7 @@
     },
     {
       "path": "page_two_activities/sources.csv",
-      "sha256": "e33deb426014b17e18332947c3d5aa18f049ddb14b1689a087c07edf328db002"
+      "sha256": "5be0e77efcb244730a25b709e383dab5c593f6470c8464d7f8acc8aa19862dc9"
     },
     {
       "path": "page_two_activities/summary.csv",
@@ -34,7 +34,7 @@
     },
     {
       "path": "combined_activity/sources.csv",
-      "sha256": "25cbc76dbd6820c27b381946346445edfb15b88fabc5212925dd0521c4723180"
+      "sha256": "913aa06fa185cbf31bf90bb07362ca35230f66f16a24e02c43583c364795f166"
     },
     {
       "path": "combined_activity/summary.csv",

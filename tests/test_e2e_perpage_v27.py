@@ -215,7 +215,8 @@ class World:
                   if k in pp.SOURCE_ITEMS and (FIELDS[k]["coder"] != "classifier" or k == "core.source_type")}
             sv.update({"core.source_url": page.url, "core.source_title": f"Page {pid}",
                        "core.content_contact_emails": list(page.input.email_links or ()),
-                       "core.source_publication_date": "not_documented"})
+                       # not_asked beside a missing publication date, as T-015 writes it
+                       "core.source_publication_date": "not_documented", "core.date_upper_bound": "not_asked"})
             sample = first
             c = [self._code(pid, aid, "core.activity_name", name, sample),
                  self._code(pid, aid, "core.tool_name", tool, sample),
@@ -230,7 +231,8 @@ class World:
             sv = {k: v for k, v in _values("sources").items()
                   if k in pp.SOURCE_ITEMS and (FIELDS[k]["coder"] != "classifier" or k == "core.source_type")}
             sv.update({"core.source_url": page.url, "core.source_title": f"Page {pid}",
-                       "core.content_contact_emails": [], "core.source_publication_date": "not_documented"})
+                       "core.content_contact_emails": [], "core.source_publication_date": "not_documented",
+                       "core.date_upper_bound": "not_asked"})
             s_vals[pp.NO_ACTIVITY] = sv
             codes[pp.NO_ACTIVITY] = [
                 self._code(pid, None, "core.source_type", sv["core.source_type"], page.text.split(SEP)[0]),

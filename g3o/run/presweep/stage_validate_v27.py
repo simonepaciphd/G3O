@@ -48,20 +48,24 @@ Rules carried here, not decided here:
   value. An R2 item with no entry in any observation takes the value of the
   first observation in that R3 order (RC-D-032 B3 a; e.g. ``[]`` beside
   ``not_documented``). Every observation's nodes stay on the merged row.
-- **Merged activities' A8 values (PI A8 rulings 2026-11-11, 66 a;**
-  :mod:`g3o.validate.merged_activity_v27`**).** ``stage_as_of`` (the latest
-  among the pooled observations' publication date / latest supported year code
-  / access date), ``date_upper_bound`` (of that date), ``unit_credit`` (any
-  pooled observation's relationship ``unit_of_institution``) and
-  ``vendor_claim_only`` (every supporting source ``vendor``; a missing type
-  gives ``unknown``) are produced from the pooled observations' rows and their
-  source rows (:data:`MERGE_PRODUCED_A8`). An absent input refuses; a latest
-  date the signed rule does not determine refuses (a PI question).
+- **A8 values of every published activity (PI A8 rulings 2026-11-11, 66 a,
+  76 b, 77 a, 78 a, 88 a, 89 a, 90 c;** :mod:`g3o.validate.merged_activity_v27`**).**
+  ``stage_as_of`` (the latest among the pooled observations' publication date /
+  latest non-future supported year code, the access date only when none has a
+  real date), ``date_upper_bound`` (of that date), ``unit_credit`` (any pooled
+  observation's relationship ``unit_of_institution``), ``vendor_claim_only``
+  (every supporting source ``vendor``; a missing type gives ``unknown``; an
+  automatically typed page is typed, not vendor) and ``cx_display_rollup`` are
+  produced from the pooled observations' rows and their source rows
+  (:data:`MERGE_PRODUCED_A8`), for a single-observation activity too (78 a). An
+  absent input holds the institution (B1 a); a latest date or upper bound the
+  signed rule does not determine holds it (a PI question); a malformed stored
+  value stops the stage (ruling 32 b, :class:`UpstreamRowMalformed`).
 - **Values with no producer here** are explicit inputs and refuse when absent
   (:class:`~g3o.persist.stage6_adapters.MissingUpstreamError`): the merged
-  values R1 asks to re-derive whose rule awaits codebook r16 or PI approval
-  (:data:`MERGE_REFUSED_R1`: developer, developer_basis, stage_as_of_basis,
-  cx_display_rollup; ``evidence_channel`` is the row metadata
+  values R1 asks to re-derive whose rule awaits codebook r16
+  (:data:`MERGE_REFUSED_R1`: developer, developer_basis, stage_as_of_basis;
+  ``evidence_channel`` is the row metadata
   :data:`EVIDENCE_CHANNEL`, not a row value), the merged values no ruling
   covers (:data:`MERGE_UNRULED`, now empty).
 - **Uncertainty flags (PI A6.1-A6.4 a, 2026-11-11;**
@@ -232,6 +236,18 @@ def require_identity(inst: Stage6Institution) -> None:
                                    problem=f"is malformed ({langs!r} does not match LANGS_PATTERN)")
 
 
+def require_a8_form(inst: Stage6Institution) -> None:
+    """Ruling 32 b (A8 review L1): refuse (stage stop) an institution whose stored A8 inputs are outside
+    their signed form (:func:`g3o.validate.merged_activity_v27.check_a8_inputs`), before any paid call.
+    Absent A8 inputs are not checked here: the producers hold the institution in the envelope build
+    (B1 a)."""
+    try:
+        ma.check_a8_inputs(inst)
+    except ma.MalformedA8Value as exc:
+        raise UpstreamRowMalformed(inst.institution_id, exc.item, f"A8 inputs, {exc.where}",
+                                   problem=f"is malformed ({exc.detail})") from exc
+
+
 ARTIFACTS_UNREADABLE = "stage6_artifacts_unreadable"  # existing Stage 6 artifacts fail to reload
 MISSING_RELATION = "missing_relation_decision"
 CONFLICTING_GROUPS = "conflicting_relation_groups"
@@ -246,15 +262,15 @@ MERGE_UNION = ("core.tool_name", "core.model_name", "core.reported_outcomes", "c
 MERGE_CREDIBLE = ("core.activity_name", "core.contracting_party", "core.observed_actor_name",
                   "core.deployment_scale_number")
 #: X1 a R1 items produced here from the pooled observations and their source rows (PI A8 rulings,
-#: 2026-11-11, and 66 a; :mod:`g3o.validate.merged_activity_v27`): stage_as_of (A8.3/A8.4/A8.6 a),
-#: date_upper_bound (A8.11/A8.12 a), unit_credit (A8.7/A8.8 a), vendor_claim_only (A8.9 a).
+#: 2026-11-11, and 66 a; :mod:`g3o.validate.merged_activity_v27`): stage_as_of (A8.3/A8.4/A8.6 a,
+#: 76 b, 90 c), date_upper_bound (A8.11/A8.12 a), unit_credit (A8.7/A8.8 a), vendor_claim_only
+#: (A8.9 a, 88 a, 89 a), cx_display_rollup (A8.10 a, table approved by 77 a). Ruling 78 a: for every
+#: published activity, single-observation ones included.
 MERGE_PRODUCED_A8 = ma.PRODUCED
 #: X1 a R1 items still refused (explicit input): developer/developer_basis (A8.1 a: a developer quote
 #: item, codebook r16 and a re-signature first; A8.2 a: no lookup table), stage_as_of_basis (A8.5 a:
-#: three step codes, codebook r16), cx_display_rollup (A8.10 a: the per-item "positive" table
-#: :data:`g3o.validate.merged_activity_v27.CX_POSITIVE` awaits PI approval). evidence_channel is row
-#: metadata, not a value.
-MERGE_REFUSED_R1 = ("core.developer", "core.developer_basis", "core.stage_as_of_basis", "core.cx_display_rollup")
+#: three step codes, codebook r16). evidence_channel is row metadata, not a value.
+MERGE_REFUSED_R1 = ("core.developer", "core.developer_basis", "core.stage_as_of_basis")
 #: Non-pooled activity items no merge rule covers (explicit input). Empty since A6 (2026-11-11).
 MERGE_UNRULED: tuple[str, ...] = ()
 #: Derived here from the row's stored nodes (A6.4 a: union, alphabetical).
@@ -886,6 +902,17 @@ def independence_groups_of(inst: Stage6Institution) -> Mapping[str, str]:
         raise MissingUpstreamError(f"{INDEPENDENCE_PRODUCER}; {exc.producer}", exc.missing) from exc
 
 
+def _agree_with_fragment(fragment: Mapping[str, Any], a8: Mapping[str, Any], oid: str) -> None:
+    """A8 review L6: a single observation's stored fragment value of an A8 item (e.g. the per-page
+    ``unit_credit``, T-015) must equal the value Stage 6 produces from the same rule; a disagreement is
+    a wiring error (ruling 32 b: :class:`~g3o.validate.merged_activity_v27.MalformedA8Value`, the
+    stage stops), never silently overwritten."""
+    for item, value in a8.items():
+        if item in fragment and fragment[item] != value:
+            raise ma.MalformedA8Value(item, f"observation {oid}", f"stored fragment value {fragment[item]!r} "
+                                                                  f"disagrees with the A8 value {value!r}")
+
+
 def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6Config, instrument: dict[str, Any],
                    artifact_root: Path) -> tuple[Any, list[dict[str, Any]]]:
     """The storage envelope and provenance records of one ready Stage 6 result."""
@@ -921,8 +948,10 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
     for group in published:
         aid = final_of[group[0]]
         fragments = [inst.observation_inputs[k].row for k in group]
-        if len(group) == 1:
-            values = dict(fragments[0]["values"])
+        if len(group) == 1:  # ruling 78 a: the A8 producers run for a single observation too
+            a8 = ma.merged_values_a8(inst, list(group))
+            _agree_with_fragment(fragments[0]["values"], a8, group[0])
+            values = {**fragments[0]["values"], **a8}
         else:
             if inst.merged_values is None or group not in inst.merged_values:
                 raise MissingUpstreamError(MERGED_VALUES_PRODUCER, [aid])
@@ -1066,7 +1095,11 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     (every row is checked before the first institution is run, so nothing is asked
     for any institution), and any ``KeyError`` while building the storage
     envelope or writing the artifacts (e.g. a source row without
-    ``core.confidence``). The holds the rulings require are unchanged: a source
+    ``core.confidence``), and a stored value an A8 producer reads that is outside
+    its signed form (:class:`~g3o.validate.merged_activity_v27.MalformedA8Value`;
+    every row's A8 inputs are form-checked before the first call,
+    :func:`require_a8_form`; an absent one, or one the signed rule does not
+    determine, holds the institution in the envelope build). The holds the rulings require are unchanged: a source
     with no syndication group holds the institution (A7 13 a, a
     ``MissingUpstreamError`` from the independence groups), and an ``OSError``
     that survives the write retries holds it (28 a).
@@ -1092,6 +1125,7 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     institutions = list(institutions)
     for inst in institutions:  # ruling 32 b: a malformed row stops the stage before any call is made
         require_identity(inst)
+        require_a8_form(inst)
     for inst in institutions:
         inst_dir = institution_dir(run_dir, inst.institution_id)
         try:
@@ -1143,6 +1177,9 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
                                  provenance=provenance)
         except STAGE_STOPS:
             raise
+        except ma.MalformedA8Value as exc:  # ruling 32 b (A8 review M1): a malformed stored value stops the stage
+            raise UpstreamRowMalformed(inst.institution_id, exc.item, f"A8 values, {exc.where}",
+                                       problem=f"is malformed ({exc.detail})") from exc
         except KeyError as exc:  # ruling 32 b: a malformed upstream row is a wiring error: the stage stops
             raise UpstreamRowMalformed(inst.institution_id, repr(exc.args[0]) if exc.args else "a key",
                                        "storage envelope build") from exc
@@ -1170,5 +1207,5 @@ __all__ = [
     "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_PRODUCED_A8", "MERGE_REFUSED_R1", "MERGE_UNION", "MERGE_UNRULED",
     "Stage6Metrics", "build_envelope", "hold_reasons", "independence_groups_of", "merge_values", "run_stage6_v27",
     "EXTRACT_REJECT_CAP", "IDENTITY_COLUMNS", "PI_RELEASED", "WIRING_STOPS", "ExtractRejectCapReached",
-    "UpstreamRowMalformed", "require_identity",
+    "UpstreamRowMalformed", "require_a8_form", "require_identity",
 ]
