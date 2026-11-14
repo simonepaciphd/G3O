@@ -1465,6 +1465,86 @@ def test_residual_typing_is_refused_after_the_first_request_was_built(tmp_path):
         providers.set_source_typing(page.page_id, sf.auto_source_type(sf.AUTO_OFFICIAL))
 
 
+def _elsewhere():
+    """The run's official sites, declared: INST-0000001's site is another host, so its pages are not official
+    (PI ruling 70 b) and a readable one is left to the residual source_type question (PI ruling 95 a)."""
+    from g3o.run.presweep import official_site_v27 as osv
+
+    return osv.RunOfficialSites("fixture: 2_official_site.json", {"INST-0000001": "council-one.gov.au"},
+                                frozenset())
+
+
+def _page_fields(page):
+    """Declared D1 a page fields (not an archive address): the T-015 assembler builds the page's rows."""
+    from g3o.common import source_fields as sf
+    from g3o.common.storage_fields import FIELDS
+    from g3o.run.presweep import perpage_inputs_v27 as pin
+
+    def fv(item, value):
+        return sf.FieldValue(item, value, FIELDS[item]["coder"], "declared fixture")
+    return pin.PageSourceFields(fv("core.source_url", page.url), fv("core.source_access_date", "2026-11-10"),
+                                None, False, fv("core.source_language", "en"),
+                                fv("core.syndication_group", "sg-fixture"), sf.text_source("new_run"))
+
+
+def _residual_spec(insts, page_id="p1"):
+    """INST-0000001's spec of ``page_id`` with page fields and no injected row values (PI ruling 35 a)."""
+    a = next(i for i in insts if i.institution_id == "INST-0000001")
+    spec = next(s for s in a.pages if s.page.page_id == page_id)
+    return replace(spec, upstream=replace(spec.upstream, activity_values=None, source_values=None, codes=None,
+                                          page_fields=_page_fields(spec.page)))
+
+
+def _residual_inst(insts, page_id="p1"):
+    """INST-0000001 with only ``page_id``, whose rows the T-015 assembler builds (:func:`_residual_spec`)."""
+    a = next(i for i in insts if i.institution_id == "INST-0000001")
+    return replace(a, pages=[_residual_spec(insts, page_id)])
+
+
+def _source_type_calls(jev):
+    """The residual source_type requests jev was sent (one per part asked)."""
+    from g3o.common import source_fields as sf
+
+    return [state["page_part"] for state, qids in jev.calls if sf.SOURCE_TYPE in qids]
+
+
+def test_residual_source_type_page_reaches_its_row_through_the_stage_95a(tmp_path, monkeypatch):
+    """Review H1: a readable residual page run through the per-page stage on the real providers. The
+    residual answers (asked on the page's T-021 parts) ride in the page's first pass-1 request; they and
+    their T-024 checks reach the T-015 assembler by name (``source_typing`` / ``source_type_codes``) and
+    become the row's source_type and its codes. The stage then stops on what the assembler still refuses
+    (a wiring gap, RC-D-033 C2 a), never on a TypeError, and source_type is not among them."""
+    from g3o.common import source_fields as sf
+    from g3o.extract import request_v27
+    from g3o.run.presweep import source_row_v27 as srow
+    from tests.test_e2e_perpage_v27 import assemble_spy
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
+    seen = []
+    monkeypatch.setattr(srow, "assemble", assemble_spy(srow.assemble, lambda page, rows, kw: seen.append((rows, kw))))
+    extract = FakeExtractor(world)
+    jev = FakeJev({**ANSWERS, sf.SOURCE_TYPE: "vendor"}, RELATIONS)
+    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler") as exc:
+        _run(run_dir, bound, instrument, [_residual_inst(insts)],
+             _providers(run_dir, bound, instrument, extract, FakeEntail()), jev)
+    assert sf.SOURCE_TYPE not in exc.value.missing
+    assert _source_type_calls(jev)  # the residual question was asked
+    (rows, kw), = seen
+    typing, codes = kw["source_typing"], kw["source_type_codes"]
+    assert typing is not None and typing.typed_by == "classifier" and codes
+    # the quote tasks of the residual answers rode in the page's first pass-1 request
+    first = next(j for j in extract.jobs if j.metadata["stage"] == PASS1 and j.metadata["page_id"] == "p1")
+    question = request_v27.default_rules().questions[sf.SOURCE_TYPE]
+    tasks = [t for t in _tasks(first)["quote_tasks"] if t["question"] == question]
+    assert tasks and {t["part_id"] for t in tasks} == {rec.chunk_id for _, rec in codes}
+    # the row value is the deciding part's checked answer, and every check is a code of the row
+    (sr,) = [sr for sr, rec in codes if rec.chunk_id == typing.outcome.part_id]
+    assert sr.original_value == "vendor" and sr.supporting_text
+    assert sf.SOURCE_TYPE not in rows.refused and rows.source[sf.SOURCE_TYPE].value == sr.value
+    assert all(pair in rows.source_codes for pair in codes)
+
+
 def test_downgrade_is_refused_for_a_verdict_other_than_confirms_activity(tmp_path):
     """Only a combined confirms_activity verdict is downgraded; anything else is a wiring error."""
     run_dir, bound, instrument, world, page = _flip_world(tmp_path)

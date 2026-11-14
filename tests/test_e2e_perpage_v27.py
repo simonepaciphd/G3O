@@ -106,6 +106,23 @@ class Page:
                            jpc.contact_text(self.input))
 
 
+def assemble_spy(real, on_rows):
+    """A stand-in for ``source_row_v27.assemble`` that takes produce_page's keywords BY NAME, every one
+    required (review H1: a ``**k`` wrapper hid a keyword the real assembler did not take). It calls
+    ``real`` with the same keywords and passes ``(page, rows, keywords)`` to ``on_rows``, whose return
+    value (when not None) replaces the rows."""
+    def spy(page, page_fields, page_values, activities, *, followed, hop, extraction, sources, verdict_support,
+            official_sites, pass2, activity_extraction, source_typing, source_type_codes, provenance):
+        keywords = dict(followed=followed, hop=hop, extraction=extraction, sources=sources,
+                        verdict_support=verdict_support, official_sites=official_sites, pass2=pass2,
+                        activity_extraction=activity_extraction, source_typing=source_typing,
+                        source_type_codes=source_type_codes, provenance=provenance)
+        rows = real(page, page_fields, page_values, activities, **keywords)
+        edited = on_rows(page, rows, keywords)
+        return rows if edited is None else edited
+    return spy
+
+
 class OwnGroup(dict):
     """Declared fixture: every source claim is its own independence group (P15 producer absent)."""
 
@@ -1105,7 +1122,7 @@ def test_t015_assembler_runs_after_coding_and_stops_the_stage_on_refused_items(t
 
     seen = []
     real = srow.assemble
-    monkeypatch.setattr(srow, "assemble", lambda *a, **k: seen.append(real(*a, **k)) or seen[-1])
+    monkeypatch.setattr(srow, "assemble", assemble_spy(real, lambda page, rows, kw: seen.append(rows)))
     page = a.pages[0].page
     fields = pin.PageSourceFields(fv("core.source_url", page.url), fv("core.source_access_date", "2026-11-10"),
                                   None, False, fv("core.source_language", "en"),
@@ -1189,11 +1206,10 @@ def test_row_value_refused_on_page_data_holds_that_institution_ruling_97b(tmp_pa
     real = srow.assemble
     why = "refused when RenderedPage.title is empty (fixture)"
 
-    def data_only(*args, **kw):
-        rows = real(*args, **kw)
+    def data_only(page, rows, keywords):
         rows.refused, rows.stops = {sf.TITLE: why}, set()
         return rows
-    monkeypatch.setattr(srow, "assemble", data_only)
+    monkeypatch.setattr(srow, "assemble", assemble_spy(real, data_only))
     page = a.pages[0].page
 
     def fv(item, value):
