@@ -45,9 +45,14 @@ class Jev:
     def __init__(self, choices=None):
         self.choices = choices or {}
         self.calls = []
+        # Request ids count every call, never reset: tests clear ``calls`` after the first
+        # round, and ids from ``len(calls)`` then repeated first-round ids in the extra rounds
+        # (a jev request id is unique per request).
+        self.sent = 0
 
     def __call__(self, state, questions):
         self.calls.append((deepcopy(state), deepcopy(questions)))
+        self.sent += 1
         answers = {}
         for qid, q in questions.items():
             value = self.choices.get(qid, next(iter(q["criteria"])))
@@ -58,7 +63,7 @@ class Jev:
                              for v in q["criteria"]}
             answers[qid] = JevAnswer(qid, "choice", choice=value, confidence=0.95,
                                      probabilities=probabilities)
-        return JevResult(answers, "jev-fixture", f"request-{len(self.calls)}", 10, 1)
+        return JevResult(answers, "jev-fixture", f"request-{self.sent}", 10, 1)
 
 
 def page_case(monkeypatch, rules, *, descendant=False, closing=False):
