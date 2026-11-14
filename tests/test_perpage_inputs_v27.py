@@ -204,8 +204,9 @@ def test_unproduced_values_still_refuse(tmp_path):
     assert f"{I1}/{url_hash(P_META.url)}" in exc.value.missing
     # Ruling 35 a: the row values are left to the T-015 assembler, which names what it still refuses.
     assert "source-row assembler" in str(exc.value) and "core.confidence" in str(exc.value)
-    # Review M2: an item refused only on some pages (here source_type) is named too.
-    assert "core.source_type" in str(exc.value) and "refuses on some pages" in str(exc.value)
+    # PI ruling 97 b: an item refused only on some pages' data (here source_type) holds that institution in
+    # the stage; the entry names the unproduced items only.
+    assert "core.source_type" not in str(exc.value) and "refuses on some pages" not in str(exc.value)
     assert all(s.upstream.page_fields is not None for i in followed for s in i.pages)
 
 

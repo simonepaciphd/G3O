@@ -311,17 +311,42 @@ def test_missing_producers_names_the_refused_items():
         assert item in pin.VALUES_MISSING
 
 
-def test_entry_gate_keeps_the_values_entry_for_conditional_refusals(monkeypatch):
-    """Review M2 (rulings 36 a / 40 a): items refused on some pages keep the entry refusal."""
-    assert set(srow.entry_refused_items()) == set(srow.unproduced_items()) | set(srow.CONDITIONAL_ITEMS)
-    for item in srow.CONDITIONAL_ITEMS:
+def test_entry_gate_covers_unproduced_items_only_ruling_97b(monkeypatch):
+    """PI ruling 97 b (rulings 36 a / 40 a): the entry gate names the unproduced items only; an item refused
+    on some pages' data holds that institution in the stage instead."""
+    assert srow.entry_refused_items() == srow.unproduced_items()
+    for item in srow.unproduced_items():
         assert item in pin.VALUES_MISSING
+    for item in set(srow.CONDITIONAL_ITEMS) - set(srow.unproduced_items()):
+        assert item not in pin.VALUES_MISSING
     monkeypatch.setattr(srow, "REFUSED_SOURCE_ITEMS", {})
     monkeypatch.setattr(srow, "REFUSED_ACTIVITY_ITEMS", {})
-    assert srow.unproduced_items() == () and srow.entry_refused_items() == tuple(sorted(srow.CONDITIONAL_ITEMS))
-    monkeypatch.setattr(srow, "CONDITIONAL_ITEMS", {})
-    assert srow.entry_refused_items() == ()
+    assert srow.unproduced_items() == () and srow.entry_refused_items() == ()
     assert "core.source_url" not in pin.VALUES_MISSING
+
+
+def test_data_refusals_hold_wiring_refusals_stop_ruling_97b():
+    """PI ruling 97 b: a conditional item refused on the page's own data is a data refusal (the stage holds
+    that institution); a standing refusal, a wiring-only item, or a conditional item refused for a missing
+    wiring input (and what reads it) stops the stage."""
+    # No pass-1 request for the date (page data): the date and what reads it are data refusals.
+    rows = srow.assemble(_page(), FIELDS_P1, NOGENAI, {}, followed=False, extraction=None, sources=SOURCES,
+                         verdict_support=_verdict(None), provenance=PROV, official_sites=OWN)
+    data = rows.data_refusals()
+    assert {sf.DATE, sf.UPPER_BOUND, sf.CREDIBILITY} <= set(data) and "no request" in data[sf.DATE]
+    assert set(srow.REFUSED_SOURCE_ITEMS) <= rows.stops and not set(data) & rows.stops
+    # No official-site map (wiring): official, the type that reads it and the credibility reading the type stop.
+    rows = srow.assemble(_page(), FIELDS_P1, NOGENAI, {}, followed=False)
+    assert {sf.OFFICIAL, sf.SOURCE_TYPE} <= rows.stops
+    # No pass-1 request handed in at all (MISSING_EXTRACTION) is wiring for the snippet too.
+    assert sf.SNIPPET in rows.stops and srow.MISSING_EXTRACTION in rows.refused[sf.SNIPPET]
+    # A wiring-only item refused (no language) stops the stage.
+    from dataclasses import replace
+    rows = srow.assemble(_page(), replace(FIELDS_P1, language=None), GENAI, {})
+    assert sf.LANGUAGE in rows.stops
+    # An empty title is page data.
+    rows = srow.assemble(_page(title=""), FIELDS_P1, GENAI, {})
+    assert sf.TITLE in rows.refused and sf.TITLE not in rows.stops
 
 
 # ---------------------------------------------------------------------------

@@ -90,13 +90,12 @@ INSTITUTION_FILE = "institution.json"
 #: its producer is wired into :func:`build_perpage_inputs`; once empty, the entry
 #: refusal is gone and :func:`require_complete` remains the per-value guard.
 #: The row-values entry names the row items the T-015 source-row assembler still refuses (PI ruling 35 a,
-#: :func:`g3o.run.presweep.source_row_v27.unproduced_items`) and those it refuses on some pages
-#: (:data:`~g3o.run.presweep.source_row_v27.CONDITIONAL_ITEMS`, review M2: a conditional refusal stops the
-#: stage only after coding was paid for); it drops out once both are empty
-#: (:func:`~g3o.run.presweep.source_row_v27.entry_refused_items`).
+#: :func:`g3o.run.presweep.source_row_v27.unproduced_items`); it drops out once that is empty
+#: (:func:`~g3o.run.presweep.source_row_v27.entry_refused_items`). PI ruling 97 b: an item refused only on some
+#: pages' data (:data:`~g3o.run.presweep.source_row_v27.CONDITIONAL_ITEMS`) holds that institution in the
+#: per-page stage and is no longer named here.
 VALUES_MISSING = (f"{pp.VALUES_PRODUCER} (activity_values, source_values, codes); {srow.ASSEMBLER} "
-                  f"refuses: {', '.join(srow.unproduced_items())}; refuses on some pages: "
-                  f"{', '.join(sorted(srow.CONDITIONAL_ITEMS))}")
+                  f"refuses: {', '.join(srow.entry_refused_items())}")
 #: The T-025 entry left: ``followed`` / hop are produced (searched pages here, followed pages by
 #: :mod:`g3o.run.presweep.follow_v27`), but the Stage 6 entry of a URL tried and not fetched or a
 #: link not followed is a PI question; the stage holds such an institution
@@ -262,9 +261,11 @@ def require_complete(institutions: Iterable[pp.PerPageInstitution],
     A None-only pre-check: ``followed`` must not be ``None``, and the row values
     must be injected (``activity_values``, ``source_values`` and ``codes`` not
     ``None``) or left wholly to the T-015 source-row assembler (all three ``None``
-    with ``page_fields`` set; PI ruling 35 a), which is refused while it still
-    refuses any row item, on every page or on some
-    (:func:`g3o.run.presweep.source_row_v27.entry_refused_items`, named in the error). Which keys injected values must cover (one per coded
+    with ``page_fields`` set; PI ruling 35 a), which is refused while the assembler
+    still refuses an unproduced row item
+    (:func:`g3o.run.presweep.source_row_v27.entry_refused_items`, named in the error;
+    PI ruling 97 b: an item refused only on some pages' data holds that institution in
+    the stage instead). Which keys injected values must cover (one per coded
     activity, or :data:`~g3o.run.presweep.stage_perpage_v27.NO_ACTIVITY`) is known
     only after coding, so key coverage is still checked by ``produce_page``.
 

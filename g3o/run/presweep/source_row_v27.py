@@ -11,11 +11,14 @@ final page and activity values.
 Every source-row and activity-row item that the T-021 / T-023 coders do not
 produce is listed exactly once, either as produced here or in
 :data:`REFUSED_SOURCE_ITEMS` / :data:`REFUSED_ACTIVITY_ITEMS` with the reason it
-is refused. No value is invented: a refused item stays refused until its rule
-is signed or its producer is wired, and while any item is refused the per-page
-stage stops before it would publish a row (``MissingUpstreamError``, RC-D-033
-C2 a) and :data:`g3o.run.presweep.perpage_inputs_v27.MISSING_PRODUCERS` keeps
-the row-values entry, naming these items (PI ruling 36 a).
+is refused (or, PI ruling 94 a, in :data:`STAGE6_ACTIVITY_ITEMS`: Stage 6 only).
+No value is invented: a refused item stays refused until its rule is signed or
+its producer is wired, and while any item is refused the per-page stage stops
+before it would publish a row (``MissingUpstreamError``, RC-D-033 C2 a) and
+:data:`g3o.run.presweep.perpage_inputs_v27.MISSING_PRODUCERS` keeps the
+row-values entry, naming these items (PI ruling 36 a). PI ruling 97 b: an item
+refused on a page's own data (:data:`CONDITIONAL_ITEMS`, not for a missing
+wiring input) holds that institution instead (:attr:`AssembledRows.stops`).
 
 Produced here (source row, page-level, the same on every source row of a page):
 
@@ -281,7 +284,9 @@ PRODUCED_ACTIVITY_ITEMS = ("core.unit_credit", *pass1_activity_fields(), *REPORT
 #: A part id the coded page no longer has (e.g. after an extra-round halving): every quote read at a part.
 SUPERSEDED = "a quote or value at a part the coded page no longer has (superseded, e.g. after a halving)"
 #: Items produced on some pages and refused on others, with when they refuse (review M2: every refusal point of
-#: this assembler that depends on the page's data). :func:`entry_refused_items` refuses a run on them at entry.
+#: this assembler that depends on the page's data). PI ruling 97 b: such a refusal holds that institution (the
+#: per-page stage), unless its cause is a missing wiring input (:data:`WIRING_PRODUCERS`), which stops the stage;
+#: they are no longer in :func:`entry_refused_items`.
 CONDITIONAL_ITEMS: Mapping[str, str] = {
     sf.TITLE: "refused when RenderedPage.title is empty (the first-heading fallback is unproduced, PI ruling 39 a)",
     sc.CONTACT_ITEM: ("refused when a final content_contact_named / content_contact_details value is absent or is "
@@ -327,10 +332,12 @@ def unproduced_items() -> tuple[str, ...]:
 
 
 def entry_refused_items() -> tuple[str, ...]:
-    """The items a run is refused on before any spend (PI rulings 36 a / 40 a), sorted: every unproduced
-    item and every :data:`CONDITIONAL_ITEMS` item, since a conditional refusal would otherwise only stop the
-    per-page stage after coding was paid for (review M2)."""
-    return tuple(sorted({*unproduced_items(), *CONDITIONAL_ITEMS}))
+    """The items a run is refused on before any spend (PI rulings 36 a / 40 a), sorted: the unproduced items.
+
+    PI ruling 97 b (2026-11-14): a refusal caused by a page's own data (:data:`CONDITIONAL_ITEMS`) holds
+    that institution (:attr:`AssembledRows.stops` leaves it out), so the entry gate covers only what no
+    page's data can supply: the unproduced items here, and the wiring gaps checked where they are wired."""
+    return unproduced_items()
 
 
 # ---------------------------------------------------------------------------
@@ -380,7 +387,7 @@ def _from(fv: sf.FieldValue) -> RowValue:
 
 def _field(fv: sf.FieldValue | None, item: str) -> RowValue:
     if fv is None or fv.item_id != item:
-        raise sf.MissingUpstreamError("perpage_inputs_v27.PageSourceFields", [item])
+        raise sf.MissingUpstreamError(PAGE_FIELDS, [item])
     return RowValue(item, fv.value, fv.basis)
 
 
@@ -812,6 +819,14 @@ def publication_date_value(page: Any, page_fields: Any, extraction: Any, sources
 
 OFFICIAL_SITES = ("official sites this run found (PI ruling 70 b; "
                   "official_site_v27.load_run_official_sites)")
+#: The A2 seam ``source_type`` reads (absent: wiring).
+ARCHIVE_TEST = "A2 archive-address test (PageSourceFields.archive_address)"
+#: The page-level inputs every source row reads (absent: wiring).
+PAGE_FIELDS = "perpage_inputs_v27.PageSourceFields"
+#: PI ruling 97 b (2026-11-14): producers whose absence is a wiring gap, never a page's data. A refusal naming
+#: one of them stops the per-page stage even for a :data:`CONDITIONAL_ITEMS` item (PI 32 b); any other
+#: refusal of a conditional item is the page's own data and holds that institution only.
+WIRING_PRODUCERS = frozenset({MISSING_EXTRACTION, OFFICIAL_SITES, ARCHIVE_TEST, PAGE_FIELDS})
 
 
 def official_value(page: Any, official_sites: Any) -> sf.FieldValue:
@@ -827,7 +842,7 @@ def source_type_value(page: Any, official: sf.FieldValue, archive_address: Any, 
     a residual page; an unreadable residual page is not sent (R-015). Each is ``not_asked`` set by its rule
     (R-045) with a mechanical record. A readable residual page is refused (:data:`RESIDUAL_REFUSAL`)."""
     if not isinstance(archive_address, bool):
-        raise sf.MissingUpstreamError("A2 archive-address test (PageSourceFields.archive_address)", [sf.SOURCE_TYPE])
+        raise sf.MissingUpstreamError(ARCHIVE_TEST, [sf.SOURCE_TYPE])
     basis = sf.route_source_type(official, archive_address)
     typing = sf.auto_source_type(basis) if basis is not None else sf.readability_source_type(page)
     if typing is None:
@@ -854,8 +869,8 @@ def typed_source_values(page: Any, page_fields: Any, rows: AssembledRows, date: 
     try:
         official = official_value(page, official_sites)
     except _REFUSALS as exc:
-        rows.refused[sf.OFFICIAL] = str(exc)
-        rows.refused[sf.SOURCE_TYPE] = f"rules/0 reads {sf.OFFICIAL} (refused)"
+        rows.refuse(sf.OFFICIAL, exc)
+        rows.refuse_reading(sf.SOURCE_TYPE, sf.OFFICIAL, f"rules/0 reads {sf.OFFICIAL} (refused)")
         official = None
     else:
         out[sf.OFFICIAL] = _from(official)
@@ -865,14 +880,16 @@ def typed_source_values(page: Any, page_fields: Any, rows: AssembledRows, date: 
             qv, typing = source_type_value(page, official, getattr(page_fields, "archive_address", None),
                                            _need(sources, sf.SOURCE_TYPE), _need(provenance, sf.SOURCE_TYPE))
         except _REFUSALS as exc:
-            rows.refused[sf.SOURCE_TYPE] = str(exc)
+            rows.refuse(sf.SOURCE_TYPE, exc)
         else:
             out[sf.SOURCE_TYPE] = qv.row
             rows.source_codes.extend(qv.codes)
     if date is None:
-        rows.refused[sf.CREDIBILITY] = f"reads {sf.DATE} (refused)"
+        rows.refuse_reading(sf.CREDIBILITY, sf.DATE, f"reads {sf.DATE} (refused)")
         return
     _try(rows, out, sf.CREDIBILITY, lambda: credibility_value(typing, date))
+    if sf.CREDIBILITY in rows.refused and sf.SOURCE_TYPE in rows.stops:  # it read a type refused on wiring
+        rows.stops.add(sf.CREDIBILITY)
 
 
 # ---------------------------------------------------------------------------
@@ -893,6 +910,11 @@ class AssembledRows:
     ``refused`` names every row item not produced: the standing refusals
     (:data:`REFUSED_SOURCE_ITEMS`, :data:`REFUSED_ACTIVITY_ITEMS`) and any
     producer that refused on this page's data.
+
+    ``stops`` (PI ruling 97 b) names the refused items whose refusal stops the stage: the standing
+    refusals, every item outside :data:`CONDITIONAL_ITEMS`, a conditional item refused for a missing
+    wiring input (:data:`WIRING_PRODUCERS`), and an item that reads one of these. Every other refused item
+    was refused on the page's own data (:meth:`data_refusals`): the per-page stage holds that institution.
     """
 
     source: dict[str, RowValue] = field(default_factory=dict)
@@ -900,6 +922,25 @@ class AssembledRows:
     refused: dict[str, str] = field(default_factory=dict)
     source_codes: list[Code] = field(default_factory=list)
     activity_codes: dict[str, list[Code]] = field(default_factory=dict)
+    stops: set[str] = field(default_factory=set)
+
+    def refuse(self, item: str, exc: Exception) -> None:
+        """Record ``item`` refused by ``exc``; a wiring cause, or an item that is never refused on data,
+        stops the stage (ruling 97 b)."""
+        self.refused[item] = str(exc)
+        if item not in CONDITIONAL_ITEMS or getattr(exc, "producer", None) in WIRING_PRODUCERS:
+            self.stops.add(item)
+
+    def refuse_reading(self, item: str, upstream: str, reason: str) -> None:
+        """Record ``item`` refused because it reads the refused ``upstream``: it stops the stage when that
+        refusal does (or when ``item`` is never refused on data)."""
+        self.refused[item] = reason
+        if item not in CONDITIONAL_ITEMS or upstream in self.stops:
+            self.stops.add(item)
+
+    def data_refusals(self) -> dict[str, str]:
+        """The refused items refused on the page's own data alone (ruling 97 b), with their reasons."""
+        return {item: reason for item, reason in self.refused.items() if item not in self.stops}
 
     def to_upstream(self, keys: Sequence[str]) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]],
                                                          dict[str, list[Code]]]:
@@ -922,7 +963,7 @@ def _try(rows: AssembledRows, out: dict[str, RowValue], item: str, make: Callabl
     try:
         out[item] = make()
     except _REFUSALS as exc:
-        rows.refused[item] = str(exc)
+        rows.refuse(item, exc)
 
 
 def _try_quote(rows: AssembledRows, out: dict[str, RowValue], codes: list[Code], item: str,
@@ -930,7 +971,7 @@ def _try_quote(rows: AssembledRows, out: dict[str, RowValue], codes: list[Code],
     try:
         qv = make()
     except _REFUSALS as exc:
-        rows.refused[item] = str(exc)
+        rows.refuse(item, exc)
         return
     out[item] = qv.row
     codes.extend(qv.codes)
@@ -962,7 +1003,7 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
         _try(rows, out, sc.CONTACT_EMAILS_ITEM,
              lambda: content_contact_emails(out[sc.CONTACT_ITEM].value, page))
     else:
-        rows.refused[sc.CONTACT_EMAILS_ITEM] = f"gated on {sc.CONTACT_ITEM} (refused)"
+        rows.refuse_reading(sc.CONTACT_EMAILS_ITEM, sc.CONTACT_ITEM, f"gated on {sc.CONTACT_ITEM} (refused)")
     acts = [activities[aid] for aid in activities]
     verdict = page_values.get("core.page_verdict")
     for item in STATED_FIELDS:
@@ -980,8 +1021,8 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
         dated = publication_date_value(page, page_fields, extraction, _need(sources, sf.DATE),
                                        _need(provenance, sf.DATE))
     except _REFUSALS as exc:
-        rows.refused[sf.DATE] = str(exc)
-        rows.refused[sf.UPPER_BOUND] = f"reads {sf.DATE} (refused)"
+        rows.refuse(sf.DATE, exc)
+        rows.refuse_reading(sf.UPPER_BOUND, sf.DATE, f"reads {sf.DATE} (refused)")
         date = None
     else:
         out[sf.DATE] = dated.quote.row
@@ -1059,8 +1100,10 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
                                       [page.page_id])
     rows = AssembledRows()
     rows.refused.update(REFUSED_SOURCE_ITEMS)
+    rows.stops.update(REFUSED_SOURCE_ITEMS)  # unproduced: a stage stop, never a hold (ruling 97 b)
     if activities:
         rows.refused.update(REFUSED_ACTIVITY_ITEMS)
+        rows.stops.update(REFUSED_ACTIVITY_ITEMS)
     page_source_values(page, page_fields, page_values, activities, rows, followed=followed, sources=sources,
                        verdict_support=verdict_support, provenance=provenance, extraction=extraction, hop=hop,
                        official_sites=official_sites, activity_extraction=activity_extraction)
@@ -1075,7 +1118,7 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
 __all__ = [
     "ASSEMBLER", "CONDITIONAL_ITEMS", "NEVER_REFUSED_ITEMS", "WIRING_ONLY_ITEMS", "reported_field_value",
     "reported_open", "reported_value", "PRODUCED_ACTIVITY_ITEMS", "PRODUCED_SOURCE_ITEMS", "REFUSED_ACTIVITY_ITEMS",
-    "REFUSED_SOURCE_ITEMS", "STAGE6_ACTIVITY_ITEMS", "AssembledRows", "RowValue", "activity_row_items",
+    "REFUSED_SOURCE_ITEMS", "STAGE6_ACTIVITY_ITEMS", "WIRING_PRODUCERS", "AssembledRows", "RowValue", "activity_row_items",
     "activity_row_values", "assemble",
     "content_contact", "content_contact_emails", "content_safeguard", "content_stated", "genai_verdicts",
     "entry_refused_items", "page_source_values", "source_row_items", "source_title", "stated", "unit_credit",

@@ -109,8 +109,12 @@ Rules carried here, not decided here:
   (:data:`~g3o.run.presweep.stage_validate_v27.MERGE_INPUT_ITEMS`).
   When no row values are injected and ``PageUpstream.page_fields`` is set, the
   T-015 source-row assembler (:mod:`g3o.run.presweep.source_row_v27`, PI ruling
-  35 a) builds them after coding; while it still refuses any row item, that is a
-  ``MissingUpstreamError`` naming the items (a stage stop, RC-D-033 C2 a).
+  35 a) builds them after coding; while it still refuses an unproduced row item, or
+  refuses one for a missing wiring input, that is a ``MissingUpstreamError`` naming
+  the items (a stage stop, RC-D-033 C2 a). PI ruling 97 b: an item refused on the
+  page's own data alone (``source_row_v27.CONDITIONAL_ITEMS``) holds that institution
+  (:data:`ROW_VALUE_REFUSED` in ``held.json``, naming the items and each refusal; the
+  attrition detail names the items) and the stage goes on.
 - **Reviewed page with no activity (RC-D-030 Y2 a).** It gets one page-level
   source row: ``activity_id`` ``_NA_``, empty ``observation_ids``, its
   page-level values and nodes (support nodes with no observation), the
@@ -346,6 +350,25 @@ class PageArchiveIncomplete(Exception):
         super().__init__(f"page-state archive incomplete: {type(error).__name__}: {error}")
         self.archived, self.left = archived, left
         self.error = f"{type(error).__name__}: {error}"
+
+
+#: PI ruling 97 b (2026-11-14): a row value the T-015 assembler refused on the page's own data
+#: (``source_row_v27.CONDITIONAL_ITEMS``, not a wiring gap): per-institution hold; held.json names the page,
+#: the items and each refusal
+ROW_VALUE_REFUSED = "row_value_refused"
+
+
+class RowValueRefused(ConsolidationError):
+    """Row values refused on the page's own data (PI ruling 97 b): the institution is held, the stage goes on.
+
+    ``refused`` maps each item to its refusal. Not a ``MissingUpstreamError`` (that is a wiring gap and
+    stops the stage); nothing of the institution is published. A rerun holds it again while the page's
+    data still refuses the item."""
+
+    def __init__(self, page_id: str, refused: Mapping[str, str]) -> None:
+        super().__init__(f"row values refused on page {page_id}'s own data: "
+                         + "; ".join(f"{item}: {why}" for item, why in sorted(refused.items())))
+        self.page_id, self.refused = page_id, dict(sorted(refused.items()))
 
 
 class UncarriedCombinedValue(ConsolidationError):
@@ -759,8 +782,10 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                              activity_extraction=activity_extraction,
                              provenance=srow.Provenance.of(instrument, extraction,
                                                            rule_coder_version=activity_config.coder_version))
-        if rows.refused:
+        if rows.stops:  # unproduced items and wiring gaps stop the stage (RC-D-033 C2 a, PI 32 b)
             raise MissingUpstreamError(f"{VALUES_PRODUCER} ({srow.ASSEMBLER})", sorted(rows.refused))
+        if rows.refused:  # PI ruling 97 b: refused on the page's own data: this institution is held
+            raise RowValueRefused(page.page_id, rows.data_refusals())
         a_vals, s_vals, codes = rows.to_upstream(keys)
         up = replace(up, activity_values=a_vals, source_values=s_vals, codes=codes)
     for name, value, need in (("activity_values", up.activity_values, list(acts)),
@@ -1365,6 +1390,10 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             except UncarriedCombinedValue as exc:  # Y3 b: refused as a per-institution hold
                 uncarried = exc
                 break
+            except RowValueRefused as exc:  # PI ruling 97 b: the page's own data: this institution only
+                broken = {"page_id": exc.page_id, "stage": ROW_VALUE_REFUSED, "items": sorted(exc.refused),
+                          "refusals": exc.refused, "error": str(exc)}
+                break
             except STAGE_STOPS:
                 raise
             except (ConsolidationError, ValueError, RuntimeError) as exc:  # this institution only
@@ -1375,8 +1404,11 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             hold = broken if broken is not None else {
                 "page_id": uncarried.page_id, "stage": UNCARRIED_STAGE, "items": sorted(uncarried.values)}
             _atomic_write(held_path, canonical_json({"institution_id": inst.institution_id, "held": [hold]}))
+            detail = f"{hold['page_id']}:{hold['stage']}"
+            if hold["stage"] == ROW_VALUE_REFUSED:  # ruling 97 b: the reason names the items refused
+                detail += ":" + ",".join(hold["items"])
             attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_REASON,
-                             detail=f"{hold['page_id']}:{hold['stage']}")
+                             detail=detail)
             metrics.held.append(inst.institution_id)
             continue
         if held_path.exists():
@@ -1594,7 +1626,8 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 
 __all__ = [
-    "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
+    "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS",
+    "ROW_VALUE_REFUSED", "RowValueRefused", "quote_stage_as_of", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "FOLLOW_FAILED", "FollowWiringError", "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
