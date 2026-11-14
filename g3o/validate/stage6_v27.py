@@ -94,7 +94,7 @@ from g3o.classify.jev_activity_code import (
 from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE, apply_permanent_pilot_override
 from g3o.classify.questions.v27 import choice_request, load_set
 from g3o.common.cost_monitor import BudgetExceededError, UnpricedModelError
-from g3o.common.jev_client import JevAccountError, JevResult
+from g3o.common.jev_client import JevAccountError, JevResult, has_request_id
 from g3o.common.jev_record import ClassifierRule, CoderRecord
 from g3o.common.page_chunks import (
     JEV_STATE_TOKEN_LIMIT,
@@ -381,7 +381,7 @@ def _request(ask_fn: AskFn, state: dict[str, Any], questions: dict[str, dict[str
         raise
     except Exception as exc:  # noqa: BLE001 - a failed request fails this part only
         return None, REQUEST_FAILED, f"{type(exc).__name__}: {exc}"
-    if not (isinstance(result.request_id, str) and result.request_id.strip()):
+    if not has_request_id(result.request_id):
         return None, MISSING_REQUEST_ID, None
     return result, None, None
 

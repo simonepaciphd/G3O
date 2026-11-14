@@ -65,7 +65,7 @@ from g3o.classify.permanent_pilot import (
     apply_permanent_pilot_override,
 )
 from g3o.classify.questions.v27 import choice_request, load_set
-from g3o.common.jev_client import JevAccountError, JevResult
+from g3o.common.jev_client import JevAccountError, JevResult, has_request_id
 from g3o.common.jev_record import ClassifierRule, CoderRecord
 from g3o.common.page_chunks import Chunk
 from g3o.extract.parser_v27 import ActivitySpan
@@ -734,7 +734,7 @@ def code_page(inp: ActivityPageInput, ask_fn: AskFn, config: ActivityCoderConfig
                     raise
                 except Exception as exc:  # noqa: BLE001 - any other failure fails this part only
                     reason, detail = REQUEST_FAILED, f"{type(exc).__name__}: {exc}"
-                if result is not None and not (isinstance(result.request_id, str) and result.request_id.strip()):
+                if result is not None and not has_request_id(result.request_id):
                     reason, result = MISSING_REQUEST_ID, None
                 if result is None:
                     failures.append(PartFailure(reason, sp.activity_id, chunk.chunk_id, rnd, qids, detail))
@@ -801,7 +801,7 @@ def _code_pair(inp: ActivityPageInput, pair: ActivityPair, q: dict[str, Any], as
         except Exception as exc:  # noqa: BLE001 - a request failure is a failed part vote
             reason, detail = REQUEST_FAILED, f"{type(exc).__name__}: {exc}"
         if result is not None:
-            if not isinstance(result.request_id, str) or not result.request_id.strip():
+            if not has_request_id(result.request_id):
                 reason = MISSING_REQUEST_ID
             elif qid not in result.answers:
                 reason = ANSWER_MISSING

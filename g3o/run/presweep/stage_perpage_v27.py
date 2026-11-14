@@ -160,6 +160,7 @@ from g3o.classify.jev_activity_code import (
 from g3o.classify.jev_page_code import PageCoderConfig, PageCodeResult, PageInput, contact_text
 from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE
 from g3o.classify.question_rounds import (
+    REASK_SEAM,
     ActivityRoundResult,
     PageRoundResult,
     complete_activity_rounds,
@@ -1044,6 +1045,21 @@ class _PageState:
     holds: list[dict[str, Any]] = field(default_factory=list)
 
 
+def _reask_seam(ask: Any) -> Any:
+    """The journaled ``ask``'s re-ask seam (PI ruling 75 a; re-ask review LOW (a)).
+
+    The per-page stage always journals ``ask`` (:meth:`RequestJournal.ask`), whose ``reask``
+    attribute replays a re-ask already billed without a request id. It is passed to
+    :func:`complete_page_rounds` explicitly; an ``ask`` without it (e.g. a wrapper that hid it)
+    would silently resend a billed re-ask, so it is a wiring error that stops the stage
+    (``TypeError``, not a per-institution hold; ruling 32 b)."""
+    seam = getattr(ask, REASK_SEAM, None)
+    if not callable(seam):
+        raise TypeError(f"the per-page jev ask function has no callable {REASK_SEAM!r} seam (the request "
+                        "journal's; ruling 75 a): a wiring error, the stage stops")
+    return seam
+
+
 def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPageProviders,
                      page_config: PageCoderConfig, activity_config: ActivityCoderConfig,
                      metrics: PerPageMetrics) -> None:
@@ -1063,7 +1079,8 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
         result, support = saved
     st.page_round = complete_page_rounds(
         page, result, support, ask_fn=ask, config=page_config,
-        check_support=lambda r, recs: providers.page_support(page, r, recs), checkpoint=page_ckpt.save)
+        check_support=lambda r, recs: providers.page_support(page, r, recs), checkpoint=page_ckpt.save,
+        reask_fn=_reask_seam(ask))
     metrics.checkpoint_writes += page_ckpt.writes
     if st.page_round.failed:  # ruling 69 b: failed after halving in an extra round, as a T-021 failure
         failure = st.page_round.failure
