@@ -1118,6 +1118,125 @@ def test_page_support_after_an_extra_round_with_every_code_unchecked_stays_an_ex
     assert [j.custom_id for j in resumed.jobs] == [extra_cid, page_cid]  # page request rebuilt from T-021
 
 
+class NoFirstRoundActivities(FakeExtractor):
+    """The first-round pass-1 request returns no activity; the activity-only request (87 c) does."""
+
+    def __call__(self, job):
+        result = super().__call__(job)
+        if job.metadata["stage"] == PASS1 and ppv.ACTIVITY_ONLY_MARK not in job.custom_id[len("x27-") + 48:]:
+            payload = json.loads(result.text)
+            payload["activities"] = []
+            result = replace(result, text=json.dumps(payload))
+        return result
+
+
+def _flipped_round(run_dir, bound, page, *, flipped=True):
+    """p1's coded result with a 68 b PLAN_KEPT verdict entry (``background_only`` -> confirms_activity)
+    and a final verdict ``confirms_activity``; ``flipped=False``: no such entry."""
+    from g3o.classify.jev_page_code import PageCodeResult
+    from g3o.classify.question_rounds import PLAN_KEPT, PageRoundResult
+    from g3o.common.artifact_io import read_artifact
+    from g3o.run.presweep import stage_page_code
+
+    result = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(run_dir, page.institution_id,
+                                                                                  page.url)))
+    records = [r for r in result.records if r.coder_type == "classifier" and r.chosen_value != NOT_COVERED]
+    log = ({"chunk_id": None, "round": 3, "question_ids": ["core.disclosure_scope"], "outcome": PLAN_KEPT,
+            "item_id": jpc.VERDICT, "before": {"state": "combined", "value": "background_only"},
+            "after": {"state": "combined", "value": "confirms_activity"}},) if flipped else ()
+    started = replace(result, requests=result.requests + ({
+        "chunk_id": result.chunks[0].chunk_id, "round": 3, "group": "extra",
+        "question_ids": ["core.disclosure_scope"], "outcome": "halved", "halves": [], "reask": []},) + log)
+    return result, started, records, lambda first: PageRoundResult(
+        started, (lambda f: replace(f, items={**f.items, jpc.VERDICT: replace(
+            f.items[jpc.VERDICT], state="combined", value="confirms_activity")}))(
+            jpc.finalize_page(result, first, bound.page_config)), tuple(first), 1)
+
+
+def test_verdict_flipped_to_confirms_gets_one_activity_only_request_87c(tmp_path):
+    """PI ruling 87 c: a page a halving flipped to confirms_activity, whose first-round request returned
+    no activity, gets ONE activity-only pass-1 request: the signed activity task alone (no quote, link
+    or date task; the pinned system prompt), its own custom_id, the spans activity_input uses; a fresh
+    adapter (a resume) rebuilds the same request. Without the flip no such request is made."""
+    from g3o.classify.jev_page_code import to_pass1_page
+    from g3o.classify.question_rounds import verdict_flipped_to_confirms
+    from g3o.extract import request_v27
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    a = [i for i in insts if i.institution_id == "INST-0000001"]
+    _run(run_dir, bound, instrument, a, _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+         FakeJev(ANSWERS, RELATIONS))
+    page = world.pages["p1"].input
+    result, started, records, page_round_of = _flipped_round(run_dir, bound, page)
+    page_cid = request_v27.make_custom_id(page.institution_id, page.url)
+
+    extract = NoFirstRoundActivities(world)
+    providers = _providers(run_dir, bound, instrument, extract, FakeEntail())
+    first = providers.page_support(page, result, records)
+    page_round = page_round_of(first)
+    assert verdict_flipped_to_confirms(page_round)
+    inp = providers.activity_input(page, page_round)
+    assert [j.custom_id for j in extract.jobs][0] == page_cid and len(extract.jobs) == 2
+    only = extract.jobs[1]
+    p1 = to_pass1_page(started, page)
+    assert only.custom_id == ppv.activity_only_custom_id(page_cid, p1) and len(only.custom_id) <= 64
+    assert only.custom_id not in (page_cid, ppv.extra_round_custom_id(page_cid, p1.codes))
+    fields = [request_v27.field_name(i) for i in request_v27.default_rules().activity_fields]
+    assert _tasks(only) == {"quote_tasks": [], "link_task": False, "activity_task": {"fields": fields},
+                            "date_task": False}
+    assert only.params["system"] == bound.pass1_system  # no new wording
+    assert [s.activity_id for s in inp.spans] == [aid("p1")]  # the spans of the activity-only request
+    ext = providers.activity_extraction(page.page_id)
+    assert ext is not None and ext.custom_id == only.custom_id and ext.request_id
+    assert providers.page_extraction(page.page_id).activities == ()  # the first-round request is kept
+    providers.activity_input(page, page_round)  # asked once
+    assert len(extract.jobs) == 2
+
+    resumed = NoFirstRoundActivities(world)  # a fresh adapter: the same two requests, same params
+    fresh = _providers(run_dir, bound, instrument, resumed, FakeEntail())
+    assert [s.activity_id for s in fresh.activity_input(page, page_round).spans] == [aid("p1")]
+    assert [(j.custom_id, j.params) for j in resumed.jobs] == [(j.custom_id, j.params) for j in extract.jobs]
+
+    plain = NoFirstRoundActivities(world)  # no flip: no activity-only request, no activity
+    _, _, _, unflipped_of = _flipped_round(run_dir, bound, page, flipped=False)
+    other = _providers(run_dir, bound, instrument, plain, FakeEntail())
+    unflipped = unflipped_of(other.page_support(page, result, records))
+    assert not verdict_flipped_to_confirms(unflipped)
+    assert other.activity_input(page, unflipped) is None and other.activity_extraction(page.page_id) is None
+    assert [j.custom_id for j in plain.jobs] == [page_cid]
+
+
+def test_activity_only_request_is_journaled_priced_and_replayed_87c(tmp_path):
+    """PI ruling 87 c with 57 a / 58 a / 67 a: the activity-only request goes through the request journal
+    like every extractor call: counted with its own usage, and replayed (no new call) on a resume."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    a = [i for i in insts if i.institution_id == "INST-0000001"]
+    _run(run_dir, bound, instrument, a, _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+         FakeJev(ANSWERS, RELATIONS))
+    page = world.pages["p1"].input
+    result, _, records, page_round_of = _flipped_round(run_dir, bound, page)
+    path = tmp_path / "journal87c.jsonl"
+
+    def journaled(extract):
+        journal = rt.RequestJournal(path, {"s": 1})
+        base = _providers(run_dir, bound, instrument, extract, FakeEntail())
+        return journal, base.with_seams(*journal.seams(base.journal_prompt))
+
+    extract = NoFirstRoundActivities(world)
+    journal, providers = journaled(extract)
+    page_round = page_round_of(providers.page_support(page, result, records))
+    providers.activity_input(page, page_round)
+    assert len(extract.jobs) == 2
+    assert _agree(journal) == [USAGE, USAGE]  # each request its own usage, priced per request (58 a)
+
+    again = NoFirstRoundActivities(world)
+    journal2, resumed = journaled(again)
+    page_round2 = page_round_of(resumed.page_support(page, result, records))
+    assert [s.activity_id for s in resumed.activity_input(page, page_round2).spans] == [aid("p1")]
+    assert again.jobs == [] and journal2.replayed >= 2 and journal2.live == 0
+    assert len(_agree(journal2)) == 2
+
+
 def test_pass2_later_round_takes_the_same_request_uninterrupted_and_resumed(tmp_path, monkeypatch):
     """Ruling 49 a with 41 a: a later activity round (a strict subset of the page's ordinary codes,
     the earlier ones already supported) takes the extra-round request whether the adapter made the

@@ -301,6 +301,24 @@ def extra_round_started(result: page_code.PageCodeResult) -> bool:
     return any(e.get("group") == "extra" for e in (*result.requests, *result.failures))
 
 
+#: The verdict a halving can flip a page to that needs activity spans the stored first-round request
+#: may lack (PI ruling 87 c; :func:`verdict_flipped_to_confirms`).
+CONFIRMS_ACTIVITY = "confirms_activity"
+
+
+def verdict_flipped_to_confirms(page_round: PageRoundResult) -> bool:
+    """Whether a halving in an extra round flipped the page's verdict to ``confirms_activity`` (PI ruling 87 c).
+
+    True when the final verdict is a combined ``confirms_activity`` and a :data:`PLAN_KEPT` entry (ruling
+    68 b) records a provisional verdict change from another value: the stored first-round extractor
+    request was planned on that earlier verdict. Read from the saved result, so the same on a resume."""
+    final = page_round.final.items.get(page_code.VERDICT)
+    if page_round.failed or final is None or final.state != "combined" or final.value != CONFIRMS_ACTIVITY:
+        return False
+    return any(e.get("outcome") == PLAN_KEPT and e.get("item_id") == page_code.VERDICT
+               and (e.get("before") or {}).get("value") != CONFIRMS_ACTIVITY for e in page_round.result.requests)
+
+
 def _halvings(result: page_code.PageCodeResult) -> list[dict[str, Any]]:
     return [e for e in result.requests if e.get("outcome") == HALVED]
 

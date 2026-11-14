@@ -702,6 +702,31 @@ def test_plan_kept_logs_only_items_recombined_after_the_halving(monkeypatch, rul
     assert [(e["item_id"], e["outcome"]) for e in logged] == [(complete, PLAN_KEPT)]
 
 
+def test_verdict_flipped_to_confirms_reads_the_plan_kept_log_87c(monkeypatch, rules):
+    """PI ruling 87 c: a page is flipped to confirms_activity when its final verdict is a combined
+    confirms_activity and a 68 b PLAN_KEPT entry records a verdict change from another value."""
+    from g3o.classify.question_rounds import PageRoundResult, verdict_flipped_to_confirms
+
+    _, result, support, config, _ = page_case(monkeypatch, rules)
+    final = pc.finalize_page(result, support, config)
+    assert final.items[VERDICT].value == "confirms_activity"
+
+    def entry(before, item=VERDICT):
+        return {"chunk_id": None, "round": 3, "question_ids": [SCOPE], "outcome": PLAN_KEPT, "item_id": item,
+                "before": {"state": "combined", "value": before},
+                "after": {"state": "combined", "value": "confirms_activity"}}
+
+    def flipped(*log, status="coded"):
+        res = replace(result, requests=result.requests + log, status=status)
+        return verdict_flipped_to_confirms(PageRoundResult(res, final, support, 1))
+
+    assert flipped(entry("background_only"))
+    assert not flipped()  # no halving changed the verdict
+    assert not flipped(entry("confirms_activity"))  # not a flip to it
+    assert not flipped(entry("no", item="core.page_complete"))  # another item's change
+    assert not flipped(entry("background_only"), status="failed")  # a failed page (69 b)
+
+
 def test_page_halving_changed_verdict_resume_is_stable(monkeypatch, rules):
     """PI ruling 68 b on resume: interrupted right after the change is saved, the resumed page
     sends nothing twice, logs the change once and matches an uninterrupted run."""

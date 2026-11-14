@@ -343,6 +343,17 @@ def quote_tasks_only(plan: RequestPlan) -> RequestPlan:
                    date_task=False, link_status=None)
 
 
+def activity_task_only(page: Pass1Page, rules: Pass1Rules | None = None) -> RequestPlan:
+    """A plan with the activity task alone (spans and the residual activity fields; PI ruling 87 c).
+
+    For a page whose verdict a halving in an extra round flipped to ``confirms_activity`` when its
+    stored first-round request (planned on the earlier verdict, ruling 68 b) returned no activity.
+    No quote, link or date task: those come from the first-round request. The task is the signed
+    activity task, worded as in every request (same system prompt, schema and task block)."""
+    rules = rules or default_rules()
+    return RequestPlan(page_id=page.page_id, activity_fields=rules.activity_fields, activity_task=True)
+
+
 # ---------------------------------------------------------------------------
 # Prompt and request assembly
 # ---------------------------------------------------------------------------
@@ -507,6 +518,7 @@ __all__ = [
     "RequestPlan",
     "SkippedCode",
     "StoredLink",
+    "activity_task_only",
     "build_job",
     "build_jobs",
     "build_system_prompt",
