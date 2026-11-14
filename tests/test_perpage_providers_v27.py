@@ -1298,7 +1298,9 @@ def test_activity_only_request_compares_the_first_round_plan_100b(tmp_path, firs
         inp = providers.activity_input(page, page_round)
         assert any(_is_activity_only(j) for j in extract.jobs) is sent
         assert (inp is not None) is sent
-        assert providers.verdict_downgrade(page.page_id) is None
+        # PI ruling 109 a: not sent because the first plan had the activity task, which gave no activity, while
+        # the final verdict is confirms_activity: the 99.2 downgrade
+        assert providers.verdict_downgrade(page.page_id) == (None if sent else ppv.FIRST_PLAN_NO_ACTIVITY)
 
 
 def test_activity_only_request_with_no_activity_downgrades_the_verdict_support_99_2(tmp_path):
@@ -1330,6 +1332,42 @@ def test_activity_only_request_with_no_activity_downgrades_the_verdict_support_9
                                support_status=sr.support_status, chosen_probability=verdict.probability)
     assert not _positive(page_doc)  # consolidate_v27: never positive; and not an "open positive" (downgraded_)
     assert sr.support_status.startswith("downgraded_")
+
+
+@pytest.mark.parametrize("first_verdict,flipped", [
+    ("ambiguous_genai", True),  # the R-003 flip ambiguous_genai -> confirms_activity, zero spans
+    ("confirms_activity", False),  # confirms_activity from the first round, zero spans
+])
+def test_confirms_page_whose_first_plan_gave_no_activity_is_downgraded_109a(tmp_path, first_verdict, flipped):
+    """PI ruling 109 a: a confirms_activity page whose first-round plan had an activity task but whose page
+    request gave zero activity spans gets the 99.2 downgrade (FIRST_PLAN_NO_ACTIVITY): no activity-only
+    request (ruling 100 b), the verdict support at its deciding part downgraded_no_quote, never positive. With
+    spans, nothing is downgraded."""
+    from g3o.validate.consolidate_v27 import _positive
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, _, records, page_round_of = _flipped_round(run_dir, bound, page, first_verdict=first_verdict,
+                                                       flipped=flipped)
+    extract = NoActivitiesAnywhere(world)
+    providers = _providers(run_dir, bound, instrument, extract, FakeEntail())
+    page_round = page_round_of(providers.page_support(page, result, records))
+    assert page_round.final.items[jpc.VERDICT].value == "confirms_activity"
+    assert providers.activity_input(page, page_round) is None
+    assert not any(_is_activity_only(j) for j in extract.jobs)
+    assert providers.verdict_downgrade(page.page_id) == ppv.FIRST_PLAN_NO_ACTIVITY
+    down = pp.downgrade_verdict_support(page, page_round)
+    verdict = page_round.final.items[jpc.VERDICT]
+    (sr,) = [s for s in down.support if pp._support_key(s) == (None, jpc.VERDICT, None, verdict.part_id, None)]
+    assert sr.support_status == support_check.NO_QUOTE and sr.value == "confirms_activity"
+    page_doc = SimpleNamespace(pipeline=pp.PIPELINE, reviewed=True, failed=False, page_verdict="confirms_activity",
+                               support_status=sr.support_status, chosen_probability=verdict.probability)
+    assert not _positive(page_doc)
+
+    spans = FakeExtractor(world)  # the first request returns the page's activity: no downgrade
+    with_spans = _providers(run_dir, bound, instrument, spans, FakeEntail())
+    page_round = page_round_of(with_spans.page_support(page, result, records))
+    assert with_spans.activity_input(page, page_round) is not None
+    assert with_spans.verdict_downgrade(page.page_id) is None
 
 
 def test_activity_only_request_at_the_rejection_cap_downgrades_the_verdict_support_99_1(tmp_path):

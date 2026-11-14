@@ -59,7 +59,10 @@ The seams:
   no activity (:data:`ACTIVITY_ONLY_EMPTY`), the page has no activity and its
   final verdict's support is downgraded ``downgraded_no_quote``
   (``verdict_downgrade``; applied by the per-page stage), so it never counts
-  as positive.
+  as positive. PI ruling 109 a: the same downgrade (:data:`FIRST_PLAN_NO_ACTIVITY`)
+  for a page whose final verdict is ``confirms_activity`` and whose first-round
+  plan had an activity task, but whose page request gave no activity (e.g. an
+  ``ambiguous_genai`` first verdict that flipped to ``confirms_activity``).
 - ``activity_support`` / ``pair_support`` - T-032 pass 2:
   :func:`~g3o.classify.jev_activity_code.to_pass2_page`,
   :func:`~g3o.extract.pass2_support.select_requests`, ``pass2_job``,
@@ -125,7 +128,7 @@ from g3o.classify.jev_activity_code import (
     PageActivityResult,
     to_pass2_page,
 )
-from g3o.classify.jev_page_code import PageCodeResult, PageInput, to_pass1_page
+from g3o.classify.jev_page_code import VERDICT, PageCodeResult, PageInput, to_pass1_page
 from g3o.classify.question_rounds import (
     PageRoundResult,
     extra_round_started,
@@ -235,6 +238,16 @@ ACTIVITY_ONLY_CAP = "activity_only_request_rejection_cap"
 #: PI ruling 99.2: the activity-only request succeeded with no activity (none returned, or every span
 #: rejected by the parser).
 ACTIVITY_ONLY_EMPTY = "activity_only_request_no_activity"
+#: PI ruling 109 a: the 99.2 downgrade of a page whose final verdict is ``confirms_activity`` and whose first-round
+#: (T-022 page request) plan had an activity task, but that request gave no activity (none returned, or every span
+#: rejected by the parser); no activity-only request is made for it (ruling 100 b)
+FIRST_PLAN_NO_ACTIVITY = "first_round_request_no_activity"
+
+
+def _final_confirms(page_round: PageRoundResult) -> bool:
+    """Whether the page's final verdict is a combined ``confirms_activity`` (the verdict the 99.2 downgrade takes)."""
+    verdict = page_round.final.items.get(VERDICT)
+    return verdict is not None and verdict.state == "combined" and verdict.value == "confirms_activity"
 
 
 def activity_only_custom_id(first_round: str, page: Any) -> str:
@@ -480,6 +493,9 @@ class _Adapter:
             self._span_pass1[pid] = self._activity_only_job[pid]
             if not spans:  # ruling 99.2: no activity (none returned, or every span rejected by the parser)
                 self._verdict_downgrade[pid] = ACTIVITY_ONLY_EMPTY
+        elif not spans and self._page_plan[pid].activity_task and _final_confirms(page_round):
+            # PI ruling 109 a: the first plan asked for activities and got none, yet the page confirms one
+            self._verdict_downgrade[pid] = FIRST_PLAN_NO_ACTIVITY
         if not spans:
             return None
         return ActivityPageInput(to_pass1_page(page_round.result, page), page.country,
@@ -533,7 +549,9 @@ class _Adapter:
     def verdict_downgrade(self, page_id: str) -> str | None:
         """Why the page's final verdict support is downgraded ``downgraded_no_quote`` (PI ruling 99.1 a /
         99.2: its activity-only request reached the rejection cap, :data:`ACTIVITY_ONLY_CAP`, or gave no
-        activity, :data:`ACTIVITY_ONLY_EMPTY`), as the last :meth:`activity_input` for it decided; else None."""
+        activity, :data:`ACTIVITY_ONLY_EMPTY`; PI ruling 109 a: a confirms_activity page whose first-round plan
+        had an activity task and gave none, :data:`FIRST_PLAN_NO_ACTIVITY`), as the last :meth:`activity_input`
+        for it decided; else None."""
         return self._verdict_downgrade.get(page_id)
 
     def page_extraction(self, page_id: str) -> Pass1Extraction | None:
