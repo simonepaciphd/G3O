@@ -1629,9 +1629,9 @@ def test_residual_source_type_page_reaches_its_row_through_the_stage_95a(tmp_pat
 
 
 def test_residual_answers_are_saved_and_never_asked_again_on_a_resume_105b(tmp_path, monkeypatch):
-    """Review H2 with PI ruling 105 b. Run 1: one part of the residual source_type question fails (an
-    exception: the journal does not record it as final), the page's first pass-1 request carries the other
-    part's quote task, and the stage stops after T-022 (on the assembler's refusals). Run 2: the answers
+    """Review H2 with PI ruling 105 b. Run 1: every part of the residual source_type question after the first
+    (deciding) part fails (an exception: the journal does not record it as final), the page's first pass-1
+    request carries the first part's quote task, and the stage stops after T-022 (on the assembler's refusals). Run 2: the answers
     saved before that request are loaded, so nothing is asked again and the first request is rebuilt with the
     same parameters and replayed (no extractor call). Run 3, the saved answers moved aside: the failed part is
     asked again live and answers, the rebuilt first request's parameters change, and the institution is held
@@ -1649,17 +1649,25 @@ def test_residual_answers_are_saved_and_never_asked_again_on_a_resume_105b(tmp_p
     saved = pp.page_state_dir(run_dir, spec.page) / pp.SOURCE_TYPE_FILE
     answers = {**ANSWERS, sf.SOURCE_TYPE: "vendor"}
 
-    def second_part_fails(state, questions, n):
-        if sf.SOURCE_TYPE in questions and not state["page_part"].startswith("1"):
+    # The failed part must NOT be the deciding part. A deciding part with no answer has no check, and the
+    # assembler stops the stage on its deliberately unbuilt path (TypeError, "0 checked answers at the deciding
+    # part"; open PI question 110), which this test is not about. source_type combines by first_section (the
+    # first part with a real, not failed answer), so part 1 answering pins it as the deciding part; every later
+    # part fails. Matched on the exact part index ("1 of n"), never a prefix ("10 of 12" starts with "1").
+    def later_parts_fail(state, questions, n):
+        if sf.SOURCE_TYPE in questions and state["page_part"].split(" of ")[0] != "1":
             return RuntimeError("simulated residual part failure")
         return None
 
-    jev1, ex1 = FakeJev(answers, RELATIONS, second_part_fails), FakeExtractor(world)
+    jev1, ex1 = FakeJev(answers, RELATIONS, later_parts_fail), FakeExtractor(world)
     with pytest.raises(pp.MissingUpstreamError, match="source-row assembler"):
         _run(run_dir, bound, instrument, inst, _providers(run_dir, bound, instrument, ex1, FakeEntail()), jev1)
     assert len(_source_type_calls(jev1)) > 1 and saved.exists()
     typing1 = seen[-1]["source_typing"]
-    assert any(f["reason"] == jpc.REQUEST_FAILED for f in typing1.result.failures)  # the failed part
+    failed_parts = {f["chunk_id"] for f in typing1.result.failures if f.get("reason") == jpc.REQUEST_FAILED}
+    deciding = typing1.outcome.part_id
+    assert failed_parts  # the failed part(s)
+    assert deciding == typing1.result.chunks[0].chunk_id and deciding not in failed_parts  # pinned non-deciding
 
     jev2, ex2 = FakeJev(answers, RELATIONS), FakeExtractor(world)  # every part would answer now
     with pytest.raises(pp.MissingUpstreamError, match="source-row assembler"):
