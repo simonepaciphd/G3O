@@ -821,18 +821,20 @@ def test_page_halving_reask_without_answer_is_one_failed_part_vote(monkeypatch, 
     assert again.result == done.result and again.final == done.final
 
 
-def test_page_halving_reask_without_request_id_is_one_failed_part_vote(monkeypatch, rules):
+@pytest.mark.parametrize("blank", [None, "", "   "])
+def test_page_halving_reask_without_request_id_is_one_failed_part_vote(monkeypatch, rules, blank):
     """PI ruling 75 a: a re-ask response with no request id: the billed request is logged with the
-    first-round outcome, one failure covers its questions (a failed part vote each), the page goes on."""
+    first-round outcome, one failure covers its questions (a failed part vote each), the page goes on.
+    A whitespace-only id is missing, as in the first round (one predicate, ``has_request_id``)."""
     page, result, support, config, fake, ask, billed = _reask_case(monkeypatch, rules, lambda res: JevResult(
-        res.answers, res.response_model, None, res.input_tokens, res.output_tokens))
+        res.answers, res.response_model, blank, res.input_tokens, res.output_tokens))
     done = complete_page_rounds(page, result, support, ask_fn=ask, config=config, check_support=_page_check)
     assert len(billed) == 1
     assert not (done.result.items[SCOPE].note or "").startswith("extra_round_failed")
     entry = next(e for e in done.result.requests
                  if e.get("chunk_id") == "p:1.2" and VERDICT in e.get("question_ids", ()) and e.get("reasked")
                  and e.get("outcome") != "halved")
-    assert entry["outcome"] == pc.MISSING_REQUEST_ID and entry["request_id"] is None
+    assert entry["outcome"] == pc.MISSING_REQUEST_ID and entry["request_id"] == blank
     assert entry["input_tokens"] == 10 and entry["output_tokens"] == 1
     failed = [f for f in done.result.failures if f["reason"] == pc.MISSING_REQUEST_ID]
     assert [(f["chunk_id"], f["question_ids"], f["reasked"]) for f in failed] == [

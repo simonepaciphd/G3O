@@ -37,6 +37,8 @@ Ruled specifics:
   (``chrome_status`` says which).
 - A part request with no request id is a failed part request
   (``jev_missing_request_id``; PI Q5); no placeholder id is ever recorded.
+  An empty or whitespace-only id is missing too
+  (:func:`~g3o.common.jev_client.has_request_id`, shared with the extra-round re-ask).
 - A failed part request enters combining as a failed answer (``unknown``,
   all-03 a). Failed verdict requests have no vote: successful parts combine.
   At least 75% failed verdict parts, counted on the current leaf layout, fail
@@ -54,7 +56,7 @@ from typing import Any
 from g3o.classify.questions.v27 import choice_request, load_set
 from g3o.codebook.loader import Codebook, load_codebook
 from g3o.common import part_combine as pc
-from g3o.common.jev_client import JevAccountError, JevResult
+from g3o.common.jev_client import JevAccountError, JevResult, has_request_id
 from g3o.common.jev_record import ClassifierRule, CoderRecord
 from g3o.common.page_chunks import (
     DEFAULT_MAX_SPLIT_DEPTH,
@@ -477,7 +479,7 @@ def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
             on_response(result)
         log.update(response_model=result.response_model, request_id=result.request_id,
                    input_tokens=result.input_tokens, output_tokens=result.output_tokens)
-        if not result.request_id:
+        if not has_request_id(result.request_id):  # whitespace-only = missing, as on a re-ask (ruling 75 a)
             entry["failure"] = {"reason": MISSING_REQUEST_ID, "detail": "jev returned no request id"}
             requests.append({**log, "outcome": MISSING_REQUEST_ID})
             cache[key] = entry

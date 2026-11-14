@@ -66,7 +66,7 @@ from g3o.classify import jev_activity_code as activity
 from g3o.classify import jev_page_code as page_code
 from g3o.common import part_combine as pcomb
 from g3o.common.cost_monitor import BudgetExceededError
-from g3o.common.jev_client import JevAccountError
+from g3o.common.jev_client import JevAccountError, has_request_id
 from g3o.common.jev_record import CoderRecord
 from g3o.common.page_chunks import halve_chunk
 from g3o.common.part_combine import NOT_COVERED
@@ -452,7 +452,7 @@ def _reask_answered(result: page_code.PageCodeResult, response: Any, qs: Sequenc
     entry = {**log, "request_id": response.request_id, "response_model": response.response_model,
              "input_tokens": response.input_tokens, "output_tokens": response.output_tokens}
     rnd, gname = log["round"], log["group"]
-    if not isinstance(response.request_id, str) or not response.request_id.strip():
+    if not has_request_id(response.request_id):
         result = replace(result, requests=result.requests + ({**entry, "outcome": page_code.MISSING_REQUEST_ID},),
                          failures=result.failures + ({
                              "chunk_id": chunk_id, "round": rnd, "group": gname, "question_ids": list(log["question_ids"]),
@@ -611,7 +611,7 @@ def _binding(records: Sequence[CoderRecord], setup_pointer: str) -> None:
 
 
 def _answer(response: Any, q: dict[str, Any], chunk_id: str, config: Any, qsv: str) -> CoderRecord:
-    if not isinstance(response.request_id, str) or not response.request_id.strip():
+    if not has_request_id(response.request_id):
         raise ValueError("extra question response lacks request id")
     if q["question_id"] not in response.answers:
         raise ValueError("extra question response lacks answer")
