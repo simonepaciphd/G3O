@@ -126,8 +126,10 @@ class Builder:
         frag = self._row("activities", values, oid, sid, pid, quote)
         tool_node = next(s for s in frag["item_support"] if s["item_id"] == "core.tool_name")
         src_values = _values("sources")
+        # date_upper_bound is yes only for an archive_upper_bound date origin, which no producer sets
+        # (A8.12 a: no archive lookup): beside the real publication date 2025-01 it is no.
         src_values.update({"core.page_verdict": verdict, "core.source_url": f"https://example.gov/{pid}",
-                           "core.content_contact_emails": emails})
+                           "core.content_contact_emails": emails, "core.date_upper_bound": "no"})
         src = self._row("sources", src_values, oid, sid, pid, quote)
         src.update(observation_ids=[oid], page_artifact_path=path, page_content_sha256=sha256_text(text))
         self.sources[sid] = src
