@@ -696,7 +696,9 @@ def test_residual_question_on_a_given_layout_95a(rules):
     assert len(planned.result.chunks) > 1
     whole = (replace(planned.result.chunks[0], end=len(text), text=text),)
     fake = FakeJev({"": ("academic", 0.9)})
-    given = sf.code_source_type(page(text), fake, replace(c, limit_tokens=100_000), layout=whole)
+    roomy = jpc.PageCoderConfig(rules=rules, setup_pointer="a" * 64, configured_model="jev-test-1",
+                                reserved_tokens=0)  # the default (approved) request limit: one part fits
+    given = sf.code_source_type(page(text), fake, roomy, layout=whole)
     assert [ch.chunk_id for ch in given.result.chunks] == [whole[0].chunk_id] and len(fake.calls) == 1
     broken = FakeJev({"": ("academic", 0.9)})
     with pytest.raises(ValueError, match="tile|cover"):
