@@ -1373,7 +1373,7 @@ def _first_complete(run_dir: Path, page: PageInput) -> str | None:
 
 
 def _follow_rounds(run_dir: Path, inst: PerPageInstitution, states: list[_PageState], follow: Any,
-                   held_path: Path, **code: Any) -> dict[str, Any] | None:
+                   held_path: Path, unread: list[dict[str, Any]], **code: Any) -> dict[str, Any] | None:
     """The T-025 follow leg of one institution (RC-D-023 C-1 a), after its searched pages are coded.
 
     Each round follows the links of the last round's coded pages
@@ -1382,10 +1382,10 @@ def _follow_rounds(run_dir: Path, inst: PerPageInstitution, states: list[_PageSt
     and extractor call, the same request journal). A round stops the leg when a
     page holds the institution; the next run resumes from the follow state and the
     journal. Once no round fetches a page, the specs get their follow page fields
-    (:meth:`~g3o.run.presweep.follow_v27.InstitutionLeg.finish`), and an
-    institution with a URL tried and not fetched, or a link not followed, is held
-    (:data:`g3o.run.presweep.follow_v27.FOLLOW_ATTEMPTS_UNRULED`, a PI question).
-    Returns the hold, or None.
+    (:meth:`~g3o.run.presweep.follow_v27.InstitutionLeg.finish`), and each URL
+    tried and not fetched, or link not followed, is appended to ``unread`` (PI
+    rulings 79 b / 96 a / 102 a: it enters Stage 6 through
+    :func:`g3o.run.presweep.follow_v27.unread_products`). Returns the hold, or None.
     """
     from g3o.run.presweep.follow_v27 import round_page
 
@@ -1411,7 +1411,8 @@ def _follow_rounds(run_dir: Path, inst: PerPageInstitution, states: list[_PageSt
             return broken
     for st, spec in zip(states, leg.finish([st.spec for st in states]), strict=True):
         st.spec = spec
-    return leg.hold()
+    unread.extend(leg.unreviewed())  # PI rulings 79 b / 96 a / 102 a
+    return None
 
 
 def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *, ask_fn: Any,
@@ -1475,6 +1476,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
         if broken is None:  # ruling 34 b / 41 a: a PI release is recorded before any extractor call
             broken = _apply_pi_release(inst_dir, journal)
         to_code = states if broken is None else []
+        unread: list[dict[str, Any]] = []  # PI rulings 79 b / 96 a / 102 a: unread follow attempts
         try:
             broken = _code_states(run_dir, to_code, broken, ask=ask, providers=providers,
                                   inst_providers=inst_providers, journal=journal, page_config=page_config,
@@ -1483,7 +1485,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             # Review L5: an institution with no page has nothing to follow from (not an error).
             if follow is not None and broken is None and states and not any(st.holds for st in states):
                 try:
-                    broken = _follow_rounds(run_dir, inst, states, follow, held_path, ask=ask,
+                    broken = _follow_rounds(run_dir, inst, states, follow, held_path, unread, ask=ask,
                                             providers=providers, inst_providers=inst_providers, journal=journal,
                                             page_config=page_config, activity_config=activity_config,
                                             metrics=metrics, cost_check_callback=cost_check_callback,
@@ -1536,6 +1538,12 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                 broken = _producer_hold(st.spec.page.page_id, exc)
                 break
             next_source += len(products[-1].sources)
+        if unread and uncarried is None and broken is None:  # PI rulings 79 b / 96 a / 102 a
+            from g3o.run.presweep.follow_v27 import unread_products
+            products += unread_products(unread, run_id=inst.run_id, institution_uid=inst.institution_uid,
+                                        institution_id=inst.institution_id, first_source=next_source,
+                                        coder_version=page_config.coder_version, instrument=instrument,
+                                        known_pages=[st.spec.page.page_id for st in states])
         if uncarried is not None or broken is not None:
             hold = broken if broken is not None else {
                 "page_id": uncarried.page_id, "stage": UNCARRIED_STAGE, "items": sorted(uncarried.values)}

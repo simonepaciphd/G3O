@@ -48,14 +48,21 @@ followed page go through the institution's request journal like any page's.
 An exception raised by ``fetch`` itself is not an outcome: it leaves the stage
 with the state written so far, and the URL is tried again on the next run.
 
-Refused here (PI question, not chosen): a URL tried and not fetched
-(``fetch_failed``, ``robots_disallowed``) and a link not followed (cap or hop
-limit) are recorded in the follow state and the attrition ledger, but how they
-enter Stage 6 is not fixed by signed text (codebook
-``items/core.page_review_state/rules/0``: non-``reviewed`` states count as
-unresolved signals; RC-D-023 C-Q7 leaves where they land to T-028/T-030; no
-review state is signed for a robots refusal). An institution with any of them
-is held (:data:`FOLLOW_ATTEMPTS_UNRULED`) and nothing of it is published.
+Follow attempts not reviewed (PI rulings 79 b, 96 a, 102 a, 2026-11-13/14). A URL
+tried and not fetched (``fetch_failed``; a robots refusal enters as ``fetch_failed``,
+79 b) and a link not followed (cap or hop limit) are recorded in the follow state and
+the attrition ledger, and each enters Stage 6 (:func:`unread_products`) as a failed,
+unreviewed page (``ReviewedPage`` ``reviewed`` False, ``failed`` True, failure reason
+the recorded outcome) plus one page-level source row: ``core.page_review_state`` the
+review state, ``core.source_url`` the attempt's URL, ``core.page_verdict``
+``not_assessable`` and every other item ``not_asked``, the coded ones set by the
+named rule :data:`FOLLOW_NOT_REVIEWED`; no observation and no page artifact (path and
+hash null, the storage relaxation of 102 a). Such a row is exempt from the A7
+syndication grouping (a named exception to 13 a), the single-row-per-page check, the
+review-depth count and the Stage 6 A8 pre-check
+(:func:`g3o.common.storage.unreviewed_source`). Non-``reviewed`` states count as
+unresolved signals in Stage 6 (codebook ``items/core.page_review_state/rules/0``):
+such an institution is never ``no``.
 """
 from __future__ import annotations
 
@@ -84,21 +91,25 @@ STAGE = "follow_v27"
 FOLLOW_DIR = "follow"
 STATE_FILE = "state_v27.json"
 STATE_FORMAT = "g3o-follow-state-v27-1"
-#: per-institution hold of the per-page stage: follow attempts whose Stage 6 entry is unruled
-FOLLOW_ATTEMPTS_UNRULED = "follow_attempts_unruled"
 #: ``core.page_complete`` ``yes``: the page refers the reader onward (the signed note: the name reads the other way)
 YES = "yes"
-#: the ``page_id`` of that hold in ``held.json`` (it names URLs, not one coded page)
-FOLLOW_HOLD_PAGE = "follow"
 CAP_REACHED = "follow_cap_reached"
+#: PI ruling 102 a (building 96 a / 79 b): the named rule that sets an unread follow attempt's
+#: ``core.page_verdict`` (``not_assessable``) and its other coded items (``not_asked``)
+FOLLOW_NOT_REVIEWED = "follow_not_reviewed"
+NOT_ASSESSABLE = "not_assessable"
+NOT_ASKED = "not_asked"
+#: PI ruling 79 b: the ``core.page_review_state`` of each recorded attempt outcome (a robots refusal is
+#: ``fetch_failed``); the values are signed codes (``items/core.page_review_state/rules/0``)
+REVIEW_STATE_OF = {fl.FETCH_FAILED: fl.FETCH_FAILED, ROBOTS_DISALLOWED: fl.FETCH_FAILED,
+                   fl.LINK_NOT_FOLLOWED_CAP: fl.LINK_NOT_FOLLOWED_CAP,
+                   fl.LINK_NOT_FOLLOWED_HOPS: fl.LINK_NOT_FOLLOWED_HOPS}
+#: the outcomes of a URL actually tried (``ReviewedPage.followed`` True: it counts in ``n_followed_links``)
+TRIED_OUTCOMES = frozenset({fl.FETCH_FAILED, ROBOTS_DISALLOWED})
 #: PI ruling 82 c (2026-11-13): a page whose final ``core.page_complete`` is ``yes`` but whose links were not
 #: collected (it became ``yes`` only in an extra round, so its first pass-1 request had no link task, or its
 #: links were not measured) is recorded as "complete, links not collected" (attrition reason) and not followed.
 LINKS_NOT_COLLECTED = "page_complete_links_not_collected"
-#: the open question the hold names (sources in the module docstring)
-UNRULED_DETAIL = ("PI question: how a URL tried and not fetched (fetch_failed / robots_disallowed) or a link "
-                  "not followed (cap / hops) enters Stage 6 is not fixed by signed text (codebook "
-                  "core.page_review_state rules/0; RC-D-023 C-Q7)")
 
 FetchFn = Callable[[str], FetchResult]
 
@@ -339,20 +350,13 @@ class InstitutionLeg:
         return pp.PageSpec(inp, pp.PageUpstream(followed=True, hop=rec.hop))
 
     def unreviewed(self) -> list[dict[str, Any]]:
-        """Every URL tried and not fetched and every link not followed, in record order."""
+        """Every URL tried and not fetched and every link not followed, in record order (each enters
+        Stage 6 through :func:`unread_products`, PI rulings 79 b / 96 a / 102 a)."""
         out = [{"url": r.url, "state": r.outcome, "hop": r.hop, "parent_page_id": r.parent_page_id}
                for r in self.state.records if r.outcome != fl.FETCHED]
         out += [{"url": n.url, "state": n.reason, "hop": n.hop, "parent_page_id": n.parent_page_id}
                 for n in self.state.not_followed]
         return out
-
-    def hold(self) -> dict[str, Any] | None:
-        """The per-institution hold while :meth:`unreviewed` is not empty (PI question), else None."""
-        attempts = self.unreviewed()
-        if not attempts:
-            return None
-        return {"page_id": FOLLOW_HOLD_PAGE, "stage": FOLLOW_ATTEMPTS_UNRULED, "attempts": attempts,
-                "cap": asdict(self.state.cap_record()), "error": UNRULED_DETAIL}
 
     def finish(self, specs: Sequence[pp.PageSpec]) -> list[pp.PageSpec]:
         """The institution's specs with the follow page fields: A4 regrouped over every page (A4.2 a), a
@@ -429,6 +433,87 @@ def round_page(spec: pp.PageSpec, page_round: Any, extraction: Any, *, first_com
     return RoundPage(spec.page, complete, extraction, quotes, collected)
 
 
-__all__ = ["CAP_REACHED", "FOLLOW_ATTEMPTS_UNRULED", "LINKS_NOT_COLLECTED", "FOLLOW_DIR", "FOLLOW_HOLD_PAGE", "ROBOTS_DISALLOWED",
-           "STAGE", "STATE_FILE", "STATE_FORMAT", "FetchFn", "FollowLeg", "FollowPage", "InstitutionLeg",
-           "RoundPage", "load_state", "round_page", "state_payload"]
+def unread_products(attempts: Sequence[Mapping[str, Any]], *, run_id: str, institution_uid: str,
+                    institution_id: str, first_source: int, coder_version: str, instrument: dict[str, Any],
+                    known_pages: Sequence[str] = ()) -> list[pp.PageProduct]:
+    """The Stage 6 inputs of an institution's unread follow attempts (PI rulings 79 b, 96 a, 102 a).
+
+    ``attempts`` are :meth:`InstitutionLeg.unreviewed` entries, in that order; source ids continue from
+    ``first_source`` (after every coded page's rows). Each attempt gives one
+    :class:`~g3o.run.presweep.stage_perpage_v27.PageProduct`:
+
+    - its page: ``ReviewedPage`` with page id ``url_hash(url)`` (as a fetched page would have),
+      ``not_assessable``, support ``set_by_rule``, ``reviewed`` False, ``failed`` True, failure reason the
+      recorded outcome, ``followed`` True only for a URL actually tried (:data:`TRIED_OUTCOMES`);
+    - one page-level source row: ``core.page_review_state`` from :data:`REVIEW_STATE_OF` (a robots refusal
+      is ``fetch_failed``, 79 b), ``core.source_url`` the attempt's URL, ``core.page_verdict``
+      ``not_assessable`` and every other sources-table item ``not_asked`` (96 a, 102 a); no observation and
+      no page artifact (path and hash null). Each coded item's value (classifier and quote-step items, the
+      ones storage keys a support record to) gets a ``set_by_rule`` support node naming
+      :data:`FOLLOW_NOT_REVIEWED`, with no quote and no artifact hash, and its mechanical coder record.
+
+    An outcome with no signed review state, or a page id repeated (also of ``known_pages``, the coded
+    pages), is a wiring error (:class:`~g3o.run.presweep.stage_perpage_v27.FollowWiringError`).
+    """
+    from g3o.classify.jev_page_code import VERDICT
+    from g3o.common.jev_record import CoderRecord
+    from g3o.common.storage import METADATA_ITEMS, UNREVIEWED_STATES, table_fields
+    from g3o.common.storage_fields import FIELDS
+    from g3o.common.support_check import SET_BY_RULE, CodeEvidence, PageSources, check_code
+    from g3o.persist.stage6_adapters import PageArtifact, SupportContext, coder_nodes, support_nodes
+    from g3o.validate import uncertainty_flags_v27 as uf
+    from g3o.validate.consolidate_v27 import ReviewedPage
+
+    items = sorted(set(table_fields("sources")) - set(METADATA_ITEMS))
+    coded = [i for i in items if FIELDS[i]["coder"] in ("classifier", "quote_step")]
+    qsv = instrument["payload"]["question_set_version"]
+    seen = set(known_pages)
+    out: list[pp.PageProduct] = []
+    for n, attempt in enumerate(attempts):
+        url, outcome = attempt["url"], attempt["state"]
+        state = REVIEW_STATE_OF.get(outcome)
+        if state not in UNREVIEWED_STATES:
+            raise pp.FollowWiringError(f"{institution_id}: follow attempt {url!r} has outcome {outcome!r}, "
+                                       "which has no signed non-reviewed review state")
+        page_id = url_hash(url)
+        if page_id in seen:
+            raise pp.FollowWiringError(f"{institution_id}: unread follow attempt {url!r} repeats page id {page_id}")
+        seen.add(page_id)
+        sid = pp.source_id(first_source + n)
+        values: dict[str, Any] = {item: NOT_ASKED for item in items}
+        values.update({VERDICT: NOT_ASSESSABLE, sf.URL: url, sf.REVIEW_STATE: sf.page_review_state(state).value})
+        sources = PageSources(page_id, {}, None)
+        no_page = PageArtifact(sid, "", "", {})  # nothing stored: the nodes carry no artifact hash (102 a)
+        support: list[dict[str, Any]] = []
+        coders: list[dict[str, Any]] = []
+        provenance: list[dict[str, Any]] = []
+        for item in coded:
+            sr = check_code(CodeEvidence(item, values[item], None, rule_name=FOLLOW_NOT_REVIEWED), sources)
+            nodes = support_nodes(sr, sources, no_page, SupportContext(run_id, institution_uid, None, sid,
+                                                                       uf.code_flags(sr)), instrument)
+            node = {**nodes.original, "page_content_sha256": None}  # not part of the support id
+            nodes = replace(nodes, original=node)
+            rec = CoderRecord(item_id=item, item_part=None, question_id=None, support_id=node["support_id"],
+                              observation_id=None, chunk_id=None, coder_type="mechanical",
+                              coder_version=coder_version, configured_model=None, actual_response_model=None,
+                              request_id=None, question_set_version=qsv, setup_pointer=instrument["instrument_id"],
+                              answer_type="rule", chosen_value=values[item], confidence=None,
+                              probability_distribution=None, rule_reference=FOLLOW_NOT_REVIEWED)
+            projection, _, _ = coder_nodes(rec, nodes, instrument)
+            support.append(node)
+            coders.append(projection)
+            provenance.append(nodes.provenance)
+        verdict = next(s for s in support if s["item_id"] == VERDICT)
+        verdict_coder = next(c for c in coders if c["support_id"] == verdict["support_id"])
+        page = ReviewedPage(page_id, pp.PIPELINE, NOT_ASSESSABLE, None, SET_BY_RULE, False, True,
+                            outcome in TRIED_OUTCOMES, (sid,), (verdict_coder,), (verdict,), failure_reason=outcome)
+        row = {"values": values, "item_support": support, "coder_records": coders, "observation_ids": [],
+               "page_artifact_path": None, "page_content_sha256": None}
+        out.append(pp.PageProduct(page=page, sources={sid: row}, provenance=provenance))
+    return out
+
+
+__all__ = ["CAP_REACHED", "FOLLOW_NOT_REVIEWED", "LINKS_NOT_COLLECTED", "FOLLOW_DIR", "NOT_ASKED", "NOT_ASSESSABLE",
+           "REVIEW_STATE_OF", "ROBOTS_DISALLOWED", "STAGE", "STATE_FILE", "STATE_FORMAT", "TRIED_OUTCOMES", "FetchFn",
+           "FollowLeg", "FollowPage", "InstitutionLeg", "RoundPage", "load_state", "round_page", "state_payload",
+           "unread_products"]

@@ -73,7 +73,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from g3o.common import source_fields as sf
-from g3o.common.storage import table_fields, validate_value
+from g3o.common.storage import table_fields, unreviewed_source, validate_value
 from g3o.common.storage_fields import FIELDS
 from g3o.persist.stage6_adapters import MissingUpstreamError
 
@@ -589,8 +589,14 @@ def check_a8_inputs(inst: Any) -> None:
     value is left to the producers, which hold the institution when they need it
     (ruling B1 a). The published groups are not known yet, so every row is
     checked; a malformed stored value is a wiring error wherever it is.
+
+    PI ruling 102 a: the source row of a page that was not reviewed (an unread follow attempt,
+    :func:`g3o.common.storage.unreviewed_source`) is exempt, its ``source_type`` check included: its
+    items are ``not_asked`` by rule and no observation cites it.
     """
     for sid in inst.sources:
+        if unreviewed_source(inst.sources[sid]):
+            continue
         _check_source(inst, sid)
     for oid in inst.observation_inputs:
         _check_observation(inst, oid)

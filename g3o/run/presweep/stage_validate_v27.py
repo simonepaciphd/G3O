@@ -111,7 +111,7 @@ from g3o.common.response_v27 import InstitutionIdentityV27
 from g3o.common.run_state import clear_done, mark_done
 from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
 from g3o.common.source_fields import aggregation_value, default_vocab
-from g3o.common.storage import METADATA_ITEMS, table_fields
+from g3o.common.storage import METADATA_ITEMS, table_fields, unreviewed_source
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import (
     CodeEvidence,
@@ -947,6 +947,12 @@ def merge_values(inst: Stage6Institution, order: Sequence[str]) -> dict[str, Any
     return out
 
 
+#: PI rulings 96 a / 102 a (2026-11-14): the named exception to A7 13 a. A source row of a page that was not
+#: reviewed is not grouped (:func:`independence_groups_of`), so its ``not_asked`` syndication group never
+#: holds the institution.
+A7_UNREVIEWED_EXCEPTION = "follow_not_reviewed (PI rulings 96 a / 102 a): unreviewed source rows are not grouped"
+
+
 def independence_groups_of(inst: Stage6Institution) -> Mapping[str, str]:
     """Source independence groups for ``core.confidence`` (PI A7.1 b, A7.2 a, 2026-11-11).
 
@@ -961,11 +967,16 @@ def independence_groups_of(inst: Stage6Institution) -> Mapping[str, str]:
     institution's source rows, including sources no published activity cites;
     one source without a syndication group holds the whole institution; an
     injected mapping wins over the producer.
+
+    Named exception to 13 a (:data:`A7_UNREVIEWED_EXCEPTION`, PI rulings 96 a / 102 a): the source row of a
+    page that was not reviewed (an unread follow attempt, :func:`g3o.common.storage.unreviewed_source`) is
+    left out of the grouping: its syndication group is ``not_asked`` by rule and no activity cites it.
     """
     if inst.independence_groups is not None:
         return inst.independence_groups
+    grouped = {sid: row for sid, row in inst.sources.items() if not unreviewed_source(row)}
     try:
-        return independence_groups_for_sources(inst.sources, institution_id=inst.institution_id)
+        return independence_groups_for_sources(grouped, institution_id=inst.institution_id)
     except SourceFieldsMissingUpstreamError as exc:
         raise MissingUpstreamError(f"{INDEPENDENCE_PRODUCER}; {exc.producer}", exc.missing) from exc
 
