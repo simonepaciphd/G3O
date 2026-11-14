@@ -772,7 +772,7 @@ def test_archive_page_state_moves_every_state_file_and_numbers_each_archive(tmp_
         write_artifact(art, json.dumps({"n": n}))
         moved = pp._archive_page_state(run_dir, page)
         dest = pdir / pp.PAGE_ARCHIVE_DIR / f"{n:03d}"
-        assert len(moved) == 4 and all((inst_dir / p).exists() for p in moved)
+        assert len(moved) == len(pp.PAGE_STATE_FILES) + 1 and all((inst_dir / p).exists() for p in moved)
         assert all((dest / name).read_text(encoding="utf-8") == f"{name} {n}" for name in pp.PAGE_STATE_FILES)
         assert len(list((dest / pp.ACTIVITY_DIR).iterdir())) == 1
         assert not any((pdir / name).exists() for name in pp.PAGE_STATE_FILES)
@@ -1298,7 +1298,9 @@ def test_activity_only_request_compares_the_first_round_plan_100b(tmp_path, firs
         inp = providers.activity_input(page, page_round)
         assert any(_is_activity_only(j) for j in extract.jobs) is sent
         assert (inp is not None) is sent
-        assert providers.verdict_downgrade(page.page_id) is None
+        # PI ruling 109 a: not sent because the first plan had the activity task, which gave no activity, while
+        # the final verdict is confirms_activity: the 99.2 downgrade
+        assert providers.verdict_downgrade(page.page_id) == (None if sent else ppv.FIRST_PLAN_NO_ACTIVITY)
 
 
 def test_activity_only_request_with_no_activity_downgrades_the_verdict_support_99_2(tmp_path):
@@ -1330,6 +1332,42 @@ def test_activity_only_request_with_no_activity_downgrades_the_verdict_support_9
                                support_status=sr.support_status, chosen_probability=verdict.probability)
     assert not _positive(page_doc)  # consolidate_v27: never positive; and not an "open positive" (downgraded_)
     assert sr.support_status.startswith("downgraded_")
+
+
+@pytest.mark.parametrize("first_verdict,flipped", [
+    ("ambiguous_genai", True),  # the R-003 flip ambiguous_genai -> confirms_activity, zero spans
+    ("confirms_activity", False),  # confirms_activity from the first round, zero spans
+])
+def test_confirms_page_whose_first_plan_gave_no_activity_is_downgraded_109a(tmp_path, first_verdict, flipped):
+    """PI ruling 109 a: a confirms_activity page whose first-round plan had an activity task but whose page
+    request gave zero activity spans gets the 99.2 downgrade (FIRST_PLAN_NO_ACTIVITY): no activity-only
+    request (ruling 100 b), the verdict support at its deciding part downgraded_no_quote, never positive. With
+    spans, nothing is downgraded."""
+    from g3o.validate.consolidate_v27 import _positive
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, _, records, page_round_of = _flipped_round(run_dir, bound, page, first_verdict=first_verdict,
+                                                       flipped=flipped)
+    extract = NoActivitiesAnywhere(world)
+    providers = _providers(run_dir, bound, instrument, extract, FakeEntail())
+    page_round = page_round_of(providers.page_support(page, result, records))
+    assert page_round.final.items[jpc.VERDICT].value == "confirms_activity"
+    assert providers.activity_input(page, page_round) is None
+    assert not any(_is_activity_only(j) for j in extract.jobs)
+    assert providers.verdict_downgrade(page.page_id) == ppv.FIRST_PLAN_NO_ACTIVITY
+    down = pp.downgrade_verdict_support(page, page_round)
+    verdict = page_round.final.items[jpc.VERDICT]
+    (sr,) = [s for s in down.support if pp._support_key(s) == (None, jpc.VERDICT, None, verdict.part_id, None)]
+    assert sr.support_status == support_check.NO_QUOTE and sr.value == "confirms_activity"
+    page_doc = SimpleNamespace(pipeline=pp.PIPELINE, reviewed=True, failed=False, page_verdict="confirms_activity",
+                               support_status=sr.support_status, chosen_probability=verdict.probability)
+    assert not _positive(page_doc)
+
+    spans = FakeExtractor(world)  # the first request returns the page's activity: no downgrade
+    with_spans = _providers(run_dir, bound, instrument, spans, FakeEntail())
+    page_round = page_round_of(with_spans.page_support(page, result, records))
+    assert with_spans.activity_input(page, page_round) is not None
+    assert with_spans.verdict_downgrade(page.page_id) is None
 
 
 def test_activity_only_request_at_the_rejection_cap_downgrades_the_verdict_support_99_1(tmp_path):
@@ -1386,10 +1424,23 @@ def _type_ask(choice="vendor", p=0.95):
     return ask
 
 
+def _never_asked(state, questions):
+    """A jev call that must not be made (``pytest.fail`` is not an ``Exception``, so no coder swallows it)."""
+    pytest.fail(f"jev asked {sorted(questions)} on {state.get('page_part')}")
+
+
+def _bare_spec(page):
+    """A spec of ``page`` whose rows the T-015 assembler builds: declared page fields, nothing injected."""
+    return SimpleNamespace(page=page, upstream=SimpleNamespace(page_fields=_page_fields(page), activity_values=None,
+                                                               source_values=None, codes=None))
+
+
 def test_residual_source_type_quote_rides_in_the_first_pass1_request_95a(tmp_path):
     """PI ruling 95 a: the residual source_type answers (asked on the page's T-021 parts) join the page's
     FIRST pass-1 request as quote tasks (the signed question and jev's answer); each answer is checked by
-    T-024 on that request's quote; a resume rebuilds the same request."""
+    T-024 on that request's quote; a resume rebuilds the same request. The resumed typing is a fresh object,
+    obtained as the per-page stage obtains it on a resume (review M3 / H2, PI ruling 105 b: loaded from the
+    page's saved answers, never asked again)."""
     from g3o.classify.question_rounds import PageRoundResult
     from g3o.common import source_fields as sf
     from g3o.extract import request_v27
@@ -1397,8 +1448,10 @@ def test_residual_source_type_quote_rides_in_the_first_pass1_request_95a(tmp_pat
     run_dir, bound, instrument, world, page = _flip_world(tmp_path)
     result, _, records, _ = _flipped_round(run_dir, bound, page, flipped=False)
     ask = _type_ask()
-    typing = sf.code_source_type(page, ask, bound.page_config, layout=result.chunks)
-    assert typing.typed_by == "classifier" and typing.result.question_set_version == sf.RESIDUAL_SET_VERSION
+    spec = _bare_spec(page)
+    typing = pp._residual_source_type(run_dir, spec, ask, bound.page_config, _elsewhere())
+    assert ask.calls and typing.typed_by == "classifier"
+    assert typing.result.question_set_version == sf.RESIDUAL_SET_VERSION
     assert [c.chunk_id for c in typing.result.chunks] == [c.chunk_id for c in result.chunks]
 
     extract = FakeExtractor(world)
@@ -1416,9 +1469,13 @@ def test_residual_source_type_quote_rides_in_the_first_pass1_request_95a(tmp_pat
     assert {rec.chunk_id for _, rec in codes} == {t["part_id"] for t in tasks}
     assert all(sr.item_id == sf.SOURCE_TYPE and sr.supporting_text for sr, _ in codes)
 
-    resumed = FakeExtractor(world)  # a fresh adapter: the first request rebuilt from T-021, the same params
+    # a resume: the stage loads the saved answers (a fresh object, equal; no jev call) for a fresh adapter,
+    # which rebuilds the first request from T-021 with the same params
+    reloaded = pp._residual_source_type(run_dir, spec, _never_asked, bound.page_config, _elsewhere())
+    assert reloaded == typing and reloaded is not typing
+    resumed = FakeExtractor(world)
     fresh = _providers(run_dir, bound, instrument, resumed, FakeEntail())
-    fresh.set_source_typing(page.page_id, typing)
+    fresh.set_source_typing(page.page_id, reloaded)
     fresh.activity_input(page, page_round)
     assert (resumed.jobs[0].custom_id, resumed.jobs[0].params) == (first.custom_id, first.params)
     assert [sr for sr, _ in fresh.source_type_codes(page.page_id)] == [sr for sr, _ in codes]
@@ -1463,6 +1520,268 @@ def test_residual_typing_is_refused_after_the_first_request_was_built(tmp_path):
         providers.set_source_typing(page.page_id, typing)
     with pytest.raises(TypeError):
         providers.set_source_typing(page.page_id, sf.auto_source_type(sf.AUTO_OFFICIAL))
+
+
+def _elsewhere():
+    """The run's official sites, declared: INST-0000001's site is another host, so its pages are not official
+    (PI ruling 70 b) and a readable one is left to the residual source_type question (PI ruling 95 a)."""
+    from g3o.run.presweep import official_site_v27 as osv
+
+    return osv.RunOfficialSites("fixture: 2_official_site.json", {"INST-0000001": "council-one.gov.au"},
+                                frozenset())
+
+
+def _page_fields(page):
+    """Declared D1 a page fields (not an archive address): the T-015 assembler builds the page's rows."""
+    from g3o.common import source_fields as sf
+    from g3o.common.storage_fields import FIELDS
+    from g3o.run.presweep import perpage_inputs_v27 as pin
+
+    def fv(item, value):
+        return sf.FieldValue(item, value, FIELDS[item]["coder"], "declared fixture")
+    return pin.PageSourceFields(fv("core.source_url", page.url), fv("core.source_access_date", "2026-11-10"),
+                                None, False, fv("core.source_language", "en"),
+                                fv("core.syndication_group", "sg-fixture"), sf.text_source("new_run"))
+
+
+def _residual_spec(insts, page_id="p1"):
+    """INST-0000001's spec of ``page_id`` with page fields and no injected row values (PI ruling 35 a)."""
+    a = next(i for i in insts if i.institution_id == "INST-0000001")
+    spec = next(s for s in a.pages if s.page.page_id == page_id)
+    return replace(spec, upstream=replace(spec.upstream, activity_values=None, source_values=None, codes=None,
+                                          page_fields=_page_fields(spec.page)))
+
+
+def _residual_inst(insts, page_id="p1"):
+    """INST-0000001 with only ``page_id``, whose rows the T-015 assembler builds (:func:`_residual_spec`)."""
+    a = next(i for i in insts if i.institution_id == "INST-0000001")
+    return replace(a, pages=[_residual_spec(insts, page_id)])
+
+
+def _source_type_calls(jev):
+    """The residual source_type requests jev was sent (one per part asked)."""
+    from g3o.common import source_fields as sf
+
+    return [state["page_part"] for state, qids in jev.calls if sf.SOURCE_TYPE in qids]
+
+
+def test_residual_source_type_page_reaches_its_row_through_the_stage_95a(tmp_path, monkeypatch):
+    """Review H1: a readable residual page run through the per-page stage on the real providers. The
+    residual answers (asked on the page's T-021 parts) ride in the page's first pass-1 request; they and
+    their T-024 checks reach the T-015 assembler by name (``source_typing`` / ``source_type_codes``) and
+    become the row's source_type and its codes. The stage then stops on what the assembler still refuses
+    (a wiring gap, RC-D-033 C2 a), never on a TypeError, and source_type is not among them."""
+    from g3o.common import source_fields as sf
+    from g3o.extract import request_v27
+    from g3o.run.presweep import source_row_v27 as srow
+    from tests.test_e2e_perpage_v27 import assemble_spy
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
+    seen = []
+    monkeypatch.setattr(srow, "assemble", assemble_spy(srow.assemble, lambda page, rows, kw: seen.append((rows, kw))))
+    extract = FakeExtractor(world)
+    jev = FakeJev({**ANSWERS, sf.SOURCE_TYPE: "vendor"}, RELATIONS)
+    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler") as exc:
+        _run(run_dir, bound, instrument, [_residual_inst(insts)],
+             _providers(run_dir, bound, instrument, extract, FakeEntail()), jev)
+    assert sf.SOURCE_TYPE not in exc.value.missing
+    assert _source_type_calls(jev)  # the residual question was asked
+    (rows, kw), = seen
+    typing, codes = kw["source_typing"], kw["source_type_codes"]
+    assert typing is not None and typing.typed_by == "classifier" and codes
+    # the quote tasks of the residual answers rode in the page's first pass-1 request
+    first = next(j for j in extract.jobs if j.metadata["stage"] == PASS1 and j.metadata["page_id"] == "p1")
+    question = request_v27.default_rules().questions[sf.SOURCE_TYPE]
+    tasks = [t for t in _tasks(first)["quote_tasks"] if t["question"] == question]
+    assert tasks and {t["part_id"] for t in tasks} == {rec.chunk_id for _, rec in codes}
+    # the row value is the deciding part's checked answer, and every check is a code of the row
+    (sr,) = [sr for sr, rec in codes if rec.chunk_id == typing.outcome.part_id]
+    assert sr.original_value == "vendor" and sr.supporting_text
+    assert sf.SOURCE_TYPE not in rows.refused and rows.source[sf.SOURCE_TYPE].value == sr.value
+    assert all(pair in rows.source_codes for pair in codes)
+
+
+def test_residual_answers_are_saved_and_never_asked_again_on_a_resume_105b(tmp_path, monkeypatch):
+    """Review H2 with PI ruling 105 b. Run 1: one part of the residual source_type question fails (an
+    exception: the journal does not record it as final), the page's first pass-1 request carries the other
+    part's quote task, and the stage stops after T-022 (on the assembler's refusals). Run 2: the answers
+    saved before that request are loaded, so nothing is asked again and the first request is rebuilt with the
+    same parameters and replayed (no extractor call). Run 3, the saved answers moved aside: the failed part is
+    asked again live and answers, the rebuilt first request's parameters change, and the institution is held
+    (pass1_request_not_journaled) before any extractor call."""
+    from g3o.common import source_fields as sf
+    from g3o.run.presweep import source_row_v27 as srow
+    from tests.test_e2e_perpage_v27 import assemble_spy
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
+    seen = []
+    monkeypatch.setattr(srow, "assemble", assemble_spy(srow.assemble, lambda page, rows, kw: seen.append(kw)))
+    inst = [_residual_inst(insts)]
+    spec = inst[0].pages[0]
+    saved = pp.page_state_dir(run_dir, spec.page) / pp.SOURCE_TYPE_FILE
+    answers = {**ANSWERS, sf.SOURCE_TYPE: "vendor"}
+
+    def second_part_fails(state, questions, n):
+        if sf.SOURCE_TYPE in questions and not state["page_part"].startswith("1"):
+            return RuntimeError("simulated residual part failure")
+        return None
+
+    jev1, ex1 = FakeJev(answers, RELATIONS, second_part_fails), FakeExtractor(world)
+    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler"):
+        _run(run_dir, bound, instrument, inst, _providers(run_dir, bound, instrument, ex1, FakeEntail()), jev1)
+    assert len(_source_type_calls(jev1)) > 1 and saved.exists()
+    typing1 = seen[-1]["source_typing"]
+    assert any(f["reason"] == jpc.REQUEST_FAILED for f in typing1.result.failures)  # the failed part
+
+    jev2, ex2 = FakeJev(answers, RELATIONS), FakeExtractor(world)  # every part would answer now
+    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler"):
+        _run(run_dir, bound, instrument, inst, _providers(run_dir, bound, instrument, ex2, FakeEntail()), jev2)
+    assert _source_type_calls(jev2) == [] and ex2.jobs == []  # loaded, not asked; replayed, no call
+    typing2 = seen[-1]["source_typing"]
+    assert typing2 == typing1 and typing2 is not typing1
+
+    saved.rename(saved.with_name("source_type-moved-aside.json"))
+    jev3, ex3 = FakeJev(answers, RELATIONS), FakeExtractor(world)
+    ready, metrics = _run(run_dir, bound, instrument, inst, _providers(run_dir, bound, instrument, ex3, FakeEntail()),
+                          jev3)
+    assert _source_type_calls(jev3)  # the failed part is asked again live
+    assert ready == [] and metrics.held == ["INST-0000001"] and ex3.jobs == []
+    (hold,) = _held(run_dir, "INST-0000001")["held"]
+    assert (hold["page_id"], hold["stage"], hold["pass"]) == ("p1", pp.PASS1_NOT_JOURNALED, "pass1")
+    assert len(hold["request_key"]) == 64
+
+
+def test_residual_part_over_the_limit_holds_the_institution_m2(tmp_path, monkeypatch):
+    """Review M2: a T-021 part over the request limit of the residual source_type question is not halved
+    (``Pass1Page`` would refuse the halves' answers inside ``page_support``: a stage crash). The page's own
+    data refuses source_type: the page is still coded (T-022 and on, PI ruling 106 a) with no residual
+    answers, and the institution is held as a 97 b row-value refusal naming source_type; nothing is
+    published and the stage goes on (no exception)."""
+    from g3o.common import source_fields as sf
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
+    real = sf.code_source_type
+
+    def tight(page, ask, config, **kw):  # the residual request limit below any part's size
+        return real(page, ask, replace(config, limit_tokens=1), **kw)
+    monkeypatch.setattr(sf, "code_source_type", tight)
+    extract, jev = FakeExtractor(world), FakeJev({**ANSWERS, sf.SOURCE_TYPE: "vendor"}, RELATIONS)
+    ready, metrics = _run(run_dir, bound, instrument, [_residual_inst(insts)],
+                          _providers(run_dir, bound, instrument, extract, FakeEntail()), jev)
+    assert ready == [] and metrics.held == ["INST-0000001"]
+    assert _source_type_calls(jev) == []  # refused before any residual call
+    assert any(j.metadata["stage"] == PASS1 and j.metadata["page_id"] == "p1" for j in extract.jobs)
+    (hold,) = _held(run_dir, "INST-0000001")["held"]
+    assert (hold["page_id"], hold["stage"], hold["items"]) == ("p1", pp.ROW_VALUE_REFUSED, [sf.SOURCE_TYPE])
+    assert hold["refusals"][sf.SOURCE_TYPE].startswith(pp.RESIDUAL_OVER_LIMIT)
+    assert not (pp.page_state_dir(run_dir, _residual_spec(insts).page) / pp.SOURCE_TYPE_FILE).exists()
+    details = [r.get("detail") for r in attrition.read_records(run_dir)
+               if r.get("stage") == pp.STAGE and r.get("reason") == pp.HELD_REASON]
+    assert details == [f"p1:{pp.ROW_VALUE_REFUSED}:{sf.SOURCE_TYPE}"]
+
+
+def test_resumed_activity_only_request_missing_from_the_journal_holds_105b(tmp_path):
+    """PI ruling 105 b: an activity-only request (87 c) that an earlier process got an answer to (the page's
+    pass1_requests.json names it) is replayed from the journal on a resume; with no recorded response it holds
+    (activity_only_request_not_journaled) before any call. Not named there (never answered), it is sent."""
+    from g3o.classify.jev_page_code import to_pass1_page
+    from g3o.extract import request_v27
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, started, records, page_round_of = _flipped_round(run_dir, bound, page)
+    page_cid = request_v27.make_custom_id(page.institution_id, page.url)
+    only_cid = ppv.activity_only_custom_id(page_cid, to_pass1_page(started, page))
+    path, pdir = tmp_path / "journal105b.jsonl", pp.page_state_dir(run_dir, page)
+    made = SimpleNamespace(custom_id=page_cid)
+
+    def journaled(extract):
+        journal = rt.RequestJournal(path, {"s": 1})
+        base = _providers(run_dir, bound, instrument, extract, FakeEntail())
+        providers = base.with_seams(*journal.seams(base.journal_prompt))
+        return providers, page_round_of(providers.page_support(page, result, records))
+
+    pp._record_pass1_requests(pdir, made, SimpleNamespace(custom_id=only_cid))
+    ex1 = NoFirstRoundActivities(world)
+    providers, page_round = journaled(ex1)
+    with pytest.raises(pp.Pass1RequestNotJournaled) as exc:
+        providers.activity_input(page, page_round)
+    assert (exc.value.stage, exc.value.custom_id) == (pp.ACTIVITY_ONLY_NOT_JOURNALED, only_cid)
+    assert not any(_is_activity_only(j) for j in ex1.jobs)
+
+    pp._record_pass1_requests(pdir, made, None)  # never answered: sent and journaled
+    ex2 = NoFirstRoundActivities(world)
+    providers, page_round = journaled(ex2)
+    assert providers.activity_input(page, page_round) is not None
+    assert [j.custom_id for j in ex2.jobs if _is_activity_only(j)] == [only_cid]
+
+    pp._record_pass1_requests(pdir, made, SimpleNamespace(custom_id=only_cid))  # answered: replayed
+    ex3 = NoFirstRoundActivities(world)
+    providers, page_round = journaled(ex3)
+    assert providers.activity_input(page, page_round) is not None and ex3.jobs == []
+
+
+def test_residual_source_type_step_of_the_stage_95a_105b(tmp_path):
+    """Review M3: the stage's residual step (``_residual_source_type``). Not asked for a page with injected
+    rows, or one typed by rule (an own official site); asked once on the page's T-021 parts for a readable
+    residual page and saved; on a resume loaded (a fresh, equal object) and never asked again; a saved file
+    asked on other parts is refused."""
+    from g3o.classify.jev_page_code import PageCodeResult
+    from g3o.common import source_fields as sf
+    from g3o.common.artifact_io import read_artifact
+    from g3o.common.urlnorm import site_host
+    from g3o.run.presweep import official_site_v27 as osv
+    from g3o.run.presweep import stage_page_code
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    spec = _bare_spec(page)
+    saved = pp.page_state_dir(run_dir, page) / pp.SOURCE_TYPE_FILE
+    injected = SimpleNamespace(page=page, upstream=SimpleNamespace(
+        page_fields=spec.upstream.page_fields, activity_values=None, source_values=None, codes={}))
+    assert pp._residual_source_type(run_dir, injected, _never_asked, bound.page_config, _elsewhere()) is None
+    own = osv.RunOfficialSites("fixture", {page.institution_id: site_host(page.url)}, frozenset())
+    assert pp._residual_source_type(run_dir, spec, _never_asked, bound.page_config, own) is None
+    assert not saved.exists()
+
+    ask = _type_ask()
+    typing = pp._residual_source_type(run_dir, spec, ask, bound.page_config, _elsewhere())
+    t021 = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(run_dir, page.institution_id,
+                                                                                page.url)))
+    assert typing.typed_by == "classifier" and saved.exists()
+    assert len(ask.calls) >= len(t021.chunks)  # every T-021 part asked
+    assert [c.chunk_id for c in typing.result.chunks] == [c.chunk_id for c in t021.chunks]
+    assert typing.field.value == "vendor"
+    again = pp._residual_source_type(run_dir, spec, _never_asked, bound.page_config, _elsewhere())
+    assert again == typing and again is not typing and again.result == typing.result
+    assert sf.classifier_source_typing(typing.result) == typing  # the rebuild is deterministic in the result
+
+    with pytest.raises(ValueError, match="T-021 parts"):
+        pp.load_source_typing(saved, t021.chunks[:-1] if len(t021.chunks) > 1 else ())
+
+
+def test_rounds_for_page_applies_the_verdict_downgrade_109a(tmp_path):
+    """Review M3: ``_rounds_for_page`` applies the adapter's verdict downgrade (here PI ruling 109 a): the
+    page's T-022 page request, rebuilt on a resume, gives no activity while its first plan asked for one and
+    the saved final verdict is confirms_activity. The page round carries the downgraded verdict support
+    (downgraded_no_quote at the deciding part, the value kept), the metrics name the reason, and no activity
+    is coded."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    a = [i for i in insts if i.institution_id == "INST-0000001"]
+    _run(run_dir, bound, instrument, a, _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+         FakeJev(ANSWERS, RELATIONS))
+    spec = next(s for s in a[0].pages if s.page.page_id == "p1")
+    ask = rt.RequestJournal(tmp_path / "journal109a.jsonl", {"s": 1}).ask(FakeJev(ANSWERS, RELATIONS))
+    providers = _providers(run_dir, bound, instrument, NoActivitiesAnywhere(world), FakeEntail())
+    st, metrics = pp._PageState(spec), pp.PerPageMetrics()
+    pp._rounds_for_page(run_dir, st, ask, providers, bound.page_config, bound.activity_config, metrics)
+    assert metrics.verdict_downgrades == {"p1": ppv.FIRST_PLAN_NO_ACTIVITY}
+    assert st.activity_input is None and st.activity_round is None and not st.holds
+    verdict = st.page_round.final.items[jpc.VERDICT]
+    assert (verdict.state, verdict.value) == ("combined", "confirms_activity")
+    sr = {pp._support_key(s): s for s in st.page_round.support}[(None, jpc.VERDICT, None, verdict.part_id, None)]
+    assert sr.support_status == support_check.NO_QUOTE and sr.value == "confirms_activity"
 
 
 def test_downgrade_is_refused_for_a_verdict_other_than_confirms_activity(tmp_path):
@@ -1566,15 +1885,30 @@ def test_resumed_pass2_page_request_missing_from_the_journal_holds_ruling_98b(tm
     ex2 = FakeExtractor(world)
     ready, metrics = run(ex2)
     assert metrics.ready == ["INST-0000001"] and PASS2 not in ex2.stages()
-    # resume with the journal moved aside: held before any pass-2 call
+    # resume with the pass-2 responses gone from the journal (a copy kept aside): the rebuilt pass-1 page
+    # requests are still replayed; the pass-2 one is held before any call
     journal = institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.JOURNAL
-    journal.rename(journal.with_name("journal-moved-aside.jsonl"))
+    raw = journal.read_bytes()
+    journal.with_name("journal-moved-aside.jsonl").write_bytes(raw)
+    kept = [line for line in raw.decode("utf-8").splitlines()
+            if not (json.loads(line)["kind"] == "extract"
+                    and json.loads(line)["response"]["custom_id"].startswith("x27s-"))]
+    assert len(kept) < len(raw.decode("utf-8").splitlines())
+    journal.write_bytes("".join(line + "\n" for line in kept).encode("utf-8"))
     ex3 = FakeExtractor(world)
     ready, metrics = run(ex3)
-    assert ready == [] and metrics.held == ["INST-0000001"] and PASS2 not in ex3.stages()
+    assert ready == [] and metrics.held == ["INST-0000001"] and ex3.jobs == []
     (hold,) = _held(run_dir, "INST-0000001")["held"]
     assert (hold["stage"], hold["pass"]) == (pp.PASS2_NOT_JOURNALED, "pass2")
     assert hold["custom_id"] and len(hold["request_key"]) == 64 and "98 b" in hold["error"]
+    # PI ruling 105 b: with the journal moved aside, the first rebuilt request (the pass-1 page request) holds
+    journal.rename(journal.with_name("journal-moved-aside-2.jsonl"))
+    ex4 = FakeExtractor(world)
+    ready, metrics = run(ex4)
+    assert ready == [] and metrics.held == ["INST-0000001"] and ex4.jobs == []
+    (hold,) = _held(run_dir, "INST-0000001")["held"]
+    assert (hold["stage"], hold["pass"]) == (pp.PASS1_NOT_JOURNALED, "pass1")
+    assert hold["custom_id"] and len(hold["request_key"]) == 64 and "105 b" in hold["error"]
 
 
 def test_pair_only_page_resumed_rebuild_is_checked_first_build_is_not_ruling_98b(tmp_path, monkeypatch):

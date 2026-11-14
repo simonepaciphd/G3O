@@ -1017,11 +1017,14 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
                        verdict_support: sc.SupportResult | None = None,
                        provenance: Provenance | None = None, extraction: Any = None,
                        hop: int | None = None, official_sites: Any = None,
-                       activity_extraction: Any = None) -> None:
+                       activity_extraction: Any = None, source_typing: Any = None,
+                       source_type_codes: Any = None) -> None:
     """The page-level source-row values (see the module docstring) into ``rows.source``.
 
     The activity spans the content_* extracted fields read come from ``activity_extraction`` (the
-    activity-only request, PI ruling 87 c) when given, else from ``extraction``."""
+    activity-only request, PI ruling 87 c) when given, else from ``extraction``. ``source_typing`` /
+    ``source_type_codes``: a readable residual page's ``source_type`` answers and their checks (PI ruling
+    95 a), passed on to :func:`typed_source_values`."""
     out = rows.source
     for item, attr in ((sf.URL, "url"), (sf.ACCESS_DATE, "access_date"), (sf.LANGUAGE, "language"),
                        (sf.SYNDICATION, "syndication_group"), (sf.TEXT_SOURCE, "text_source")):
@@ -1064,7 +1067,8 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
         _try(rows, out, sf.UPPER_BOUND, lambda: _from(sf.date_upper_bound(dated.field)))
         date = dated.field
     typed_source_values(page, page_fields, rows, date, official_sites=official_sites, sources=sources,
-                        provenance=provenance)
+                        provenance=provenance, source_typing=source_typing,
+                        source_type_codes=source_type_codes)
 
 
 def _need(value: Any, item: str) -> Any:
@@ -1105,7 +1109,8 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
              extraction: Any = None, sources: sc.PageSources | None = None,
              verdict_support: sc.SupportResult | None = None,
              provenance: Provenance | None = None, hop: int | None = None,
-             official_sites: Any = None, pass2: Any = None, activity_extraction: Any = None) -> AssembledRows:
+             official_sites: Any = None, pass2: Any = None, activity_extraction: Any = None,
+             source_typing: Any = None, source_type_codes: Any = None) -> AssembledRows:
     """Build every producible row value of one coded page and name every refused item.
 
     ``page`` is the :class:`~g3o.classify.jev_page_code.PageInput`,
@@ -1128,6 +1133,9 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
     ``PerPageProviders.activity_extraction``) when the activities came from it: their spans and
     pass-1 fields are read from it, with its response's model and request id
     (:meth:`Provenance.for_activity_only`); the date and snippet still come from ``extraction``.
+    ``source_typing`` / ``source_type_codes`` are a readable residual page's ``source_type`` answers
+    and their T-024 checks (PI ruling 95 a; ``PerPageProviders.source_type_codes``); without them such a
+    page's ``source_type`` is refused (:data:`RESIDUAL_PRODUCER`).
     """
     if page_fields is None:
         raise sf.MissingUpstreamError("perpage_inputs_v27.PageSourceFields (PageUpstream.page_fields)",
@@ -1140,7 +1148,8 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
         rows.stops.update(REFUSED_ACTIVITY_ITEMS)
     page_source_values(page, page_fields, page_values, activities, rows, followed=followed, sources=sources,
                        verdict_support=verdict_support, provenance=provenance, extraction=extraction, hop=hop,
-                       official_sites=official_sites, activity_extraction=activity_extraction)
+                       official_sites=official_sites, activity_extraction=activity_extraction,
+                       source_typing=source_typing, source_type_codes=source_type_codes)
     span_prov = provenance
     if activity_extraction is not None and provenance is not None:  # PI ruling 87 c
         span_prov = provenance.for_activity_only(activity_extraction)

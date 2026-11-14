@@ -45,6 +45,7 @@ from tests.test_e2e_perpage_v27 import (  # noqa: F401 - _paragraph_layout is an
     Page,
     World,
     _paragraph_layout,
+    assemble_spy,
 )
 from tests.test_perpage_inputs_v27 import EN, I1, P_DUP, P_META, P_URL, _built
 
@@ -446,7 +447,7 @@ def test_real_followed_page_reaches_the_assembler_l8(tmp_path, monkeypatch):
     run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
     seen = []
     real = srow.assemble
-    monkeypatch.setattr(srow, "assemble", lambda *a, **k: seen.append((a[0].page_id, real(*a, **k))) or seen[-1][1])
+    monkeypatch.setattr(srow, "assemble", assemble_spy(real, lambda page, rows, kw: seen.append((page.page_id, rows))))
     fetch = FakeFetch({REPORT_URL: REPORT})
     with pytest.raises(MissingUpstreamError, match="source-row assembler"):
         _run(run_dir, bound, instrument, providers, inst, fv.FollowLeg(fetch), _jev())

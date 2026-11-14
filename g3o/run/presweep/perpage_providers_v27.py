@@ -39,7 +39,13 @@ The seams:
 - ``activity_input`` - the spans of that page request. On resume (the page
   checkpoint holds the support, so ``page_support`` is not called again) the
   page request is rebuilt from the stored T-021 artifact; the per-page journal
-  replays its response. PI ruling 87 c: when a halving in an extra round
+  replays its response. PI ruling 105 b (the 98 b check): when an earlier process
+  made that request (the stored result has pass-1 codes, so round 1 asked them, or
+  the page's :data:`~g3o.run.presweep.stage_perpage_v27.PASS1_FILE` exists) and the
+  journal holds no response for the rebuild,
+  :class:`~g3o.run.presweep.stage_perpage_v27.Pass1RequestNotJournaled` holds the
+  institution before any call; the same for an activity-only request the page's
+  ``PASS1_FILE`` names. PI ruling 87 c: when a halving in an extra round
   flipped the verdict to ``confirms_activity`` from its first-round value
   (:func:`~g3o.classify.question_rounds.verdict_flipped_to_confirms`, ruling 101
   a), the stored first-round plan had no activity task (ruling 100 b) and the
@@ -53,7 +59,10 @@ The seams:
   no activity (:data:`ACTIVITY_ONLY_EMPTY`), the page has no activity and its
   final verdict's support is downgraded ``downgraded_no_quote``
   (``verdict_downgrade``; applied by the per-page stage), so it never counts
-  as positive.
+  as positive. PI ruling 109 a: the same downgrade (:data:`FIRST_PLAN_NO_ACTIVITY`)
+  for a page whose final verdict is ``confirms_activity`` and whose first-round
+  plan had an activity task, but whose page request gave no activity (e.g. an
+  ``ambiguous_genai`` first verdict that flipped to ``confirms_activity``).
 - ``activity_support`` / ``pair_support`` - T-032 pass 2:
   :func:`~g3o.classify.jev_activity_code.to_pass2_page`,
   :func:`~g3o.extract.pass2_support.select_requests`, ``pass2_job``,
@@ -119,7 +128,7 @@ from g3o.classify.jev_activity_code import (
     PageActivityResult,
     to_pass2_page,
 )
-from g3o.classify.jev_page_code import PageCodeResult, PageInput, to_pass1_page
+from g3o.classify.jev_page_code import VERDICT, PageCodeResult, PageInput, to_pass1_page
 from g3o.classify.question_rounds import (
     PageRoundResult,
     extra_round_started,
@@ -139,11 +148,15 @@ from g3o.extract.parser_v27 import ExtractContractError, Pass1Extraction, parse_
 from g3o.run.presweep import stage_activity_code, stage_page_code
 from g3o.run.presweep.stage_perpage_v27 import (
     ACTIVITY_DIR,
+    ACTIVITY_ONLY_NOT_JOURNALED,
     PAIRS_FILE,
+    PASS1_NOT_JOURNALED,
     ExtractorResponseFailed,
+    Pass1RequestNotJournaled,
     Pass2RequestNotJournaled,
     PerPageProviders,
     page_state_dir,
+    read_pass1_requests,
 )
 from g3o.run.presweep.stage_validate_v27 import ExtractRejectCapReached
 
@@ -225,6 +238,16 @@ ACTIVITY_ONLY_CAP = "activity_only_request_rejection_cap"
 #: PI ruling 99.2: the activity-only request succeeded with no activity (none returned, or every span
 #: rejected by the parser).
 ACTIVITY_ONLY_EMPTY = "activity_only_request_no_activity"
+#: PI ruling 109 a: the 99.2 downgrade of a page whose final verdict is ``confirms_activity`` and whose first-round
+#: (T-022 page request) plan had an activity task, but that request gave no activity (none returned, or every span
+#: rejected by the parser); no activity-only request is made for it (ruling 100 b)
+FIRST_PLAN_NO_ACTIVITY = "first_round_request_no_activity"
+
+
+def _final_confirms(page_round: PageRoundResult) -> bool:
+    """Whether the page's final verdict is a combined ``confirms_activity`` (the verdict the 99.2 downgrade takes)."""
+    verdict = page_round.final.items.get(VERDICT)
+    return verdict is not None and verdict.state == "combined" and verdict.value == "confirms_activity"
 
 
 def activity_only_custom_id(first_round: str, page: Any) -> str:
@@ -446,7 +469,12 @@ class _Adapter:
         if pid not in self._page_request:  # resume: rebuild the page request from T-021
             first = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(
                 self.run_dir, page.institution_id, page.url)))
-            p1 = self._with_source_type(to_pass1_page(first, page))
+            base = to_pass1_page(first, page)
+            p1 = self._with_source_type(base)
+            if base.codes or read_pass1_requests(self.run_dir, page) is not None:  # PI ruling 105 b: a resume
+                plan = request_v27.select_requests(p1)
+                if plan.needs_request:
+                    self._require_journaled(pid, self.bound.pass1_job(p1, plan), PASS1_NOT_JOURNALED)
             self._page_plan[pid], self._page_request[pid], self._page_pass1[pid] = self._pass1(p1)
             self._type_support(pid, p1, self._page_plan[pid], self._page_request[pid])
         ext = self._page_request[pid]
@@ -465,6 +493,9 @@ class _Adapter:
             self._span_pass1[pid] = self._activity_only_job[pid]
             if not spans:  # ruling 99.2: no activity (none returned, or every span rejected by the parser)
                 self._verdict_downgrade[pid] = ACTIVITY_ONLY_EMPTY
+        elif not spans and self._page_plan[pid].activity_task and _final_confirms(page_round):
+            # PI ruling 109 a: the first plan asked for activities and got none, yet the page confirms one
+            self._verdict_downgrade[pid] = FIRST_PLAN_NO_ACTIVITY
         if not spans:
             return None
         return ActivityPageInput(to_pass1_page(page_round.result, page), page.country,
@@ -489,11 +520,26 @@ class _Adapter:
             plan = request_v27.activity_task_only(p1)
             job = self.bound.pass1_job(p1, plan)
             job = replace(job, custom_id=activity_only_custom_id(job.custom_id, p1))
+            made = read_pass1_requests(self.run_dir, page) or {}
+            if made.get("activity_only") == job.custom_id:  # PI ruling 105 b: an earlier process got its answer
+                self._require_journaled(pid, job, ACTIVITY_ONLY_NOT_JOURNALED)
             ext = self._parsed("pass1", job, lambda r: parse_pass1_result(r, p1, plan))
             self.extractions.append(ext)
             self._activity_only[pid] = ext
             self._activity_only_job[pid] = {"custom_id": job.custom_id, "params": job.params}
         return self._activity_only[pid]
+
+    def _require_journaled(self, page_id: str, job: ExtractorJob, stage: str) -> None:
+        """PI ruling 105 b (the 98 b check): a resumed pass-1 request must be replayed from the journal, never
+        sent live; with no recorded response :class:`~g3o.run.presweep.stage_perpage_v27.Pass1RequestNotJournaled`
+        (``stage``) holds the institution before any call. An extractor call that is not journaled (no
+        ``peek``, e.g. offline fakes) is not checked."""
+        peek = getattr(self.extract_fn, "peek", None)
+        if peek is None or _job_key(job) in self._responses:  # unjournaled, or answered in this process
+            return
+        key, recorded = peek(job)
+        if not recorded:
+            raise Pass1RequestNotJournaled(page_id, job.custom_id, key, stage)
 
     def activity_extraction(self, page_id: str) -> Pass1Extraction | None:
         """The page's activity-only pass-1 request (PI ruling 87 c) when :meth:`activity_input` made one
@@ -503,7 +549,9 @@ class _Adapter:
     def verdict_downgrade(self, page_id: str) -> str | None:
         """Why the page's final verdict support is downgraded ``downgraded_no_quote`` (PI ruling 99.1 a /
         99.2: its activity-only request reached the rejection cap, :data:`ACTIVITY_ONLY_CAP`, or gave no
-        activity, :data:`ACTIVITY_ONLY_EMPTY`), as the last :meth:`activity_input` for it decided; else None."""
+        activity, :data:`ACTIVITY_ONLY_EMPTY`; PI ruling 109 a: a confirms_activity page whose first-round plan
+        had an activity task and gave none, :data:`FIRST_PLAN_NO_ACTIVITY`), as the last :meth:`activity_input`
+        for it decided; else None."""
         return self._verdict_downgrade.get(page_id)
 
     def page_extraction(self, page_id: str) -> Pass1Extraction | None:

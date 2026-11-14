@@ -705,6 +705,16 @@ def code_source_type(page: Any, ask_fn: Any, config: Any, *, vocab: SourceVocab 
         return unreadable
     res = jpc.code_page(page, ask_fn, replace(config, question_set=residual_question_set()),
                         on_response=on_response, layout=layout)
+    return classifier_source_typing(res, vocab=v)
+
+
+def classifier_source_typing(res: Any, *, vocab: SourceVocab | None = None) -> SourceTyping:
+    """The classifier :class:`SourceTyping` of a residual question's result (``res``, the
+    ``jev_page_code.PageCodeResult`` :func:`code_source_type` gets). Deterministic in ``res``, so a typing
+    rebuilt from a stored result (the per-page stage's checkpoint, PI ruling 105 b) equals the one asked."""
+    v = vocab or default_vocab()
+    if res.question_set_version != RESIDUAL_SET_VERSION:
+        raise ValueError(f"not a residual source_type result (question set {res.question_set_version!r})")
     outcome = res.items[SOURCE_TYPE]
     if outcome.state == "stopped":
         raise UnruledError(SOURCE_TYPE, f"combiner stopped: {outcome.error}")
