@@ -902,6 +902,17 @@ def independence_groups_of(inst: Stage6Institution) -> Mapping[str, str]:
         raise MissingUpstreamError(f"{INDEPENDENCE_PRODUCER}; {exc.producer}", exc.missing) from exc
 
 
+def _agree_with_fragment(fragment: Mapping[str, Any], a8: Mapping[str, Any], oid: str) -> None:
+    """A8 review L6: a single observation's stored fragment value of an A8 item (e.g. the per-page
+    ``unit_credit``, T-015) must equal the value Stage 6 produces from the same rule; a disagreement is
+    a wiring error (ruling 32 b: :class:`~g3o.validate.merged_activity_v27.MalformedA8Value`, the
+    stage stops), never silently overwritten."""
+    for item, value in a8.items():
+        if item in fragment and fragment[item] != value:
+            raise ma.MalformedA8Value(item, f"observation {oid}", f"stored fragment value {fragment[item]!r} "
+                                                                  f"disagrees with the A8 value {value!r}")
+
+
 def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6Config, instrument: dict[str, Any],
                    artifact_root: Path) -> tuple[Any, list[dict[str, Any]]]:
     """The storage envelope and provenance records of one ready Stage 6 result."""
@@ -938,7 +949,9 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
         aid = final_of[group[0]]
         fragments = [inst.observation_inputs[k].row for k in group]
         if len(group) == 1:  # ruling 78 a: the A8 producers run for a single observation too
-            values = {**fragments[0]["values"], **ma.merged_values_a8(inst, list(group))}
+            a8 = ma.merged_values_a8(inst, list(group))
+            _agree_with_fragment(fragments[0]["values"], a8, group[0])
+            values = {**fragments[0]["values"], **a8}
         else:
             if inst.merged_values is None or group not in inst.merged_values:
                 raise MissingUpstreamError(MERGED_VALUES_PRODUCER, [aid])

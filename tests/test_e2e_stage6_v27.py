@@ -34,6 +34,7 @@ from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import CodeEvidence, Entailment, PageSources, check_code
 from g3o.persist.stage6_adapters import PageArtifact, SupportContext, coder_nodes, support_nodes
 from g3o.persist.writer import write_run_csvs
+from g3o.run.presweep import source_row_v27 as srow
 from g3o.run.presweep import stage_validate_v27 as rt
 from g3o.run.presweep.instrument_binding import RuntimeSettings, bind_runtime
 from g3o.validate import stage6_v27 as s6
@@ -123,6 +124,12 @@ class Builder:
             values.pop(k)
         values.update({"core.activity_name": name, "core.activity_type": activity_type, "core.tool_name": [tool],
                        "core.reported_outcomes": [], "core.deployment_scale_number": "not_documented"})
+        # The A8 items as the per-page stage stores them: Stage 6 produces stage_as_of, date_upper_bound,
+        # vendor_claim_only and cx_display_rollup (T-015 refuses them, ruling 78 a); unit_credit is
+        # T-015's (A8.7 a), which Stage 6 checks against its own value (A8 review L6).
+        for k in ("core.stage_as_of", "core.date_upper_bound", "core.vendor_claim_only", "core.cx_display_rollup"):
+            values.pop(k)
+        values["core.unit_credit"] = srow.unit_credit(values).value
         frag = self._row("activities", values, oid, sid, pid, quote)
         tool_node = next(s for s in frag["item_support"] if s["item_id"] == "core.tool_name")
         src_values = _values("sources")

@@ -578,6 +578,25 @@ def test_malformed_a8_input_stops_the_stage(tmp_path):
     assert not (institution_dir(run_dir, qa.A) / "6_storage.json").exists()
 
 
+def test_single_observation_fragment_value_disagreeing_with_a8_stops_the_stage(tmp_path):
+    # A8 review L6: a stored fragment value (here T-015's unit_credit) is never silently overwritten.
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    inp = a.observation_inputs["o3"]  # a single-observation activity (o3 governs o4: distinct)
+    assert inp.row["values"]["core.unit_credit"] == "no"  # T-015's value: this_institution
+    flipped = rt.ObservationInput("o3", inp.source_id,
+                                  {**inp.row, "values": {**inp.row["values"], "core.unit_credit": "yes"}})
+    bad = replace(a, observation_inputs={**a.observation_inputs, "o3": flipped})
+    with pytest.raises(rt.UpstreamRowMalformed, match="core.unit_credit") as info:
+        qa._run(run_dir, bound, instrument, [bad], e.FakeQuotes())
+    assert isinstance(info.value.__cause__, ma.MalformedA8Value) and "disagrees" in str(info.value)
+    assert not (institution_dir(run_dir, qa.A) / "6_storage.json").exists()
+    values = {"core.unit_credit": "no"}
+    rt._agree_with_fragment(values, {"core.unit_credit": "no", "core.stage_as_of": "2025"}, "o1")  # agrees/absent
+    with pytest.raises(ma.MalformedA8Value):
+        rt._agree_with_fragment(values, {"core.unit_credit": "yes"}, "o1")
+
+
 @pytest.mark.parametrize("where,item,value", [
     ("source", "core.source_publication_date", "March 2024"),
     ("source", "core.source_access_date", "Nov 2026"),
