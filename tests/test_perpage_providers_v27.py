@@ -1308,6 +1308,112 @@ def test_pass2_later_round_takes_the_same_request_uninterrupted_and_resumed(tmp_
     assert seen2 == [extra_cid, first_cid] and ex2.jobs == []
 
 
+def test_resumed_pass2_page_request_missing_from_the_journal_holds_ruling_98b(tmp_path):
+    """PI ruling 98 b: on a resume, the pass-2 page request rebuilt from the stored T-023 artifact is replayed
+    from the institution's journal; when the journal holds no response for it the institution is held
+    (stage pass2_request_not_journaled, naming the custom_id and request key) and no pass-2 call is made.
+    The first, uninterrupted run (the request built in round 1) is unaffected."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    a = [i for i in insts if i.institution_id == "INST-0000001"]
+
+    def run(extract):
+        return _run(run_dir, bound, instrument, a, _providers(run_dir, bound, instrument, extract, FakeEntail()),
+                    FakeJev(ANSWERS, RELATIONS))
+    ex1 = FakeExtractor(world)
+    ready, metrics = run(ex1)
+    assert metrics.ready == ["INST-0000001"] and PASS2 in ex1.stages()
+    # resume with the journal intact: the rebuilt page requests are replayed, nothing is sent
+    ex2 = FakeExtractor(world)
+    ready, metrics = run(ex2)
+    assert metrics.ready == ["INST-0000001"] and PASS2 not in ex2.stages()
+    # resume with the journal moved aside: held before any pass-2 call
+    journal = institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.JOURNAL
+    journal.rename(journal.with_name("journal-moved-aside.jsonl"))
+    ex3 = FakeExtractor(world)
+    ready, metrics = run(ex3)
+    assert ready == [] and metrics.held == ["INST-0000001"] and PASS2 not in ex3.stages()
+    (hold,) = _held(run_dir, "INST-0000001")["held"]
+    assert (hold["stage"], hold["pass"]) == (pp.PASS2_NOT_JOURNALED, "pass2")
+    assert hold["custom_id"] and len(hold["request_key"]) == 64 and "98 b" in hold["error"]
+
+
+def test_pair_only_page_resumed_rebuild_is_checked_first_build_is_not_ruling_98b(tmp_path, monkeypatch):
+    """PI ruling 98 b on a pair-only page (no ordinary code, so round 1 never made the page request): its
+    request is first built by page_pass2 / pair_support. On a later process the page's pair checkpoint
+    (pairs.json) shows that build happened, so a rebuild with no journaled response is held before any call;
+    with no pair checkpoint the rebuild is the first build and is sent; once journaled it is replayed."""
+    from g3o.classify.jev_activity_code import PAIR_ITEMS
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    a = [i for i in insts if i.institution_id == "INST-0000001"]
+    seen = []
+    real_pairs = ppv._Adapter.pair_support
+
+    def spy(self, inp, result):
+        seen.append(inp)
+        return real_pairs(self, inp, result)
+    monkeypatch.setattr(ppv._Adapter, "pair_support", spy)
+    _run(run_dir, bound, instrument, a, _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+         FakeJev(ANSWERS, RELATIONS))
+    monkeypatch.setattr(ppv._Adapter, "pair_support", real_pairs)  # not undo(): keeps the layout fixture
+    inp = seen[0]  # a page with a within-page pair (its pairs.json written by that run)
+    real_p2 = ppv.to_pass2_page
+
+    def pair_only(result, page_input):  # the stored result as a pair-only page's
+        full = real_p2(result, page_input)
+        return replace(full, activities=tuple(replace(x, codes=tuple(c for c in x.codes if c.item_id in PAIR_ITEMS))
+                                              for x in full.activities))
+    monkeypatch.setattr(ppv, "to_pass2_page", pair_only)
+    pairs = pp.page_state_dir(run_dir, inp.page) / pp.PAIRS_FILE
+    aside = pairs.with_name("pairs-moved-aside.json")
+    assert pairs.exists()
+    path = tmp_path / "pair-only-journal.jsonl"
+
+    def journaled(extract):
+        journal = rt.RequestJournal(path, {"s": 1})
+        base = _providers(run_dir, bound, instrument, extract, FakeEntail())
+        return base.with_seams(*journal.seams(base.journal_prompt))
+    # resumed (pairs.json from the earlier process), the journal holds no response: held, no call
+    ex1 = FakeExtractor(world)
+    with pytest.raises(pp.Pass2RequestNotJournaled):
+        journaled(ex1).page_pass2(inp)
+    assert ex1.jobs == []
+    # first build (no pair checkpoint yet): unaffected, the request is sent and journaled
+    pairs.rename(aside)
+    ex2 = FakeExtractor(world)
+    journaled(ex2).page_pass2(inp)
+    assert ex2.stages() == [PASS2]
+    # resumed again with that journal: replayed, no call
+    aside.rename(pairs)
+    ex3 = FakeExtractor(world)
+    journaled(ex3).page_pass2(inp)
+    assert ex3.jobs == []
+
+
+def test_journal_peek_reads_the_next_slot_without_using_it_ruling_98b(tmp_path):
+    """The journal's ``peek`` (read by the 98 b check) says whether the next call of a job would be replayed,
+    without using a slot: the call after it is still replayed."""
+    from g3o.extract.anthropic_client import ExtractorJob
+
+    job = ExtractorJob(custom_id="cid-peek", params={"model": "m", "messages": []}, metadata={})
+    path, prompt = tmp_path / "journal.jsonl", {"extractor_model": "m"}
+    ok = ExtractorResult("cid-peek", True, "{}", None, "fake-extractor-response", "msg-1", "x-1", "end_turn",
+                         dict(USAGE))
+    journal = rt.RequestJournal(path, {"s": 1})
+    wrap, _ = journal.seams(prompt)
+    calls = []
+    fn = wrap(lambda j: calls.append(j) or ok)
+    key, recorded = fn.peek(job)
+    assert not recorded and len(key) == 64
+    fn(job)
+    reloaded = rt.RequestJournal(path, {"s": 1})
+    wrap2, _ = reloaded.seams(prompt)
+    fn2 = wrap2(lambda j: calls.append(j) or ok)
+    assert fn2.peek(job) == (key, True) and fn2.peek(job) == (key, True)  # no slot used
+    assert fn2(job).text == "{}" and len(calls) == 1 and reloaded.replayed == 1
+    assert fn2.peek(job) == (key, False)  # the next slot of the same job has no response
+
+
 # ---------------------------------------------------------------------------
 # Ruling 34 b / 41 a: 3-attempt cap on rejected extractor requests, PI release
 # ---------------------------------------------------------------------------

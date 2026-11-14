@@ -204,8 +204,9 @@ def test_unproduced_values_still_refuse(tmp_path):
     assert f"{I1}/{url_hash(P_META.url)}" in exc.value.missing
     # Ruling 35 a: the row values are left to the T-015 assembler, which names what it still refuses.
     assert "source-row assembler" in str(exc.value) and "core.confidence" in str(exc.value)
-    # Review M2: an item refused only on some pages (here source_type) is named too.
-    assert "core.source_type" in str(exc.value) and "refuses on some pages" in str(exc.value)
+    # PI ruling 97 b: an item refused only on some pages' data (here source_type) holds that institution in
+    # the stage; the entry names the unproduced items only.
+    assert "core.source_type" not in str(exc.value) and "refuses on some pages" not in str(exc.value)
     assert all(s.upstream.page_fields is not None for i in followed for s in i.pages)
 
 
@@ -225,6 +226,32 @@ def test_require_complete_passes_assembler_pages_once_nothing_is_refused(tmp_pat
         with pytest.raises(MissingUpstreamError, match="row values") as exc:
             pin.require_complete(broken)
         assert exc.value.missing == (f"{I1}/{one.pages[0].page.page_id}",)
+
+
+@pytest.mark.parametrize(("attr", "bad", "gap"), [
+    ("text_source", None, "text_source (core.text_source)"),
+    ("language", None, "language (core.source_language)"),
+    ("syndication_group", None, "syndication_group (core.syndication_group)"),
+    ("access_date", None, "access_date (core.source_access_date)"),
+    ("archive_address", None, "archive_address (core.source_type)"),
+    ("archive_address", "no", "archive_address (core.source_type)"),
+])
+def test_require_complete_refuses_assembler_wiring_gaps_before_spend_97b(tmp_path, monkeypatch, attr, bad, gap):
+    """PI ruling 97 b with 40 a: the wiring inputs whose absence stops produce_page after coding are refused by
+    the pre-coding check, before any paid call, even once the entry gate names no unproduced item."""
+    insts = _built(tmp_path)
+    followed = [replace(i, pages=[replace(s, upstream=replace(s.upstream, followed=False)) for s in i.pages])
+                for i in insts.values()]
+    monkeypatch.setattr(pin.srow, "entry_refused_items", lambda: ())
+    assert pin.require_complete(followed) == 5
+    assert pin.page_fields_gaps(followed[0].pages[0].upstream.page_fields) == []
+    one = followed[0]
+    up = one.pages[0].upstream
+    broken_up = replace(up, page_fields=replace(up.page_fields, **{attr: bad}))
+    broken = [replace(one, pages=[replace(one.pages[0], upstream=broken_up), *one.pages[1:]]), *followed[1:]]
+    with pytest.raises(MissingUpstreamError, match="PageSourceFields") as exc:
+        pin.require_complete(broken)
+    assert exc.value.missing == (f"{I1}/{one.pages[0].page.page_id}:{gap}",)
 
 
 @pytest.mark.parametrize("absent", ["activity_values", "source_values", "codes"])

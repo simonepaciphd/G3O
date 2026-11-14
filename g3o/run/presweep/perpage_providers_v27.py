@@ -125,8 +125,11 @@ from g3o.extract.parser_v27 import ExtractContractError, Pass1Extraction, parse_
 from g3o.run.presweep import stage_activity_code, stage_page_code
 from g3o.run.presweep.stage_perpage_v27 import (
     ACTIVITY_DIR,
+    PAIRS_FILE,
     ExtractorResponseFailed,
+    Pass2RequestNotJournaled,
     PerPageProviders,
+    page_state_dir,
 )
 from g3o.run.presweep.stage_validate_v27 import ExtractRejectCapReached
 
@@ -504,13 +507,48 @@ class _Adapter:
         """The page's pass-2 page request rebuilt from the stored T-023 artifact (a resume: journal replay).
 
         The page request is only ever made in round 1 of ``complete_activity_rounds`` on that same
-        artifact (see :meth:`pair_support`), so the rebuild gives the same ``custom_id`` and params."""
+        artifact (see :meth:`pair_support`), so the rebuild gives the same ``custom_id`` and params.
+
+        PI ruling 98 b: the rebuild is a resume when an earlier process made this request. That is
+        known in two ways (:meth:`_resumed_request`): the stored result has ordinary (non-pair) codes
+        (round 1 made the request, so this process reaches the rebuild only on a resume), or the page's
+        pair checkpoint (:data:`~g3o.run.presweep.stage_perpage_v27.PAIRS_FILE`, written only after the
+        request was built by ``page_pass2`` / ``pair_support``) exists from an earlier process (a
+        pair-only page). On a resume, if the institution's request journal holds no response for it,
+        :class:`~g3o.run.presweep.stage_perpage_v27.Pass2RequestNotJournaled` holds the institution
+        before any call (no silent live paid call). Otherwise this is the request's first build
+        (a pair-only page reaching ``page_pass2`` / ``pair_support`` for the first time), unaffected.
+        Left open: a journal lost between the request's journaling and the pair checkpoint write. An
+        extractor call that is not journaled (no ``peek``, e.g. offline fakes) is not checked."""
         pid = inp.page.page_id
         art = stage_activity_code.artifact_path(
             institution_dir(self.run_dir, inp.page.institution_id) / ACTIVITY_DIR, pid)
         first = PageActivityResult.from_json(read_artifact(art))
-        self._pair_quotes[pid] = {k: q for k, q in self._pass2(to_pass2_page(first, inp)).items()
-                                  if k[1] in PAIR_ITEMS}
+        p2 = to_pass2_page(first, inp)
+        if self._resumed_request(inp, p2):
+            self._require_journaled_pass2(p2)
+        self._pair_quotes[pid] = {k: q for k, q in self._pass2(p2).items() if k[1] in PAIR_ITEMS}
+
+    def _resumed_request(self, inp: ActivityPageInput, p2: Any) -> bool:
+        """PI ruling 98 b: whether an earlier process made this page's pass-2 page request (see
+        :meth:`_rebuild_page_request2`)."""
+        if any(c.item_id not in PAIR_ITEMS for a in p2.activities for c in a.codes):
+            return True
+        return (page_state_dir(self.run_dir, inp.page) / PAIRS_FILE).exists()
+
+    def _require_journaled_pass2(self, p2: Any) -> None:
+        """PI ruling 98 b: a resumed page request must be replayed from the journal, never sent live."""
+        peek = getattr(self.extract_fn, "peek", None)
+        plan = pass2_support.select_requests(p2)
+        if peek is None or not plan.needs_request:
+            return
+        require_approved_quote_questions(pass2_support.default_rules())
+        job = self.bound.pass2_job(p2, plan)
+        if _job_key(job) in self._responses:  # already answered in this process
+            return
+        key, recorded = peek(job)
+        if not recorded:
+            raise Pass2RequestNotJournaled(p2.page_id, job.custom_id, key)
 
     def page_pass2(self, inp: ActivityPageInput) -> pass2_support.Pass2Support | None:
         """The page's T-032 pass-2 page request (its parsed answer with the actual response model and

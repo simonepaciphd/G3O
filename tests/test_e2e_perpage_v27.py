@@ -1170,3 +1170,46 @@ def test_page_failed_after_extra_round_halving_fails_through_attrition_and_resum
     assert p2_ledger() == [(pp.STAGE, qr.HALVING_PAGE_FAILED, detail)]
     p2 = next(p for p in next(i for i in ready if i.institution_id == "INST-0000001").pages if p.page_id == "p2")
     assert (p2.failed, p2.failure_reason) == (True, qr.HALVING_PAGE_FAILED)
+
+
+def test_row_value_refused_on_page_data_holds_that_institution_ruling_97b(tmp_path, monkeypatch):
+    """PI ruling 97 b: an item the T-015 assembler refuses on the page's own data alone (a
+    ``CONDITIONAL_ITEMS`` refusal, no wiring gap) holds that institution: held.json names the page, the
+    items and each refusal, the attrition detail names the items, nothing is published, and the stage
+    goes on (no MissingUpstreamError). held.json is the per-page hold file the report reads as not
+    concluded (ruling 45 a, g3o.report.outcomes)."""
+    from dataclasses import replace
+
+    from g3o.common import source_fields as sf
+    from g3o.run.presweep import perpage_inputs_v27 as pin
+    from g3o.run.presweep import source_row_v27 as srow
+
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    a = next(i for i in insts if i.institution_id == "INST-0000001")
+    real = srow.assemble
+    why = "refused when RenderedPage.title is empty (fixture)"
+
+    def data_only(*args, **kw):
+        rows = real(*args, **kw)
+        rows.refused, rows.stops = {sf.TITLE: why}, set()
+        return rows
+    monkeypatch.setattr(srow, "assemble", data_only)
+    page = a.pages[0].page
+
+    def fv(item, value):
+        return sf.FieldValue(item, value, FIELDS[item]["coder"], "declared fixture")
+    fields = pin.PageSourceFields(fv("core.source_url", page.url), fv("core.source_access_date", "2026-11-10"),
+                                  None, False, fv("core.source_language", "en"),
+                                  fv("core.syndication_group", "sg-fixture"), sf.text_source("new_run"))
+    up = replace(a.pages[0].upstream, activity_values=None, source_values=None, codes=None, page_fields=fields)
+    ready, metrics = _perpage(run_dir, bound, instrument, world, [replace(a, pages=[replace(a.pages[0], upstream=up)])],
+                              FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert ready == [] and metrics.held == ["INST-0000001"]
+    held = json.loads((institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.HELD_FILE)
+                      .read_text(encoding="utf-8"))
+    (hold,) = held["held"]
+    assert (hold["page_id"], hold["stage"], hold["items"]) == (page.page_id, pp.ROW_VALUE_REFUSED, [sf.TITLE])
+    assert hold["refusals"] == {sf.TITLE: why}
+    details = [r.get("detail") for r in attrition.read_records(run_dir)
+               if r.get("stage") == pp.STAGE and r.get("reason") == pp.HELD_REASON]
+    assert details == [f"{page.page_id}:{pp.ROW_VALUE_REFUSED}:{sf.TITLE}"]

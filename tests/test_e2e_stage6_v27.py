@@ -125,7 +125,7 @@ class Builder:
         values.update({"core.activity_name": name, "core.activity_type": activity_type, "core.tool_name": [tool],
                        "core.reported_outcomes": [], "core.deployment_scale_number": "not_documented"})
         # The A8 items as the per-page stage stores them: Stage 6 produces stage_as_of, date_upper_bound,
-        # vendor_claim_only and cx_display_rollup (T-015 refuses them, ruling 78 a); unit_credit is
+        # vendor_claim_only and cx_display_rollup (ruling 78 a; per-page rows carry none, 94 a); unit_credit is
         # T-015's (A8.7 a), which Stage 6 checks against its own value (A8 review L6).
         for k in ("core.stage_as_of", "core.date_upper_bound", "core.vendor_claim_only", "core.cx_display_rollup"):
             values.pop(k)

@@ -595,6 +595,14 @@ class RequestJournal:
             else:
                 self._append(self._slot("extract_failed", request, prompt), asdict(result), _elapsed_ms(start))
             return result
+
+        def peek(job: Any) -> tuple[str, bool]:
+            """``(request key, recorded)`` for the next call of ``job``: whether this journal holds a
+            response it would replay, without using the slot (PI ruling 98 b reads it before a rebuild)."""
+            key = self._key({"custom_id": job.custom_id, "params": job.params}, prompt)
+            return key, ("extract", key, self._seen.get(("extract", key), 0)) in self._recorded
+
+        wrapped.peek = peek  # type: ignore[attr-defined]
         return wrapped
 
     def _entail(self, entail_fn: Any, prompt: Mapping[str, Any]) -> Any:
@@ -730,7 +738,10 @@ class ObservationInput:
     """One observation's per-page storage fragment (T-023 final values with T-028 nodes).
 
     ``row`` has ``values`` (every activities-table item except ``core.n_sources``
-    and ``core.confidence``, which Stage 6 computes), ``item_support`` and
+    and ``core.confidence``, which Stage 6 computes, and, PI ruling 94 a, the
+    Stage-6-only A8 items ``stage_as_of``, ``date_upper_bound``, ``vendor_claim_only``
+    and ``cx_display_rollup``, produced only in :func:`build_envelope` by
+    :func:`g3o.validate.merged_activity_v27.merged_values_a8`), ``item_support`` and
     ``coder_records``. ``source_id`` is the observation's source claim.
     """
 

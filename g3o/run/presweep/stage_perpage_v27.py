@@ -34,7 +34,9 @@ Rules carried here, not decided here:
   that lacks an asked answer is a completed response here and is replayed on
   resume: its missing answer is a failed part vote, exactly as in an uninterrupted
   run (the Stage 6 Z1 b no-replay rule is not applied to this stage). Support results are serialized whole
-  (:func:`support_to_dict`), so a resumed check is never re-run.
+  (:func:`support_to_dict`), so a resumed check is never re-run. PI ruling 98 b: a resumed page's pass-2
+  page request, rebuilt from the stored T-023 artifact, with no recorded response in the journal holds
+  the institution (:data:`PASS2_NOT_JOURNALED`) instead of being sent live.
 - **Publication.** A page with any pending or stopped question (an extra
   round that failed, a gate awaiting it) holds its whole institution: the
   holds go to ``perpage_v27/held.json`` and the attrition ledger, nothing is
@@ -109,8 +111,12 @@ Rules carried here, not decided here:
   (:data:`~g3o.run.presweep.stage_validate_v27.MERGE_INPUT_ITEMS`).
   When no row values are injected and ``PageUpstream.page_fields`` is set, the
   T-015 source-row assembler (:mod:`g3o.run.presweep.source_row_v27`, PI ruling
-  35 a) builds them after coding; while it still refuses any row item, that is a
-  ``MissingUpstreamError`` naming the items (a stage stop, RC-D-033 C2 a).
+  35 a) builds them after coding; while it still refuses an unproduced row item, or
+  refuses one for a missing wiring input, that is a ``MissingUpstreamError`` naming
+  the items (a stage stop, RC-D-033 C2 a). PI ruling 97 b: an item refused on the
+  page's own data alone (``source_row_v27.CONDITIONAL_ITEMS``) holds that institution
+  (:data:`ROW_VALUE_REFUSED` in ``held.json``, naming the items and each refusal; the
+  attrition detail names the items) and the stage goes on.
 - **Reviewed page with no activity (RC-D-030 Y2 a).** It gets one page-level
   source row: ``activity_id`` ``_NA_``, empty ``observation_ids``, its
   page-level values and nodes (support nodes with no observation), the
@@ -144,6 +150,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from datetime import date as iso_date
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from g3o.classify import jev_activity_code as jac
@@ -209,6 +216,7 @@ from g3o.run.presweep.stage_validate_v27 import (
     RequestJournal,
     Stage6Institution,
 )
+from g3o.validate import merged_activity_v27 as ma
 from g3o.validate import uncertainty_flags_v27 as uf
 from g3o.validate.consolidate_v27 import (
     MISSING,
@@ -235,7 +243,10 @@ CHECKPOINT_FORMAT = "g3o-perpage-checkpoint-v1"
 PIPELINE = "web_extract"
 FAILED_PAGE_VERDICT = "not_assessable"  # an unreviewed page keeps a signed verdict code; never counted
 FAILED_PAGE_SUPPORT = "not_asked"  # R-045: no support check ran on a page that was not coded
-ACTIVITY_ITEMS = frozenset(table_fields("activities")) - {"core.n_sources", "core.confidence"} - set(METADATA_ITEMS)
+#: The items of a per-page activity fragment. PI ruling 94 a: the Stage-6-only items
+#: (:data:`~g3o.run.presweep.source_row_v27.STAGE6_ACTIVITY_ITEMS`) are not among them.
+ACTIVITY_ITEMS = (frozenset(table_fields("activities")) - {"core.n_sources", "core.confidence"} - set(METADATA_ITEMS)
+                  - set(srow.STAGE6_ACTIVITY_ITEMS))
 SOURCE_ITEMS = frozenset(table_fields("sources")) - set(METADATA_ITEMS)
 PRODUCED_CODERS = frozenset({"classifier"})
 T015_CLASSIFIER = "core.source_type"  # a classifier item T-015 owns: an upstream value and code
@@ -259,7 +270,11 @@ EXTRACT_RESPONSE_FAILED = "extract_response_failed"
 #: (the project's ``archive`` folder name, as :data:`g3o.run.archive.ARCHIVE_DIRNAME`)
 PAGE_ARCHIVE_DIR = "archive"
 #: the per-page checkpoint files under the page dir (the T-023 activity artifact lives in ACTIVITY_DIR)
-PAGE_STATE_FILES = ("page.json", "activity.json", "pairs.json")
+#: the pair-support checkpoint, written after the page's pass-2 page request was built (``page_pass2``,
+#: then ``pair_support``); its presence on a later run means that request was made by an earlier process
+#: (PI ruling 98 b reads it)
+PAIRS_FILE = "pairs.json"
+PAGE_STATE_FILES = ("page.json", "activity.json", PAIRS_FILE)
 #: written in the page dir before a C4 archive moves anything and moved into the archive folder last;
 #: while it is in the page dir the archive is incomplete and the page's saved state is never loaded
 PAGE_ARCHIVE_PENDING = "archive_pending.json"
@@ -327,6 +342,25 @@ class ExtractorResponseFailed(Exception):
         self.archive_page_state = archive_page_state
 
 
+#: PI ruling 98 b (2026-11-14): on a resume, a rebuilt pass-2 page request with no recorded response in the
+#: institution's request journal holds the institution (held.json names the page, ``custom_id`` and request key)
+PASS2_NOT_JOURNALED = "pass2_request_not_journaled"
+
+
+class Pass2RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as ExtractRejectCapReached does
+    """A resumed page's pass-2 page request, rebuilt from the stored T-023 artifact, has no recorded response
+    in the institution's request journal (PI ruling 98 b): no live paid call is made; the institution is held.
+
+    Raised by :meth:`g3o.run.presweep.perpage_providers_v27._Adapter._rebuild_page_request2` before any call;
+    not a stage stop."""
+
+    def __init__(self, page_id: str, custom_id: str, key: str) -> None:
+        super().__init__(f"page {page_id}: the rebuilt pass-2 page request {custom_id!r} (journal key {key}) has "
+                         "no recorded response in the request journal; no live call made on a resume (PI ruling "
+                         "98 b)")
+        self.page_id, self.custom_id, self.key = page_id, custom_id, key
+
+
 class PageArchiveIncomplete(Exception):
     """An ``OSError`` that survived the write retries stopped a page-state archive (ruling 33 a / 28 a).
 
@@ -341,6 +375,25 @@ class PageArchiveIncomplete(Exception):
         super().__init__(f"page-state archive incomplete: {type(error).__name__}: {error}")
         self.archived, self.left = archived, left
         self.error = f"{type(error).__name__}: {error}"
+
+
+#: PI ruling 97 b (2026-11-14): a row value the T-015 assembler refused on the page's own data
+#: (``source_row_v27.CONDITIONAL_ITEMS``, not a wiring gap): per-institution hold; held.json names the page,
+#: the items and each refusal
+ROW_VALUE_REFUSED = "row_value_refused"
+
+
+class RowValueRefused(ConsolidationError):
+    """Row values refused on the page's own data (PI ruling 97 b): the institution is held, the stage goes on.
+
+    ``refused`` maps each item to its refusal. Not a ``MissingUpstreamError`` (that is a wiring gap and
+    stops the stage); nothing of the institution is published. A rerun holds it again while the page's
+    data still refuses the item."""
+
+    def __init__(self, page_id: str, refused: Mapping[str, str]) -> None:
+        super().__init__(f"row values refused on page {page_id}'s own data: "
+                         + "; ".join(f"{item}: {why}" for item, why in sorted(refused.items())))
+        self.page_id, self.refused = page_id, dict(sorted(refused.items()))
 
 
 class UncarriedCombinedValue(ConsolidationError):
@@ -677,6 +730,21 @@ def failed_page(spec: PageSpec, reason: str) -> ReviewedPage:
                         spec.upstream.followed, (), (), (), failure_reason=reason)
 
 
+def quote_stage_as_of(product: PageProduct, oid: str, sid: str) -> str:
+    """``InputQuote.stage_as_of``: the pooled-quote order's fallback date for an undated source (R-044).
+
+    PI ruling 94 a: a per-page fragment carries no ``core.stage_as_of`` (Stage 6 is its only
+    producer), so the observation's date is read with the Stage 6 rule itself
+    (:func:`g3o.validate.merged_activity_v27.observation_stage_as_of`) over this observation's
+    fragment and its source row. It orders quotes only; it is never a row value. An absent input
+    raises ``MissingUpstreamError`` (a stage stop, as any absent upstream value here) and a
+    malformed one :class:`~g3o.validate.merged_activity_v27.MalformedA8Value` (ruling 32 b).
+    """
+    view = SimpleNamespace(observation_inputs={oid: product.observation_inputs[oid]},
+                           sources={sid: product.sources[sid]})
+    return ma.observation_stage_as_of(view, oid).date
+
+
 def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: PageSpec, page_order: int,
                  first_source: int,
                  page_round: PageRoundResult, activity_input: ActivityPageInput | None,
@@ -739,8 +807,10 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                              activity_extraction=activity_extraction,
                              provenance=srow.Provenance.of(instrument, extraction,
                                                            rule_coder_version=activity_config.coder_version))
-        if rows.refused:
+        if rows.stops:  # unproduced items and wiring gaps stop the stage (RC-D-033 C2 a, PI 32 b)
             raise MissingUpstreamError(f"{VALUES_PRODUCER} ({srow.ASSEMBLER})", sorted(rows.refused))
+        if rows.refused:  # PI ruling 97 b: refused on the page's own data: this institution is held
+            raise RowValueRefused(page.page_id, rows.data_refusals())
         a_vals, s_vals, codes = rows.to_upstream(keys)
         up = replace(up, activity_values=a_vals, source_values=s_vals, codes=codes)
     for name, value, need in (("activity_values", up.activity_values, list(acts)),
@@ -842,6 +912,10 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                                       and k != T015_CLASSIFIER)
             if given_classifier:
                 raise ValueError(f"classifier values must come from the coders: {given_classifier}")
+            if table is ACTIVITY_ITEMS:
+                stage6_only = sorted(set(given) & set(srow.STAGE6_ACTIVITY_ITEMS))
+                if stage6_only:  # PI ruling 94 a: one producer per item, and it is Stage 6
+                    raise ValueError(f"per-page activity values name Stage-6-only items (ruling 94 a): {stage6_only}")
             row.values.update({**given, **produced})
             missing = sorted(table - set(row.values))
             if missing:
@@ -928,6 +1002,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         date = src_values.get("core.source_publication_date")
         date = date if isinstance(date, str) and date not in MISSING else None
         type_label = value_label("core.source_type", None, src_values.get("core.source_type"), labels)
+        stage_as_of: str | None = None  # read only when the observation has a quote (below)
         quotes = []
         by_id = {n["support_id"]: n for n in frag["item_support"]}
         all_sr = [*(sr for sr, rec in activity_codes(aid)), *(sr for sr, _ in up.codes[aid])]
@@ -937,8 +1012,10 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
             node = next(n for n in by_id.values() if n["item_id"] == sr.item_id and n["item_part"] == sr.part
                         and n["chunk_id"] == sr.chunk_id and n["value_json"] == sr.original_value
                         and n["input_support_ids"] == [])
+            if stage_as_of is None:
+                stage_as_of = quote_stage_as_of(out, oid, sid)
             quotes.append(InputQuote(node["support_id"], oid, sid, sources, sr.chunk_id, sr.quote_chunk_id,
-                                     sr.supporting_text, type_label, date, str(frag["values"]["core.stage_as_of"]),
+                                     sr.supporting_text, type_label, date, stage_as_of,
                                      page.url, page_order, _passage_order(artifact, sr)))
         quotes.sort(key=lambda q: (q.passage_order, q.support_id))
         out.quotes.extend(quotes)
@@ -955,8 +1032,12 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
 # ---------------------------------------------------------------------------
 
 
-def _page_dir(run_dir: Path, page: PageInput) -> Path:
+def page_state_dir(run_dir: Path, page: Any) -> Path:
+    """``<inst>/perpage_v27/<url_hash>``: the page's checkpoints (``page`` needs ``institution_id`` and ``url``)."""
     return institution_dir(run_dir, page.institution_id) / WORK_DIR / url_hash(page.url)
+
+
+_page_dir = page_state_dir
 
 
 def _archive_page_state(run_dir: Path, page: PageInput) -> list[str]:
@@ -1113,7 +1194,7 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
     st.pass2 = None if page_pass2 is None else page_pass2(inp)
     result_now = st.activity_round.result
     if result_now.pairs:
-        pair_path = pdir / "pairs.json"
+        pair_path = pdir / PAIRS_FILE
         if pair_path.exists():
             doc = json.loads(pair_path.read_bytes().decode("utf-8"))
             if doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != "pairs":
@@ -1159,6 +1240,9 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
         except ExtractRejectCapReached as exc:  # ruling 34 b / 41 a: no call was made
             return _cap_hold(page.page_id, exc.pass_name, exc.custom_id, exc.key, exc.rejections,
                              "no extractor call made")
+        except Pass2RequestNotJournaled as exc:  # PI ruling 98 b: no call was made
+            return {"page_id": exc.page_id, "stage": PASS2_NOT_JOURNALED, "pass": "pass2",
+                    "custom_id": exc.custom_id, "request_key": exc.key, "error": str(exc)}
         except ExtractorResponseFailed as exc:  # C3 a: this institution is held as pending
             broken = _response_hold(page.page_id, exc)
             if exc.request is not None and hasattr(providers, "journal_prompt"):
@@ -1338,6 +1422,10 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             except UncarriedCombinedValue as exc:  # Y3 b: refused as a per-institution hold
                 uncarried = exc
                 break
+            except RowValueRefused as exc:  # PI ruling 97 b: the page's own data: this institution only
+                broken = {"page_id": exc.page_id, "stage": ROW_VALUE_REFUSED, "items": sorted(exc.refused),
+                          "refusals": exc.refused, "error": str(exc)}
+                break
             except STAGE_STOPS:
                 raise
             except (ConsolidationError, ValueError, RuntimeError) as exc:  # this institution only
@@ -1348,8 +1436,11 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             hold = broken if broken is not None else {
                 "page_id": uncarried.page_id, "stage": UNCARRIED_STAGE, "items": sorted(uncarried.values)}
             _atomic_write(held_path, canonical_json({"institution_id": inst.institution_id, "held": [hold]}))
+            detail = f"{hold['page_id']}:{hold['stage']}"
+            if hold["stage"] == ROW_VALUE_REFUSED:  # ruling 97 b: the reason names the items refused
+                detail += ":" + ",".join(hold["items"])
             attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_REASON,
-                             detail=f"{hold['page_id']}:{hold['stage']}")
+                             detail=detail)
             metrics.held.append(inst.institution_id)
             continue
         if held_path.exists():
@@ -1567,7 +1658,8 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 
 __all__ = [
-    "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
+    "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS",
+    "ROW_VALUE_REFUSED", "RowValueRefused", "quote_stage_as_of", "PASS2_NOT_JOURNALED", "Pass2RequestNotJournaled", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "FOLLOW_FAILED", "FollowWiringError", "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",

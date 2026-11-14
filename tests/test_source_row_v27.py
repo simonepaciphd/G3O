@@ -74,6 +74,44 @@ def test_every_row_item_is_produced_or_refused_exactly_once():
     assert act == {i for i in pp.ACTIVITY_ITEMS if FIELDS[i]["coder"] != "classifier"} - {"core.uncertainty_flags"}
 
 
+STAGE6_ONLY = {"core.stage_as_of", "core.date_upper_bound", "core.vendor_claim_only", "core.cx_display_rollup"}
+
+
+def test_stage6_only_items_leave_the_per_page_rows_ruling_94a():
+    """PI ruling 94 a: Stage 6 is the only producer of the four activity-level A8 items; a per-page
+    fragment carries none of them and they no longer block entry (stage_as_of_basis stays refused)."""
+    from g3o.validate import merged_activity_v27 as ma
+
+    assert set(srow.STAGE6_ACTIVITY_ITEMS) == STAGE6_ONLY and STAGE6_ONLY < set(ma.PRODUCED)
+    assert not STAGE6_ONLY & set(srow.REFUSED_ACTIVITY_ITEMS)
+    assert not STAGE6_ONLY & set(srow.unproduced_items()) and not STAGE6_ONLY & set(srow.entry_refused_items())
+    assert not STAGE6_ONLY & srow.activity_row_items() and not STAGE6_ONLY & pp.ACTIVITY_ITEMS
+    assert "core.stage_as_of_basis" in srow.REFUSED_ACTIVITY_ITEMS
+    assert sf.UPPER_BOUND in srow.PRODUCED_SOURCE_ITEMS and sf.UPPER_BOUND in pp.SOURCE_ITEMS  # source level stays
+    rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"a1": _activity()}, followed=False)
+    assert not STAGE6_ONLY & set(rows.activities["a1"])
+    # core.date_upper_bound is also a source-row item (same id): here only the source-level one is refused,
+    # because it reads the publication date (refused without a pass-1 request), never as an activity item.
+    assert not (STAGE6_ONLY - {sf.UPPER_BOUND}) & set(rows.refused)
+    assert rows.refused[sf.UPPER_BOUND] == f"reads {sf.DATE} (refused)"
+
+
+def test_quote_stage_as_of_reads_the_stage6_rule_ruling_94a():
+    """InputQuote.stage_as_of (R-044 order fallback) comes from merged_activity_v27.observation_stage_as_of,
+    not from a fragment value: a supported publication date, else the latest stated year, else access date."""
+    from g3o.run.presweep.stage_validate_v27 import ObservationInput
+
+    def product(pub, year):
+        out = pp.PageProduct(page=None)
+        out.observation_inputs["p1.a1"] = ObservationInput("p1.a1", "S1", {"values": _activity(
+            **{"core.year_announced": year})})
+        out.sources["S1"] = {"values": {sf.DATE: pub, sf.ACCESS_DATE: "2026-11-10"}}
+        return out
+    assert pp.quote_stage_as_of(product("2025-03", "2024"), "p1.a1", "S1") == "2025-03"
+    assert pp.quote_stage_as_of(product("not_documented", "2024"), "p1.a1", "S1") == "2024"
+    assert pp.quote_stage_as_of(product("not_documented", "not_documented"), "p1.a1", "S1") == "2026-11-10"
+
+
 def test_discovery_path_and_text_source_rulings_61a_62a():
     for item in (sf.DISCOVERY, sf.TEXT_SOURCE):
         assert item in srow.PRODUCED_SOURCE_ITEMS and item not in srow.unproduced_items()
@@ -277,17 +315,42 @@ def test_missing_producers_names_the_refused_items():
         assert item in pin.VALUES_MISSING
 
 
-def test_entry_gate_keeps_the_values_entry_for_conditional_refusals(monkeypatch):
-    """Review M2 (rulings 36 a / 40 a): items refused on some pages keep the entry refusal."""
-    assert set(srow.entry_refused_items()) == set(srow.unproduced_items()) | set(srow.CONDITIONAL_ITEMS)
-    for item in srow.CONDITIONAL_ITEMS:
+def test_entry_gate_covers_unproduced_items_only_ruling_97b(monkeypatch):
+    """PI ruling 97 b (rulings 36 a / 40 a): the entry gate names the unproduced items only; an item refused
+    on some pages' data holds that institution in the stage instead."""
+    assert srow.entry_refused_items() == srow.unproduced_items()
+    for item in srow.unproduced_items():
         assert item in pin.VALUES_MISSING
+    for item in set(srow.CONDITIONAL_ITEMS) - set(srow.unproduced_items()):
+        assert item not in pin.VALUES_MISSING
     monkeypatch.setattr(srow, "REFUSED_SOURCE_ITEMS", {})
     monkeypatch.setattr(srow, "REFUSED_ACTIVITY_ITEMS", {})
-    assert srow.unproduced_items() == () and srow.entry_refused_items() == tuple(sorted(srow.CONDITIONAL_ITEMS))
-    monkeypatch.setattr(srow, "CONDITIONAL_ITEMS", {})
-    assert srow.entry_refused_items() == ()
+    assert srow.unproduced_items() == () and srow.entry_refused_items() == ()
     assert "core.source_url" not in pin.VALUES_MISSING
+
+
+def test_data_refusals_hold_wiring_refusals_stop_ruling_97b():
+    """PI ruling 97 b: a conditional item refused on the page's own data is a data refusal (the stage holds
+    that institution); a standing refusal, a wiring-only item, or a conditional item refused for a missing
+    wiring input (and what reads it) stops the stage."""
+    # No pass-1 request for the date (page data): the date and what reads it are data refusals.
+    rows = srow.assemble(_page(), FIELDS_P1, NOGENAI, {}, followed=False, extraction=None, sources=SOURCES,
+                         verdict_support=_verdict(None), provenance=PROV, official_sites=OWN)
+    data = rows.data_refusals()
+    assert {sf.DATE, sf.UPPER_BOUND, sf.CREDIBILITY} <= set(data) and "no request" in data[sf.DATE]
+    assert set(srow.REFUSED_SOURCE_ITEMS) <= rows.stops and not set(data) & rows.stops
+    # No official-site map (wiring): official, the type that reads it and the credibility reading the type stop.
+    rows = srow.assemble(_page(), FIELDS_P1, NOGENAI, {}, followed=False)
+    assert {sf.OFFICIAL, sf.SOURCE_TYPE} <= rows.stops
+    # No pass-1 request handed in at all (MISSING_EXTRACTION) is wiring for the snippet too.
+    assert sf.SNIPPET in rows.stops and srow.MISSING_EXTRACTION in rows.refused[sf.SNIPPET]
+    # A wiring-only item refused (no language) stops the stage.
+    from dataclasses import replace
+    rows = srow.assemble(_page(), replace(FIELDS_P1, language=None), GENAI, {})
+    assert sf.LANGUAGE in rows.stops
+    # An empty title is page data.
+    rows = srow.assemble(_page(title=""), FIELDS_P1, GENAI, {})
+    assert sf.TITLE in rows.refused and sf.TITLE not in rows.stops
 
 
 # ---------------------------------------------------------------------------
