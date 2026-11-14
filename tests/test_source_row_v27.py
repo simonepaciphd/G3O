@@ -470,6 +470,9 @@ def test_snippet_without_verdict_quote_is_not_asked_by_rule_72a():
         assert (rec.coder_type, rec.answer_type, rec.chosen_value) == ("mechanical", "rule", "not_asked")
     # Review M2: a rule-set snippet never refuses; a quote at a superseded part still does.
     assert "superseded" in srow.CONDITIONAL_ITEMS[sf.SNIPPET]
+    assert "verdict_support is None" in srow.CONDITIONAL_ITEMS[sf.SNIPPET]  # review L-2
+    with pytest.raises(sf.MissingUpstreamError):
+        srow.snippet_value(None, SOURCES, PROV)
     with pytest.raises(ValueError, match="page verdict"):
         srow.snippet_value(sc.check_code(sc.CodeEvidence("core.tool_name", "x", None, rule_name="r"), SOURCES),
                            SOURCES, PROV)
