@@ -113,6 +113,41 @@ def test_access_date_counts_only_when_no_observation_has_a_real_date_ruling_90c(
     assert date == "2026-11-01" and [c.step for c in chosen] == ["access"]
 
 
+@pytest.mark.parametrize("access", ["not_documented", "unknown", None])
+def test_an_unused_access_date_does_not_hold_ruling_90c(access):
+    # o1 has a real date (2024), so o2's access date is never used: no hold, whatever it is.
+    o2_src = _src(**{"core.source_access_date": access})
+    if access is None:
+        o2_src.pop("core.source_access_date")
+    inst = _inst({"o1": _obs(), "o2": _obs()},
+                 {"S-o1": _src(**{"core.source_publication_date": "2024"}), "S-o2": o2_src})
+    date, chosen = ma.merged_stage_as_of(inst, ["o1", "o2"])
+    assert date == "2024" and [c.observation_id for c in chosen] == ["o1"]
+    inst = _inst({"o1": _obs(**{"core.year_announced": "2024"}), "o2": _obs()}, {"S-o1": _src(), "S-o2": o2_src})
+    assert ma.merged_stage_as_of(inst, ["o1", "o2"])[0] == "2024"  # a stated year is a real date too
+    # used: no pooled real date, so o2's access date is needed and its absence holds
+    inst = _inst({"o1": _obs(), "o2": _obs()}, {"S-o1": _src(), "S-o2": o2_src})
+    with pytest.raises(MissingUpstreamError, match="S-o2"):
+        ma.merged_stage_as_of(inst, ["o1", "o2"])
+    with pytest.raises(MissingUpstreamError):  # alone, an observation falls to its access date
+        ma.observation_stage_as_of(inst, "o2")
+
+
+def test_an_access_date_is_required_for_the_future_test_of_a_stated_year_ruling_90c():
+    # o2 states a year: is_future_year needs its access year even though o1 has a real date.
+    inst = _inst({"o1": _obs(), "o2": _obs(**{"core.year_announced": "2023"})},
+                 {"S-o1": _src(**{"core.source_publication_date": "2024"}),
+                  "S-o2": _src(**{"core.source_access_date": "not_documented"})})
+    with pytest.raises(MissingUpstreamError, match="S-o2"):
+        ma.merged_stage_as_of(inst, ["o1", "o2"])
+    # an unused access date is still checked for its signed form (wiring error)
+    inst = _inst({"o1": _obs(), "o2": _obs()},
+                 {"S-o1": _src(**{"core.source_publication_date": "2024"}),
+                  "S-o2": _src(**{"core.source_access_date": "Nov 2026"})})
+    with pytest.raises(ma.MalformedA8Value, match="neither a date"):
+        ma.merged_stage_as_of(inst, ["o1", "o2"])
+
+
 def test_future_year_codes_are_excluded_ruling_90c():
     # PROVISIONAL definition (pending PI confirmation): later than the observation's access-date year.
     assert ma.is_future_year("2027", "2026-11-01") and not ma.is_future_year("2026", "2026-11-01")

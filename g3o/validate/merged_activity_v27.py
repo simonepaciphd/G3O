@@ -27,7 +27,8 @@ Built here:
   ``core.source_access_date``. A8.6 a: the activity takes the latest date
   among its pooled observations (:func:`merged_stage_as_of`); ruling 90 c: an
   observation's access date counts only when no pooled observation has a
-  real (publication or stated) date. Ruling 76 b (:func:`latest`): dates that
+  real (publication or stated) date, and is required only then or for the
+  future-year test of a stated year. Ruling 76 b (:func:`latest`): dates that
   agree on their shared prefix (``2024-03`` and ``2024-03-12``) are the same
   date and the more precise one is taken; any other overlap is refused
   (:class:`UnruledMergeError`).
@@ -200,8 +201,21 @@ class DatedObservation:
     future_years: tuple[str, ...] = ()
 
 
-def observation_stage_as_of(inst: Any, oid: str) -> DatedObservation:
-    """``items/core.stage_as_of/rules/0`` for one observation (A8.3 a, A8.4 a, ruling 90 c)."""
+def _missing_access(inst: Any, oid: str) -> MissingUpstreamError:
+    where = f"source {inst.observation_inputs[oid].source_id}"
+    return MissingUpstreamError(f"{PRODUCER}: access date of {where} (stage_as_of)", [ACCESS_DATE])
+
+
+def _dated(inst: Any, oid: str) -> DatedObservation | None:
+    """One observation's ``stage_as_of``, or None when it would fall to an access date it lacks.
+
+    The access date is required here only when a stated year needs ruling 90 c's
+    future test (:func:`is_future_year`). An observation with no real
+    publication date and no stated year returns None when its access date is
+    absent or a missing token: that date is used only if no pooled observation
+    has a real date (:func:`merged_stage_as_of`). A present access date is still
+    checked for its signed form (a malformed one is a wiring error).
+    """
     obs = inst.observation_inputs[oid]
     sid = obs.source_id
     src = _source_row(inst, sid)
@@ -217,15 +231,31 @@ def observation_stage_as_of(inst: Any, oid: str) -> DatedObservation:
         if not (isinstance(value, str) and _YEAR.fullmatch(value)):
             raise MalformedA8Value(item, f"observation {oid}", f"{value!r} is neither a year code nor a missing token")
         years.append(value)
+    values = src.get("values")
+    if not years and not (isinstance(values, Mapping) and ACCESS_DATE in values):
+        return None  # absent, but needed only if no pooled observation has a real date
     access = _get(src, ACCESS_DATE, where)
     if not _real_date(ACCESS_DATE, access, where):
-        # The last step, and the reference year of ruling 90 c's future test.
-        raise MissingUpstreamError(f"{PRODUCER}: access date of {where} (stage_as_of)", [ACCESS_DATE])
+        if years:  # the reference year of ruling 90 c's future test
+            raise _missing_access(inst, oid)
+        return None
     future = tuple(y for y in years if is_future_year(y, access))
     current = [y for y in years if y not in future]
     if current:
         return DatedObservation(oid, sid, max(current, key=int), STEP_STATED, future)
     return DatedObservation(oid, sid, access, STEP_ACCESS, future)
+
+
+def observation_stage_as_of(inst: Any, oid: str) -> DatedObservation:
+    """``items/core.stage_as_of/rules/0`` for one observation alone (A8.3 a, A8.4 a, ruling 90 c).
+
+    Alone, an observation without a real date falls to its access date, so a
+    missing access date holds it (:class:`MissingUpstreamError`).
+    """
+    dated = _dated(inst, oid)
+    if dated is None:
+        raise _missing_access(inst, oid)
+    return dated
 
 
 def _span(date: str) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
@@ -268,11 +298,17 @@ def merged_stage_as_of(inst: Any, order: Sequence[str]) -> tuple[str, list[Dated
     """``core.stage_as_of`` of an activity and the pooled observations that carry it.
 
     Ruling 90 c: an access date counts only when no pooled observation has a real
-    (publication or stated) date.
+    (publication or stated) date, so an access date is required only then (an
+    observation's absent or missing-token access date holds the institution only
+    when it would be used; a stated year still requires it for 90 c's future test).
     """
-    dated = [observation_stage_as_of(inst, k) for k in order]
-    real = [d for d in dated if d.step != STEP_ACCESS]
-    chosen = latest(real or dated)
+    pairs = [(k, _dated(inst, k)) for k in order]
+    real = [d for _, d in pairs if d is not None and d.step != STEP_ACCESS]
+    if not real:
+        for k, d in pairs:
+            if d is None:
+                raise _missing_access(inst, k)
+    chosen = latest(real or [d for _, d in pairs if d is not None])
     return _signed(STAGE_AS_OF, chosen[0].date), chosen
 
 
