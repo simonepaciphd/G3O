@@ -222,6 +222,21 @@ def test_vendor_claim_only_a89():
         srow.vendor_claim_only("press_release")
 
 
+@pytest.mark.parametrize("basis", [sf.AUTO_OFFICIAL, sf.AUTO_ARCHIVE])
+def test_vendor_claim_only_automatic_type_is_typed_not_vendor_ruling_88a(basis):
+    # Ruling 88 a: an official-domain / archive page stored not_asked (rule source_type_auto:<basis>) is no.
+    fv = sf.auto_source_type(basis).field
+    assert srow.vendor_claim_only(fv.value, fv.rule_name).value == "no"
+
+
+def test_vendor_claim_only_not_asked_without_automatic_typing():
+    assert srow.vendor_claim_only("not_asked", sf.READABILITY_RULE + "too_short").value == "unknown"
+    with pytest.raises(sf.MissingUpstreamError):
+        srow.vendor_claim_only("not_asked")  # the stored rule name is read, never re-derived
+    with pytest.raises(ValueError, match="not a rules/0 or R-015 rule name"):
+        srow.vendor_claim_only("not_asked", "source_type_auto:somewhere")
+
+
 def test_missing_producers_names_the_refused_items():
     assert pin.MISSING_PRODUCERS == (pin.FOLLOW_ATTEMPTS_MISSING, pin.VALUES_MISSING)
     for item in srow.unproduced_items():
