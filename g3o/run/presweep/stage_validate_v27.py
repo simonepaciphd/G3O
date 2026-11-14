@@ -298,14 +298,32 @@ INDEPENDENCE_PRODUCER = "near-duplicate / syndication grouping (P15) for source 
 # ---------------------------------------------------------------------------
 
 
+def _answer_to_json(answer: JevAnswer) -> dict[str, Any]:
+    # The probabilities go in as ordered [key, value] pairs: the journal line is written with
+    # sort_keys and JSON object keys are strings, so a mapping would come back re-ordered (and a
+    # score's int keys as strings). A CoderRecord keeps the provider's order and stores it as
+    # pairs (jev_record), so a replayed response must give the same bytes as the live one.
+    doc = asdict(answer)
+    if isinstance(answer.probabilities, Mapping):
+        doc["probabilities"] = [[k, v] for k, v in answer.probabilities.items()]
+    return doc
+
+
+def _answer_from_json(doc: Mapping[str, Any]) -> JevAnswer:
+    probabilities = doc.get("probabilities")
+    if isinstance(probabilities, list):
+        doc = {**doc, "probabilities": {k: v for k, v in probabilities}}
+    return JevAnswer(**doc)
+
+
 def _jev_to_json(result: JevResult) -> dict[str, Any]:
-    return {"answers": {k: asdict(v) for k, v in result.answers.items()}, "response_model": result.response_model,
-            "request_id": result.request_id, "input_tokens": result.input_tokens,
-            "output_tokens": result.output_tokens}
+    return {"answers": {k: _answer_to_json(v) for k, v in result.answers.items()},
+            "response_model": result.response_model, "request_id": result.request_id,
+            "input_tokens": result.input_tokens, "output_tokens": result.output_tokens}
 
 
 def _jev_from_json(doc: Mapping[str, Any]) -> JevResult:
-    answers = {k: JevAnswer(**v) for k, v in doc["answers"].items()}
+    answers = {k: _answer_from_json(v) for k, v in doc["answers"].items()}
     return JevResult(answers, doc["response_model"], doc["request_id"], doc["input_tokens"], doc["output_tokens"])
 
 
