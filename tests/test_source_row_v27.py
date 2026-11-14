@@ -808,10 +808,11 @@ def test_archive_address_is_typed_automatically_70b():
 
 
 def test_residual_page_routing_70b():
-    # Readable residual page: refused (no residual question and quote wired); undated: credibility low.
+    # Readable residual page handed no residual answers: refused (a wiring gap, PI ruling 95 a); undated:
+    # credibility low.
     rows = _typed(_page(), FIELDS_P1, ELSEWHERE)
     assert _values(rows)[sf.OFFICIAL] == "not_official"
-    assert sf.SOURCE_TYPE not in rows.source and srow.RESIDUAL_REFUSAL in rows.refused[sf.SOURCE_TYPE]
+    assert sf.SOURCE_TYPE not in rows.source and srow.RESIDUAL_PRODUCER in rows.refused[sf.SOURCE_TYPE]
     assert _values(rows)[sf.CREDIBILITY] == "low"
     dated = _typed(_page(), _dated(), ELSEWHERE)
     assert sf.CREDIBILITY in dated.refused and sf.CREDIBILITY not in dated.source
@@ -838,12 +839,62 @@ def test_unresolved_official_site_refuses_its_readers_70b():
     assert TYPED - {sf.CREDIBILITY} <= set(rows.refused)
 
 
-def test_residual_source_type_refused_before_any_call_83b():
-    """PI ruling 83 b (replacing 71 b) is not wired on this branch (open PI question): still refused."""
-    assert "83 b" in srow.RESIDUAL_REFUSAL
-    rows = _typed(_page(), FIELDS_P1, ELSEWHERE)  # the assembler is handed no jev call at all
-    assert rows.refused[sf.SOURCE_TYPE].endswith(f"{srow.RESIDUAL_REFUSAL}: {sf.SOURCE_TYPE}")
+def _residual(value, *, quote=None, part=PART, entailment=None):
+    """A residual classifier typing deciding at ``part`` and its T-024 check (``quote`` from the first
+    pass-1 request, or none)."""
+    from types import SimpleNamespace
+
+    outcome = SimpleNamespace(part_id=part, value=value, probability=0.95)
+    typing = sf.SourceTyping(sf.FieldValue(sf.SOURCE_TYPE, value, "classifier", "residual classifier question"),
+                             typed_by="classifier", outcome=outcome)
+    rec = SimpleNamespace(item_id=sf.SOURCE_TYPE, chunk_id=part, chosen_value=value)
+    sr = sc.check_code(sc.CodeEvidence(sf.SOURCE_TYPE, value, part, probability=0.95, quote=quote,
+                                       quote_chunk_id=part if quote else None, entailment=entailment), SOURCES)
+    return typing, ((sr, rec),)
+
+
+def _residual_typed(page, fields, sites, typing, codes, date=None):
+    return srow.assemble(page, fields, NOGENAI, {}, followed=False, extraction=_Extraction(date=date),
+                         sources=SOURCES, verdict_support=_verdict("The council runs Copilot Chat"),
+                         provenance=PROV, official_sites=sites, source_typing=typing, source_type_codes=codes)
+
+
+def test_residual_source_type_takes_the_checked_answer_95a():
+    """PI ruling 95 a: a readable residual page's source_type is the residual answer as checked by T-024
+    on the quote of the page's first pass-1 request; its check is the row's code."""
+    typing, codes = _residual("vendor", quote="The council runs Copilot Chat with Contoso Ltd",
+                              entailment=sc.Entailment("true", 0.9))
+    rows = _residual_typed(_page(), _dated(), ELSEWHERE, typing, codes)
+    v = _values(rows)
+    assert v[sf.SOURCE_TYPE] == "vendor" and sf.SOURCE_TYPE not in rows.refused
+    (sr, _), = [(sr, rec) for sr, rec in rows.source_codes if sr.item_id == sf.SOURCE_TYPE]
+    assert sr.support_status == "supported"
+    assert v[sf.CREDIBILITY] == sf.signed_credibility_map().cells["vendor"]
     assert sf.SOURCE_TYPE in srow.CONDITIONAL_ITEMS and sf.SOURCE_TYPE not in srow.unproduced_items()
+    assert "residual" not in srow.CONDITIONAL_ITEMS[sf.SOURCE_TYPE]  # no longer refused on residual pages
+
+
+def test_residual_source_type_without_a_quote_is_downgraded_95a():
+    """PI ruling 95 a: a page with no first pass-1 request gets its type with no quote: the check is
+    ``downgraded_no_quote`` and the value its downgrade target (``unknown``, credibility's missing key)."""
+    typing, codes = _residual("vendor")
+    rows = _residual_typed(_page(), _dated(), ELSEWHERE, typing, codes)
+    v = _values(rows)
+    (sr, _), = [(sr, rec) for sr, rec in rows.source_codes if sr.item_id == sf.SOURCE_TYPE]
+    assert sr.support_status == "downgraded_no_quote" and sr.original_value == "vendor"
+    assert v[sf.SOURCE_TYPE] == sr.value == "unknown"
+    assert v[sf.CREDIBILITY] == sf.signed_credibility_map().cells["unknown"]
+
+
+def test_residual_source_type_wiring_errors_95a():
+    """A residual answer for a page typed by rule, or codes that do not match the deciding part, stop the
+    stage (TypeError, ruling 32 b)."""
+    typing, codes = _residual("vendor")
+    with pytest.raises(TypeError, match="typed by rule"):
+        _residual_typed(_page(), _dated(), OWN, typing, codes)
+    other, _ = _residual("vendor", part="p1#p9")
+    with pytest.raises(TypeError, match="deciding part"):
+        _residual_typed(_page(), _dated(), ELSEWHERE, other, codes)
 
 
 def test_gated_out_contracting_party_still_counts_for_content_vendor_74a():

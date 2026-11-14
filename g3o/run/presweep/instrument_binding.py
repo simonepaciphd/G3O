@@ -16,7 +16,7 @@ from g3o.classify.jev_activity_code import ActivityCoderConfig, part_combine_ada
 from g3o.classify.jev_page_code import PageCoderConfig
 from g3o.classify.questions.v27 import JEV_QUESTION_SET_VERSION, load_set
 from g3o.codebook.loader import load_codebook
-from g3o.common import archive_hosts, language_id, page_chunks, support_check
+from g3o.common import archive_hosts, language_id, page_chunks, source_fields, support_check
 from g3o.common.instrument import build_instrument, canonical_json, sha256_text, write_instrument
 from g3o.common.jev_record import load_classifier_rules
 from g3o.common.storage_fields import CODEBOOK_SHA256, FIELDS
@@ -149,6 +149,9 @@ def _prepare(settings: RuntimeSettings) -> tuple[dict[str, Any], dict[str, Any],
     generated = Path(__file__).resolve().parents[2] / "codebook" / "generated"
     questions = {name: load_set(name) for name in ("page", "activity", "institution")}
     question_hashes = {name: sha256_text(canonical_json(doc)) for name, doc in questions.items()}
+    # PI ruling 95 a: the residual source_type set is the second accepted question-set version (source_type
+    # records only; CoderRecord.storage_projection / the storage validator read this key)
+    question_hashes[source_fields.RESIDUAL_QUESTION_HASH_KEY] = source_fields.residual_set_sha256()
     prompt_hashes = {"pass1": sha256_text(pass1_system), "pass2": sha256_text(pass2_system),
                      "stage6_quote": sha256_text(stage6_quote_system)}
     for name in ("extract_output_contract.md", "validate_output_contract.md", "jev_questions.json"):

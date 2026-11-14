@@ -180,14 +180,26 @@ def complete_page_rounds(page: page_code.PageInput, result: page_code.PageCodeRe
                          support: Sequence[Any], *, ask_fn: page_code.AskFn,
                          config: page_code.PageCoderConfig,
                          check_support: Callable[..., Sequence[Any]],
-                         checkpoint: Checkpoint | None = None) -> PageRoundResult:
+                         checkpoint: Checkpoint | None = None,
+                         reask_fn: page_code.AskFn | None = None) -> PageRoundResult:
     """Ask/check newly opened page questions, bounded by the signed question graph.
 
     A partial extra question is identified by its pending outcome and retained
     records. Resume sends only missing chunk answers. Earlier answers, including
     historical gated-out mechanical records, remain byte-for-byte unchanged,
     except that a halved part's records move to ``superseded`` (module docstring).
+
+    ``reask_fn`` sends the re-asks after a halving (PI ruling 75 a). A journaled
+    caller passes the journal's seam explicitly (the per-page stage passes
+    ``ask.reask`` and refuses an ``ask`` without one), so a wrapper that hides the
+    seam cannot resend a billed re-ask. Omitted, re-asks use ``ask_fn``'s
+    :data:`REASK_SEAM` attribute when present, else ``ask_fn`` itself (an
+    unjournaled caller, e.g. a test fake).
     """
+    if reask_fn is None:
+        reask_fn = getattr(ask_fn, REASK_SEAM, ask_fn)
+    if not callable(reask_fn):
+        raise TypeError(f"re-ask seam {reask_fn!r} is not callable (wiring error)")
     if (page.page_id, page.institution_id, page.url) != (result.page_id, result.institution_id, result.url):
         raise ValueError("page identity differs from coding result")
     setup = page_code._setup(config)
@@ -222,7 +234,7 @@ def complete_page_rounds(page: page_code.PageInput, result: page_code.PageCodeRe
             sent = None
             for group in [*_owed(result, chunk.chunk_id, setup), own]:
                 outcome, result = _send_group(page, result, pos, group, own, setup, ask_fn, config,
-                                              checkpoint, support)
+                                              checkpoint, support, reask_fn=reask_fn)
                 if outcome == "held":
                     return PageRoundResult(result, _final(result, support, config),
                                            support, rounds)
@@ -317,14 +329,27 @@ CONFIRMS_ACTIVITY = "confirms_activity"
 def verdict_flipped_to_confirms(page_round: PageRoundResult) -> bool:
     """Whether a halving in an extra round flipped the page's verdict to ``confirms_activity`` (PI ruling 87 c).
 
-    True when the final verdict is a combined ``confirms_activity`` and a :data:`PLAN_KEPT` entry (ruling
-    68 b) records a provisional verdict change from another value: the stored first-round extractor
-    request was planned on that earlier verdict. Read from the saved result, so the same on a resume."""
+    True when the final verdict is a combined ``confirms_activity`` and the page's first-round verdict
+    (:func:`first_round_verdict`) was another value: the stored first-round extractor request was planned
+    on it (ruling 68 b). An intermediate value between halvings is never compared (PI ruling 100 b / 101
+    a): a first-round ``confirms_activity`` that a halving changed and a later one restored is no flip.
+    Read from the saved result, so the same on a resume. The caller also checks that the stored
+    first-round plan had no activity task (ruling 100 b)."""
     final = page_round.final.items.get(page_code.VERDICT)
     if page_round.failed or final is None or final.state != "combined" or final.value != CONFIRMS_ACTIVITY:
         return False
-    return any(e.get("outcome") == PLAN_KEPT and e.get("item_id") == page_code.VERDICT
-               and (e.get("before") or {}).get("value") != CONFIRMS_ACTIVITY for e in page_round.result.requests)
+    first = first_round_verdict(page_round.result)
+    return first is not None and first.get("value") != CONFIRMS_ACTIVITY
+
+
+def first_round_verdict(result: page_code.PageCodeResult) -> dict[str, Any] | None:
+    """The provisional verdict the first-round extractor request was planned on (``state``, ``value``), as
+    the FIRST :data:`PLAN_KEPT` verdict entry records it (its ``before``); None when no halving changed the
+    verdict (the first-round verdict is the current one). Every later entry's ``before`` is an intermediate
+    value (PI ruling 100 b)."""
+    first = next((e for e in result.requests
+                  if e.get("outcome") == PLAN_KEPT and e.get("item_id") == page_code.VERDICT), None)
+    return None if first is None else dict(first.get("before") or {})
 
 
 def _halvings(result: page_code.PageCodeResult) -> list[dict[str, Any]]:
@@ -393,12 +418,13 @@ def _part_plan(result: page_code.PageCodeResult, chunk_id: str, page: page_code.
 
 def _send_group(page: page_code.PageInput, result: page_code.PageCodeResult, pos: int, group: _Group,
                 own: _Group, setup: Any, ask_fn: page_code.AskFn, config: page_code.PageCoderConfig,
-                checkpoint: Checkpoint | None, support: tuple[Any, ...]
+                checkpoint: Checkpoint | None, support: tuple[Any, ...], *, reask_fn: page_code.AskFn
                 ) -> tuple[str, page_code.PageCodeResult]:
     """Ask one request on ``result.chunks[pos]``: ``"ok"`` (answered, or already final),
     ``"halved"`` (the part was replaced by its halves) or ``"held"`` (pending).
 
-    ``own`` is the current extra question's request; any other ``group`` is a re-ask."""
+    ``own`` is the current extra question's request, sent with ``ask_fn``; any other ``group`` is a
+    re-ask, sent with ``reask_fn`` (resolved by :func:`complete_page_rounds`)."""
     chunk = result.chunks[pos]
     rnd, gname, qids = group
     if _done(result, chunk.chunk_id, group):
@@ -418,9 +444,9 @@ def _send_group(page: page_code.PageInput, result: page_code.PageCodeResult, pos
                            {**log, "outcome": "over_limit", "estimated_tokens": size})
     over: str | None = None
     response = None
-    # PI ruling 75 a: a re-ask goes through the ask function's ``reask`` seam when it has one (the
-    # request journal), which replays an already billed no-request-id response as its final failure
-    send = getattr(ask_fn, REASK_SEAM, ask_fn) if group != own else ask_fn
+    # PI ruling 75 a: a re-ask goes through the explicit re-ask seam (the request journal's, which
+    # replays an already billed no-request-id response as its final failure)
+    send = reask_fn if group != own else ask_fn
     try:
         response = send(state, questions)
         if group != own:  # PI ruling 75 a: a re-ask after a halving keeps first-round semantics

@@ -167,12 +167,14 @@ from g3o.classify.jev_activity_code import (
 from g3o.classify.jev_page_code import PageCoderConfig, PageCodeResult, PageInput, contact_text
 from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE
 from g3o.classify.question_rounds import (
+    REASK_SEAM,
     ActivityRoundResult,
     PageRoundResult,
     complete_activity_rounds,
     complete_page_rounds,
 )
 from g3o.common import attrition
+from g3o.common import source_fields as sf
 from g3o.common.artifact_io import artifact_exists, gz_path, plain_path, read_artifact
 from g3o.common.cost_monitor import BudgetExceededError, UnpricedModelError
 from g3o.common.instrument import canonical_json, sha256_text
@@ -185,6 +187,7 @@ from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissing
 from g3o.common.storage import METADATA_ITEMS, table_fields
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import (
+    NO_QUOTE,
     CodeEvidence,
     Entailment,
     PageSources,
@@ -561,6 +564,8 @@ class PerPageMetrics:
     replayed_requests: int = 0
     checkpoint_writes: int = 0
     usage: dict[str, dict[str, int]] = field(default_factory=dict)
+    #: page id -> why its verdict support was downgraded ``downgraded_no_quote`` (PI ruling 99.1 a / 99.2)
+    verdict_downgrades: dict[str, str] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -752,8 +757,12 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                  pair_support: Sequence[SupportResult], page_config: PageCoderConfig,
                  activity_config: ActivityCoderConfig, instrument: dict[str, Any],
                  extraction: Any = None, official_sites: Any = None, pass2: Any = None,
-                 activity_extraction: Any = None) -> PageProduct:
+                 activity_extraction: Any = None, source_typing: Any = None,
+                 source_type_codes: Any = None) -> PageProduct:
     """Final per-page values and their support -> the Stage 6 per-page inputs of one coded page.
+
+    ``source_typing`` / ``source_type_codes``: the page's residual ``source_type`` answers and their
+    checks (PI ruling 95 a; ``_PageState``), which the T-015 assembler turns into the row value.
 
     ``extraction`` is the page's T-022 pass-1 page request (``PerPageProviders.page_extraction``),
     read by the T-015 source-row assembler when no row values are injected (PI ruling 35 a);
@@ -804,7 +813,8 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                              {aid: outcome_values(f.outcomes) for aid, f in finals.items()},
                              followed=up.followed, hop=up.hop, extraction=extraction, sources=sources,
                              verdict_support=vsr, official_sites=official_sites, pass2=pass2,
-                             activity_extraction=activity_extraction,
+                             activity_extraction=activity_extraction, source_typing=source_typing,
+                             source_type_codes=source_type_codes,
                              provenance=srow.Provenance.of(instrument, extraction,
                                                            rule_coder_version=activity_config.coder_version))
         if rows.stops:  # unproduced items and wiring gaps stop the stage (RC-D-033 C2 a, PI 32 b)
@@ -1121,19 +1131,97 @@ class _PageState:
     #: the page's activity-only pass-1 request (PI ruling 87 c; PerPageProviders.activity_extraction), or None
     activity_extraction: Any = None
     pass2: Any = None  # the page's T-032 pass-2 page request (PerPageProviders.page_pass2; PI ruling 73.1 b)
+    #: the page's residual source_type answers (PI ruling 95 a; :func:`_residual_source_type`), or None
+    source_typing: Any = None
+    #: their T-024 checks, (support, record) pairs (``PerPageProviders.source_type_codes``)
+    source_type_codes: Any = None
     failure: str | None = None
     holds: list[dict[str, Any]] = field(default_factory=list)
 
 
+def downgrade_verdict_support(page: PageInput, page_round: PageRoundResult) -> PageRoundResult:
+    """PI ruling 99.1 a / 99.2: the final verdict's support at its deciding part, re-checked with no quote
+    (T-024, :func:`~g3o.common.support_check.check_code`): ``downgraded_no_quote``, the verdict value kept
+    (R-041). The final items are not re-combined (the verdict stands, its support is downgraded), and the
+    page checkpoint is not rewritten: the decision is made again from the journaled activity-only request
+    on every run. Only a combined ``confirms_activity`` verdict is downgraded; anything else is a wiring
+    error (``TypeError``)."""
+    verdict = page_round.final.items.get(jpc.VERDICT)
+    if verdict is None or verdict.state != "combined" or verdict.value != "confirms_activity":
+        raise TypeError(f"page {page.page_id}: only a combined confirms_activity verdict is downgraded")
+    key = (None, jpc.VERDICT, None, verdict.part_id, None)
+    old = _index(page_round.support).get(key)
+    if old is None:
+        raise ConsolidationError("final page verdict has no support result at its deciding part")
+    sources = PageSources(page.page_id, {c.chunk_id: c.text for c in page_round.result.chunks}, contact_text(page))
+    new = check_code(CodeEvidence(jpc.VERDICT, old.original_value, old.chunk_id,
+                                  probability=old.chosen_answer_probability), sources)
+    if new.support_status != NO_QUOTE:
+        raise TypeError(f"page {page.page_id}: verdict re-check without a quote gave {new.support_status!r}")
+    support = tuple(new if _support_key(s) == key else s for s in page_round.support)
+    return replace(page_round, support=support)
+
+
+def _reask_seam(ask: Any) -> Any:
+    """The journaled ``ask``'s re-ask seam (PI ruling 75 a; re-ask review LOW (a)).
+
+    The per-page stage always journals ``ask`` (:meth:`RequestJournal.ask`), whose ``reask``
+    attribute replays a re-ask already billed without a request id. It is passed to
+    :func:`complete_page_rounds` explicitly; an ``ask`` without it (e.g. a wrapper that hid it)
+    would silently resend a billed re-ask, so it is a wiring error that stops the stage
+    (``TypeError``, not a per-institution hold; ruling 32 b)."""
+    seam = getattr(ask, REASK_SEAM, None)
+    if not callable(seam):
+        raise TypeError(f"the per-page jev ask function has no callable {REASK_SEAM!r} seam (the request "
+                        "journal's; ruling 75 a): a wiring error, the stage stops")
+    return seam
+
+
+def _residual_source_type(run_dir: Path, spec: PageSpec, ask: Any, page_config: PageCoderConfig,
+                          official_sites: Any) -> Any:
+    """PI ruling 95 a (building 83 b): the residual ``source_type`` question, asked before T-022.
+
+    Only for a page whose rows the T-015 assembler builds (``page_fields`` given, no injected rows) and
+    that ``items/core.source_type/rules/0`` leaves to the question: neither official
+    (:func:`~g3o.run.presweep.source_row_v27.official_value`) nor an archive address, and readable
+    (R-015). Asked with the journaled ``ask`` (recorded, priced, replayed on a resume) on the page's
+    T-021 parts, so each answer's part is a part of the page's first pass-1 request
+    (:func:`~g3o.common.source_fields.code_source_type`). Returns the classifier
+    :class:`~g3o.common.source_fields.SourceTyping`, or None (typed by rule, or a refused input: no call is
+    made, and the assembler refuses or types the page itself)."""
+    page, up = spec.page, spec.upstream
+    if up.page_fields is None or any(v is not None for v in (up.activity_values, up.source_values, up.codes)):
+        return None
+    try:
+        official = srow.official_value(page, official_sites)
+    except srow._REFUSALS:  # absent data: the assembler refuses source_type; nothing is asked
+        return None
+    archive = getattr(up.page_fields, "archive_address", None)
+    if not isinstance(archive, bool) or sf.route_source_type(official, archive) is not None:
+        return None
+    t021 = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(run_dir, page.institution_id,
+                                                                                page.url)))
+    typing = sf.code_source_type(page, ask, page_config, layout=t021.chunks)
+    return typing if typing.typed_by == "classifier" else None
+
+
 def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPageProviders,
                      page_config: PageCoderConfig, activity_config: ActivityCoderConfig,
-                     metrics: PerPageMetrics) -> None:
+                     metrics: PerPageMetrics, official_sites: Any = None) -> None:
     page = st.spec.page
     pdir = _page_dir(run_dir, page)
     # ruling 33 a: an archive left incomplete (its marker is still here) is finished before any
     # state is loaded; PageArchiveIncomplete holds the institution again
     if (pdir / PAGE_ARCHIVE_PENDING).exists():
         _archive_page_state(run_dir, page)
+    # PI ruling 95 a: the residual source_type question runs before T-022 (the page's first pass-1 request)
+    st.source_typing = _residual_source_type(run_dir, st.spec, ask, page_config, official_sites)
+    if st.source_typing is not None:
+        set_typing = getattr(providers, "set_source_typing", None)
+        if set_typing is None:
+            raise TypeError(f"page {page.page_id}: the per-page providers take no residual source_type "
+                            "(set_source_typing; PI ruling 95 a): a wiring error, the stage stops")
+        set_typing(page.page_id, st.source_typing)
     page_ckpt = Checkpoint(pdir / "page.json", "page")
     saved = page_ckpt.load()
     if saved is None:
@@ -1144,7 +1232,8 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
         result, support = saved
     st.page_round = complete_page_rounds(
         page, result, support, ask_fn=ask, config=page_config,
-        check_support=lambda r, recs: providers.page_support(page, r, recs), checkpoint=page_ckpt.save)
+        check_support=lambda r, recs: providers.page_support(page, r, recs), checkpoint=page_ckpt.save,
+        reask_fn=_reask_seam(ask))
     metrics.checkpoint_writes += page_ckpt.writes
     if st.page_round.failed:  # ruling 69 b: failed after halving in an extra round, as a T-021 failure
         failure = st.page_round.failure
@@ -1159,10 +1248,19 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
         return
     inp = providers.activity_input(page, st.page_round)
     st.activity_input = inp
+    verdict_downgrade = getattr(providers, "verdict_downgrade", None)  # PI ruling 99.1 a / 99.2 (absent on fakes)
+    reason = None if verdict_downgrade is None else verdict_downgrade(page.page_id)
+    if reason is not None:
+        if inp is not None:
+            raise TypeError(f"page {page.page_id}: a verdict downgrade ({reason}) with activity spans (wiring error)")
+        st.page_round = downgrade_verdict_support(page, st.page_round)
+        metrics.verdict_downgrades[page.page_id] = reason
     page_extraction = getattr(providers, "page_extraction", None)  # absent on test fakes: None (refused)
     st.extraction = None if page_extraction is None else page_extraction(page.page_id)
     activity_extraction = getattr(providers, "activity_extraction", None)  # PI ruling 87 c (absent on fakes)
     st.activity_extraction = None if activity_extraction is None else activity_extraction(page.page_id)
+    if st.source_typing is not None:  # PI ruling 95 a: checked on the first request's quotes (or none)
+        st.source_type_codes = providers.source_type_codes(page.page_id)
     if inp is None:
         return
     act_ckpt = Checkpoint(pdir / "activity.json", "activity")
@@ -1211,8 +1309,11 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
 def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str, Any] | None, *, ask: Any,
                  providers: PerPageProviders, inst_providers: PerPageProviders, journal: RequestJournal,
                  page_config: PageCoderConfig, activity_config: ActivityCoderConfig, metrics: PerPageMetrics,
-                 cost_check_callback: Callable[[str, dict[str, int]], bool] | None) -> dict[str, Any] | None:
+                 cost_check_callback: Callable[[str, dict[str, int]], bool] | None,
+                 official_sites: Any = None) -> dict[str, Any] | None:
     """T-021 coding and the rounds of ``to_code`` (one institution); returns the institution's hold, if any.
+
+    ``official_sites``: the run's official sites, read by the residual ``source_type`` step (PI ruling 95 a).
 
     ``broken`` is returned unchanged unless a page sets a hold (the caller passes
     ``to_code`` empty when it already holds the institution).
@@ -1234,7 +1335,8 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
             metrics.failed_pages.append(page.page_id)
             continue
         try:
-            _rounds_for_page(run_dir, st, ask, inst_providers, page_config, activity_config, metrics)
+            _rounds_for_page(run_dir, st, ask, inst_providers, page_config, activity_config, metrics,
+                             official_sites=official_sites)
         except PageArchiveIncomplete as exc:  # finishing an earlier archive failed again
             return _archive_hold(page.page_id, exc)
         except ExtractRejectCapReached as exc:  # ruling 34 b / 41 a: no call was made
@@ -1377,14 +1479,15 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             broken = _code_states(run_dir, to_code, broken, ask=ask, providers=providers,
                                   inst_providers=inst_providers, journal=journal, page_config=page_config,
                                   activity_config=activity_config, metrics=metrics,
-                                  cost_check_callback=cost_check_callback)
+                                  cost_check_callback=cost_check_callback, official_sites=official_sites)
             # Review L5: an institution with no page has nothing to follow from (not an error).
             if follow is not None and broken is None and states and not any(st.holds for st in states):
                 try:
                     broken = _follow_rounds(run_dir, inst, states, follow, held_path, ask=ask,
                                             providers=providers, inst_providers=inst_providers, journal=journal,
                                             page_config=page_config, activity_config=activity_config,
-                                            metrics=metrics, cost_check_callback=cost_check_callback)
+                                            metrics=metrics, cost_check_callback=cost_check_callback,
+                                            official_sites=official_sites)
                 except STAGE_STOPS:
                     raise
                 except ValueError as exc:  # institution data: this institution is held
@@ -1418,7 +1521,8 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                     activity_input=st.activity_input, activity_round=st.activity_round, pairs=st.pairs,
                     pair_support=st.pair_support, page_config=page_config, activity_config=activity_config,
                     instrument=instrument, extraction=st.extraction, official_sites=official_sites,
-                    pass2=st.pass2, activity_extraction=st.activity_extraction))
+                    pass2=st.pass2, activity_extraction=st.activity_extraction,
+                    source_typing=st.source_typing, source_type_codes=st.source_type_codes))
             except UncarriedCombinedValue as exc:  # Y3 b: refused as a per-institution hold
                 uncarried = exc
                 break

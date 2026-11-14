@@ -730,6 +730,28 @@ def test_verdict_flipped_to_confirms_reads_the_plan_kept_log_87c(monkeypatch, ru
     assert not flipped(entry("confirms_activity"))  # not a flip to it
     assert not flipped(entry("no", item="core.page_complete"))  # another item's change
     assert not flipped(entry("background_only"), status="failed")  # a failed page (69 b)
+    # PI ruling 100 b / 101 a: the first PLAN_KEPT entry's ``before`` is the first-round verdict; a later
+    # entry's ``before`` is an intermediate value and is never compared
+    assert not flipped(entry("confirms_activity"), entry("background_only"))  # first round was confirms
+    assert flipped(entry("background_only"), entry("ambiguous_genai"))
+    assert flipped(entry("background_only"), entry("confirms_activity"))
+
+
+def test_first_round_verdict_is_the_first_plan_kept_before_100b(monkeypatch, rules):
+    """PI ruling 100 b: the first-round verdict is the ``before`` of the FIRST PLAN_KEPT verdict entry;
+    None when no halving changed the verdict; other items' entries are ignored."""
+    from g3o.classify.question_rounds import first_round_verdict
+
+    _, result, _, _, _ = page_case(monkeypatch, rules)
+
+    def entry(before, item=VERDICT):
+        return {"chunk_id": None, "round": 3, "question_ids": [SCOPE], "outcome": PLAN_KEPT, "item_id": item,
+                "before": {"state": "combined", "value": before}, "after": {"state": "combined", "value": "x"}}
+
+    assert first_round_verdict(result) is None
+    log = (entry("no", item="core.page_complete"), entry("other_body"), entry("background_only"))
+    assert first_round_verdict(replace(result, requests=result.requests + log)) == {
+        "state": "combined", "value": "other_body"}
 
 
 def test_page_halving_changed_verdict_resume_is_stable(monkeypatch, rules):
@@ -905,6 +927,46 @@ def test_page_halving_reask_without_request_id_is_not_resent_after_a_crash(monke
     assert resumed.result.to_json() == ref.result.to_json() and resumed.final == ref.final
     again = _no_calls(page, resumed, config)
     assert again.result == resumed.result and again.final == resumed.final
+
+
+def test_page_halving_reasks_go_through_the_explicit_reask_seam(monkeypatch, rules):
+    """Re-ask review LOW (a): an explicit ``reask_fn`` sends every re-ask after a halving, even when
+    ``ask_fn`` is a wrapper that hides the journal's seam; the extra question itself goes to ``ask_fn``."""
+    page, result, support, config, fake, ask, billed = _reask_case(monkeypatch, rules, _no_request_id)
+    reasked, asked = [], []
+
+    def wrapper(state, questions):  # a wrapper with no ``reask`` attribute
+        asked.append(state["page_part"])
+        return ask(state, questions)
+
+    def reask(state, questions):
+        reasked.append(state["page_part"])
+        return ask(state, questions)
+
+    done = complete_page_rounds(page, result, support, ask_fn=wrapper, config=config, check_support=_page_check,
+                                reask_fn=reask)
+    sent_reasks = [e["page_part"] for e in done.result.requests
+                   if e.get("reasked") and e.get("outcome") not in ("halved", "over_limit")]
+    assert reasked and sorted(reasked) == sorted(sent_reasks)
+    assert len(billed) == 1  # the damaged verdict re-ask went through ``reask``, once
+    assert asked  # the extra question itself went through ``ask_fn``
+
+
+def test_perpage_stage_refuses_an_ask_without_the_reask_seam(tmp_path):
+    """Re-ask review LOW (a): the per-page stage passes the journal's seam explicitly and refuses an
+    ``ask`` without one (a wiring error that stops the stage, never a silent resend)."""
+    from g3o.run.presweep.stage_perpage_v27 import _reask_seam
+    from g3o.run.presweep.stage_validate_v27 import RequestJournal
+
+    def ask(state, questions):
+        raise AssertionError("not called")
+
+    with pytest.raises(TypeError, match="reask"):
+        _reask_seam(ask)
+    with pytest.raises(TypeError, match="reask"):
+        _reask_seam(lambda s, q: ask(s, q))
+    journaled_ask = RequestJournal(tmp_path / "journal.jsonl", {"s": 1}).ask(ask)
+    assert _reask_seam(journaled_ask) is journaled_ask.reask
 
 
 def test_journal_replays_an_unidentified_response_only_through_the_reask_seam(tmp_path):
