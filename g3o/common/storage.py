@@ -636,7 +636,7 @@ class StorageEnvelope:
                 for sid, page in self.pages.items():
                     if unreviewed_source(self._data["sources"][sid]):
                         continue  # PI ruling 102 a: not a reviewed page
-                    verdict =self._data["sources"][sid]["values"]["core.page_verdict"]
+                    verdict = self._data["sources"][sid]["values"]["core.page_verdict"]
                     if page in unique and unique[page] != verdict:
                         raise ValueError("same actual page has conflicting page verdicts")
                     unique[page] = verdict
