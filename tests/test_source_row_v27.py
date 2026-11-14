@@ -89,7 +89,11 @@ def test_stage6_only_items_leave_the_per_page_rows_ruling_94a():
     assert "core.stage_as_of_basis" in srow.REFUSED_ACTIVITY_ITEMS
     assert sf.UPPER_BOUND in srow.PRODUCED_SOURCE_ITEMS and sf.UPPER_BOUND in pp.SOURCE_ITEMS  # source level stays
     rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"a1": _activity()}, followed=False)
-    assert not STAGE6_ONLY & set(rows.activities["a1"]) and not STAGE6_ONLY & set(rows.refused)
+    assert not STAGE6_ONLY & set(rows.activities["a1"])
+    # core.date_upper_bound is also a source-row item (same id): here only the source-level one is refused,
+    # because it reads the publication date (refused without a pass-1 request), never as an activity item.
+    assert not (STAGE6_ONLY - {sf.UPPER_BOUND}) & set(rows.refused)
+    assert rows.refused[sf.UPPER_BOUND] == f"reads {sf.DATE} (refused)"
 
 
 def test_quote_stage_as_of_reads_the_stage6_rule_ruling_94a():
