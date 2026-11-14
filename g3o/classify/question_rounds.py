@@ -32,7 +32,13 @@ keep their answers and are not asked again. A part at the depth limit (or too
 short to halve) records ``jev_part_over_limit`` for the request, a failed part
 vote, never resent. The halving and its re-ask plan are logged in
 ``requests`` (``outcome: halved``), so a resume finishes the owed re-asks.
-Any other failure of a re-ask holds the question pending, as above.
+A re-ask response with no request id or a missing answer is read as the
+first-round coder reads one (PI ruling 75 a): the billed request is logged
+(``jev_missing_request_id`` / ``ok``), each unanswered question gets a final
+failure (``jev_missing_request_id`` / ``jev_answer_missing``, marked
+``reasked``) that is one failed part vote, it is never sent again, and the
+page continues. Any other failure of a re-ask holds the question pending, as
+above.
 
 After a halving, the re-asked items are re-combined provisionally (0.8 bar,
 as in first rounds) and the final gates are re-applied by
@@ -311,7 +317,7 @@ def _over_limit_final(result: page_code.PageCodeResult, chunk_id: str, qid: str)
 
 def _done(result: page_code.PageCodeResult, chunk_id: str, group: _Group) -> bool:
     return all(_has_record(result, chunk_id, qid) or _over_limit_final(result, chunk_id, qid)
-               for qid in group[2])
+               or _reask_failed_final(result, chunk_id, qid) for qid in group[2])
 
 
 def _owed(result: page_code.PageCodeResult, chunk_id: str, setup: Any) -> list[_Group]:
@@ -388,12 +394,15 @@ def _send_group(page: page_code.PageInput, result: page_code.PageCodeResult, pos
     response = None
     try:
         response = ask_fn(state, questions)
+        if group != own:  # PI ruling 75 a: a re-ask after a halving keeps first-round semantics
+            return "ok", _reask_answered(result, response, qs, chunk.chunk_id, log, config, setup,
+                                         checkpoint, support)
         recs = [_answer(response, q, chunk.chunk_id, config, setup.qset["question_set_version"]) for q in qs]
     except (JevAccountError, BudgetExceededError):
         raise
     except Exception as exc:
         if not is_max_tokens_exceeded(exc):
-            if response is not None:  # billed but unusable (no answer / no request id): logged, then held
+            if response is not None:  # billed but unusable (the extra question, or a malformed re-ask answer): logged, held
                 result = replace(result, requests=result.requests + ({
                     **log, "request_id": response.request_id, "response_model": response.response_model,
                     "input_tokens": response.input_tokens, "output_tokens": response.output_tokens,
@@ -410,6 +419,45 @@ def _send_group(page: page_code.PageInput, result: page_code.PageCodeResult, pos
     },))
     _save(checkpoint, result, support)
     return "ok", result
+
+
+def _reask_answered(result: page_code.PageCodeResult, response: Any, qs: Sequence[dict[str, Any]], chunk_id: str,
+                    log: dict[str, Any], config: page_code.PageCoderConfig, setup: Any,
+                    checkpoint: Checkpoint | None, support: tuple[Any, ...]) -> page_code.PageCodeResult:
+    """A re-ask's response on a half, read as the first-round coder reads a response (PI ruling 75 a).
+
+    No request id: the request is logged (billed tokens kept) with outcome ``jev_missing_request_id``
+    and one failure entry covers the group, a failed part vote for each of its questions. A missing
+    answer: a ``jev_answer_missing`` failure for that question (one failed part vote); the answered
+    questions are recorded. Either way the failure is final (``reasked``, never sent again) and the
+    page continues. A malformed answer still raises (held, as before)."""
+    entry = {**log, "request_id": response.request_id, "response_model": response.response_model,
+             "input_tokens": response.input_tokens, "output_tokens": response.output_tokens}
+    rnd, gname = log["round"], log["group"]
+    if not isinstance(response.request_id, str) or not response.request_id.strip():
+        result = replace(result, requests=result.requests + ({**entry, "outcome": page_code.MISSING_REQUEST_ID},),
+                         failures=result.failures + ({
+                             "chunk_id": chunk_id, "round": rnd, "group": gname, "question_ids": list(log["question_ids"]),
+                             "reason": page_code.MISSING_REQUEST_ID, "detail": "jev returned no request id",
+                             "reasked": True},))
+        _save(checkpoint, result, support)
+        return result
+    qsv = setup.qset["question_set_version"]
+    answered = [q for q in qs if q["question_id"] in response.answers]
+    recs = tuple(_answer(response, q, chunk_id, config, qsv) for q in answered)
+    failures = tuple({"chunk_id": chunk_id, "round": rnd, "group": gname, "question_ids": [q["question_id"]],
+                      "reason": page_code.ANSWER_MISSING, "detail": "no answer returned", "reasked": True}
+                     for q in qs if q["question_id"] not in response.answers)
+    result = replace(result, records=result.records + recs, failures=result.failures + failures,
+                     requests=result.requests + ({**entry, "outcome": "ok"},))
+    _save(checkpoint, result, support)
+    return result
+
+
+def _reask_failed_final(result: page_code.PageCodeResult, chunk_id: str, qid: str) -> bool:
+    """A re-ask on this part that returned no request id or no answer for ``qid`` (ruling 75 a): final."""
+    return any(f.get("reasked") and f["reason"] in (page_code.MISSING_REQUEST_ID, page_code.ANSWER_MISSING)
+               and f["chunk_id"] == chunk_id and qid in f["question_ids"] for f in result.failures)
 
 
 def _hold(result: page_code.PageCodeResult, setup: Any, own: _Group, group: _Group, chunk_id: str,
