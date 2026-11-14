@@ -95,6 +95,15 @@ class JevResult:
     output_tokens: int
 
 
+def has_request_id(request_id: Any) -> bool:
+    """Whether a jev response carries a request id: a string with a non-space character.
+
+    ``None``, an empty or whitespace-only string (or any non-string) is a missing request
+    id (``jev_missing_request_id``). The one test shared by the first-round page coder,
+    the extra-round re-ask (PI ruling 75 a) and the request journal."""
+    return isinstance(request_id, str) and bool(request_id.strip())
+
+
 def _parse_answer(question_id: str, answer: Any) -> JevAnswer:
     """Parse one SDK answer into a :class:`JevAnswer`."""
     if isinstance(answer, ts.ChoiceAnswer):

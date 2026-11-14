@@ -9,7 +9,7 @@ import pytest
 from g3o.classify import jev_page_code as jpc
 from g3o.classify.questions.v27 import SIGNED_CODEBOOK_SHA256, load_set
 from g3o.codebook.loader import default_codebook_path
-from g3o.common.jev_client import JevAccountError, JevAnswer, JevResult
+from g3o.common.jev_client import JevAccountError, JevAnswer, JevResult, has_request_id
 from g3o.common.jev_record import load_classifier_rules
 from g3o.common.part_combine import NOT_COVERED
 
@@ -255,6 +255,34 @@ def test_missing_request_id_later_enters_as_failed(rules):
     f = [f for f in out.failures if f["reason"] == jpc.MISSING_REQUEST_ID]
     assert f and "core.disclosure_form" in f[0]["question_ids"]
     assert not any(r.request_id is None for r in out.records if r.coder_type == "classifier")
+
+
+@pytest.mark.parametrize("blank", ["", "   ", "\t\n"])
+def test_whitespace_only_request_id_is_missing_in_the_first_round(rules, blank):
+    """One predicate with the extra-round re-ask (``has_request_id``): a whitespace-only id is missing."""
+    fake = FakeJev(dict(DEFAULTS))
+    orig = fake.__call__
+
+    def ask(state, questions):
+        res = orig(state, questions)
+        if "core.disclosure_form" in questions:
+            return JevResult(res.answers, res.response_model, blank, 1, 1)
+        return res
+
+    out = jpc.code_page(page(), ask, cfg(rules))
+    assert out.items["core.disclosure_form"].value == "unknown" and out.items["core.disclosure_form"].failed
+    f = [f for f in out.failures if f["reason"] == jpc.MISSING_REQUEST_ID]
+    assert f and "core.disclosure_form" in f[0]["question_ids"]
+    logged = [e for e in out.requests if e.get("request_id") == blank]
+    assert logged and all(e["outcome"] == jpc.MISSING_REQUEST_ID for e in logged)
+    assert not any(r.request_id is not None and not r.request_id.strip()
+                   for r in out.records if r.coder_type == "classifier")
+
+
+@pytest.mark.parametrize(("value", "present"), [
+    ("req-1", True), (" req-1 ", True), (None, False), ("", False), ("   ", False), ("\t\n", False), (7, False)])
+def test_has_request_id_whitespace_only_is_missing(value, present):
+    assert has_request_id(value) is present
 
 
 def test_account_error_propagates(rules):

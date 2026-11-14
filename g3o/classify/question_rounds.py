@@ -37,8 +37,11 @@ first-round coder reads one (PI ruling 75 a): the billed request is logged
 (``jev_missing_request_id`` / ``ok``), each unanswered question gets a final
 failure (``jev_missing_request_id`` / ``jev_answer_missing``, marked
 ``reasked``) that is one failed part vote, it is never sent again, and the
-page continues. Any other failure of a re-ask holds the question pending, as
-above.
+page continues. Re-asks go through ``ask_fn``'s :data:`REASK_SEAM` when it has
+one: the request journal's replays a re-ask already billed without a request
+id, so an interruption before the page state is saved, or a recoded page
+(ruling 33 a), reads that failure again instead of resending it. Any other
+failure of a re-ask holds the question pending, as above.
 
 After a halving, the re-asked items are re-combined provisionally (0.8 bar,
 as in first rounds) and the final gates are re-applied by
@@ -66,7 +69,7 @@ from g3o.classify import jev_activity_code as activity
 from g3o.classify import jev_page_code as page_code
 from g3o.common import part_combine as pcomb
 from g3o.common.cost_monitor import BudgetExceededError
-from g3o.common.jev_client import JevAccountError
+from g3o.common.jev_client import JevAccountError, has_request_id
 from g3o.common.jev_record import CoderRecord
 from g3o.common.page_chunks import halve_chunk
 from g3o.common.part_combine import NOT_COVERED
@@ -85,6 +88,11 @@ HALVING_PAGE_FAILED = "verdict_parts_failed_after_extra_round_halving"
 #: ``requests`` log outcome: a halving changed the provisional verdict or ``core.page_complete``
 #: and the stored first-round extractor plan was kept (PI ruling 68 b; no request is made).
 PLAN_KEPT = "provisional_changed_first_round_plan_kept"
+#: Attribute of ``ask_fn`` sending a re-ask after a halving, when present (PI ruling 75 a). The
+#: request journal's (:meth:`~g3o.run.presweep.stage_validate_v27.RequestJournal.ask`) replays a
+#: billed re-ask that returned no request id, so a resume or a recoded page reads it again as
+#: its final failure instead of sending it again. Without it, ``ask_fn`` itself sends re-asks.
+REASK_SEAM = "reask"
 #: Page part failures that are a final failed vote (first-round reasons and the depth limit).
 _FINAL_FAILURES = frozenset({page_code.REQUEST_FAILED, page_code.MISSING_REQUEST_ID,
                              page_code.ANSWER_MISSING, page_code.OVER_LIMIT})
@@ -410,8 +418,11 @@ def _send_group(page: page_code.PageInput, result: page_code.PageCodeResult, pos
                            {**log, "outcome": "over_limit", "estimated_tokens": size})
     over: str | None = None
     response = None
+    # PI ruling 75 a: a re-ask goes through the ask function's ``reask`` seam when it has one (the
+    # request journal), which replays an already billed no-request-id response as its final failure
+    send = getattr(ask_fn, REASK_SEAM, ask_fn) if group != own else ask_fn
     try:
-        response = ask_fn(state, questions)
+        response = send(state, questions)
         if group != own:  # PI ruling 75 a: a re-ask after a halving keeps first-round semantics
             return "ok", _reask_answered(result, response, qs, chunk.chunk_id, log, config, setup,
                                          checkpoint, support)
@@ -452,7 +463,7 @@ def _reask_answered(result: page_code.PageCodeResult, response: Any, qs: Sequenc
     entry = {**log, "request_id": response.request_id, "response_model": response.response_model,
              "input_tokens": response.input_tokens, "output_tokens": response.output_tokens}
     rnd, gname = log["round"], log["group"]
-    if not isinstance(response.request_id, str) or not response.request_id.strip():
+    if not has_request_id(response.request_id):
         result = replace(result, requests=result.requests + ({**entry, "outcome": page_code.MISSING_REQUEST_ID},),
                          failures=result.failures + ({
                              "chunk_id": chunk_id, "round": rnd, "group": gname, "question_ids": list(log["question_ids"]),
@@ -611,7 +622,7 @@ def _binding(records: Sequence[CoderRecord], setup_pointer: str) -> None:
 
 
 def _answer(response: Any, q: dict[str, Any], chunk_id: str, config: Any, qsv: str) -> CoderRecord:
-    if not isinstance(response.request_id, str) or not response.request_id.strip():
+    if not has_request_id(response.request_id):
         raise ValueError("extra question response lacks request id")
     if q["question_id"] not in response.answers:
         raise ValueError("extra question response lacks answer")
