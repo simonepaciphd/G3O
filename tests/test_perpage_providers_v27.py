@@ -1596,6 +1596,36 @@ def test_residual_answers_are_saved_and_never_asked_again_on_a_resume_105b(tmp_p
     assert len(hold["request_key"]) == 64
 
 
+def test_residual_part_over_the_limit_holds_the_institution_m2(tmp_path, monkeypatch):
+    """Review M2: a T-021 part over the request limit of the residual source_type question is not halved
+    (``Pass1Page`` would refuse the halves' answers inside ``page_support``: a stage crash). The page's own
+    data refuses source_type: the page is still coded (T-022 and on, PI ruling 106 a) with no residual
+    answers, and the institution is held as a 97 b row-value refusal naming source_type; nothing is
+    published and the stage goes on (no exception)."""
+    from g3o.common import source_fields as sf
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
+    real = sf.code_source_type
+
+    def tight(page, ask, config, **kw):  # the residual request limit below any part's size
+        return real(page, ask, replace(config, limit_tokens=1), **kw)
+    monkeypatch.setattr(sf, "code_source_type", tight)
+    extract, jev = FakeExtractor(world), FakeJev({**ANSWERS, sf.SOURCE_TYPE: "vendor"}, RELATIONS)
+    ready, metrics = _run(run_dir, bound, instrument, [_residual_inst(insts)],
+                          _providers(run_dir, bound, instrument, extract, FakeEntail()), jev)
+    assert ready == [] and metrics.held == ["INST-0000001"]
+    assert _source_type_calls(jev) == []  # refused before any residual call
+    assert any(j.metadata["stage"] == PASS1 and j.metadata["page_id"] == "p1" for j in extract.jobs)
+    (hold,) = _held(run_dir, "INST-0000001")["held"]
+    assert (hold["page_id"], hold["stage"], hold["items"]) == ("p1", pp.ROW_VALUE_REFUSED, [sf.SOURCE_TYPE])
+    assert hold["refusals"][sf.SOURCE_TYPE].startswith(pp.RESIDUAL_OVER_LIMIT)
+    assert not (pp.page_state_dir(run_dir, _residual_spec(insts).page) / pp.SOURCE_TYPE_FILE).exists()
+    details = [r.get("detail") for r in attrition.read_records(run_dir)
+               if r.get("stage") == pp.STAGE and r.get("reason") == pp.HELD_REASON]
+    assert details == [f"p1:{pp.ROW_VALUE_REFUSED}:{sf.SOURCE_TYPE}"]
+
+
 def test_resumed_activity_only_request_missing_from_the_journal_holds_105b(tmp_path):
     """PI ruling 105 b: an activity-only request (87 c) that an earlier process got an answer to (the page's
     pass1_requests.json names it) is replayed from the journal on a resume; with no recorded response it holds

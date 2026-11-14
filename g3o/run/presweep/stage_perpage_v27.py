@@ -417,6 +417,10 @@ class PageArchiveIncomplete(Exception):
 #: (``source_row_v27.CONDITIONAL_ITEMS``, not a wiring gap): per-institution hold; held.json names the page,
 #: the items and each refusal
 ROW_VALUE_REFUSED = "row_value_refused"
+#: Review M2: the refusal (under :data:`ROW_VALUE_REFUSED`, item ``core.source_type``) of a page whose residual
+#: source_type question has a T-021 part over the request limit: that part is not halved (its halves are not
+#: parts of the page's first pass-1 request, PI ruling 95 a), so the page's own data holds the institution
+RESIDUAL_OVER_LIMIT = "source_type_residual_part_over_limit"
 
 
 class RowValueRefused(ConsolidationError):
@@ -1168,6 +1172,10 @@ class _PageState:
     source_typing: Any = None
     #: their T-024 checks, (support, record) pairs (``PerPageProviders.source_type_codes``)
     source_type_codes: Any = None
+    #: review M2: row values already refused on the page's own data before T-022 (a residual source_type part
+    #: over the request limit); the page is coded on, and the institution is held before its rows are produced
+    #: (PI rulings 97 b, 106 a)
+    row_refusal: Any = None
     failure: str | None = None
     holds: list[dict[str, Any]] = field(default_factory=list)
 
@@ -1244,7 +1252,10 @@ def _residual_source_type(run_dir: Path, spec: PageSpec, ask: Any, page_config: 
     saved = load_source_typing(path, t021.chunks)
     if saved is not None:  # PI ruling 105 b: a resume reads the answers it asked, never asks again
         return saved
-    typing = sf.code_source_type(page, ask, page_config, layout=t021.chunks)
+    try:
+        typing = sf.code_source_type(page, ask, page_config, layout=t021.chunks)
+    except jpc.LayoutPartOverLimit as exc:  # review M2: never halved; the page's own data (PI ruling 97 b)
+        raise RowValueRefused(page.page_id, {sf.SOURCE_TYPE: f"{RESIDUAL_OVER_LIMIT}: {exc}"}) from exc
     if typing.typed_by != "classifier":
         return None
     save_source_typing(path, typing)
@@ -1311,7 +1322,10 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
     if (pdir / PAGE_ARCHIVE_PENDING).exists():
         _archive_page_state(run_dir, page)
     # PI ruling 95 a: the residual source_type question runs before T-022 (the page's first pass-1 request)
-    st.source_typing = _residual_source_type(run_dir, st.spec, ask, page_config, official_sites)
+    try:
+        st.source_typing = _residual_source_type(run_dir, st.spec, ask, page_config, official_sites)
+    except RowValueRefused as exc:  # review M2: the page's own data; held where 97 b holds are (PI ruling 106 a)
+        st.source_typing, st.row_refusal = None, exc
     if st.source_typing is not None:
         set_typing = getattr(providers, "set_source_typing", None)
         if set_typing is None:
@@ -1616,6 +1630,8 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                 if st.failure is not None:
                     products.append(failed_page(st.spec, st.failure))
                     continue
+                if st.row_refusal is not None:  # review M2: refused before T-022 (PI rulings 97 b, 106 a)
+                    raise st.row_refusal
                 products.append(produce_page(
                     run_dir=run_dir, run_id=inst.run_id, institution_uid=inst.institution_uid, spec=st.spec,
                     page_order=order, first_source=next_source, page_round=st.page_round,
@@ -1628,8 +1644,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                 uncarried = exc
                 break
             except RowValueRefused as exc:  # PI ruling 97 b: the page's own data: this institution only
-                broken = {"page_id": exc.page_id, "stage": ROW_VALUE_REFUSED, "items": sorted(exc.refused),
-                          "refusals": exc.refused, "error": str(exc)}
+                broken = _row_refused_hold(exc)
                 break
             except STAGE_STOPS:
                 raise
@@ -1672,6 +1687,12 @@ def _archive_detail(exc: PageArchiveIncomplete) -> dict[str, Any]:
 
 def _archive_hold(page_id: str, exc: PageArchiveIncomplete) -> dict[str, Any]:
     return {"page_id": page_id, "stage": ARCHIVE_FAILED, **_archive_detail(exc)}
+
+
+def _row_refused_hold(exc: RowValueRefused) -> dict[str, Any]:
+    """PI ruling 97 b: the hold of row values refused on the page's own data (names the items and each refusal)."""
+    return {"page_id": exc.page_id, "stage": ROW_VALUE_REFUSED, "items": sorted(exc.refused),
+            "refusals": exc.refused, "error": str(exc)}
 
 
 def _hold_label(hold: Mapping[str, Any]) -> str:

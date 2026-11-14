@@ -704,3 +704,23 @@ def test_residual_question_on_a_given_layout_95a(rules):
     with pytest.raises(ValueError, match="tile|cover"):
         sf.code_source_type(page(text), broken, c, layout=planned.result.chunks[:1])
     assert broken.calls == []
+
+
+def test_given_layout_part_over_the_limit_is_not_halved_m2(rules):
+    """Review M2: a part of a given layout over the request limit is never halved (its halves would not be
+    parts of the page's first pass-1 request): LayoutPartOverLimit names it, before any call. The planned
+    layout of the same page under the same limit is split as usual."""
+    from dataclasses import replace
+
+    para = "Background text about digital services in the administration. " * 120
+    text = "\n\n".join(f"{m} {para}" for m in ("ALPHA", "BRAVO", "CHARLIE"))
+    c = jpc.PageCoderConfig(rules=rules, setup_pointer="a" * 64, configured_model="jev-test-1",
+                            reserved_tokens=0, limit_tokens=6000)
+    planned = sf.code_source_type(page(text), FakeJev({"": ("academic", 0.9)}), c)
+    assert len(planned.result.chunks) > 1
+    whole = (replace(planned.result.chunks[0], end=len(text), text=text),)  # one part, over this limit
+    fake = FakeJev({"": ("academic", 0.9)})
+    with pytest.raises(jpc.LayoutPartOverLimit) as exc:
+        sf.code_source_type(page(text), fake, c, layout=whole)
+    assert (exc.value.page_id, exc.value.chunk_id) == (page(text).page_id, whole[0].chunk_id)
+    assert fake.calls == [] and not isinstance(exc.value, ValueError)

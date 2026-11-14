@@ -372,6 +372,20 @@ class _OverLimit(Exception):
         self.chunk = chunk
 
 
+class LayoutPartOverLimit(Exception):  # noqa: N818 - names the refusal, as PageFailed does
+    """A part of a GIVEN layout (``code_page(layout=...)``) is over the request limit (review M2).
+
+    It is not halved: the halves would not be parts of the layout it was given (PI ruling 95 a: the
+    residual ``source_type`` answers must sit on parts of the page's first pass-1 request, whose
+    ``Pass1Page`` refuses any other part). The caller decides; the per-page stage holds that institution
+    on the page's own data (PI ruling 97 b). Raised before the request is sent."""
+
+    def __init__(self, page_id: str, chunk_id: str) -> None:
+        super().__init__(f"page {page_id}: part {chunk_id} of the given layout is over the request limit; "
+                         "a given layout is never halved")
+        self.page_id, self.chunk_id = page_id, chunk_id
+
+
 def _mechanical(item_id: str, value: Any, rule: str, config: PageCoderConfig, qsv: str) -> CoderRecord:
     return CoderRecord(
         item_id=item_id, item_part=None, question_id=item_id, support_id=None, observation_id=None,
@@ -416,7 +430,7 @@ def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
     set (PI ruling 95 a: the residual ``source_type`` question is asked on the
     page's T-021 parts, so each answer's part is a part of the page's first
     pass-1 request, R-044). The parts must tile the page text; a part over the
-    request limit is halved as usual.
+    request limit is NOT halved (review M2): :class:`LayoutPartOverLimit` is raised.
     """
     s = _setup(config)
     qsv = s.qset["question_set_version"]
@@ -444,6 +458,7 @@ def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
         return PageCodeResult(status="not_assessable", chunks=(_single_chunk(page, config.estimator),),
                               records=tuple(records), items=items, chrome_status=chrome_status, **common)
 
+    given = layout is not None
     if layout is None:
         layout = plan_layout(page, config, s)
     else:
@@ -520,6 +535,8 @@ def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
             items, part_entries = _rounds(layout, s, page, config, qsv, send)
             break
         except _OverLimit as ol:
+            if given:  # review M2: a given layout's part is never halved (its halves are not its parts)
+                raise LayoutPartOverLimit(page.page_id, ol.chunk.chunk_id) from None
             pos = next(i for i, c in enumerate(layout) if c.chunk_id == ol.chunk.chunk_id)
             halves = halve_chunk(ol.chunk, estimator=config.estimator)
             if halves is None or ol.chunk.depth >= config.max_split_depth:
@@ -735,7 +752,7 @@ def to_pass1_page(result: PageCodeResult, page: PageInput) -> Any:
 
 
 __all__ = [
-    "CHROME_STATE_FIELD", "CODER_VERSION", "SKIPPED_QUESTIONS", "FinalPage", "ItemOutcome",
+    "CHROME_STATE_FIELD", "CODER_VERSION", "SKIPPED_QUESTIONS", "FinalPage", "ItemOutcome", "LayoutPartOverLimit",
     "PageCodeResult", "PageCoderConfig", "PageFailed", "PageInput", "build_questions", "build_state",
     "code_page", "finalize_page", "gate_open", "gated_out_value", "part_answer", "plan_layout",
     "serialize_request", "to_pass1_page",
