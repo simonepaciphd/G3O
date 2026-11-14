@@ -1167,6 +1167,15 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
     return broken
 
 
+def _first_complete(run_dir: Path, page: PageInput) -> str | None:
+    """The combined ``core.page_complete`` the page's first pass-1 request was built on: its stored T-021
+    result, as ``jev_page_code.to_pass1_page`` reads it (PI ruling 82 c)."""
+    first = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(run_dir, page.institution_id,
+                                                                                 page.url)))
+    complete = first.page_complete
+    return complete.value if complete is not None and complete.state == "combined" else None
+
+
 def _follow_rounds(run_dir: Path, inst: PerPageInstitution, states: list[_PageState], follow: Any,
                    held_path: Path, **code: Any) -> dict[str, Any] | None:
     """The T-025 follow leg of one institution (RC-D-023 C-1 a), after its searched pages are coded.
@@ -1187,7 +1196,8 @@ def _follow_rounds(run_dir: Path, inst: PerPageInstitution, states: list[_PageSt
     leg = follow.start(run_dir, inst)
     current = list(states)
     while True:
-        pages = [round_page(st.spec, st.page_round, st.extraction) for st in current
+        pages = [round_page(st.spec, st.page_round, st.extraction,
+                            first_complete=_first_complete(run_dir, st.spec.page)) for st in current
                  if st.failure is None and st.page_round is not None]
         new_specs = leg.round(pages)
         if not new_specs:

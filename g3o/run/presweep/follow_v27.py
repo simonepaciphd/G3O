@@ -19,7 +19,10 @@ module adds, each from signed text:
   ``core.page_complete`` (after the R-044 re-combination and re-gating, B-Q2 b)
   must be ``yes``; the candidates are the links its T-022 page request selected
   (RC-D-002 row 13). A page whose final answer is not ``yes`` is not followed
-  from, even if its first-round answer asked for links.
+  from, even if its first-round answer asked for links. A page whose final
+  answer is ``yes`` only after an extra round (its first request had no link
+  task), or whose links were not measured, is recorded as "complete, links not
+  collected" (:data:`LINKS_NOT_COLLECTED`) and not followed (PI ruling 82 c).
 - **Supporting quotes (C-Q3 b (i)).** The page's pass-1 quotes that passed the
   T-024 check (``support_status`` ``supported``) at the end of its rounds; the
   option put to the PI was framed on pass-1 quotes (lane C report, Q3).
@@ -83,9 +86,15 @@ STATE_FILE = "state_v27.json"
 STATE_FORMAT = "g3o-follow-state-v27-1"
 #: per-institution hold of the per-page stage: follow attempts whose Stage 6 entry is unruled
 FOLLOW_ATTEMPTS_UNRULED = "follow_attempts_unruled"
+#: ``core.page_complete`` ``yes``: the page refers the reader onward (the signed note: the name reads the other way)
+YES = "yes"
 #: the ``page_id`` of that hold in ``held.json`` (it names URLs, not one coded page)
 FOLLOW_HOLD_PAGE = "follow"
 CAP_REACHED = "follow_cap_reached"
+#: PI ruling 82 c (2026-11-13): a page whose final ``core.page_complete`` is ``yes`` but whose links were not
+#: collected (it became ``yes`` only in an extra round, so its first pass-1 request had no link task, or its
+#: links were not measured) is recorded as "complete, links not collected" (attrition reason) and not followed.
+LINKS_NOT_COLLECTED = "page_complete_links_not_collected"
 #: the open question the hold names (sources in the module docstring)
 UNRULED_DETAIL = ("PI question: how a URL tried and not fetched (fetch_failed / robots_disallowed) or a link "
                   "not followed (cap / hops) enters Stage 6 is not fixed by signed text (codebook "
@@ -108,12 +117,16 @@ class FollowPage:
 
 @dataclass(frozen=True)
 class RoundPage:
-    """One coded page of a round: its final completeness, T-022 page request and supported quotes."""
+    """One coded page of a round: its final completeness, T-022 page request and supported quotes.
+
+    ``links_collected`` (PI ruling 82 c): the page's first pass-1 request was built on ``page_complete``
+    ``yes`` with measured links, so its link task could select links (:func:`round_page`)."""
 
     page: PageInput
     page_complete: str | None
     extraction: Any  # Pass1Extraction (``page_id``, ``links``) or None (no request was needed)
     supported: tuple[str, ...]
+    links_collected: bool = True
 
 
 def _atomic_write(path: Path, text: str) -> None:
@@ -251,12 +264,19 @@ class InstitutionLeg:
         tried again (R-034); its stored page is returned again, so the next
         round sees the same pages on a resume.
         """
-        ordered = sorted((p for p in pages if p.extraction is not None), key=lambda p: p.page.url)
+        ordered = sorted(pages, key=lambda p: p.page.url)
         hop = None
         pairs, supported = [], {}
         for p in ordered:
             if p.page.institution_id != self.institution_id:
                 raise pp.FollowWiringError(f"page {p.page.page_id} is not {self.institution_id}'s")
+            if p.page_complete == YES and not p.links_collected:  # PI ruling 82 c: recorded, not followed
+                attrition.record(self.run_dir, institution_id=self.institution_id, stage=STAGE,
+                                 reason=LINKS_NOT_COLLECTED, url=p.page.url,
+                                 detail="complete, links not collected (PI ruling 82 c)")
+                continue
+            if p.extraction is None:
+                continue
             fp = FollowPage(p.page.page_id, p.page.institution_id, p.page.url, p.page.text, p.page_complete,
                             p.page.links)
             page_hop = self.state.hop_of(p.page.url)
@@ -356,8 +376,12 @@ class FollowLeg:
                                page_fields=pin.page_source_fields(rendered, grouping, page.page_id))
 
 
-def round_page(spec: pp.PageSpec, page_round: Any, extraction: Any) -> RoundPage:
-    """A coded page as a follow round reads it: final ``core.page_complete`` and its supported pass-1 quotes."""
+def round_page(spec: pp.PageSpec, page_round: Any, extraction: Any, *, first_complete: str | None) -> RoundPage:
+    """A coded page as a follow round reads it: final ``core.page_complete`` and its supported pass-1 quotes.
+
+    ``first_complete`` is the combined ``core.page_complete`` the page's first pass-1 request was built on
+    (its T-021 result, ``jev_page_code.to_pass1_page``); the links were collected only when it is ``yes``
+    and the page's links were measured (PI ruling 82 c)."""
     from g3o.classify.jev_page_code import COMPLETE
     from g3o.common.support_check import SUPPORTED
 
@@ -365,9 +389,10 @@ def round_page(spec: pp.PageSpec, page_round: Any, extraction: Any) -> RoundPage
     complete = outcome.value if outcome is not None and outcome.state == "combined" else None
     quotes = tuple(dict.fromkeys(sr.supporting_text for sr in page_round.support
                                  if sr.support_status == SUPPORTED and sr.supporting_text))
-    return RoundPage(spec.page, complete, extraction, quotes)
+    collected = first_complete == YES and spec.page.links is not None
+    return RoundPage(spec.page, complete, extraction, quotes, collected)
 
 
-__all__ = ["CAP_REACHED", "FOLLOW_ATTEMPTS_UNRULED", "FOLLOW_DIR", "FOLLOW_HOLD_PAGE", "ROBOTS_DISALLOWED",
+__all__ = ["CAP_REACHED", "FOLLOW_ATTEMPTS_UNRULED", "LINKS_NOT_COLLECTED", "FOLLOW_DIR", "FOLLOW_HOLD_PAGE", "ROBOTS_DISALLOWED",
            "STAGE", "STATE_FILE", "STATE_FORMAT", "FetchFn", "FollowLeg", "FollowPage", "InstitutionLeg",
            "RoundPage", "load_state", "round_page", "state_payload"]

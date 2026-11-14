@@ -139,12 +139,35 @@ def test_round_page_reads_final_complete_and_supported_pass1_quotes():
                  SimpleNamespace(support_status="downgraded_no_quote", supporting_text="Quote B"),
                  SimpleNamespace(support_status="supported", supporting_text=None),
                  SimpleNamespace(support_status="supported", supporting_text="Quote A")))
-    spec = SimpleNamespace(page="page")
-    rp = fv.round_page(spec, page_round, "ext")
-    assert (rp.page, rp.page_complete, rp.extraction, rp.supported) == ("page", "yes", "ext", ("Quote A",))
+    page = SimpleNamespace(links=())
+    spec = SimpleNamespace(page=page)
+    rp = fv.round_page(spec, page_round, "ext", first_complete="yes")
+    assert (rp.page, rp.page_complete, rp.extraction, rp.supported, rp.links_collected) == \
+        (page, "yes", "ext", ("Quote A",), True)
     stopped = SimpleNamespace(final=SimpleNamespace(items={COMPLETE: ItemOutcome(COMPLETE, "pending", None)}),
                               support=())
-    assert fv.round_page(spec, stopped, None).page_complete is None
+    assert fv.round_page(spec, stopped, None, first_complete="yes").page_complete is None
+    # PI ruling 82 c: yes only after an extra round (first request built on another answer), or links not
+    # measured: the links were not collected.
+    for first in ("no", "unknown", None):
+        assert fv.round_page(spec, page_round, "ext", first_complete=first).links_collected is False
+    unmeasured = SimpleNamespace(page=SimpleNamespace(links=None))
+    assert fv.round_page(unmeasured, page_round, "ext", first_complete="yes").links_collected is False
+
+
+def test_complete_page_with_links_not_collected_is_recorded_and_not_followed_82c(tmp_path):
+    run_dir, inst = _one(tmp_path)
+    fetch = FakeFetch({F1: "x"})
+    page = inst.pages[0].page
+    leg = fv.FollowLeg(fetch).start(run_dir, inst)
+    out = leg.round([fv.RoundPage(page, "yes", selection(page, [F1]), (), links_collected=False),
+                     fv.RoundPage(inst.pages[1].page, "yes", None, (), links_collected=False)])
+    assert out == [] and fetch.calls == [] and leg.hold() is None
+    assert set(ledger(run_dir)) == {(fv.STAGE, fv.LINKS_NOT_COLLECTED, page.url),
+                                    (fv.STAGE, fv.LINKS_NOT_COLLECTED, inst.pages[1].page.url)}
+    # A page whose final answer is not yes is neither followed nor recorded.
+    leg.round([fv.RoundPage(inst.pages[2].page, "no", None, (), links_collected=False)])
+    assert (fv.STAGE, fv.LINKS_NOT_COLLECTED, inst.pages[2].page.url) not in ledger(run_dir)
 
 
 def test_resume_reuses_the_state_and_the_stored_page_without_fetching_again(tmp_path):
