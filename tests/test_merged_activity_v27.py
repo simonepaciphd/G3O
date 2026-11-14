@@ -191,25 +191,28 @@ def test_stage_as_of_absent_inputs_hold_and_malformed_values_are_wiring_errors()
 
 
 def test_date_upper_bound_follows_stage_as_of():
+    # merged_values_a8 also builds cx_display_rollup, which reads every CX item: _cx_src rows.
     inst = _inst({"o1": _obs(), "o2": _obs()},
-                 {"S-o1": _src(**{"core.source_publication_date": "2025-06"}),
-                  "S-o2": _src(**{"core.source_publication_date": "2024"})})
+                 {"S-o1": _cx_src(**{"core.source_publication_date": "2025-06"}),
+                  "S-o2": _cx_src(**{"core.source_publication_date": "2024"})})
     assert ma.merged_values_a8(inst, ["o1", "o2"])["core.date_upper_bound"] == "no"
     # a year code or an access date has no archive origin: no
-    inst = _inst({"o1": _obs(**{"core.year_announced": "2025"})}, {"S-o1": _src()})
+    inst = _inst({"o1": _obs(**{"core.year_announced": "2025"})}, {"S-o1": _cx_src()})
     assert ma.merged_values_a8(inst, ["o1"])["core.date_upper_bound"] == "no"
-    inst = _inst({"o1": _obs()}, {"S-o1": _src()})
+    inst = _inst({"o1": _obs()}, {"S-o1": _cx_src()})
     assert ma.merged_values_a8(inst, ["o1"])["core.date_upper_bound"] == "no"
+    inst = _inst({"o1": _obs()}, {"S-o1": _src(**{"core.source_publication_date": "2025-06"})})
+    assert ma.merged_date_upper_bound(inst, ma.merged_stage_as_of(inst, ["o1"])[1]) == "no"
 
 
 def test_date_upper_bound_token_beside_a_real_date_is_malformed():
-    inst = _inst({"o1": _obs()}, {"S-o1": _src(**{"core.source_publication_date": "2025",
-                                                  "core.date_upper_bound": "not_asked"})})
+    inst = _inst({"o1": _obs()}, {"S-o1": _cx_src(**{"core.source_publication_date": "2025",
+                                                     "core.date_upper_bound": "not_asked"})})
     with pytest.raises(ma.MalformedA8Value, match="is not yes/no"):
         ma.merged_values_a8(inst, ["o1"])
-    src = _src(**{"core.source_publication_date": "2025"})
+    src = _cx_src(**{"core.source_publication_date": "2025"})
     src.pop("core.date_upper_bound")
-    with pytest.raises(MissingUpstreamError):
+    with pytest.raises(MissingUpstreamError, match="core.date_upper_bound"):
         ma.merged_values_a8(_inst({"o1": _obs()}, {"S-o1": src}), ["o1"])
 
 
@@ -370,7 +373,7 @@ def test_vendor_claim_only_agrees_with_the_t015_assembler_ruling_88a(typing):
 def _cx_src(**over):
     values = {item: ("no" if kind == ma.CX_YES else [] if kind == ma.CX_NON_EMPTY else "not_documented")
               for item, (kind, _) in ma.CX_POSITIVE.items()}
-    return {**_src(), **values, **over}
+    return {**values, **_src(**over)}  # _src(**over): date_upper_bound follows an overridden publication date
 
 
 def test_cx_table_covers_every_cx_item_stored_per_source_claim():
