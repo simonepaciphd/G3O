@@ -401,7 +401,8 @@ class Pass1RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as Pa
     def __init__(self, page_id: str, custom_id: str, key: str, stage: str) -> None:
         super().__init__(f"page {page_id}: the rebuilt pass-1 request {custom_id!r} (journal key {key}) has no "
                          "recorded response in the request journal; no live call made on a resume (PI ruling "
-                         "105 b)")
+                         f"105 b); naming this key in {PI_RELEASE_FILE} does not authorise a live re-ask: only a "
+                         "pass-2 hold's key does (PI ruling 104 b)")
         self.page_id, self.custom_id, self.key, self.stage = page_id, custom_id, key, stage
 
 
