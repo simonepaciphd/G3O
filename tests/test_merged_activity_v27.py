@@ -384,6 +384,32 @@ def test_unit_credit_agrees_with_the_t015_assembler(relationship):
     assert stage6 == per_page and isinstance(stage6, str) and stage6 in FIELDS["core.unit_credit"]["codes"]
 
 
+@pytest.mark.parametrize("relationship,kind", [
+    ("not_asked", "malformed"),  # not the stored two-part object
+    ({"relationship": "subsidiary", "searched_institution_role": "unit"}, "malformed"),  # unsigned part
+    ({"searched_institution_role": "unit"}, "missing"),  # absent part
+    (None, "missing"),  # absent value
+])
+def test_unit_credit_error_inputs_agree_with_the_t015_assembler(relationship, kind):
+    # Both sides: an absent input is missing (Stage 6 holds; T-015 refuses); a value outside its signed
+    # form is malformed (Stage 6 MalformedA8Value, a stage stop; T-015 its wiring ValueError).
+    values = {} if relationship is None else {"core.observed_actor_relationship": relationship}
+    obs = _obs()
+    obs.pop("core.observed_actor_relationship")
+    inst = _inst({"o1": {**obs, **values}}, {"S-o1": _src()})
+    if kind == "missing":
+        with pytest.raises(sf.MissingUpstreamError):
+            srow.unit_credit(values)
+        with pytest.raises(MissingUpstreamError):
+            ma.observation_unit_credit(inst, "o1")
+    else:
+        with pytest.raises(ValueError) as info:
+            srow.unit_credit(values)
+        assert not isinstance(info.value, sf.MissingUpstreamError)
+        with pytest.raises(ma.MalformedA8Value):
+            ma.observation_unit_credit(inst, "o1")
+
+
 @pytest.mark.parametrize("typing", ["official", "archive", "unreadable", "vendor", "news_major", "unknown"])
 def test_vendor_claim_only_agrees_with_the_t015_assembler_ruling_88a(typing):
     # The stored shapes T-015 writes: source_type_value stores the typing field's value, and its

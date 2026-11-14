@@ -209,6 +209,13 @@ def test_unit_credit_a87():
     assert srow.unit_credit(_activity()).value == "no"
     with pytest.raises(sf.MissingUpstreamError):
         srow.unit_credit({})
+    with pytest.raises(sf.MissingUpstreamError):  # absent part: missing
+        srow.unit_credit({"core.observed_actor_relationship": {"searched_institution_role": "unit"}})
+    # a non-object value or an unsigned part is malformed (a wiring error, not a refusal)
+    for bad in ("not_asked", {"relationship": "subsidiary", "searched_institution_role": "unit"}):
+        with pytest.raises(ValueError) as info:
+            srow.unit_credit({"core.observed_actor_relationship": bad})
+        assert not isinstance(info.value, sf.MissingUpstreamError)
     rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"a1": _activity(**{"core.observed_actor_relationship": unit}),
                                                      "a2": _activity()})
     assert {a: r["core.unit_credit"].value for a, r in rows.activities.items()} == {"a1": "yes", "a2": "no"}

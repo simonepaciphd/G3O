@@ -412,12 +412,27 @@ def content_safeguard(item: str, activities: Sequence[Mapping[str, Any]]) -> Row
 
 
 def unit_credit(activity_values: Mapping[str, Any]) -> RowValue:
-    """PI A8.7 a: ``yes`` if and only if ``observed_actor_relationship`` is ``unit_of_institution``."""
-    parts = activity_values.get(RELATIONSHIP)
-    if not isinstance(parts, Mapping) or RELATIONSHIP_PART not in parts:
+    """PI A8.7 a: ``yes`` if and only if ``observed_actor_relationship`` is ``unit_of_institution``.
+
+    The same input rule as the Stage 6 producer
+    (:func:`g3o.validate.merged_activity_v27.observation_unit_credit`): an absent
+    value or an absent ``relationship`` part is missing (refused); a value that is
+    not the two-part object, or a part that is not a signed code or missing
+    token, is malformed (``ValueError``, this module's wiring error).
+    """
+    if RELATIONSHIP not in activity_values:
+        raise sf.MissingUpstreamError(f"T-023 final {RELATIONSHIP}", ["core.unit_credit"])
+    parts = activity_values[RELATIONSHIP]
+    if not isinstance(parts, Mapping):
+        raise ValueError(f"{RELATIONSHIP} = {parts!r} is not the stored two-part object")
+    if RELATIONSHIP_PART not in parts:
         raise sf.MissingUpstreamError(f"T-023 final {RELATIONSHIP} ({RELATIONSHIP_PART} part)",
                                       ["core.unit_credit"])
-    value = YES if parts[RELATIONSHIP_PART] == UNIT_OF_INSTITUTION else NO
+    part = parts[RELATIONSHIP_PART]
+    if not isinstance(part, str) or part not in {*FIELDS[RELATIONSHIP]["parts"][RELATIONSHIP_PART],
+                                                 *_missing_tokens(RELATIONSHIP)}:
+        raise ValueError(f"{RELATIONSHIP} {RELATIONSHIP_PART} part {part!r} is not a signed code or missing token")
+    value = YES if part == UNIT_OF_INSTITUTION else NO
     return _row("core.unit_credit", value, f"PI A8.7 a: {RELATIONSHIP}/{RELATIONSHIP_PART} = "
                                            f"{parts[RELATIONSHIP_PART]!r}")
 
