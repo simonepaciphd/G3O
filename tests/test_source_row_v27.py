@@ -222,6 +222,31 @@ def test_vendor_claim_only_a89():
         srow.vendor_claim_only("press_release")
 
 
+def test_every_produced_item_is_conditional_wiring_only_or_never_refused_m2():
+    """Review M2: every produced item is in exactly one of CONDITIONAL_ITEMS (refused on some pages' data),
+    WIRING_ONLY_ITEMS (refused only on a missing upstream input) or NEVER_REFUSED_ITEMS."""
+    produced = set(srow.PRODUCED_SOURCE_ITEMS) | set(srow.PRODUCED_ACTIVITY_ITEMS)
+    groups = (set(srow.CONDITIONAL_ITEMS), set(srow.WIRING_ONLY_ITEMS), set(srow.NEVER_REFUSED_ITEMS))
+    assert set().union(*groups) == produced and sum(len(g) for g in groups) == len(produced)
+    for item in (sf.TITLE, sf.DATE, sf.UPPER_BOUND, sf.CREDIBILITY, sc.CONTACT_ITEM, sc.CONTACT_EMAILS_ITEM,
+                 sf.SNIPPET, "core.unit_credit", *srow.pass1_activity_fields(), *srow.REPORTED_GATES):
+        assert item in srow.CONDITIONAL_ITEMS
+    assert sf.DATE in srow.CONDITIONAL_ITEMS[sf.CREDIBILITY]  # a refused date refuses credibility
+
+
+def test_conditional_refusals_happen_on_page_data_m2():
+    """The M2 refusal points named in CONDITIONAL_ITEMS refuse on data, not only on wiring."""
+    # No metadata/URL date and no pass-1 request: the date was never asked; its readers follow.
+    rows = srow.assemble(_page(), FIELDS_P1, NOGENAI, {}, followed=False, extraction=None, sources=SOURCES,
+                         verdict_support=_verdict(None), provenance=PROV, official_sites=OWN)
+    assert "no request" in rows.refused[sf.DATE]
+    assert sf.DATE in rows.refused[sf.UPPER_BOUND] and sf.DATE in rows.refused[sf.CREDIBILITY]
+    # A relationship that is a missing token has no relationship part: unit_credit refused.
+    rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"a1": _activity(**{"core.observed_actor_relationship":
+                                                                         "unknown"})}, followed=False)
+    assert "core.unit_credit" in rows.refused
+
+
 def test_missing_producers_names_the_refused_items():
     assert pin.MISSING_PRODUCERS == (pin.FOLLOW_ATTEMPTS_MISSING, pin.VALUES_MISSING)
     for item in srow.unproduced_items():
@@ -323,30 +348,97 @@ def test_superseded_part_is_refused_not_looked_up():
             srow.activity_quote_value(item, "p1#a001", span, _activity(), SOURCES, PROV)
 
 
+class _Pass2:
+    """A declared T-032 pass-2 page request (``Pass2Support`` shape: fields, response model, request id)."""
+
+    def __init__(self, *fields, response_model="fake-extractor-response-2", request_id="req-2"):
+        self.fields, self.response_model, self.request_id = fields, response_model, request_id
+
+
+def _p2field(item, value=None, support=None, *, status="stated", aid="p1#a001", chunk=PART):
+    from g3o.extract.pass2_support import ActivityField
+    if status != "stated":
+        return ActivityField("f001", aid, item, None, None, None, status)
+    return ActivityField("f001", aid, item, value, chunk, support, status)
+
+
 @pytest.mark.parametrize("item", list(srow.REPORTED_GATES))
-def test_reported_lists_only_when_gated_out(item):
+def test_reported_lists_closed_gate_is_not_asked_73_2a(item):
     gate = srow.REPORTED_GATES[item]
-    # PI ruling 73.2 a: open only at quantified / qualitative; any other gate value closes the gate.
+    # PI ruling 73.2 a: none_reported and the missing tokens close the gate.
     for closed in ("none_reported", "unknown", "not_documented", "not_asked", "_NA_"):
         qv = srow.reported_value(item, "p1#a001", _activity(**{gate: closed}), SOURCES, PROV)
         (sr, rec), = qv.codes
         assert qv.row.value == "not_asked" and sr.support_status == "set_by_rule"
         assert sr.support_rule_name == rec.rule_reference == f"gated_out:{gate}"
         assert "73.2 a" in qv.row.basis
-    for open_value in srow.REPORTED_OPEN:  # 73.1 under PI review: the open-gate list stays refused
-        with pytest.raises(sf.MissingUpstreamError, match="73.1"):
-            srow.reported_value(item, "p1#a001", _activity(**{gate: open_value}), SOURCES, PROV)
     with pytest.raises(sf.MissingUpstreamError):  # gate item absent
         srow.reported_value(item, "p1#a001", _activity(), SOURCES, PROV)
     with pytest.raises(ValueError, match="not a signed code"):
         srow.reported_value(item, "p1#a001", _activity(**{gate: "plenty"}), SOURCES, PROV)
 
 
-def test_discontinuation_uncertain_is_unruled_73_2a():
-    """The signed incident gate lists it (open); ruling 73.2 a closes all but quantified / qualitative."""
-    with pytest.raises(sf.UnruledError, match="73.2 a"):
-        srow.reported_value("core.reported_incidents", "p1#a001",
-                            _activity(**{"core.incident_kind": "discontinuation_uncertain"}), SOURCES, PROV)
+@pytest.mark.parametrize("item", list(srow.REPORTED_GATES))
+def test_open_gate_reads_the_pass2_field_task_73_1b(item):
+    """PI ruling 73.1 b: the open gate's list is the page's pass-2 field task, support-checked by T-024."""
+    gate = srow.REPORTED_GATES[item]
+    for open_value in srow.reported_open(item):
+        acts = _activity(**{gate: open_value})
+        with pytest.raises(sf.MissingUpstreamError, match="page_pass2"):  # no pass-2 page request
+            srow.reported_value(item, "p1#a001", acts, SOURCES, PROV)
+        with pytest.raises(sf.MissingUpstreamError, match="field task"):  # no field task for the activity
+            srow.reported_value(item, "p1#a001", acts, SOURCES, PROV,
+                                _Pass2(_p2field(item, "300 staff", "for 300 staff", aid="p1#a002")))
+        qv = srow.reported_value(item, "p1#a001", acts, SOURCES, PROV,
+                                 _Pass2(_p2field(item, "300 staff", "for 300 staff")))
+        (sr, rec), = qv.codes
+        assert qv.row.value == ["300 staff"] and sr.support_status == "supported" and "73.1 b" in qv.row.basis
+        assert (rec.coder_type, rec.answer_type, rec.chosen_value, rec.chunk_id) == \
+            ("quote_step", "extracted", "300 staff", PART)
+        assert (rec.coder_version, rec.actual_response_model, rec.request_id) == \
+            (srow.PASS2_CODER_VERSION, "fake-extractor-response-2", "req-2")
+        # A quote not on the page is downgraded; a field stated with nothing usable is not_documented.
+        bad = srow.reported_value(item, "p1#a001", acts, SOURCES, PROV,
+                                  _Pass2(_p2field(item, "300 staff", "no such sentence on this page at all")))
+        assert bad.codes[0][0].support_status == "downgraded_no_quote" and bad.row.value != ["300 staff"]
+        for status in ("not_stated", "no_supporting_text", "wrong_part", "no_entry"):
+            qv = srow.reported_value(item, "p1#a001", acts, SOURCES, PROV, _Pass2(_p2field(item, status=status)))
+            (sr, rec), = qv.codes
+            assert qv.row.value == "not_documented" and rec.chosen_value == "not_documented"
+            assert rec.request_id == "req-2"
+        with pytest.raises(sf.MissingUpstreamError, match="superseded"):
+            srow.reported_value(item, "p1#a001", acts, SOURCES, PROV,
+                                _Pass2(_p2field(item, "300 staff", "for 300 staff", chunk="p1#p9")))
+        with pytest.raises(sf.MissingUpstreamError, match="D-007"):
+            srow.reported_value(item, "p1#a001", acts, SOURCES, PROV,
+                                _Pass2(_p2field(item, "300 staff", "for 300 staff"), request_id=None))
+
+
+def test_discontinuation_uncertain_opens_the_incidents_gate_86b():
+    """PI ruling 86 b: discontinuation_uncertain (a signed incident gate value) opens the gate."""
+    assert srow.reported_open("core.reported_incidents") == ("quantified", "qualitative", "discontinuation_uncertain")
+    assert srow.reported_open("core.reported_outcomes") == ("quantified", "qualitative")
+    acts = _activity(**{"core.incident_kind": "discontinuation_uncertain"})
+    qv = srow.reported_value("core.reported_incidents", "p1#a001", acts, SOURCES, PROV,
+                             _Pass2(_p2field("core.reported_incidents", "300 staff", "for 300 staff")))
+    assert qv.row.value == ["300 staff"]
+    with pytest.raises(sf.MissingUpstreamError, match="page_pass2"):
+        srow.reported_value("core.reported_incidents", "p1#a001", acts, SOURCES, PROV)
+    assert not hasattr(srow, "REPORTED_OPEN_REFUSAL")
+
+
+def test_assemble_reads_pass2_for_an_open_gate_73_1b():
+    span = _span(("core.tool_name", "Copilot Chat", "runs Copilot Chat"))
+    acts = {"p1#a001": _activity(**{"core.activity_type": "internal_operational",
+                                    "core.outcome_kind": "quantified", "core.incident_kind": "none_reported"})}
+    rows = srow.assemble(_page(), FIELDS_P1, GENAI, acts, followed=False, extraction=_Extraction(span),
+                         sources=SOURCES, verdict_support=_verdict("The council runs Copilot Chat"), provenance=PROV,
+                         pass2=_Pass2(_p2field("core.reported_outcomes", "300 staff", "for 300 staff")))
+    got = rows.activities["p1#a001"]
+    assert got["core.reported_outcomes"].value == ["300 staff"] and got["core.reported_incidents"].value == "not_asked"
+    assert "core.reported_outcomes" not in rows.refused
+    assert [rec.request_id for sr, rec in rows.activity_codes["p1#a001"] if sr.item_id == "core.reported_outcomes"] \
+        == ["req-2"]
 
 
 def _verdict(quote):
@@ -376,7 +468,8 @@ def test_snippet_without_verdict_quote_is_not_asked_by_rule_72a():
         assert sr.support_status == "set_by_rule"
         assert sr.support_rule_name == rec.rule_reference == srow.NO_VERDICT_QUOTE_RULE == "no_verdict_quote"
         assert (rec.coder_type, rec.answer_type, rec.chosen_value) == ("mechanical", "rule", "not_asked")
-    assert sf.SNIPPET not in srow.CONDITIONAL_ITEMS
+    # Review M2: a rule-set snippet never refuses; a quote at a superseded part still does.
+    assert "superseded" in srow.CONDITIONAL_ITEMS[sf.SNIPPET]
     with pytest.raises(ValueError, match="page verdict"):
         srow.snippet_value(sc.check_code(sc.CodeEvidence("core.tool_name", "x", None, rule_name="r"), SOURCES),
                            SOURCES, PROV)
@@ -404,6 +497,13 @@ def test_providers_hand_over_the_page_request(tmp_path):
     assert adapter.page_extraction("p2") is None
     providers = ppv._providers(adapter, "c" * 64, "fake-extractor", "fake-x35")
     assert providers.page_extraction("p1") is ext
+    # PI ruling 73.1 b: the pass-2 page request is handed over the same way (None: no request needed).
+    from types import SimpleNamespace
+    sup = _Pass2()
+    adapter._page_pass2["p1"], adapter._page_pass2["p2"] = sup, None
+    inp = SimpleNamespace(page=SimpleNamespace(page_id="p1", institution_id="INST-0000001"))
+    assert adapter.page_pass2(inp) is sup and providers.page_pass2(inp) is sup
+    assert adapter.page_pass2(SimpleNamespace(page=SimpleNamespace(page_id="p2"))) is None
 
 
 def test_provenance_from_instrument_and_extraction():
@@ -616,14 +716,9 @@ def test_unresolved_official_site_refuses_its_readers_70b():
     assert TYPED - {sf.CREDIBILITY} <= set(rows.refused)
 
 
-def test_residual_source_type_refused_before_any_call_71b():
-    """PI ruling 71 b asks for the quote inside the residual jev request; a jev answer carries no text."""
-    from dataclasses import fields
-
-    from g3o.common.jev_client import JevAnswer
-    assert {f.name for f in fields(JevAnswer)} == {"question_id", "type", "choice", "noul", "score", "confidence",
-                                                   "probabilities"}
-    assert "71 b" in srow.RESIDUAL_REFUSAL
+def test_residual_source_type_refused_before_any_call_83b():
+    """PI ruling 83 b (replacing 71 b) is not wired on this branch (open PI question): still refused."""
+    assert "83 b" in srow.RESIDUAL_REFUSAL
     rows = _typed(_page(), FIELDS_P1, ELSEWHERE)  # the assembler is handed no jev call at all
     assert rows.refused[sf.SOURCE_TYPE].endswith(f"{srow.RESIDUAL_REFUSAL}: {sf.SOURCE_TYPE}")
     assert sf.SOURCE_TYPE in srow.CONDITIONAL_ITEMS and sf.SOURCE_TYPE not in srow.unproduced_items()

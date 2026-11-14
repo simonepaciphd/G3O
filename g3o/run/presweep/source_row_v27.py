@@ -91,12 +91,13 @@ Produced here (activity row, per observation):
   question-set version; the response's actual model and request id, refused
   when absent, D-007). A part id the coded page no longer has (superseded, e.g.
   after an extra-round halving) is refused, never looked up.
-- ``reported_outcomes`` / ``reported_incidents``: the gate is closed at any
-  gate value other than ``quantified`` / ``qualitative`` (``none_reported``,
-  and a missing token such as ``unknown``: PI ruling 73.2 a), giving
-  ``not_asked`` by rule ``gated_out:<gate item>``; an open gate is refused
-  (the extraction is under PI review, ruling 73.1); ``discontinuation_uncertain``
-  is refused (see :func:`reported_value`).
+- ``reported_outcomes`` / ``reported_incidents``: the gate opens at the item's
+  signed gate values (PI ruling 86 b: ``discontinuation_uncertain`` opens the
+  incidents gate), and the list is then the T-032 pass-2 field task of the
+  page's pass-2 page request, support-checked by T-024 (PI ruling 73.1 b,
+  :func:`reported_field_value`). Any other gate value (``none_reported``, a
+  missing token such as ``unknown``: PI ruling 73.2 a) closes it, giving
+  ``not_asked`` by rule ``gated_out:<gate item>``.
 
 Produced here (source row, page-level), PI ruling 70 b (2026-11-13):
 
@@ -104,19 +105,25 @@ Produced here (source row, page-level), PI ruling 70 b (2026-11-13):
   official sites this run found
   (:class:`g3o.run.presweep.official_site_v27.RunOfficialSites`, read from
   each institution's ``2_official_site.json``; no official site: ``unknown``,
-  RC-D-025 P13). Refused without that map, and for an institution whose site
-  is unresolved (see that module).
+  RC-D-025 P13; a bypassed institution's master site counts, PI ruling 84 a).
+  Refused without that map, and for an institution whose site is unresolved
+  (see that module).
 - ``source_type`` (X21) by ``items/core.source_type/rules/0``: an official page
   (``own_official`` / ``other_official``) or an archive address is typed
   automatically, ``not_asked`` set by rule ``source_type_auto:<basis>``; a
   residual page that fails the R-015 readability check is not sent,
   ``not_asked`` set by rule ``readability_failure:<reason>``. A residual
   readable page needs the residual classifier question and its supporting
-  quote: refused (:data:`RESIDUAL_REFUSAL`).
+  quote (PI ruling 83 b, not wired here): refused (:data:`RESIDUAL_REFUSAL`).
 - ``source_credibility`` (X22, :func:`g3o.common.source_fields.source_credibility`):
   ``low`` when the publication date is ``unknown`` / ``not_documented``
   whatever the type; otherwise the signed map cell of the automatic basis or of
-  the (missing) type. Refused when it needs a refused ``source_type``.
+  the (missing) type. Refused when the publication date is refused, and when
+  it needs a refused ``source_type``.
+
+Every item refused on some pages is listed in :data:`CONDITIONAL_ITEMS` (review
+M2); the other produced items are in :data:`WIRING_ONLY_ITEMS` or
+:data:`NEVER_REFUSED_ITEMS`.
 
 Built but not wired: :func:`vendor_claim_only` (PI A8.9 a) reads ``source_type``.
 Whether the per-page path or the Stage 6 A8 producer (branch
@@ -126,7 +133,7 @@ Whether the per-page path or the Stage 6 A8 producer (branch
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any
 
@@ -136,7 +143,7 @@ from g3o.common import support_check as sc
 from g3o.common.jev_record import CoderRecord
 from g3o.common.storage import METADATA_ITEMS, table_fields
 from g3o.common.storage_fields import FIELDS
-from g3o.extract import request_v27
+from g3o.extract import pass2_support, request_v27
 
 ASSEMBLER = "T-015 source-row assembler (PI ruling 35 a)"
 
@@ -174,20 +181,33 @@ RELATIONSHIP_PART = "relationship"
 UNIT_OF_INSTITUTION = "unit_of_institution"
 VENDOR = "vendor"
 
-#: The pass-1 activity quote-step fields T-022 asks (request_v27.Pass1Rules.activity_fields).
+#: The reported_* lists and their signed gate items (CX-61).
 REPORTED_GATES = {"core.reported_outcomes": "core.outcome_kind", "core.reported_incidents": "core.incident_kind"}
 #: The gate value at which both readings of the reported_* gates agree it is closed.
 NONE_REPORTED = "none_reported"
-#: PI ruling 73.2 a (2026-11-13): the gate values that open the reported_* gates; any other value closes them.
-REPORTED_OPEN = ("quantified", "qualitative")
-#: An open reported_* gate: the list is asked by pass 2 (pass2_support DEFERRED_FIELDS, RC-D-017 / PI 2026-11-04
-#: "5 a") but its output is not plumbed into the assembler, and PI ruling 73.1 (extract it in pass 1) is under
-#: PI review: refused.
-REPORTED_OPEN_REFUSAL = ("the open-gate list (PI ruling 73.1 under review: pass 1 vs the pass-2 field task, "
-                         "whose output is not plumbed into the assembler)")
+
+
+def reported_open(item: str) -> tuple[str, ...]:
+    """PI ruling 86 b (2026-11-13): the values that open a reported_* gate are the signed gate values of that
+    item (incidents: ``quantified`` / ``qualitative`` / ``discontinuation_uncertain``; outcomes: ``quantified``
+    / ``qualitative``). Ruling 73.2 a's "closed" covers every other value: ``none_reported`` and the missing
+    tokens."""
+    gate = sf.default_codebook().items[item]["gate"]
+    return tuple(str(v) for v in gate["values"])
+
+
+#: PI ruling 73.1 b (2026-11-13): an open gate's list is the T-032 pass-2 field task (RC-D-017, PI 2026-11-04
+#: "5 a") of the page's pass-2 page request, read here.
+MISSING_PASS2 = "T-032 pass-2 page request of this page (PerPageProviders.page_pass2)"
+#: An open gate whose field task is not in the page's pass-2 page request (e.g. the gate opened only in an
+#: extra round, whose request is not rebuilt on a resume): refused.
+PASS2_NO_FIELD_TASK = ("the T-032 pass-2 field task of this activity in the page's pass-2 page request (PI ruling "
+                       "73.1 b; a gate opened only in an extra round has none)")
 MISSING_EXTRACTION = "T-022 pass-1 page request of this page (PerPageProviders.page_extraction)"
 #: coder_version of a quote-step coder record: the pass-1 parser and its prompt version (procedural label).
 QUOTE_STEP_CODER_VERSION = f"g3o.extract.parser_v27/{request_v27.PROMPT_VERSION}"
+#: coder_version of a pass-2 field record (PI ruling 73.1 b): the pass-2 parser and its prompt version.
+PASS2_CODER_VERSION = f"g3o.extract.pass2_support/{pass2_support.PROMPT_VERSION}"
 
 #: Source-row items refused here, with the reason (signed source text or the missing producer).
 REFUSED_SOURCE_ITEMS: Mapping[str, str] = {
@@ -231,13 +251,14 @@ PRODUCED_SOURCE_ITEMS = (
     sf.DATE, sf.UPPER_BOUND, *EXTRACTED_FIELDS, sf.OFFICIAL, sf.SOURCE_TYPE, sf.CREDIBILITY,
 )
 
-#: A readable residual page. PI ruling 71 b (2026-11-13): the classifier-typed source_type gets its supporting
-#: quote "inside the residual jev request" (no pass-1 prompt change). A jev request returns typed answers only
-#: (Choice / Score / Noul, :class:`g3o.common.jev_client.JevAnswer`), never text, so it cannot carry a quote,
-#: and the support check (T-024 / R-042, plus X35: the item has an entailment label) needs one. Refused before
-#: the residual jev call is made, so nothing is spent on a value that could not be published (open PI question).
-RESIDUAL_REFUSAL = ("the residual source_type question and its supporting quote (PI ruling 71 b: quote inside "
-                    "the residual jev request; a jev request returns no text; open PI question)")
+#: A readable residual page. PI ruling 83 b (2026-11-13, replacing 71 b): the residual jev source_type question
+#: runs before T-022 and the source_type quote task joins the page's first pass-1 request. Not wired on this
+#: branch (open PI question: the residual question's coder records carry the residual set's question-set version,
+#: which the instrument does not bind, and a page whose T-021 codes need no pass-1 request has no first request
+#: to join). Refused before the residual jev call is made, so nothing is spent on a value that could not be
+#: published.
+RESIDUAL_REFUSAL = ("the residual source_type question and its supporting quote (PI ruling 83 b not wired: "
+                    "open PI question on the residual set's instrument binding and pages with no pass-1 request)")
 
 
 def pass1_activity_fields() -> tuple[str, ...]:
@@ -245,22 +266,47 @@ def pass1_activity_fields() -> tuple[str, ...]:
     return tuple(request_v27.default_rules().activity_fields)
 
 
-#: Activity-row items produced by :func:`activity_row_values` (the reported_* lists only when gated out).
+#: Activity-row items produced by :func:`activity_row_values`.
 PRODUCED_ACTIVITY_ITEMS = ("core.unit_credit", *pass1_activity_fields(), *REPORTED_GATES)
-#: Items produced on some pages and refused on others, with when they refuse.
+#: A part id the coded page no longer has (e.g. after an extra-round halving): every quote read at a part.
+SUPERSEDED = "a quote or value at a part the coded page no longer has (superseded, e.g. after a halving)"
+#: Items produced on some pages and refused on others, with when they refuse (review M2: every refusal point of
+#: this assembler that depends on the page's data). :func:`entry_refused_items` refuses a run on them at entry.
 CONDITIONAL_ITEMS: Mapping[str, str] = {
+    sf.TITLE: "refused when RenderedPage.title is empty (the first-heading fallback is unproduced, PI ruling 39 a)",
+    sc.CONTACT_ITEM: ("refused when a final content_contact_named / content_contact_details value is absent or is "
+                      "neither yes, no nor a signed missing token"),
+    sc.CONTACT_EMAILS_ITEM: f"reads {sc.CONTACT_ITEM} (refused on some pages)",
+    sf.SNIPPET: f"refused at {SUPERSEDED}, and when a quote-step record has no actual response model or request id",
+    sf.DATE: (f"refused when the page has no metadata or URL date and pass 1 sent no request for it (the date was "
+              f"never asked), and at {SUPERSEDED}"),
+    sf.UPPER_BOUND: f"reads {sf.DATE} (refused on some pages)",
     sf.OFFICIAL: ("refused without the run's official sites (official_site_v27.load_run_official_sites) and for "
-                  "an institution whose site is unresolved (bypassed master-column site, failed or unfinished "
-                  "official-site step)"),
-    sf.SOURCE_TYPE: f"refused on a readable residual page (neither official nor archive): {RESIDUAL_REFUSAL}",
-    sf.CREDIBILITY: "refused when source_type is refused and the publication date is not unknown/not_documented",
+                  "an institution whose site is unresolved (failed or unfinished official-site step, a url "
+                  "with no host, an unreadable file)"),
+    sf.SOURCE_TYPE: (f"refused on a readable residual page (neither official nor archive): {RESIDUAL_REFUSAL}; "
+                     f"and when it reads a refused {sf.OFFICIAL}"),
+    sf.CREDIBILITY: (f"refused when {sf.DATE} is refused, and when {sf.SOURCE_TYPE} is refused and the "
+                     "publication date is not unknown/not_documented"),
     "core.content_vendor": ("refused on a GenAI-bearing page whose activities state no contracting party: it then "
                             "reads developer (PI A8.1 a needs codebook r16)"),
-    **{item: (f"refused when {gate} opens the gate ({' / '.join(REPORTED_OPEN)}): {REPORTED_OPEN_REFUSAL}; "
-              f"and when {gate} is a signed gate value outside PI ruling 73.2 a's list "
-              "(discontinuation_uncertain: open in the codebook gate, closed under 73.2 a; PI question)")
+    "core.unit_credit": ("refused when the final observed_actor_relationship has no relationship part (e.g. a "
+                         "missing token)"),
+    **{item: ("refused when the signed applicability table has no ask/not_asked cell for the activity's gate value "
+              f"(e.g. _NA_), at {SUPERSEDED}, and when a quote-step record has no actual response model or "
+              "request id")
+       for item in pass1_activity_fields()},
+    **{item: (f"refused when {gate} opens the gate (PI ruling 86 b: {' / '.join(reported_open(item))}) and the "
+              f"page's pass-2 page request has no field task for the activity ({PASS2_NO_FIELD_TASK}), at "
+              f"{SUPERSEDED}, and when a quote-step record has no actual response model or request id")
        for item, gate in REPORTED_GATES.items()},
 }
+#: Produced items whose only refusal is a missing upstream input that is wiring, never page data: an absent
+#: ``PageSourceFields`` value, a followed page with no hop, or no pass-1 span for a coded activity.
+WIRING_ONLY_ITEMS = frozenset({sf.URL, sf.ACCESS_DATE, sf.LANGUAGE, sf.SYNDICATION, sf.TEXT_SOURCE, sf.DISCOVERY,
+                               "core.content_tool_or_model"})
+#: Produced items that never refuse.
+NEVER_REFUSED_ITEMS = frozenset({sf.REVIEW_STATE, *STATED_FIELDS, *SAFEGUARDS})
 
 
 def unproduced_items() -> tuple[str, ...]:
@@ -450,6 +496,8 @@ class Provenance:
     configuration is not proof of a response model or request ID"), so a record
     without them is refused. ``rule_coder_version`` is the coder version of the
     gated-out (mechanical) records, the activity coder's, as ``produce_page`` uses.
+    ``coder_version`` is the quote-step records' (the pass-1 parser; :meth:`for_pass2` gives the
+    pass-2 one, with that response's model and request id).
     """
 
     setup_pointer: str
@@ -458,6 +506,8 @@ class Provenance:
     rule_coder_version: str
     response_model: str | None = None
     request_id: str | None = None
+    coder_version: str = QUOTE_STEP_CODER_VERSION
+    response: str = "T-022 pass-1"
 
     @classmethod
     def of(cls, instrument: Mapping[str, Any], extraction: Any, *, rule_coder_version: str) -> Provenance:
@@ -466,12 +516,18 @@ class Provenance:
                    rule_coder_version, getattr(extraction, "response_model", None),
                    getattr(extraction, "request_id", None))
 
+    def for_pass2(self, support: Any) -> Provenance:
+        """The provenance of a value read from the page's T-032 pass-2 page request (PI ruling 73.1 b)."""
+        return replace(self, response_model=getattr(support, "response_model", None),
+                       request_id=getattr(support, "request_id", None), coder_version=PASS2_CODER_VERSION,
+                       response="T-032 pass-2")
+
     def quote_record(self, item: str, value: Any, chunk_id: str | None) -> CoderRecord:
         if not self.response_model or not self.request_id:
-            raise sf.MissingUpstreamError("actual response model and request id of the T-022 pass-1 response "
+            raise sf.MissingUpstreamError(f"actual response model and request id of the {self.response} response "
                                           "(D-007)", [item])
         return CoderRecord(item_id=item, item_part=None, question_id=None, support_id=None, observation_id=None,
-                           chunk_id=chunk_id, coder_type="quote_step", coder_version=QUOTE_STEP_CODER_VERSION,
+                           chunk_id=chunk_id, coder_type="quote_step", coder_version=self.coder_version,
                            configured_model=self.extractor_model, actual_response_model=self.response_model,
                            request_id=self.request_id, question_set_version=self.question_set_version,
                            setup_pointer=self.setup_pointer, answer_type="extracted", chosen_value=value,
@@ -561,16 +617,15 @@ def activity_quote_value(item: str, activity_id: str, span: Any, activity_values
 
 
 def reported_value(item: str, activity_id: str, activity_values: Mapping[str, Any], sources: sc.PageSources,
-                   prov: Provenance) -> QuoteValue:
-    """``reported_outcomes`` / ``reported_incidents``: produced only when their gate is closed.
+                   prov: Provenance, pass2: Any = None) -> QuoteValue:
+    """``reported_outcomes`` / ``reported_incidents`` (CX-61 gate on ``outcome_kind`` / ``incident_kind``).
 
-    PI ruling 73.2 a: the gate is open only at ``quantified`` / ``qualitative``;
-    every other value of the gate item (``none_reported``, or a missing token such
-    as ``unknown``) closes it: ``not_asked`` by rule ``gated_out:<gate item>``. An
-    open gate is refused (:data:`REPORTED_OPEN_REFUSAL`). ``discontinuation_uncertain``
-    (incident item) is a gate value in the signed codebook (open) but outside the
-    73.2 a list (closed): unruled. A value that is neither a signed code nor a
-    missing token of the gate item is an error.
+    PI ruling 86 b: the gate opens at the item's signed gate values (:func:`reported_open`;
+    ``discontinuation_uncertain`` opens the incidents gate). Open: the list from the page's
+    T-032 pass-2 page request (:func:`reported_field_value`, PI ruling 73.1 b). Every other
+    value of the gate item (``none_reported``, or a missing token such as ``unknown``)
+    closes it (PI ruling 73.2 a): ``not_asked`` by rule ``gated_out:<gate item>``. A value
+    that is neither a signed code nor a missing token of the gate item is an error.
     """
     gate = sf.default_codebook().items[item]["gate"]
     if gate["item"] != REPORTED_GATES[item]:
@@ -578,15 +633,51 @@ def reported_value(item: str, activity_id: str, activity_values: Mapping[str, An
     key = activity_values.get(gate["item"])
     if key is None:
         raise sf.MissingUpstreamError(f"T-023 final {gate['item']}", [item])
-    if key in REPORTED_OPEN:
-        raise sf.MissingUpstreamError(REPORTED_OPEN_REFUSAL, [item])
-    if key in gate["values"]:
-        raise sf.UnruledError(item, f"{gate['item']} = {key!r} opens the signed gate {gate['values']} but is "
-                                    f"outside PI ruling 73.2 a's open values {list(REPORTED_OPEN)}")
+    if key in reported_open(item):
+        return reported_field_value(item, activity_id, pass2, sources, prov)
     known = {*(sf.default_codebook().codes(gate["item"]) or ()), *_missing_tokens(gate["item"])}
     if key not in known:
         raise ValueError(f"{gate['item']} = {key!r} is not a signed code or missing token")
-    return _gated(item, gate, activity_id, sources, prov, f"{gate['item']} = {key!r} (PI ruling 73.2 a)")
+    return _gated(item, gate, activity_id, sources, prov, f"{gate['item']} = {key!r} (PI rulings 73.2 a, 86 b)")
+
+
+#: Pass-2 field status of a value returned with its supporting text (``pass2_support.ActivityField.status``).
+PASS2_STATED = "stated"
+
+
+def reported_field_value(item: str, activity_id: str, pass2: Any, sources: sc.PageSources,
+                         prov: Provenance) -> QuoteValue:
+    """An open gate's list: the activity's T-032 pass-2 field task in the page request (PI ruling 73.1 b).
+
+    ``pass2`` is the page's pass-2 page request (:class:`~g3o.extract.pass2_support.Pass2Support`,
+    from ``PerPageProviders.page_pass2``; None: no request, refused). A ``stated`` field is the
+    value with its supporting text, checked by T-024 (R-042; no X35: the item has no entailment
+    label; a failed check takes the item's ``downgrade_target``); a list item stores ``[value]``.
+    Any other status (the extractor stated nothing, or its answer was rejected: no supporting
+    text, a part the task did not name, no entry) gives ``not_documented``, as pass 1 treats a
+    field it returns no usable value for. The record carries the pass-2 response's provenance.
+    """
+    if pass2 is None:
+        raise sf.MissingUpstreamError(MISSING_PASS2, [item])
+    found = [f for f in pass2.fields if f.activity_id == activity_id and f.item_id == item]
+    if not found:
+        raise sf.MissingUpstreamError(PASS2_NO_FIELD_TASK, [item])
+    if len(found) > 1:
+        raise ValueError(f"{item}: the pass-2 page request has {len(found)} field tasks for activity {activity_id}")
+    f = found[0]
+    p2 = prov.for_pass2(pass2)
+    if f.status == PASS2_STATED:
+        chunk = _known_part(sources, f.chunk_id, item)
+        sr = sc.check_code(sc.CodeEvidence(item, f.value, chunk, quote=f.supporting_text, quote_chunk_id=chunk,
+                                           activity_id=activity_id), sources)
+        listed = FIELDS[item]["answer_type"] == "list" and sr.value == f.value
+        value = [f.value] if listed else sr.value
+        return QuoteValue(RowValue(item, value, f"PI ruling 73.1 b: T-032 pass-2 field, T-024 {sr.support_status}"),
+                          ((sr, p2.quote_record(item, f.value, chunk)),))
+    sr = sc.check_code(sc.CodeEvidence(item, NOT_DOCUMENTED, None, activity_id=activity_id), sources)
+    return QuoteValue(RowValue(item, NOT_DOCUMENTED, f"PI ruling 73.1 b: T-032 pass 2 gave no usable value "
+                                                     f"({f.status})"),
+                      ((sr, p2.quote_record(item, NOT_DOCUMENTED, None)),))
 
 
 #: PI ruling 72 a (2026-11-13): the rule that sets ``source_snippet`` to ``not_asked`` when the page verdict's
@@ -866,12 +957,13 @@ def _need(value: Any, item: str) -> Any:
 
 def activity_row_values(activities: Mapping[str, Mapping[str, Any]], rows: AssembledRows, *,
                         extraction: Any = None, sources: sc.PageSources | None = None,
-                        provenance: Provenance | None = None) -> None:
+                        provenance: Provenance | None = None, pass2: Any = None) -> None:
     """The per-observation activity-row values into ``rows.activities`` and their codes.
 
     ``unit_credit``; the T-022 pass-1 fields (:func:`activity_quote_value`) from the
     activity's span in ``extraction`` (the page's pass-1 request); the reported
-    lists when gated out (:func:`reported_value`).
+    lists (:func:`reported_value`; an open gate reads ``pass2``, the page's T-032
+    pass-2 page request, PI ruling 73.1 b).
     """
     spans = {s.activity_id: s for s in getattr(extraction, "activities", ())}
     for aid, values in activities.items():
@@ -883,7 +975,7 @@ def activity_row_values(activities: Mapping[str, Mapping[str, Any]], rows: Assem
                 item, aid, _need(spans.get(aid), item), values, _need(sources, item), _need(provenance, item)))
         for item in REPORTED_GATES:
             _try_quote(rows, out, codes, item, lambda item=item, aid=aid, values=values: reported_value(
-                item, aid, values, _need(sources, item), _need(provenance, item)))
+                item, aid, values, _need(sources, item), _need(provenance, item), pass2))
 
 
 def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
@@ -891,7 +983,7 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
              extraction: Any = None, sources: sc.PageSources | None = None,
              verdict_support: sc.SupportResult | None = None,
              provenance: Provenance | None = None, hop: int | None = None,
-             official_sites: Any = None) -> AssembledRows:
+             official_sites: Any = None, pass2: Any = None) -> AssembledRows:
     """Build every producible row value of one coded page and name every refused item.
 
     ``page`` is the :class:`~g3o.classify.jev_page_code.PageInput`,
@@ -907,7 +999,9 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
     what the coder records carry (:meth:`Provenance.of`). Without them every
     quote-step item is refused. ``official_sites`` is the run's
     :class:`~g3o.run.presweep.official_site_v27.RunOfficialSites` (PI ruling 70 b);
-    without it ``source_on_official_domain`` and what reads it are refused.
+    without it ``source_on_official_domain`` and what reads it are refused. ``pass2`` is the page's
+    T-032 pass-2 page request (:class:`~g3o.extract.pass2_support.Pass2Support`, from
+    ``PerPageProviders.page_pass2``; PI ruling 73.1 b), read for an open reported_* gate.
     """
     if page_fields is None:
         raise sf.MissingUpstreamError("perpage_inputs_v27.PageSourceFields (PageUpstream.page_fields)",
@@ -919,12 +1013,14 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
     page_source_values(page, page_fields, page_values, activities, rows, followed=followed, sources=sources,
                        verdict_support=verdict_support, provenance=provenance, extraction=extraction, hop=hop,
                        official_sites=official_sites)
-    activity_row_values(activities, rows, extraction=extraction, sources=sources, provenance=provenance)
+    activity_row_values(activities, rows, extraction=extraction, sources=sources, provenance=provenance,
+                        pass2=pass2)
     return rows
 
 
 __all__ = [
-    "ASSEMBLER", "PRODUCED_ACTIVITY_ITEMS", "PRODUCED_SOURCE_ITEMS", "REFUSED_ACTIVITY_ITEMS",
+    "ASSEMBLER", "CONDITIONAL_ITEMS", "NEVER_REFUSED_ITEMS", "WIRING_ONLY_ITEMS", "reported_field_value",
+    "reported_open", "reported_value", "PRODUCED_ACTIVITY_ITEMS", "PRODUCED_SOURCE_ITEMS", "REFUSED_ACTIVITY_ITEMS",
     "REFUSED_SOURCE_ITEMS", "AssembledRows", "RowValue", "activity_row_items", "activity_row_values", "assemble",
     "content_contact", "content_contact_emails", "content_safeguard", "content_stated", "genai_verdicts",
     "entry_refused_items", "page_source_values", "source_row_items", "source_title", "stated", "unit_credit",

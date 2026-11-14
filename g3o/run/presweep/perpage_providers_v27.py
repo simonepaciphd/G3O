@@ -213,8 +213,11 @@ class _Adapter:
         #: page id -> the journaled pass-1 request (custom_id, params) behind ``_page_request`` (C4 a)
         self._page_pass1: dict[str, dict[str, Any] | None] = {}
         self._pair_quotes: dict[str, dict[tuple[Any, ...], Any]] = {}  # page id -> pair quotes
-        #: every parsed extractor answer, in call order (pass-1 links/date and pass-2 fields have
-        #: consumers outside the per-page stage; nothing here stores them)
+        #: page id -> the parsed T-032 pass-2 page request (None: the plan needed no request); its field
+        #: tasks hold the open reported_* lists (PI ruling 73.1 b)
+        self._page_pass2: dict[str, pass2_support.Pass2Support | None] = {}
+        #: every parsed extractor answer, in call order (the page requests are also kept per page:
+        #: ``_page_request`` for pass 1, ``_page_pass2`` for pass 2)
         self.extractions: list[Any] = []
 
     # --- calls ---------------------------------------------------------------
@@ -347,8 +350,12 @@ class _Adapter:
         return (aid, code.item_id, code.part, code.chunk_id, code.value, code.linked_activity)
 
     def _pass2(self, p2: Any, *, extra_round: bool = False) -> dict[tuple[Any, ...], Any]:
+        """The quotes of one pass-2 request; a page request (not ``extra_round``) is also kept whole for
+        :meth:`page_pass2` (its field tasks, PI ruling 73.1 b)."""
         plan = pass2_support.select_requests(p2)
         if not plan.needs_request:
+            if not extra_round:
+                self._page_pass2[p2.page_id] = None
             return {}
         # RC-D-021 P-2c a: the rules the job's user message is built from, checked before the call.
         require_approved_quote_questions(pass2_support.default_rules())
@@ -357,6 +364,8 @@ class _Adapter:
             job = replace(job, custom_id=pass2_extra_round_custom_id(job.custom_id, p2))
         sup = self._parsed("pass2", job, lambda r: pass2_support.parse_pass2_result(r, p2, plan))
         self.extractions.append(sup)
+        if not extra_round:
+            self._page_pass2[p2.page_id] = sup
         tasks = {t.task_id: t for t in plan.quote_tasks}
         out: dict[tuple[Any, ...], Any] = {}
         for q in sup.quotes:
@@ -409,11 +418,7 @@ class _Adapter:
         # uninterrupted run rebuilds here too, from the same artifact, so a resume gives the same
         # custom_id and params (journal replay, no new call).
         if pid not in self._pair_quotes:  # resume: rebuild the page request from the T-023 artifact
-            art = stage_activity_code.artifact_path(
-                institution_dir(self.run_dir, inp.page.institution_id) / ACTIVITY_DIR, pid)
-            first = PageActivityResult.from_json(read_artifact(art))
-            self._pair_quotes[pid] = {k: q for k, q in self._pass2(to_pass2_page(first, inp)).items()
-                                      if k[1] in PAIR_ITEMS}
+            self._rebuild_page_request2(inp)
         quotes = self._pair_quotes[pid]
         sources = PageSources.from_page(inp.page)
         names, name_request = self._names(inp), self._page_pass1.get(pid)
@@ -429,6 +434,28 @@ class _Adapter:
                                        linked=pair.linked_activity, activity_name=names.get(pair.activity_id),
                                        name_request=name_request))
         return out
+
+    def _rebuild_page_request2(self, inp: ActivityPageInput) -> None:
+        """The page's pass-2 page request rebuilt from the stored T-023 artifact (a resume: journal replay).
+
+        The page request is only ever made in round 1 of ``complete_activity_rounds`` on that same
+        artifact (see :meth:`pair_support`), so the rebuild gives the same ``custom_id`` and params."""
+        pid = inp.page.page_id
+        art = stage_activity_code.artifact_path(
+            institution_dir(self.run_dir, inp.page.institution_id) / ACTIVITY_DIR, pid)
+        first = PageActivityResult.from_json(read_artifact(art))
+        self._pair_quotes[pid] = {k: q for k, q in self._pass2(to_pass2_page(first, inp)).items()
+                                  if k[1] in PAIR_ITEMS}
+
+    def page_pass2(self, inp: ActivityPageInput) -> pass2_support.Pass2Support | None:
+        """The page's T-032 pass-2 page request (its parsed answer with the actual response model and
+        request id; None when the plan needed no request), PI ruling 73.1 b: the T-015 assembler reads
+        its field tasks for an open reported_* gate. Call once the page's activity rounds are complete;
+        on a resume (the activity checkpoint holds the support, so no page request was made in this
+        process) it is rebuilt from the stored T-023 artifact and replayed from the journal."""
+        if inp.page.page_id not in self._page_pass2:
+            self._rebuild_page_request2(inp)
+        return self._page_pass2[inp.page.page_id]
 
 
 @dataclass(frozen=True)
@@ -450,6 +477,10 @@ class ExtractorPerPageProviders(PerPageProviders):
     def page_extraction(self, page_id: str) -> Pass1Extraction | None:
         """The page's T-022 pass-1 page request (:meth:`_Adapter.page_extraction`)."""
         return self.adapter.page_extraction(page_id)
+
+    def page_pass2(self, inp: ActivityPageInput) -> pass2_support.Pass2Support | None:
+        """The page's T-032 pass-2 page request (:meth:`_Adapter.page_pass2`, PI ruling 73.1 b)."""
+        return self.adapter.page_pass2(inp)
 
     def with_seams(self, wrap_extract: Callable[[ExtractFn], ExtractFn],
                    wrap_entail: Callable[[EntailFn], EntailFn]) -> ExtractorPerPageProviders:
