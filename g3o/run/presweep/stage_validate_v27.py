@@ -577,6 +577,14 @@ class RequestJournal:
             else:
                 self._append(self._slot("extract_failed", request, prompt), asdict(result), _elapsed_ms(start))
             return result
+
+        def peek(job: Any) -> tuple[str, bool]:
+            """``(request key, recorded)`` for the next call of ``job``: whether this journal holds a
+            response it would replay, without using the slot (PI ruling 98 b reads it before a rebuild)."""
+            key = self._key({"custom_id": job.custom_id, "params": job.params}, prompt)
+            return key, ("extract", key, self._seen.get(("extract", key), 0)) in self._recorded
+
+        wrapped.peek = peek  # type: ignore[attr-defined]
         return wrapped
 
     def _entail(self, entail_fn: Any, prompt: Mapping[str, Any]) -> Any:

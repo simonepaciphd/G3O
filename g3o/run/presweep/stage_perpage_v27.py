@@ -34,7 +34,9 @@ Rules carried here, not decided here:
   that lacks an asked answer is a completed response here and is replayed on
   resume: its missing answer is a failed part vote, exactly as in an uninterrupted
   run (the Stage 6 Z1 b no-replay rule is not applied to this stage). Support results are serialized whole
-  (:func:`support_to_dict`), so a resumed check is never re-run.
+  (:func:`support_to_dict`), so a resumed check is never re-run. PI ruling 98 b: a resumed page's pass-2
+  page request, rebuilt from the stored T-023 artifact, with no recorded response in the journal holds
+  the institution (:data:`PASS2_NOT_JOURNALED`) instead of being sent live.
 - **Publication.** A page with any pending or stopped question (an extra
   round that failed, a gate awaiting it) holds its whole institution: the
   holds go to ``perpage_v27/held.json`` and the attrition ledger, nothing is
@@ -334,6 +336,25 @@ class ExtractorResponseFailed(Exception):
         super().__init__(f"{pass_name} extractor response failed: {detail}")
         self.pass_name, self.request, self.detail = pass_name, request, detail
         self.archive_page_state = archive_page_state
+
+
+#: PI ruling 98 b (2026-11-14): on a resume, a rebuilt pass-2 page request with no recorded response in the
+#: institution's request journal holds the institution (held.json names the page, ``custom_id`` and request key)
+PASS2_NOT_JOURNALED = "pass2_request_not_journaled"
+
+
+class Pass2RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as ExtractRejectCapReached does
+    """A resumed page's pass-2 page request, rebuilt from the stored T-023 artifact, has no recorded response
+    in the institution's request journal (PI ruling 98 b): no live paid call is made; the institution is held.
+
+    Raised by :meth:`g3o.run.presweep.perpage_providers_v27._Adapter._rebuild_page_request2` before any call;
+    not a stage stop."""
+
+    def __init__(self, page_id: str, custom_id: str, key: str) -> None:
+        super().__init__(f"page {page_id}: the rebuilt pass-2 page request {custom_id!r} (journal key {key}) has "
+                         "no recorded response in the request journal; no live call made on a resume (PI ruling "
+                         "98 b)")
+        self.page_id, self.custom_id, self.key = page_id, custom_id, key
 
 
 class PageArchiveIncomplete(Exception):
@@ -1211,6 +1232,9 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
         except ExtractRejectCapReached as exc:  # ruling 34 b / 41 a: no call was made
             return _cap_hold(page.page_id, exc.pass_name, exc.custom_id, exc.key, exc.rejections,
                              "no extractor call made")
+        except Pass2RequestNotJournaled as exc:  # PI ruling 98 b: no call was made
+            return {"page_id": exc.page_id, "stage": PASS2_NOT_JOURNALED, "pass": "pass2",
+                    "custom_id": exc.custom_id, "request_key": exc.key, "error": str(exc)}
         except ExtractorResponseFailed as exc:  # C3 a: this institution is held as pending
             broken = _response_hold(page.page_id, exc)
             if exc.request is not None and hasattr(providers, "journal_prompt"):
@@ -1627,7 +1651,7 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 __all__ = [
     "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS",
-    "ROW_VALUE_REFUSED", "RowValueRefused", "quote_stage_as_of", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
+    "ROW_VALUE_REFUSED", "RowValueRefused", "quote_stage_as_of", "PASS2_NOT_JOURNALED", "Pass2RequestNotJournaled", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "FOLLOW_FAILED", "FollowWiringError", "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",

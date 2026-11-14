@@ -1308,6 +1308,59 @@ def test_pass2_later_round_takes_the_same_request_uninterrupted_and_resumed(tmp_
     assert seen2 == [extra_cid, first_cid] and ex2.jobs == []
 
 
+def test_resumed_pass2_page_request_missing_from_the_journal_holds_ruling_98b(tmp_path):
+    """PI ruling 98 b: on a resume, the pass-2 page request rebuilt from the stored T-023 artifact is replayed
+    from the institution's journal; when the journal holds no response for it the institution is held
+    (stage pass2_request_not_journaled, naming the custom_id and request key) and no pass-2 call is made.
+    The first, uninterrupted run (the request built in round 1) is unaffected."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    a = [i for i in insts if i.institution_id == "INST-0000001"]
+
+    def run(extract):
+        return _run(run_dir, bound, instrument, a, _providers(run_dir, bound, instrument, extract, FakeEntail()),
+                    FakeJev(ANSWERS, RELATIONS))
+    ex1 = FakeExtractor(world)
+    ready, metrics = run(ex1)
+    assert metrics.ready == ["INST-0000001"] and PASS2 in ex1.stages()
+    # resume with the journal intact: the rebuilt page requests are replayed, nothing is sent
+    ex2 = FakeExtractor(world)
+    ready, metrics = run(ex2)
+    assert metrics.ready == ["INST-0000001"] and PASS2 not in ex2.stages()
+    # resume with the journal moved aside: held before any pass-2 call
+    journal = institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.JOURNAL
+    journal.rename(journal.with_name("journal-moved-aside.jsonl"))
+    ex3 = FakeExtractor(world)
+    ready, metrics = run(ex3)
+    assert ready == [] and metrics.held == ["INST-0000001"] and PASS2 not in ex3.stages()
+    (hold,) = _held(run_dir, "INST-0000001")["held"]
+    assert (hold["stage"], hold["pass"]) == (pp.PASS2_NOT_JOURNALED, "pass2")
+    assert hold["custom_id"] and len(hold["request_key"]) == 64 and "98 b" in hold["error"]
+
+
+def test_journal_peek_reads_the_next_slot_without_using_it_ruling_98b(tmp_path):
+    """The journal's ``peek`` (read by the 98 b check) says whether the next call of a job would be replayed,
+    without using a slot: the call after it is still replayed."""
+    from g3o.extract.anthropic_client import ExtractorJob
+
+    job = ExtractorJob(custom_id="cid-peek", params={"model": "m", "messages": []}, metadata={})
+    path, prompt = tmp_path / "journal.jsonl", {"extractor_model": "m"}
+    ok = ExtractorResult("cid-peek", True, "{}", None, "fake-extractor-response", "msg-1", "x-1", "end_turn",
+                         dict(USAGE))
+    journal = rt.RequestJournal(path, {"s": 1})
+    wrap, _ = journal.seams(prompt)
+    calls = []
+    fn = wrap(lambda j: calls.append(j) or ok)
+    key, recorded = fn.peek(job)
+    assert not recorded and len(key) == 64
+    fn(job)
+    reloaded = rt.RequestJournal(path, {"s": 1})
+    wrap2, _ = reloaded.seams(prompt)
+    fn2 = wrap2(lambda j: calls.append(j) or ok)
+    assert fn2.peek(job) == (key, True) and fn2.peek(job) == (key, True)  # no slot used
+    assert fn2(job).text == "{}" and len(calls) == 1 and reloaded.replayed == 1
+    assert fn2.peek(job) == (key, False)  # the next slot of the same job has no response
+
+
 # ---------------------------------------------------------------------------
 # Ruling 34 b / 41 a: 3-attempt cap on rejected extractor requests, PI release
 # ---------------------------------------------------------------------------
