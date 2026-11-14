@@ -772,7 +772,7 @@ def test_archive_page_state_moves_every_state_file_and_numbers_each_archive(tmp_
         write_artifact(art, json.dumps({"n": n}))
         moved = pp._archive_page_state(run_dir, page)
         dest = pdir / pp.PAGE_ARCHIVE_DIR / f"{n:03d}"
-        assert len(moved) == 4 and all((inst_dir / p).exists() for p in moved)
+        assert len(moved) == len(pp.PAGE_STATE_FILES) + 1 and all((inst_dir / p).exists() for p in moved)
         assert all((dest / name).read_text(encoding="utf-8") == f"{name} {n}" for name in pp.PAGE_STATE_FILES)
         assert len(list((dest / pp.ACTIVITY_DIR).iterdir())) == 1
         assert not any((pdir / name).exists() for name in pp.PAGE_STATE_FILES)
@@ -1545,6 +1545,97 @@ def test_residual_source_type_page_reaches_its_row_through_the_stage_95a(tmp_pat
     assert all(pair in rows.source_codes for pair in codes)
 
 
+def test_residual_answers_are_saved_and_never_asked_again_on_a_resume_105b(tmp_path, monkeypatch):
+    """Review H2 with PI ruling 105 b. Run 1: one part of the residual source_type question fails (an
+    exception: the journal does not record it as final), the page's first pass-1 request carries the other
+    part's quote task, and the stage stops after T-022 (on the assembler's refusals). Run 2: the answers
+    saved before that request are loaded, so nothing is asked again and the first request is rebuilt with the
+    same parameters and replayed (no extractor call). Run 3, the saved answers moved aside: the failed part is
+    asked again live and answers, the rebuilt first request's parameters change, and the institution is held
+    (pass1_request_not_journaled) before any extractor call."""
+    from g3o.common import source_fields as sf
+    from g3o.run.presweep import source_row_v27 as srow
+    from tests.test_e2e_perpage_v27 import assemble_spy
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
+    seen = []
+    monkeypatch.setattr(srow, "assemble", assemble_spy(srow.assemble, lambda page, rows, kw: seen.append(kw)))
+    inst = [_residual_inst(insts)]
+    spec = inst[0].pages[0]
+    saved = pp.page_state_dir(run_dir, spec.page) / pp.SOURCE_TYPE_FILE
+    answers = {**ANSWERS, sf.SOURCE_TYPE: "vendor"}
+
+    def second_part_fails(state, questions, n):
+        if sf.SOURCE_TYPE in questions and not state["page_part"].startswith("1"):
+            return RuntimeError("simulated residual part failure")
+        return None
+
+    jev1, ex1 = FakeJev(answers, RELATIONS, second_part_fails), FakeExtractor(world)
+    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler"):
+        _run(run_dir, bound, instrument, inst, _providers(run_dir, bound, instrument, ex1, FakeEntail()), jev1)
+    assert len(_source_type_calls(jev1)) > 1 and saved.exists()
+    typing1 = seen[-1]["source_typing"]
+    assert any(f["reason"] == jpc.REQUEST_FAILED for f in typing1.result.failures)  # the failed part
+
+    jev2, ex2 = FakeJev(answers, RELATIONS), FakeExtractor(world)  # every part would answer now
+    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler"):
+        _run(run_dir, bound, instrument, inst, _providers(run_dir, bound, instrument, ex2, FakeEntail()), jev2)
+    assert _source_type_calls(jev2) == [] and ex2.jobs == []  # loaded, not asked; replayed, no call
+    typing2 = seen[-1]["source_typing"]
+    assert typing2 == typing1 and typing2 is not typing1
+
+    saved.rename(saved.with_name("source_type-moved-aside.json"))
+    jev3, ex3 = FakeJev(answers, RELATIONS), FakeExtractor(world)
+    ready, metrics = _run(run_dir, bound, instrument, inst, _providers(run_dir, bound, instrument, ex3, FakeEntail()),
+                          jev3)
+    assert _source_type_calls(jev3)  # the failed part is asked again live
+    assert ready == [] and metrics.held == ["INST-0000001"] and ex3.jobs == []
+    (hold,) = _held(run_dir, "INST-0000001")["held"]
+    assert (hold["page_id"], hold["stage"], hold["pass"]) == ("p1", pp.PASS1_NOT_JOURNALED, "pass1")
+    assert len(hold["request_key"]) == 64
+
+
+def test_resumed_activity_only_request_missing_from_the_journal_holds_105b(tmp_path):
+    """PI ruling 105 b: an activity-only request (87 c) that an earlier process got an answer to (the page's
+    pass1_requests.json names it) is replayed from the journal on a resume; with no recorded response it holds
+    (activity_only_request_not_journaled) before any call. Not named there (never answered), it is sent."""
+    from g3o.classify.jev_page_code import to_pass1_page
+    from g3o.extract import request_v27
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, started, records, page_round_of = _flipped_round(run_dir, bound, page)
+    page_cid = request_v27.make_custom_id(page.institution_id, page.url)
+    only_cid = ppv.activity_only_custom_id(page_cid, to_pass1_page(started, page))
+    path, pdir = tmp_path / "journal105b.jsonl", pp.page_state_dir(run_dir, page)
+    made = SimpleNamespace(custom_id=page_cid)
+
+    def journaled(extract):
+        journal = rt.RequestJournal(path, {"s": 1})
+        base = _providers(run_dir, bound, instrument, extract, FakeEntail())
+        providers = base.with_seams(*journal.seams(base.journal_prompt))
+        return providers, page_round_of(providers.page_support(page, result, records))
+
+    pp._record_pass1_requests(pdir, made, SimpleNamespace(custom_id=only_cid))
+    ex1 = NoFirstRoundActivities(world)
+    providers, page_round = journaled(ex1)
+    with pytest.raises(pp.Pass1RequestNotJournaled) as exc:
+        providers.activity_input(page, page_round)
+    assert (exc.value.stage, exc.value.custom_id) == (pp.ACTIVITY_ONLY_NOT_JOURNALED, only_cid)
+    assert not any(_is_activity_only(j) for j in ex1.jobs)
+
+    pp._record_pass1_requests(pdir, made, None)  # never answered: sent and journaled
+    ex2 = NoFirstRoundActivities(world)
+    providers, page_round = journaled(ex2)
+    assert providers.activity_input(page, page_round) is not None
+    assert [j.custom_id for j in ex2.jobs if _is_activity_only(j)] == [only_cid]
+
+    pp._record_pass1_requests(pdir, made, SimpleNamespace(custom_id=only_cid))  # answered: replayed
+    ex3 = NoFirstRoundActivities(world)
+    providers, page_round = journaled(ex3)
+    assert providers.activity_input(page, page_round) is not None and ex3.jobs == []
+
+
 def test_downgrade_is_refused_for_a_verdict_other_than_confirms_activity(tmp_path):
     """Only a combined confirms_activity verdict is downgraded; anything else is a wiring error."""
     run_dir, bound, instrument, world, page = _flip_world(tmp_path)
@@ -1646,15 +1737,30 @@ def test_resumed_pass2_page_request_missing_from_the_journal_holds_ruling_98b(tm
     ex2 = FakeExtractor(world)
     ready, metrics = run(ex2)
     assert metrics.ready == ["INST-0000001"] and PASS2 not in ex2.stages()
-    # resume with the journal moved aside: held before any pass-2 call
+    # resume with the pass-2 responses gone from the journal (a copy kept aside): the rebuilt pass-1 page
+    # requests are still replayed; the pass-2 one is held before any call
     journal = institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.JOURNAL
-    journal.rename(journal.with_name("journal-moved-aside.jsonl"))
+    raw = journal.read_bytes()
+    journal.with_name("journal-moved-aside.jsonl").write_bytes(raw)
+    kept = [line for line in raw.decode("utf-8").splitlines()
+            if not (json.loads(line)["kind"] == "extract"
+                    and json.loads(line)["response"]["custom_id"].startswith("x27s-"))]
+    assert len(kept) < len(raw.decode("utf-8").splitlines())
+    journal.write_bytes("".join(line + "\n" for line in kept).encode("utf-8"))
     ex3 = FakeExtractor(world)
     ready, metrics = run(ex3)
-    assert ready == [] and metrics.held == ["INST-0000001"] and PASS2 not in ex3.stages()
+    assert ready == [] and metrics.held == ["INST-0000001"] and ex3.jobs == []
     (hold,) = _held(run_dir, "INST-0000001")["held"]
     assert (hold["stage"], hold["pass"]) == (pp.PASS2_NOT_JOURNALED, "pass2")
     assert hold["custom_id"] and len(hold["request_key"]) == 64 and "98 b" in hold["error"]
+    # PI ruling 105 b: with the journal moved aside, the first rebuilt request (the pass-1 page request) holds
+    journal.rename(journal.with_name("journal-moved-aside-2.jsonl"))
+    ex4 = FakeExtractor(world)
+    ready, metrics = run(ex4)
+    assert ready == [] and metrics.held == ["INST-0000001"] and ex4.jobs == []
+    (hold,) = _held(run_dir, "INST-0000001")["held"]
+    assert (hold["stage"], hold["pass"]) == (pp.PASS1_NOT_JOURNALED, "pass1")
+    assert hold["custom_id"] and len(hold["request_key"]) == 64 and "105 b" in hold["error"]
 
 
 def test_pair_only_page_resumed_rebuild_is_checked_first_build_is_not_ruling_98b(tmp_path, monkeypatch):

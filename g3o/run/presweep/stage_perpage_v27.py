@@ -36,7 +36,10 @@ Rules carried here, not decided here:
   run (the Stage 6 Z1 b no-replay rule is not applied to this stage). Support results are serialized whole
   (:func:`support_to_dict`), so a resumed check is never re-run. PI ruling 98 b: a resumed page's pass-2
   page request, rebuilt from the stored T-023 artifact, with no recorded response in the journal holds
-  the institution (:data:`PASS2_NOT_JOURNALED`) instead of being sent live.
+  the institution (:data:`PASS2_NOT_JOURNALED`) instead of being sent live. PI ruling 105 b: the same for
+  a resumed page's pass-1 page request (:data:`PASS1_NOT_JOURNALED`) and 87 c activity-only request
+  (:data:`ACTIVITY_ONLY_NOT_JOURNALED`); the residual ``source_type`` answers are saved before the first
+  pass-1 request and loaded on a resume (:data:`SOURCE_TYPE_FILE`), never asked again.
 - **Publication.** A page with any pending or stopped question (an extra
   round that failed, a gate awaiting it) holds its whole institution: the
   holds go to ``perpage_v27/held.json`` and the attrition ledger, nothing is
@@ -80,8 +83,8 @@ Rules carried here, not decided here:
   (:data:`PI_RELEASE_RECORD_FAILED`, ruling 28 a), the file staying in place.
 - **Stale page state on a C4 hold (ruling 33 a).** A C4 a hold (a pass-1 activity
   with no ``activity_name``; :attr:`ExtractorResponseFailed.archive_page_state`)
-  moves that page's saved state (``page.json``, ``activity.json``, ``pairs.json``
-  and the T-023 activity artifact) to ``<page dir>/archive/<NNN>/`` (archive,
+  moves that page's saved state (``page.json``, ``activity.json``, ``pairs.json``,
+  ``source_type.json``, ``pass1_requests.json`` and the T-023 activity artifact) to ``<page dir>/archive/<NNN>/`` (archive,
   never delete), so the next run codes the page again from the new pass-1 answer
   instead of resuming from state built on the rejected one. The archive is all or
   nothing across runs: a pending marker (:data:`PAGE_ARCHIVE_PENDING`) is written
@@ -277,7 +280,14 @@ PAGE_ARCHIVE_DIR = "archive"
 #: then ``pair_support``); its presence on a later run means that request was made by an earlier process
 #: (PI ruling 98 b reads it)
 PAIRS_FILE = "pairs.json"
-PAGE_STATE_FILES = ("page.json", "activity.json", PAIRS_FILE)
+#: PI ruling 105 b (with 95 a): the page's residual source_type answers (the stored residual result), written
+#: before the page's first pass-1 request and loaded on a resume instead of asking again
+SOURCE_TYPE_FILE = "source_type.json"
+#: PI ruling 105 b: the pass-1 requests built for the page (the T-022 page request, the 87 c activity-only
+#: request; their ``custom_id``, or None), written once ``activity_input`` returned; a later process reads it
+#: to know a rebuild is a resume
+PASS1_FILE = "pass1_requests.json"
+PAGE_STATE_FILES = ("page.json", "activity.json", PAIRS_FILE, SOURCE_TYPE_FILE, PASS1_FILE)
 #: written in the page dir before a C4 archive moves anything and moved into the archive folder last;
 #: while it is in the page dir the archive is incomplete and the page's saved state is never loaded
 PAGE_ARCHIVE_PENDING = "archive_pending.json"
@@ -362,6 +372,29 @@ class Pass2RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as Ex
                          "no recorded response in the request journal; no live call made on a resume (PI ruling "
                          "98 b)")
         self.page_id, self.custom_id, self.key = page_id, custom_id, key
+
+
+#: PI ruling 105 b (2026-11-14, extending 98 b): on a resume, the page's rebuilt T-022 pass-1 page request with
+#: no recorded response in the institution's request journal holds the institution (no live call)
+PASS1_NOT_JOURNALED = "pass1_request_not_journaled"
+#: PI ruling 105 b: the same for the page's rebuilt 87 c activity-only pass-1 request
+ACTIVITY_ONLY_NOT_JOURNALED = "activity_only_request_not_journaled"
+
+
+class Pass1RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as Pass2RequestNotJournaled does
+    """A resumed page's pass-1 request (the T-022 page request rebuilt from the stored T-021 artifact, or the
+    87 c activity-only request) has no recorded response in the institution's request journal (PI ruling
+    105 b, the 98 b check): no live paid call is made; the institution is held with ``stage``
+    (:data:`PASS1_NOT_JOURNALED` / :data:`ACTIVITY_ONLY_NOT_JOURNALED`).
+
+    Raised by the provider adapter (:mod:`g3o.run.presweep.perpage_providers_v27`) before any call; not a
+    stage stop."""
+
+    def __init__(self, page_id: str, custom_id: str, key: str, stage: str) -> None:
+        super().__init__(f"page {page_id}: the rebuilt pass-1 request {custom_id!r} (journal key {key}) has no "
+                         "recorded response in the request journal; no live call made on a resume (PI ruling "
+                         "105 b)")
+        self.page_id, self.custom_id, self.key, self.stage = page_id, custom_id, key, stage
 
 
 class PageArchiveIncomplete(Exception):
@@ -1188,7 +1221,13 @@ def _residual_source_type(run_dir: Path, spec: PageSpec, ask: Any, page_config: 
     T-021 parts, so each answer's part is a part of the page's first pass-1 request
     (:func:`~g3o.common.source_fields.code_source_type`). Returns the classifier
     :class:`~g3o.common.source_fields.SourceTyping`, or None (typed by rule, or a refused input: no call is
-    made, and the assembler refuses or types the page itself)."""
+    made, and the assembler refuses or types the page itself).
+
+    PI ruling 105 b: the answers are saved in the page dir (:data:`SOURCE_TYPE_FILE`) before the page's first
+    pass-1 request is built, and a later run loads them instead of asking again: a part that failed in an
+    earlier run (an exception or a response with no request id, never replayed by the journal) is not asked
+    again live, so the first pass-1 request is rebuilt with the same parameters and replayed from the journal.
+    The file is page state, archived with it (ruling 33 a, :data:`PAGE_STATE_FILES`)."""
     page, up = spec.page, spec.upstream
     if up.page_fields is None or any(v is not None for v in (up.activity_values, up.source_values, up.codes)):
         return None
@@ -1201,8 +1240,65 @@ def _residual_source_type(run_dir: Path, spec: PageSpec, ask: Any, page_config: 
         return None
     t021 = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(run_dir, page.institution_id,
                                                                                 page.url)))
+    path = _page_dir(run_dir, page) / SOURCE_TYPE_FILE
+    saved = load_source_typing(path, t021.chunks)
+    if saved is not None:  # PI ruling 105 b: a resume reads the answers it asked, never asks again
+        return saved
     typing = sf.code_source_type(page, ask, page_config, layout=t021.chunks)
-    return typing if typing.typed_by == "classifier" else None
+    if typing.typed_by != "classifier":
+        return None
+    save_source_typing(path, typing)
+    return typing
+
+
+def save_source_typing(path: Path, typing: Any) -> None:
+    """Write the page's residual ``source_type`` answers (its stored residual result) to ``path`` (PI ruling
+    105 b; :data:`SOURCE_TYPE_FILE`)."""
+    if typing.typed_by != "classifier" or typing.result is None:
+        raise TypeError("only a classifier-typed (residual) source_type is saved")
+    _atomic_write(path, canonical_json({"format": CHECKPOINT_FORMAT, "kind": "source_type",
+                                        "result": typing.result.to_dict()}))
+
+
+def load_source_typing(path: Path, layout: Sequence[Any]) -> Any:
+    """The residual ``source_type`` answers saved at ``path`` (:func:`save_source_typing`), rebuilt with
+    :func:`~g3o.common.source_fields.classifier_source_typing` (equal to the typing that was saved), or None
+    when there is no such file. A file of another format, or asked on parts other than ``layout`` (the page's
+    T-021 parts), is refused (``ValueError``)."""
+    if not path.exists():
+        return None
+    doc = json.loads(path.read_bytes().decode("utf-8"))
+    if doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != "source_type":
+        raise ValueError(f"unsupported per-page checkpoint: {path}")
+    typing = sf.classifier_source_typing(PageCodeResult.from_dict(doc["result"]))
+    if [c.chunk_id for c in typing.result.chunks] != [c.chunk_id for c in layout]:
+        raise ValueError(f"per-page checkpoint {path} was asked on parts other than the page's T-021 parts")
+    return typing
+
+
+def _record_pass1_requests(pdir: Path, extraction: Any, activity_extraction: Any) -> bool:
+    """PI ruling 105 b: record the pass-1 requests built for the page (:data:`PASS1_FILE`): the T-022 page
+    request's ``custom_id`` and the 87 c activity-only request's (None when not built). Written only when it
+    changes; returns whether it was written."""
+    path = pdir / PASS1_FILE
+    text = canonical_json({"format": CHECKPOINT_FORMAT, "kind": "pass1_requests",
+                           "page_request": getattr(extraction, "custom_id", None),
+                           "activity_only": getattr(activity_extraction, "custom_id", None)})
+    if path.exists() and path.read_bytes().decode("utf-8") == text:
+        return False
+    _atomic_write(path, text)
+    return True
+
+
+def read_pass1_requests(run_dir: Path, page: Any) -> dict[str, Any] | None:
+    """The page's :data:`PASS1_FILE` record (:func:`_record_pass1_requests`), or None when no process wrote it."""
+    path = page_state_dir(run_dir, page) / PASS1_FILE
+    if not path.exists():
+        return None
+    doc = json.loads(path.read_bytes().decode("utf-8"))
+    if doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != "pass1_requests":
+        raise ValueError(f"unsupported per-page checkpoint: {path}")
+    return doc
 
 
 def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPageProviders,
@@ -1259,6 +1355,8 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
     st.extraction = None if page_extraction is None else page_extraction(page.page_id)
     activity_extraction = getattr(providers, "activity_extraction", None)  # PI ruling 87 c (absent on fakes)
     st.activity_extraction = None if activity_extraction is None else activity_extraction(page.page_id)
+    if page_extraction is not None and _record_pass1_requests(pdir, st.extraction, st.activity_extraction):
+        metrics.checkpoint_writes += 1  # PI ruling 105 b: a later process's rebuild of these is a resume
     if st.source_typing is not None:  # PI ruling 95 a: checked on the first request's quotes (or none)
         st.source_type_codes = providers.source_type_codes(page.page_id)
     if inp is None:
@@ -1344,6 +1442,9 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
                              "no extractor call made")
         except Pass2RequestNotJournaled as exc:  # PI ruling 98 b: no call was made
             return {"page_id": exc.page_id, "stage": PASS2_NOT_JOURNALED, "pass": "pass2",
+                    "custom_id": exc.custom_id, "request_key": exc.key, "error": str(exc)}
+        except Pass1RequestNotJournaled as exc:  # PI ruling 105 b: no call was made
+            return {"page_id": exc.page_id, "stage": exc.stage, "pass": "pass1",
                     "custom_id": exc.custom_id, "request_key": exc.key, "error": str(exc)}
         except ExtractorResponseFailed as exc:  # C3 a: this institution is held as pending
             broken = _response_hold(page.page_id, exc)
