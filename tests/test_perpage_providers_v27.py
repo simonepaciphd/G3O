@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib
 import json
 from dataclasses import replace
+from types import SimpleNamespace
 
 import pytest
 
@@ -1130,20 +1131,30 @@ class NoFirstRoundActivities(FakeExtractor):
         return result
 
 
-def _flipped_round(run_dir, bound, page, *, flipped=True):
-    """p1's coded result with a 68 b PLAN_KEPT verdict entry (``background_only`` -> confirms_activity)
-    and a final verdict ``confirms_activity``; ``flipped=False``: no such entry."""
+def _flipped_round(run_dir, bound, page, *, flipped=True, first_verdict="background_only", log_before=None):
+    """p1's coded result with a 68 b PLAN_KEPT verdict entry (``first_verdict`` -> confirms_activity)
+    and a final verdict ``confirms_activity``; ``flipped=False``: no such entry.
+
+    The stored T-021 artifact's provisional verdict is rewritten to ``first_verdict``, so the first-round
+    plan (built from it, also on a resume) is planned on it (PI ruling 100 b: ``background_only`` has no
+    activity task). ``log_before``: extra PLAN_KEPT ``before`` values logged ahead of the final flip
+    (intermediate values between halvings), the first being ``first_verdict``."""
     from g3o.classify.jev_page_code import PageCodeResult
     from g3o.classify.question_rounds import PLAN_KEPT, PageRoundResult
-    from g3o.common.artifact_io import read_artifact
+    from g3o.common.artifact_io import read_artifact, write_artifact
     from g3o.run.presweep import stage_page_code
 
-    result = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(run_dir, page.institution_id,
-                                                                                  page.url)))
+    path = stage_page_code.artifact_path(run_dir, page.institution_id, page.url)
+    result = PageCodeResult.from_json(read_artifact(path))
+    result = replace(result, items={**result.items, jpc.VERDICT: replace(result.items[jpc.VERDICT],
+                                                                          value=first_verdict)})
+    write_artifact(path, result.to_json())
     records = [r for r in result.records if r.coder_type == "classifier" and r.chosen_value != NOT_COVERED]
-    log = ({"chunk_id": None, "round": 3, "question_ids": ["core.disclosure_scope"], "outcome": PLAN_KEPT,
-            "item_id": jpc.VERDICT, "before": {"state": "combined", "value": "background_only"},
-            "after": {"state": "combined", "value": "confirms_activity"}},) if flipped else ()
+    befores = log_before or [first_verdict]
+    afters = [*befores[1:], "confirms_activity"]
+    log = tuple({"chunk_id": None, "round": 3, "question_ids": ["core.disclosure_scope"], "outcome": PLAN_KEPT,
+                 "item_id": jpc.VERDICT, "before": {"state": "combined", "value": b},
+                 "after": {"state": "combined", "value": a}} for b, a in zip(befores, afters, strict=True)) if flipped else ()
     started = replace(result, requests=result.requests + ({
         "chunk_id": result.chunks[0].chunk_id, "round": 3, "group": "extra",
         "question_ids": ["core.disclosure_scope"], "outcome": "halved", "halves": [], "reask": []},) + log)
@@ -1235,6 +1246,137 @@ def test_activity_only_request_is_journaled_priced_and_replayed_87c(tmp_path):
     assert [s.activity_id for s in resumed.activity_input(page, page_round2).spans] == [aid("p1")]
     assert again.jobs == [] and journal2.replayed >= 2 and journal2.live == 0
     assert len(_agree(journal2)) == 2
+
+
+def _is_activity_only(job):
+    return job.metadata["stage"] == PASS1 and ppv.ACTIVITY_ONLY_MARK in job.custom_id[len("x27-") + 48:]
+
+
+class NoActivitiesAnywhere(FakeExtractor):
+    """Every pass-1 request, the activity-only one included, returns no activity (PI ruling 99.2)."""
+
+    def __call__(self, job):
+        result = super().__call__(job)
+        if job.metadata["stage"] == PASS1:
+            payload = json.loads(result.text)
+            payload["activities"] = []
+            result = replace(result, text=json.dumps(payload))
+        return result
+
+
+def _flip_world(tmp_path):
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    a = [i for i in insts if i.institution_id == "INST-0000001"]
+    _run(run_dir, bound, instrument, a, _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+         FakeJev(ANSWERS, RELATIONS))
+    return run_dir, bound, instrument, world, world.pages["p1"].input
+
+
+@pytest.mark.parametrize("first_verdict,log_before,sent", [
+    ("ambiguous_genai", None, False),  # first-round plan had the activity task: no 87 c request (100 b)
+    ("confirms_activity", ["confirms_activity", "background_only"], False),  # restored, not flipped (101 a)
+    ("background_only", ["background_only", "ambiguous_genai"], True),  # intermediate R-003 value ignored
+])
+def test_activity_only_request_compares_the_first_round_plan_100b(tmp_path, first_verdict, log_before, sent):
+    """PI ruling 100 b / 101 a: the 87 c activity-only request is sent only when the stored first-round
+    plan had no activity task and the verdict flipped to confirms_activity from its first-round value; an
+    intermediate value between halvings is never compared. Also on a fresh adapter (a resume)."""
+    from g3o.classify.question_rounds import first_round_verdict, verdict_flipped_to_confirms
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, started, records, page_round_of = _flipped_round(run_dir, bound, page, first_verdict=first_verdict,
+                                                             log_before=log_before)
+    for fresh in (False, True):
+        extract = NoFirstRoundActivities(world)
+        providers = _providers(run_dir, bound, instrument, extract, FakeEntail())
+        page_round = page_round_of(providers.page_support(page, result, records))
+        if fresh:  # a resume: the first-round plan is rebuilt from the stored T-021 artifact
+            extract = NoFirstRoundActivities(world)
+            providers = _providers(run_dir, bound, instrument, extract, FakeEntail())
+        assert first_round_verdict(started)["value"] == first_verdict
+        assert verdict_flipped_to_confirms(page_round) is (first_verdict != "confirms_activity")
+        inp = providers.activity_input(page, page_round)
+        assert any(_is_activity_only(j) for j in extract.jobs) is sent
+        assert (inp is not None) is sent
+        assert providers.verdict_downgrade(page.page_id) is None
+
+
+def test_activity_only_request_with_no_activity_downgrades_the_verdict_support_99_2(tmp_path):
+    """PI ruling 99.2: the activity-only request succeeds with zero activities: no activity, and the final
+    verdict's support at its deciding part is downgraded ``downgraded_no_quote`` (verdict value kept, no
+    quote), every other support unchanged, so the page never counts as positive."""
+    from g3o.validate.consolidate_v27 import _positive
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, _, records, page_round_of = _flipped_round(run_dir, bound, page)
+    extract = NoActivitiesAnywhere(world)
+    providers = _providers(run_dir, bound, instrument, extract, FakeEntail())
+    page_round = page_round_of(providers.page_support(page, result, records))
+    assert providers.activity_input(page, page_round) is None
+    assert sum(_is_activity_only(j) for j in extract.jobs) == 1  # asked once, no new call for the downgrade
+    assert providers.verdict_downgrade(page.page_id) == ppv.ACTIVITY_ONLY_EMPTY
+
+    verdict = page_round.final.items[jpc.VERDICT]
+    down = pp.downgrade_verdict_support(page, page_round)
+    key = (None, jpc.VERDICT, None, verdict.part_id, None)
+    old = {pp._support_key(s): s for s in page_round.support}
+    new = {pp._support_key(s): s for s in down.support}
+    assert set(old) == set(new) and all(new[k] == old[k] for k in old if k != key)
+    sr = new[key]
+    assert sr.support_status == support_check.NO_QUOTE and sr.supporting_text is None
+    assert sr.original_value == sr.value == "confirms_activity"  # tag_only: the verdict is kept (R-041)
+    assert down.final == page_round.final and down.result == page_round.result  # not re-combined
+    page_doc = SimpleNamespace(pipeline=pp.PIPELINE, reviewed=True, failed=False, page_verdict="confirms_activity",
+                               support_status=sr.support_status, chosen_probability=verdict.probability)
+    assert not _positive(page_doc)  # consolidate_v27: never positive; and not an "open positive" (downgraded_)
+    assert sr.support_status.startswith("downgraded_")
+
+
+def test_activity_only_request_at_the_rejection_cap_downgrades_the_verdict_support_99_1(tmp_path):
+    """PI ruling 99.1 a: the activity-only request at the journal's rejection cap (ruling 34 b / 41 a: three
+    unparsable responses; the journal makes no call) gives no activity and the verdict support downgrade,
+    instead of the permanent hold. Before the cap, a failed or unparsable response still holds the
+    institution (``ExtractorResponseFailed``, asked again on the next run): no downgrade."""
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, _, records, page_round_of = _flipped_round(run_dir, bound, page)
+
+    class Capped(NoFirstRoundActivities):
+        def __call__(self, job):
+            if _is_activity_only(job):
+                raise rt.ExtractRejectCapReached("k" * 64, rt.EXTRACT_REJECT_CAP, job.custom_id)
+            return super().__call__(job)
+
+    class Failing(NoFirstRoundActivities):
+        def __call__(self, job):
+            if _is_activity_only(job):
+                self.jobs.append(job)
+                return ExtractorResult(job.custom_id, False, None, {"type": "expired"})
+            return super().__call__(job)
+
+    providers = _providers(run_dir, bound, instrument, Capped(world), FakeEntail())
+    page_round = page_round_of(providers.page_support(page, result, records))
+    assert providers.activity_input(page, page_round) is None
+    reason = providers.verdict_downgrade(page.page_id)
+    assert reason.startswith(ppv.ACTIVITY_ONLY_CAP)
+    assert pp.downgrade_verdict_support(page, page_round).support != page_round.support
+
+    failing = _providers(run_dir, bound, instrument, Failing(world), FakeEntail())
+    page_round = page_round_of(failing.page_support(page, result, records))
+    with pytest.raises(pp.ExtractorResponseFailed):  # transient: held and asked again first
+        failing.activity_input(page, page_round)
+    assert failing.verdict_downgrade(page.page_id) is None
+
+
+def test_downgrade_is_refused_for_a_verdict_other_than_confirms_activity(tmp_path):
+    """Only a combined confirms_activity verdict is downgraded; anything else is a wiring error."""
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, _, records, page_round_of = _flipped_round(run_dir, bound, page)
+    providers = _providers(run_dir, bound, instrument, NoFirstRoundActivities(world), FakeEntail())
+    page_round = page_round_of(providers.page_support(page, result, records))
+    other = replace(page_round, final=replace(page_round.final, items={
+        **page_round.final.items, jpc.VERDICT: replace(page_round.final.items[jpc.VERDICT], value="no_genai")}))
+    with pytest.raises(TypeError):
+        pp.downgrade_verdict_support(page, other)
 
 
 def test_pass2_later_round_takes_the_same_request_uninterrupted_and_resumed(tmp_path, monkeypatch):

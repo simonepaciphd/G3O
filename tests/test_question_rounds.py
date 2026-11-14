@@ -725,6 +725,28 @@ def test_verdict_flipped_to_confirms_reads_the_plan_kept_log_87c(monkeypatch, ru
     assert not flipped(entry("confirms_activity"))  # not a flip to it
     assert not flipped(entry("no", item="core.page_complete"))  # another item's change
     assert not flipped(entry("background_only"), status="failed")  # a failed page (69 b)
+    # PI ruling 100 b / 101 a: the first PLAN_KEPT entry's ``before`` is the first-round verdict; a later
+    # entry's ``before`` is an intermediate value and is never compared
+    assert not flipped(entry("confirms_activity"), entry("background_only"))  # first round was confirms
+    assert flipped(entry("background_only"), entry("ambiguous_genai"))
+    assert flipped(entry("background_only"), entry("confirms_activity"))
+
+
+def test_first_round_verdict_is_the_first_plan_kept_before_100b(monkeypatch, rules):
+    """PI ruling 100 b: the first-round verdict is the ``before`` of the FIRST PLAN_KEPT verdict entry;
+    None when no halving changed the verdict; other items' entries are ignored."""
+    from g3o.classify.question_rounds import first_round_verdict
+
+    _, result, _, _, _ = page_case(monkeypatch, rules)
+
+    def entry(before, item=VERDICT):
+        return {"chunk_id": None, "round": 3, "question_ids": [SCOPE], "outcome": PLAN_KEPT, "item_id": item,
+                "before": {"state": "combined", "value": before}, "after": {"state": "combined", "value": "x"}}
+
+    assert first_round_verdict(result) is None
+    log = (entry("no", item="core.page_complete"), entry("other_body"), entry("background_only"))
+    assert first_round_verdict(replace(result, requests=result.requests + log)) == {
+        "state": "combined", "value": "other_body"}
 
 
 def test_page_halving_changed_verdict_resume_is_stable(monkeypatch, rules):

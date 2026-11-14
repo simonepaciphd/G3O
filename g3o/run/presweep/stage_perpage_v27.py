@@ -179,6 +179,7 @@ from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissing
 from g3o.common.storage import METADATA_ITEMS, table_fields
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import (
+    NO_QUOTE,
     CodeEvidence,
     Entailment,
     PageSources,
@@ -509,6 +510,8 @@ class PerPageMetrics:
     replayed_requests: int = 0
     checkpoint_writes: int = 0
     usage: dict[str, dict[str, int]] = field(default_factory=dict)
+    #: page id -> why its verdict support was downgraded ``downgraded_no_quote`` (PI ruling 99.1 a / 99.2)
+    verdict_downgrades: dict[str, str] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -1045,6 +1048,29 @@ class _PageState:
     holds: list[dict[str, Any]] = field(default_factory=list)
 
 
+def downgrade_verdict_support(page: PageInput, page_round: PageRoundResult) -> PageRoundResult:
+    """PI ruling 99.1 a / 99.2: the final verdict's support at its deciding part, re-checked with no quote
+    (T-024, :func:`~g3o.common.support_check.check_code`): ``downgraded_no_quote``, the verdict value kept
+    (R-041). The final items are not re-combined (the verdict stands, its support is downgraded), and the
+    page checkpoint is not rewritten: the decision is made again from the journaled activity-only request
+    on every run. Only a combined ``confirms_activity`` verdict is downgraded; anything else is a wiring
+    error (``TypeError``)."""
+    verdict = page_round.final.items.get(jpc.VERDICT)
+    if verdict is None or verdict.state != "combined" or verdict.value != "confirms_activity":
+        raise TypeError(f"page {page.page_id}: only a combined confirms_activity verdict is downgraded")
+    key = (None, jpc.VERDICT, None, verdict.part_id, None)
+    old = _index(page_round.support).get(key)
+    if old is None:
+        raise ConsolidationError("final page verdict has no support result at its deciding part")
+    sources = PageSources(page.page_id, {c.chunk_id: c.text for c in page_round.result.chunks}, contact_text(page))
+    new = check_code(CodeEvidence(jpc.VERDICT, old.original_value, old.chunk_id,
+                                  probability=old.chosen_answer_probability), sources)
+    if new.support_status != NO_QUOTE:
+        raise TypeError(f"page {page.page_id}: verdict re-check without a quote gave {new.support_status!r}")
+    support = tuple(new if _support_key(s) == key else s for s in page_round.support)
+    return replace(page_round, support=support)
+
+
 def _reask_seam(ask: Any) -> Any:
     """The journaled ``ask``'s re-ask seam (PI ruling 75 a; re-ask review LOW (a)).
 
@@ -1095,6 +1121,13 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
         return
     inp = providers.activity_input(page, st.page_round)
     st.activity_input = inp
+    verdict_downgrade = getattr(providers, "verdict_downgrade", None)  # PI ruling 99.1 a / 99.2 (absent on fakes)
+    reason = None if verdict_downgrade is None else verdict_downgrade(page.page_id)
+    if reason is not None:
+        if inp is not None:
+            raise TypeError(f"page {page.page_id}: a verdict downgrade ({reason}) with activity spans (wiring error)")
+        st.page_round = downgrade_verdict_support(page, st.page_round)
+        metrics.verdict_downgrades[page.page_id] = reason
     page_extraction = getattr(providers, "page_extraction", None)  # absent on test fakes: None (refused)
     st.extraction = None if page_extraction is None else page_extraction(page.page_id)
     activity_extraction = getattr(providers, "activity_extraction", None)  # PI ruling 87 c (absent on fakes)

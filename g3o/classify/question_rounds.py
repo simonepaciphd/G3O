@@ -329,14 +329,27 @@ CONFIRMS_ACTIVITY = "confirms_activity"
 def verdict_flipped_to_confirms(page_round: PageRoundResult) -> bool:
     """Whether a halving in an extra round flipped the page's verdict to ``confirms_activity`` (PI ruling 87 c).
 
-    True when the final verdict is a combined ``confirms_activity`` and a :data:`PLAN_KEPT` entry (ruling
-    68 b) records a provisional verdict change from another value: the stored first-round extractor
-    request was planned on that earlier verdict. Read from the saved result, so the same on a resume."""
+    True when the final verdict is a combined ``confirms_activity`` and the page's first-round verdict
+    (:func:`first_round_verdict`) was another value: the stored first-round extractor request was planned
+    on it (ruling 68 b). An intermediate value between halvings is never compared (PI ruling 100 b / 101
+    a): a first-round ``confirms_activity`` that a halving changed and a later one restored is no flip.
+    Read from the saved result, so the same on a resume. The caller also checks that the stored
+    first-round plan had no activity task (ruling 100 b)."""
     final = page_round.final.items.get(page_code.VERDICT)
     if page_round.failed or final is None or final.state != "combined" or final.value != CONFIRMS_ACTIVITY:
         return False
-    return any(e.get("outcome") == PLAN_KEPT and e.get("item_id") == page_code.VERDICT
-               and (e.get("before") or {}).get("value") != CONFIRMS_ACTIVITY for e in page_round.result.requests)
+    first = first_round_verdict(page_round.result)
+    return first is not None and first.get("value") != CONFIRMS_ACTIVITY
+
+
+def first_round_verdict(result: page_code.PageCodeResult) -> dict[str, Any] | None:
+    """The provisional verdict the first-round extractor request was planned on (``state``, ``value``), as
+    the FIRST :data:`PLAN_KEPT` verdict entry records it (its ``before``); None when no halving changed the
+    verdict (the first-round verdict is the current one). Every later entry's ``before`` is an intermediate
+    value (PI ruling 100 b)."""
+    first = next((e for e in result.requests
+                  if e.get("outcome") == PLAN_KEPT and e.get("item_id") == page_code.VERDICT), None)
+    return None if first is None else dict(first.get("before") or {})
 
 
 def _halvings(result: page_code.PageCodeResult) -> list[dict[str, Any]]:

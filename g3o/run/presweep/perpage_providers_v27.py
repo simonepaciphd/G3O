@@ -33,14 +33,20 @@ The seams:
   checkpoint holds the support, so ``page_support`` is not called again) the
   page request is rebuilt from the stored T-021 artifact; the per-page journal
   replays its response. PI ruling 87 c: when a halving in an extra round
-  flipped the verdict to ``confirms_activity``
-  (:func:`~g3o.classify.question_rounds.verdict_flipped_to_confirms`) and the
+  flipped the verdict to ``confirms_activity`` from its first-round value
+  (:func:`~g3o.classify.question_rounds.verdict_flipped_to_confirms`, ruling 101
+  a), the stored first-round plan had no activity task (ruling 100 b) and the
   page request returned no activity, ONE activity-only pass-1 request
   (:func:`~g3o.extract.request_v27.activity_task_only`, its own ``custom_id``:
   :func:`activity_only_custom_id`) gives the spans; it is journaled, priced and
   replayed like every extractor call, and is the C4 a request for its
-  activities' names. Its failure holds the institution (C3 a) for now: the
-  ruled downgrade of the verdict's support is not built (no signed status).
+  activities' names. A failed or unparsable response holds the institution and
+  is asked again (C3 a). PI ruling 99.1 a / 99.2: once that request reaches the
+  journal's rejection cap (:data:`ACTIVITY_ONLY_CAP`), or when it succeeds with
+  no activity (:data:`ACTIVITY_ONLY_EMPTY`), the page has no activity and its
+  final verdict's support is downgraded ``downgraded_no_quote``
+  (``verdict_downgrade``; applied by the per-page stage), so it never counts
+  as positive.
 - ``activity_support`` / ``pair_support`` - T-032 pass 2:
   :func:`~g3o.classify.jev_activity_code.to_pass2_page`,
   :func:`~g3o.extract.pass2_support.select_requests`, ``pass2_job``,
@@ -201,6 +207,13 @@ def extra_round_custom_id(first_round: str, codes: Sequence[Any]) -> str:
 
 #: PI ruling 87 c: marks the activity-only pass-1 ``custom_id`` (see :func:`activity_only_custom_id`).
 ACTIVITY_ONLY_MARK = "-a"
+#: PI ruling 99.1 a: the activity-only request failed for good: the journal's rejection cap (ruling 34 b /
+#: 41 a, three unparsable responses) was reached, so no further call is made. A failed response (error,
+#: expired, refusal, ...) is not capped by the journal: it is retried on the next run (held, C3 a) first.
+ACTIVITY_ONLY_CAP = "activity_only_request_rejection_cap"
+#: PI ruling 99.2: the activity-only request succeeded with no activity (none returned, or every span
+#: rejected by the parser).
+ACTIVITY_ONLY_EMPTY = "activity_only_request_no_activity"
 
 
 def activity_only_custom_id(first_round: str, page: Any) -> str:
@@ -237,6 +250,11 @@ class _Adapter:
         self.rules = sc.default_rules()
         self._responses: dict[str, ExtractorResult] = {}
         self._page_request: dict[str, Pass1Extraction | None] = {}  # page id -> T-022 page request
+        #: page id -> the first-round (T-022 page request) plan, planned on the T-021 verdict (PI ruling 100 b)
+        self._page_plan: dict[str, request_v27.RequestPlan] = {}
+        #: page id -> why the final verdict's support is downgraded ``downgraded_no_quote`` (PI ruling 99.1 a /
+        #: 99.2): the activity-only request reached its rejection cap, or gave no activity
+        self._verdict_downgrade: dict[str, str] = {}
         #: page id -> the journaled pass-1 request (custom_id, params) behind ``_page_request`` (C4 a)
         self._page_pass1: dict[str, dict[str, Any] | None] = {}
         #: page id -> the parsed activity-only pass-1 request of a page flipped to confirms_activity (87 c)
@@ -350,22 +368,34 @@ class _Adapter:
         plan, ext, request = self._pass1(p1, extra_round=not first)
         if first and page.page_id not in self._page_request:
             self._page_request[page.page_id], self._page_pass1[page.page_id] = ext, request
+            self._page_plan[page.page_id] = plan
         quotes = sc.pass1_quotes(plan, ext) if ext is not None else {}
         sources = PageSources.from_page(p1)
         return [self._check(r, quotes.get((r.item_id, r.chunk_id)), sources) for r in records]
 
     def activity_input(self, page: PageInput, page_round: PageRoundResult) -> ActivityPageInput | None:
-        if page.page_id not in self._page_request:  # resume: rebuild the page request from T-021
+        pid = page.page_id
+        if pid not in self._page_request:  # resume: rebuild the page request from T-021
             first = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(
                 self.run_dir, page.institution_id, page.url)))
-            _, self._page_request[page.page_id], self._page_pass1[page.page_id] = self._pass1(
+            self._page_plan[pid], self._page_request[pid], self._page_pass1[pid] = self._pass1(
                 to_pass1_page(first, page))
-        ext = self._page_request[page.page_id]
+        ext = self._page_request[pid]
         spans = ext.activities if ext is not None else ()
-        self._span_pass1[page.page_id] = self._page_pass1[page.page_id]
-        if not spans and verdict_flipped_to_confirms(page_round):  # PI ruling 87 c
-            spans = self._activity_only_request(page, page_round).activities
-            self._span_pass1[page.page_id] = self._activity_only_job[page.page_id]
+        self._span_pass1[pid] = self._page_pass1[pid]
+        self._verdict_downgrade.pop(pid, None)
+        # PI ruling 87 c, sent only when the stored first-round plan had no activity task (ruling 100 b)
+        # and the verdict flipped to confirms_activity from its first-round value (101 a)
+        if not spans and not self._page_plan[pid].activity_task and verdict_flipped_to_confirms(page_round):
+            try:
+                spans = self._activity_only_request(page, page_round).activities
+            except ExtractRejectCapReached as exc:  # ruling 99.1 a: failed past the rejection cap
+                self._verdict_downgrade[pid] = (f"{ACTIVITY_ONLY_CAP}: request {exc.custom_id!r} rejected "
+                                                f"{exc.rejections} times")
+                return None
+            self._span_pass1[pid] = self._activity_only_job[pid]
+            if not spans:  # ruling 99.2: no activity (none returned, or every span rejected by the parser)
+                self._verdict_downgrade[pid] = ACTIVITY_ONLY_EMPTY
         if not spans:
             return None
         return ActivityPageInput(to_pass1_page(page_round.result, page), page.country,
@@ -380,7 +410,10 @@ class _Adapter:
         (:func:`activity_only_custom_id`). It goes through ``extract_fn`` like every extractor call, so
         the per-institution journal records, prices (rulings 57 a / 58 a / 67 a) and replays it on a
         resume (the same layout gives the same request). A failed or unparsable response raises
-        :class:`ExtractorResponseFailed` (C3 a: the institution is held and the request asked again)."""
+        :class:`ExtractorResponseFailed` (C3 a: the institution is held and the request asked again);
+        once the journal's rejection cap is reached it raises
+        :class:`~g3o.run.presweep.stage_validate_v27.ExtractRejectCapReached`, which :meth:`activity_input`
+        turns into the verdict downgrade (PI ruling 99.1 a)."""
         pid = page.page_id
         if pid not in self._activity_only:
             p1 = replace(to_pass1_page(page_round.result, page), codes=())
@@ -397,6 +430,12 @@ class _Adapter:
         """The page's activity-only pass-1 request (PI ruling 87 c) when :meth:`activity_input` made one
         (its spans are the page's activities; the T-015 assembler reads their fields from it), else None."""
         return self._activity_only.get(page_id)
+
+    def verdict_downgrade(self, page_id: str) -> str | None:
+        """Why the page's final verdict support is downgraded ``downgraded_no_quote`` (PI ruling 99.1 a /
+        99.2: its activity-only request reached the rejection cap, :data:`ACTIVITY_ONLY_CAP`, or gave no
+        activity, :data:`ACTIVITY_ONLY_EMPTY`), as the last :meth:`activity_input` for it decided; else None."""
+        return self._verdict_downgrade.get(page_id)
 
     def page_extraction(self, page_id: str) -> Pass1Extraction | None:
         """The page's T-022 pass-1 page request (its parsed answer with the actual response model and
@@ -550,6 +589,11 @@ class ExtractorPerPageProviders(PerPageProviders):
     def activity_extraction(self, page_id: str) -> Pass1Extraction | None:
         """The page's activity-only pass-1 request, if any (:meth:`_Adapter.activity_extraction`, PI 87 c)."""
         return self.adapter.activity_extraction(page_id)
+
+    def verdict_downgrade(self, page_id: str) -> str | None:
+        """Why the page's verdict support is downgraded, if it is (:meth:`_Adapter.verdict_downgrade`,
+        PI ruling 99.1 a / 99.2)."""
+        return self.adapter.verdict_downgrade(page_id)
 
     def with_seams(self, wrap_extract: Callable[[ExtractFn], ExtractFn],
                    wrap_entail: Callable[[EntailFn], EntailFn]) -> ExtractorPerPageProviders:
