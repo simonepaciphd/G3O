@@ -68,8 +68,8 @@ Produced here (source row, page-level, the same on every source row of a page):
   ruling 72 a).
 
 - ``source_publication_date`` (X26): the A1 metadata/URL date with
-  ``set_by_rule`` support naming ``deterministic_date:<A1.1 a tag>`` or
-  ``deterministic_date:web_address`` (PI ruling 63 a); otherwise the T-022
+  ``set_by_rule`` support naming ``deterministic_date:metadata`` or
+  ``deterministic_date:web_address`` (PI rulings 63 a, 92 b); otherwise the T-022
   quote-step date checked under R-042 (``unknown`` when it fails), or
   ``not_documented`` when pass 1 returned none. ``date_upper_bound``:
   :func:`g3o.common.source_fields.date_upper_bound` on it.
@@ -739,12 +739,10 @@ DETERMINISTIC_DATE_RULE = "deterministic_date:"
 
 
 def deterministic_date_rule(date: sf.FieldValue) -> str:
-    """``deterministic_date:<origin>``: the A1.1 a tag of a metadata date, ``web_address`` for a URL date."""
+    """``deterministic_date:<origin>`` (PI ruling 92 b): ``metadata`` for a page-metadata date,
+    ``web_address`` for a URL date. The deciding A1.1 a tag stays in the field's ``detail``."""
     if date.date_origin == "metadata":
-        tag = date.detail.get("tag")
-        if not tag:
-            raise ValueError("metadata publication date without its A1.1 a tag")
-        return DETERMINISTIC_DATE_RULE + str(tag)
+        return DETERMINISTIC_DATE_RULE + "metadata"
     if date.date_origin == "web_address":
         return DETERMINISTIC_DATE_RULE + "web_address"
     raise ValueError(f"date origin {date.date_origin!r} is not deterministic")

@@ -591,8 +591,10 @@ def test_metadata_and_url_dates_get_a_deterministic_date_rule_63a():
         fields = replace(FIELDS_P1, publication_date=date)
         dv = srow.publication_date_value(_page(), fields, None, SOURCES, PROV)  # no request needed
         (sr, rec), = dv.quote.codes
-        expected = f"deterministic_date:{tag if origin == 'metadata' else 'web_address'}"
+        expected = f"deterministic_date:{origin}"  # PI ruling 92 b: the origin, not the tag
         assert dv.quote.row.value == "2025-03-12"
+        if origin == "metadata":
+            assert dv.field.detail["tag"] == tag  # the tag stays in the detail
         assert sr.support_status == "set_by_rule" and sr.support_rule_name == rec.rule_reference == expected
         assert rec.coder_type == "mechanical" and sf.date_upper_bound(dv.field).value == "no"
 
