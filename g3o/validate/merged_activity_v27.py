@@ -226,11 +226,9 @@ def _dated(inst: Any, oid: str) -> DatedObservation | None:
     years: list[str] = []
     for item in YEAR_ITEMS:
         value = _get(obs.row, item, f"observation {oid}")
-        if isinstance(value, str) and value in _tokens(item):
-            continue
-        if not (isinstance(value, str) and _YEAR.fullmatch(value)):
-            raise MalformedA8Value(item, f"observation {oid}", f"{value!r} is neither a year code nor a missing token")
-        years.append(value)
+        _check_year(item, value, f"observation {oid}")
+        if value not in _tokens(item):
+            years.append(value)
     values = src.get("values")
     if not years and not (isinstance(values, Mapping) and ACCESS_DATE in values):
         return None  # absent, but needed only if no pooled observation has a real date
@@ -538,6 +536,66 @@ def _cx_rollup(inst: Any, order: Sequence[str]) -> dict[str, dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
+_ABSENT = (MissingUpstreamError, sf.MissingUpstreamError)
+
+
+def _form_only(check: Any, *args: Any) -> None:
+    """Run ``check`` for its malformed-value errors only: an absent input is left to the producer (a hold)."""
+    try:
+        check(*args)
+    except _ABSENT:
+        pass
+
+
+def _check_year(item: str, value: Any, where: str) -> None:
+    if isinstance(value, str) and (value in _tokens(item) or _YEAR.fullmatch(value)):
+        return
+    raise MalformedA8Value(item, where, f"{value!r} is neither a year code nor a missing token")
+
+
+def _check_source(inst: Any, sid: str) -> None:
+    row = inst.sources[sid]
+    values = row.get("values")
+    if not isinstance(values, Mapping):
+        return  # absent: the producer holds the institution
+    where = f"source {sid}"
+    if ACCESS_DATE in values:
+        _real_date(ACCESS_DATE, values[ACCESS_DATE], where)
+    if PUBLICATION_DATE in values and _real_date(PUBLICATION_DATE, values[PUBLICATION_DATE], where) \
+            and UPPER_BOUND in values and values[UPPER_BOUND] not in (YES, NO):
+        raise MalformedA8Value(UPPER_BOUND, where, f"{values[UPPER_BOUND]!r} is not yes/no beside the real "
+                                                   f"publication date {values[PUBLICATION_DATE]!r}")
+    if SOURCE_TYPE in values:
+        _form_only(source_type_of, inst, sid)
+
+
+def _check_observation(inst: Any, oid: str) -> None:
+    values = inst.observation_inputs[oid].row.get("values")
+    if not isinstance(values, Mapping):
+        return  # absent: the producer holds the institution
+    where = f"observation {oid}"
+    for item in YEAR_ITEMS:
+        if item in values:
+            _check_year(item, values[item], where)
+    if RELATIONSHIP in values:
+        _form_only(observation_unit_credit, inst, oid)
+
+
+def check_a8_inputs(inst: Any) -> None:
+    """Ruling 32 b, before Stage 6 spends anything: the stored A8 inputs of every observation and source
+    row of ``inst`` are in their signed form, or :class:`MalformedA8Value` (the stage stops).
+
+    Only the form is checked, with the same tests the producers apply: an absent
+    value is left to the producers, which hold the institution when they need it
+    (ruling B1 a). The published groups are not known yet, so every row is
+    checked; a malformed stored value is a wiring error wherever it is.
+    """
+    for sid in inst.sources:
+        _check_source(inst, sid)
+    for oid in inst.observation_inputs:
+        _check_observation(inst, oid)
+
+
 def merged_values_a8(inst: Any, order: Sequence[str]) -> dict[str, Any]:
     """The A8 values (:data:`PRODUCED`) of an activity from its pooled observations in pool order
     (ruling 78 a: a single-observation activity's pool is that observation)."""
@@ -549,7 +607,7 @@ def merged_values_a8(inst: Any, order: Sequence[str]) -> dict[str, Any]:
 
 __all__ = [
     "CX_CODES", "CX_NON_EMPTY", "CX_POSITIVE", "CX_POSITIVE_APPROVED", "CX_YES", "PRODUCED", "YEAR_ITEMS",
-    "DatedObservation", "MalformedA8Value", "UnruledMergeError", "cx_display_rollup", "is_future_year", "latest",
+    "DatedObservation", "MalformedA8Value", "UnruledMergeError", "check_a8_inputs", "cx_display_rollup", "is_future_year", "latest",
     "merged_date_upper_bound", "merged_stage_as_of", "merged_unit_credit", "merged_values_a8",
     "merged_vendor_claim_only", "observation_stage_as_of", "observation_unit_credit", "source_type_of",
     "supporting_sources",

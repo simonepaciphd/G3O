@@ -571,5 +571,42 @@ def test_malformed_a8_input_stops_the_stage(tmp_path):
     with pytest.raises(rt.UpstreamRowMalformed, match="core.source_publication_date") as info:
         qa._run(run_dir, bound, instrument, [replace(a, sources={**a.sources, sid: row}), b], e.FakeQuotes())
     assert info.value.institution_id == qa.A and isinstance(info.value.__cause__, ma.MalformedA8Value)
+    assert "A8 inputs" in str(info.value)  # A8 review L1: caught by the pre-executor scan
+    for inst_id in (qa.A, b.institution_id):  # before any call: no request journal for either institution
+        assert not (institution_dir(run_dir, inst_id) / rt.WORK_DIR / rt.JOURNAL).exists()
     assert not (institution_dir(run_dir, qa.A) / rt.WORK_DIR / rt.HELD_FILE).exists()
     assert not (institution_dir(run_dir, qa.A) / "6_storage.json").exists()
+
+
+@pytest.mark.parametrize("where,item,value", [
+    ("source", "core.source_publication_date", "March 2024"),
+    ("source", "core.source_access_date", "Nov 2026"),
+    ("source", "core.date_upper_bound", "not_asked"),  # beside a real publication date
+    ("source", "core.source_type", "blog"),
+    ("obs", "core.year_pilot_start", "FY24"),
+    ("obs", "core.observed_actor_relationship", "not_asked"),
+    ("obs", "core.observed_actor_relationship", {"relationship": "subsidiary", "searched_institution_role": "unit"}),
+])
+def test_pre_executor_scan_stops_on_a_malformed_a8_input(where, item, value):
+    obs, src = _obs(), _src(**{"core.source_publication_date": "2025"})
+    (src if where == "source" else obs)[item] = value
+    inst = _inst({"o1": obs}, {"S-o1": src})
+    with pytest.raises(ma.MalformedA8Value):
+        ma.check_a8_inputs(inst)
+    inst.institution_id = "INST-X"
+    with pytest.raises(rt.UpstreamRowMalformed, match="A8 inputs") as info:
+        rt.require_a8_form(inst)
+    assert isinstance(info.value.__cause__, ma.MalformedA8Value)
+
+
+def test_pre_executor_scan_leaves_absent_a8_inputs_to_the_producers():
+    # Absent inputs are holds (B1 a), decided in the envelope build; the scan passes them.
+    obs, src = _obs(), _src()
+    obs.pop("core.observed_actor_relationship")
+    obs.pop("core.year_announced")
+    src.pop("core.source_access_date")
+    src.pop("core.source_type")
+    ma.check_a8_inputs(_inst({"o1": obs}, {"S-o1": src}))
+    ma.check_a8_inputs(_inst({"o1": _rel({"searched_institution_role": "unit"})},
+                             {"S-o1": _src(**{"core.source_type": "not_documented"})}))
+    ma.check_a8_inputs(_inst({"o1": _obs()}, {"S-o1": _src()}))  # well-formed rows pass

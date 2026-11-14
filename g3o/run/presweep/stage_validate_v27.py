@@ -236,6 +236,18 @@ def require_identity(inst: Stage6Institution) -> None:
                                    problem=f"is malformed ({langs!r} does not match LANGS_PATTERN)")
 
 
+def require_a8_form(inst: Stage6Institution) -> None:
+    """Ruling 32 b (A8 review L1): refuse (stage stop) an institution whose stored A8 inputs are outside
+    their signed form (:func:`g3o.validate.merged_activity_v27.check_a8_inputs`), before any paid call.
+    Absent A8 inputs are not checked here: the producers hold the institution in the envelope build
+    (B1 a)."""
+    try:
+        ma.check_a8_inputs(inst)
+    except ma.MalformedA8Value as exc:
+        raise UpstreamRowMalformed(inst.institution_id, exc.item, f"A8 inputs, {exc.where}",
+                                   problem=f"is malformed ({exc.detail})") from exc
+
+
 ARTIFACTS_UNREADABLE = "stage6_artifacts_unreadable"  # existing Stage 6 artifacts fail to reload
 MISSING_RELATION = "missing_relation_decision"
 CONFLICTING_GROUPS = "conflicting_relation_groups"
@@ -1072,8 +1084,9 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     envelope or writing the artifacts (e.g. a source row without
     ``core.confidence``), and a stored value an A8 producer reads that is outside
     its signed form (:class:`~g3o.validate.merged_activity_v27.MalformedA8Value`;
-    an absent one, or one the signed rule does not determine, holds the
-    institution). The holds the rulings require are unchanged: a source
+    every row's A8 inputs are form-checked before the first call,
+    :func:`require_a8_form`; an absent one, or one the signed rule does not
+    determine, holds the institution in the envelope build). The holds the rulings require are unchanged: a source
     with no syndication group holds the institution (A7 13 a, a
     ``MissingUpstreamError`` from the independence groups), and an ``OSError``
     that survives the write retries holds it (28 a).
@@ -1099,6 +1112,7 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     institutions = list(institutions)
     for inst in institutions:  # ruling 32 b: a malformed row stops the stage before any call is made
         require_identity(inst)
+        require_a8_form(inst)
     for inst in institutions:
         inst_dir = institution_dir(run_dir, inst.institution_id)
         try:
@@ -1180,5 +1194,5 @@ __all__ = [
     "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_PRODUCED_A8", "MERGE_REFUSED_R1", "MERGE_UNION", "MERGE_UNRULED",
     "Stage6Metrics", "build_envelope", "hold_reasons", "independence_groups_of", "merge_values", "run_stage6_v27",
     "EXTRACT_REJECT_CAP", "IDENTITY_COLUMNS", "PI_RELEASED", "WIRING_STOPS", "ExtractRejectCapReached",
-    "UpstreamRowMalformed", "require_identity",
+    "UpstreamRowMalformed", "require_a8_form", "require_identity",
 ]
