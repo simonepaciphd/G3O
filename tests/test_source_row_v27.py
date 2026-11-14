@@ -607,9 +607,9 @@ def test_residual_page_routing_70b():
 
 
 def test_unresolved_official_site_refuses_its_readers_70b():
-    sites = osv.RunOfficialSites("fixture", {}, frozenset(), {INST: "bypassed: master column"})
+    sites = osv.RunOfficialSites("fixture", {}, frozenset(), {INST: "the classify_official_site step failed for it"})
     rows = _typed(_page(), FIELDS_P1, sites)
-    assert "master column" in rows.refused[sf.OFFICIAL] and sf.OFFICIAL in rows.refused[sf.SOURCE_TYPE]
+    assert "step failed" in rows.refused[sf.OFFICIAL] and sf.OFFICIAL in rows.refused[sf.SOURCE_TYPE]
     assert _values(rows)[sf.CREDIBILITY] == "low"  # undated: low whatever the type
     rows = _typed(_page(), FIELDS_P1, None)
     assert srow.OFFICIAL_SITES in rows.refused[sf.OFFICIAL]
