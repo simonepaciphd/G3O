@@ -97,20 +97,40 @@ def test_other_official_is_this_run_only(tmp_path):
 
 
 def test_only_known_failure_reasons_mark_the_step_failed(tmp_path):
-    """Review L1: an attrition record of the step with another reason is not a failure."""
+    """Review L1: only a known failure reason marks the step failed; a known non-failure reason (none
+    today, so one is declared here) is not a failure."""
     run_dir = tmp_path / "r5"
     _site(run_dir, "N", None)
     _site(run_dir, "F", None)
-    attrition.record(run_dir, institution_id="N", stage=osv.OFFICIAL_SITE_STAGE, reason="low_confidence_note")
+    _site(run_dir, "OTHER", {"url": "https://council-o.gov.au/"})
+    attrition.record(run_dir, institution_id="N", stage=osv.OFFICIAL_SITE_STAGE, reason="known_note")
     attrition.record(run_dir, institution_id="F", stage=osv.OFFICIAL_SITE_FALLBACK_STAGE,
                      reason="jev_request_failed")
+    attrition.record(run_dir, institution_id="OTHER", stage="classify_triage", reason="unlisted_elsewhere")
     mark_done(run_dir, osv.OFFICIAL_SITE_STAGE, no_batch=True)
-    sites = osv.load_run_official_sites(run_dir)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(osv, "NON_FAILURE_REASONS", frozenset({"known_note"}))
+        sites = osv.load_run_official_sites(run_dir)
     assert sites.official("https://news.example.com/x", "N").value == "unknown"
     with pytest.raises(sf.MissingUpstreamError, match="failed"):
         sites.official("https://news.example.com/x", "F")
     assert osv.FAILURE_REASONS >= {"parse_failed", "jev_parse_failed", "jev_request_failed",
                                    "jev_result_processing_failed"}
+    assert osv.NON_FAILURE_REASONS == frozenset()  # the step records no other reason today
+
+
+@pytest.mark.parametrize("stage", [osv.OFFICIAL_SITE_STAGE, osv.OFFICIAL_SITE_FALLBACK_STAGE])
+def test_unknown_official_site_reason_is_a_wiring_error_l5(tmp_path, stage):
+    """Review L-5: a reason recorded under the official-site stages that is neither a known failure nor a
+    known non-failure is refused for the run (a stage stop), never read as "no site"."""
+    run_dir = tmp_path / "r6"
+    _site(run_dir, "N", None)
+    _site(run_dir, "A", {"url": "https://council-a.gov.au/"})
+    attrition.record(run_dir, institution_id="N", stage=stage, reason="low_confidence_note")
+    mark_done(run_dir, osv.OFFICIAL_SITE_STAGE, no_batch=True)
+    with pytest.raises(osv.OfficialSiteWiringError, match="low_confidence_note"):
+        osv.load_run_official_sites(run_dir)
+    assert issubclass(osv.OfficialSiteWiringError, ValueError)
 
 
 def test_read_from_disk_on_every_load(run):

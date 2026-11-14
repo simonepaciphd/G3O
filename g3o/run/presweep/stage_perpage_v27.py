@@ -681,7 +681,8 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                  activity_round: ActivityRoundResult | None, pairs: Sequence[PairResult],
                  pair_support: Sequence[SupportResult], page_config: PageCoderConfig,
                  activity_config: ActivityCoderConfig, instrument: dict[str, Any],
-                 extraction: Any = None, official_sites: Any = None, pass2: Any = None) -> PageProduct:
+                 extraction: Any = None, official_sites: Any = None, pass2: Any = None,
+                 activity_extraction: Any = None) -> PageProduct:
     """Final per-page values and their support -> the Stage 6 per-page inputs of one coded page.
 
     ``extraction`` is the page's T-022 pass-1 page request (``PerPageProviders.page_extraction``),
@@ -689,7 +690,9 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
     ``official_sites`` the run's official sites it reads (PI ruling 70 b,
     :func:`g3o.run.presweep.official_site_v27.load_run_official_sites`); ``pass2`` the page's
     T-032 pass-2 page request (``PerPageProviders.page_pass2``), whose field tasks it reads for
-    an open reported_* gate (PI ruling 73.1 b).
+    an open reported_* gate (PI ruling 73.1 b); ``activity_extraction`` the page's activity-only
+    pass-1 request (PI ruling 87 c, ``PerPageProviders.activity_extraction``) when its activities
+    came from it, whose spans and response the assembler then reads for the activity fields.
 
     Uncertainty flags (PI A6.1 a / A6.3 a): each node carries its own code's flags
     (:func:`g3o.validate.uncertainty_flags_v27.code_flags`); an observation row's
@@ -731,6 +734,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                              {aid: outcome_values(f.outcomes) for aid, f in finals.items()},
                              followed=up.followed, hop=up.hop, extraction=extraction, sources=sources,
                              verdict_support=vsr, official_sites=official_sites, pass2=pass2,
+                             activity_extraction=activity_extraction,
                              provenance=srow.Provenance.of(instrument, extraction,
                                                            rule_coder_version=activity_config.coder_version))
         if rows.refused:
@@ -1031,6 +1035,8 @@ class _PageState:
     pairs: tuple[PairResult, ...] = ()
     pair_support: tuple[SupportResult, ...] = ()
     extraction: Any = None  # the page's T-022 pass-1 page request (PerPageProviders.page_extraction)
+    #: the page's activity-only pass-1 request (PI ruling 87 c; PerPageProviders.activity_extraction), or None
+    activity_extraction: Any = None
     pass2: Any = None  # the page's T-032 pass-2 page request (PerPageProviders.page_pass2; PI ruling 73.1 b)
     failure: str | None = None
     holds: list[dict[str, Any]] = field(default_factory=list)
@@ -1072,6 +1078,8 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
     st.activity_input = inp
     page_extraction = getattr(providers, "page_extraction", None)  # absent on test fakes: None (refused)
     st.extraction = None if page_extraction is None else page_extraction(page.page_id)
+    activity_extraction = getattr(providers, "activity_extraction", None)  # PI ruling 87 c (absent on fakes)
+    st.activity_extraction = None if activity_extraction is None else activity_extraction(page.page_id)
     if inp is None:
         return
     act_ckpt = Checkpoint(pdir / "activity.json", "activity")
@@ -1324,7 +1332,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                     activity_input=st.activity_input, activity_round=st.activity_round, pairs=st.pairs,
                     pair_support=st.pair_support, page_config=page_config, activity_config=activity_config,
                     instrument=instrument, extraction=st.extraction, official_sites=official_sites,
-                    pass2=st.pass2))
+                    pass2=st.pass2, activity_extraction=st.activity_extraction))
             except UncarriedCombinedValue as exc:  # Y3 b: refused as a per-institution hold
                 uncarried = exc
                 break

@@ -495,6 +495,9 @@ def test_snippet_without_verdict_quote_is_not_asked_by_rule_72a():
         assert (rec.coder_type, rec.answer_type, rec.chosen_value) == ("mechanical", "rule", "not_asked")
     # Review M2: a rule-set snippet never refuses; a quote at a superseded part still does.
     assert "superseded" in srow.CONDITIONAL_ITEMS[sf.SNIPPET]
+    assert "verdict_support is None" in srow.CONDITIONAL_ITEMS[sf.SNIPPET]  # review L-2
+    with pytest.raises(sf.MissingUpstreamError):
+        srow.snippet_value(None, SOURCES, PROV)
     with pytest.raises(ValueError, match="page verdict"):
         srow.snippet_value(sc.check_code(sc.CodeEvidence("core.tool_name", "x", None, rule_name="r"), SOURCES),
                            SOURCES, PROV)
@@ -570,6 +573,36 @@ def test_assemble_with_extraction_builds_activity_quote_values_and_codes():
                          extraction=_Extraction(span), sources=SOURCES, verdict_support=_verdict(quote),
                          provenance=PROV)
     assert all(i in rows.refused for i in srow.pass1_activity_fields())
+
+
+def test_assemble_reads_activity_fields_from_the_activity_only_request_87c():
+    """PI ruling 87 c: when the page's activities came from its activity-only pass-1 request, their
+    spans and pass-1 fields are read from that request, with its response model and request id; the
+    snippet and the date still come from the first-round page request."""
+    span = _span(("core.activity_name", "Copilot Chat rollout", "runs Copilot Chat"),
+                 ("core.tool_name", "Copilot Chat", "runs Copilot Chat"))
+    acts = {"p1#a001": _activity(**{"core.activity_type": "internal_operational",
+                                    "core.outcome_kind": "none_reported", "core.incident_kind": "none_reported"})}
+    quote = "The council runs Copilot Chat with Contoso Ltd"
+    first = _Extraction()  # the first-round page request returned no activity
+    only = _Extraction(span, response_model="activity-only-response", request_id="req-87c")
+    rows = srow.assemble(_page(), FIELDS_P1, GENAI, acts, followed=False, extraction=first,
+                         sources=SOURCES, verdict_support=_verdict(quote), provenance=PROV,
+                         activity_extraction=only)
+    got = {k: v.value for k, v in rows.activities["p1#a001"].items()}
+    assert got["core.activity_name"] == "Copilot Chat rollout" and got["core.tool_name"] == ["Copilot Chat"]
+    quoted = [rec for sr, rec in rows.activity_codes["p1#a001"]
+              if rec.coder_type == "quote_step" and sr.item_id in srow.pass1_activity_fields()]
+    assert quoted and {(r.actual_response_model, r.request_id) for r in quoted} == {
+        ("activity-only-response", "req-87c")}
+    page_level = [rec for sr, rec in rows.source_codes if rec.coder_type == "quote_step"]
+    assert page_level and {(r.actual_response_model, r.request_id) for r in page_level} == {
+        ("fake-extractor-response", "req-1")}
+    # Without it, the first-round request (no span) refuses the activity fields, as before.
+    rows = srow.assemble(_page(), FIELDS_P1, GENAI, acts, followed=False, extraction=first,
+                         sources=SOURCES, verdict_support=_verdict(quote), provenance=PROV)
+    assert all(i in rows.refused for i in srow.pass1_activity_fields())
+    assert PROV.for_activity_only(only).request_id == "req-87c"
 
 
 # ---------------------------------------------------------------------------

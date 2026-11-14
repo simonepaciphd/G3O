@@ -702,6 +702,31 @@ def test_plan_kept_logs_only_items_recombined_after_the_halving(monkeypatch, rul
     assert [(e["item_id"], e["outcome"]) for e in logged] == [(complete, PLAN_KEPT)]
 
 
+def test_verdict_flipped_to_confirms_reads_the_plan_kept_log_87c(monkeypatch, rules):
+    """PI ruling 87 c: a page is flipped to confirms_activity when its final verdict is a combined
+    confirms_activity and a 68 b PLAN_KEPT entry records a verdict change from another value."""
+    from g3o.classify.question_rounds import PageRoundResult, verdict_flipped_to_confirms
+
+    _, result, support, config, _ = page_case(monkeypatch, rules)
+    final = pc.finalize_page(result, support, config)
+    assert final.items[VERDICT].value == "confirms_activity"
+
+    def entry(before, item=VERDICT):
+        return {"chunk_id": None, "round": 3, "question_ids": [SCOPE], "outcome": PLAN_KEPT, "item_id": item,
+                "before": {"state": "combined", "value": before},
+                "after": {"state": "combined", "value": "confirms_activity"}}
+
+    def flipped(*log, status="coded"):
+        res = replace(result, requests=result.requests + log, status=status)
+        return verdict_flipped_to_confirms(PageRoundResult(res, final, support, 1))
+
+    assert flipped(entry("background_only"))
+    assert not flipped()  # no halving changed the verdict
+    assert not flipped(entry("confirms_activity"))  # not a flip to it
+    assert not flipped(entry("no", item="core.page_complete"))  # another item's change
+    assert not flipped(entry("background_only"), status="failed")  # a failed page (69 b)
+
+
 def test_page_halving_changed_verdict_resume_is_stable(monkeypatch, rules):
     """PI ruling 68 b on resume: interrupted right after the change is saved, the resumed page
     sends nothing twice, logs the change once and matches an uninterrupted run."""
@@ -756,27 +781,66 @@ def test_page_halving_transient_reask_failure_holds_then_resumes(monkeypatch, ru
     assert calls[sent:] and all(label == "3 of 3" for label, _ in calls[sent:])
 
 
-def test_page_halving_billed_reask_without_answer_is_logged_then_held(monkeypatch, rules):
-    # M2 (PI question 75 open): hold semantics unchanged; the billed response is logged.
+def _reask_case(monkeypatch, rules, damage):
+    """p:1 is halved on SCOPE; the re-ask of the verdict's request on p:1.2 comes back ``damage``d."""
     page, result, support, config, fake = page_case(monkeypatch, rules)
     second_text = result.chunks[1].text
     ask = _over_for(fake, lambda s, q: set(q) == {SCOPE} and s["page_text"] == second_text)
+    billed = []
 
-    def no_verdict(state, questions):
+    def damaged(state, questions):
         res = ask(state, questions)
         if state["page_part"] == "3 of 3" and VERDICT in questions:
-            return JevResult({k: v for k, v in res.answers.items() if k != VERDICT}, res.response_model,
-                             res.request_id, res.input_tokens, res.output_tokens)
+            res = damage(res)
+            billed.append(res)
         return res
 
-    held = complete_page_rounds(page, result, support, ask_fn=no_verdict, config=config, check_support=_page_check)
-    assert not held.complete and held.result.items[SCOPE].note.startswith("extra_round_failed:")
-    entry = held.result.requests[-1]
-    assert (entry["chunk_id"], entry["outcome"], entry["question_ids"], entry["reasked"]) == (
-        "p:1.2", "extra_round_failed", [VERDICT], True)
-    assert entry["request_id"] == f"request-{len(fake.calls)}"  # the last (billed) call
+    return page, result, support, config, fake, damaged, billed
+
+
+def test_page_halving_reask_without_answer_is_one_failed_part_vote(monkeypatch, rules):
+    """PI ruling 75 a: a re-ask after a halving whose response lacks an answer counts as one
+    failed part vote (first-round semantics); the billed request is logged; the page continues."""
+    page, result, support, config, fake, ask, billed = _reask_case(monkeypatch, rules, lambda res: JevResult(
+        {k: v for k, v in res.answers.items() if k != VERDICT}, res.response_model, res.request_id,
+        res.input_tokens, res.output_tokens))
+    done = complete_page_rounds(page, result, support, ask_fn=ask, config=config, check_support=_page_check)
+    assert len(billed) == 1
+    assert not (done.result.items[SCOPE].note or "").startswith("extra_round_failed")
+    assert all(f["reason"] != "extra_round_failed" for f in done.result.failures)
+    missing = [f for f in done.result.failures if f["reason"] == pc.ANSWER_MISSING]
+    assert [(f["chunk_id"], f["question_ids"], f["reasked"]) for f in missing] == [("p:1.2", [VERDICT], True)]
+    entry = next(e for e in done.result.requests if e.get("request_id") == billed[0].request_id)
+    assert (entry["chunk_id"], entry["outcome"], entry["reasked"]) == ("p:1.2", "ok", True)
     assert entry["input_tokens"] == 10 and entry["output_tokens"] == 1
-    assert not any(r.chunk_id == "p:1.2" for r in held.result.records)  # the group is not half-recorded
+    # the group's other answers on p:1.2 are recorded; the verdict there is not
+    on_half = {r.item_id for r in done.result.records if r.chunk_id == "p:1.2" and r.coder_type == "classifier"}
+    assert VERDICT not in on_half and set(entry["question_ids"]) - {VERDICT} <= on_half
+    assert done.complete and done.final.items[VERDICT].state == "combined"
+    again = _no_calls(page, done, config)  # never sent again, on a resume either
+    assert again.result == done.result and again.final == done.final
+
+
+def test_page_halving_reask_without_request_id_is_one_failed_part_vote(monkeypatch, rules):
+    """PI ruling 75 a: a re-ask response with no request id: the billed request is logged with the
+    first-round outcome, one failure covers its questions (a failed part vote each), the page goes on."""
+    page, result, support, config, fake, ask, billed = _reask_case(monkeypatch, rules, lambda res: JevResult(
+        res.answers, res.response_model, None, res.input_tokens, res.output_tokens))
+    done = complete_page_rounds(page, result, support, ask_fn=ask, config=config, check_support=_page_check)
+    assert len(billed) == 1
+    assert not (done.result.items[SCOPE].note or "").startswith("extra_round_failed")
+    entry = next(e for e in done.result.requests
+                 if e.get("chunk_id") == "p:1.2" and VERDICT in e.get("question_ids", ()) and e.get("reasked")
+                 and e.get("outcome") != "halved")
+    assert entry["outcome"] == pc.MISSING_REQUEST_ID and entry["request_id"] is None
+    assert entry["input_tokens"] == 10 and entry["output_tokens"] == 1
+    failed = [f for f in done.result.failures if f["reason"] == pc.MISSING_REQUEST_ID]
+    assert [(f["chunk_id"], f["question_ids"], f["reasked"]) for f in failed] == [
+        ("p:1.2", entry["question_ids"], True)]
+    assert not any(r.chunk_id == "p:1.2" and r.question_id in entry["question_ids"] for r in done.result.records)
+    assert SCOPE in {r.item_id for r in done.result.records if r.chunk_id == "p:1.2"}  # the page continued
+    again = _no_calls(page, done, config)
+    assert again.result == done.result and again.final == done.final
 
 
 def test_page_halving_of_a_half_during_a_reask_owes_the_full_plan_to_its_halves(monkeypatch, rules):

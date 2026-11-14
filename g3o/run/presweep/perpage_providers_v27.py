@@ -32,7 +32,15 @@ The seams:
 - ``activity_input`` - the spans of that page request. On resume (the page
   checkpoint holds the support, so ``page_support`` is not called again) the
   page request is rebuilt from the stored T-021 artifact; the per-page journal
-  replays its response.
+  replays its response. PI ruling 87 c: when a halving in an extra round
+  flipped the verdict to ``confirms_activity``
+  (:func:`~g3o.classify.question_rounds.verdict_flipped_to_confirms`) and the
+  page request returned no activity, ONE activity-only pass-1 request
+  (:func:`~g3o.extract.request_v27.activity_task_only`, its own ``custom_id``:
+  :func:`activity_only_custom_id`) gives the spans; it is journaled, priced and
+  replayed like every extractor call, and is the C4 a request for its
+  activities' names. Its failure holds the institution (C3 a) for now: the
+  ruled downgrade of the verdict's support is not built (no signed status).
 - ``activity_support`` / ``pair_support`` - T-032 pass 2:
   :func:`~g3o.classify.jev_activity_code.to_pass2_page`,
   :func:`~g3o.extract.pass2_support.select_requests`, ``pass2_job``,
@@ -99,7 +107,11 @@ from g3o.classify.jev_activity_code import (
     to_pass2_page,
 )
 from g3o.classify.jev_page_code import PageCodeResult, PageInput, to_pass1_page
-from g3o.classify.question_rounds import PageRoundResult, extra_round_started
+from g3o.classify.question_rounds import (
+    PageRoundResult,
+    extra_round_started,
+    verdict_flipped_to_confirms,
+)
 from g3o.common import support_check as sc
 from g3o.common.artifact_io import read_artifact
 from g3o.common.instrument import canonical_json, sha256_text
@@ -187,6 +199,21 @@ def extra_round_custom_id(first_round: str, codes: Sequence[Any]) -> str:
     return f"{first_round}{EXTRA_ROUND_MARK}{digest}"
 
 
+#: PI ruling 87 c: marks the activity-only pass-1 ``custom_id`` (see :func:`activity_only_custom_id`).
+ACTIVITY_ONLY_MARK = "-a"
+
+
+def activity_only_custom_id(first_round: str, page: Any) -> str:
+    """The ``custom_id`` of a page's activity-only pass-1 request (PI ruling 87 c; the 46 a scheme).
+
+    The page's first-round ``custom_id`` plus :data:`ACTIVITY_ONLY_MARK` and 8 hex of the SHA256 of the
+    request's part layout (its ordered part ids, after the halving): distinct from the first-round and
+    extra-round requests, and the same on a resume (journal replay). 62 characters, inside the Batches
+    limit of 64."""
+    digest = hashlib.sha256(canonical_json([c.chunk_id for c in page.chunks]).encode("utf-8")).hexdigest()[:8]
+    return f"{first_round}{ACTIVITY_ONLY_MARK}{digest}"
+
+
 def pass2_extra_round_custom_id(first_round: str, page: Any) -> str:
     """The ``custom_id`` of a pass-2 extra-round request (ruling 49 a, the 46 a scheme).
 
@@ -212,6 +239,12 @@ class _Adapter:
         self._page_request: dict[str, Pass1Extraction | None] = {}  # page id -> T-022 page request
         #: page id -> the journaled pass-1 request (custom_id, params) behind ``_page_request`` (C4 a)
         self._page_pass1: dict[str, dict[str, Any] | None] = {}
+        #: page id -> the parsed activity-only pass-1 request of a page flipped to confirms_activity (87 c)
+        self._activity_only: dict[str, Pass1Extraction] = {}
+        self._activity_only_job: dict[str, dict[str, Any]] = {}  # its journaled request (custom_id, params)
+        #: page id -> the journaled pass-1 request whose activity spans ``activity_input`` used (C4 a): the
+        #: page request, or the activity-only request (PI ruling 87 c)
+        self._span_pass1: dict[str, dict[str, Any] | None] = {}
         self._pair_quotes: dict[str, dict[tuple[Any, ...], Any]] = {}  # page id -> pair quotes
         #: page id -> the parsed T-032 pass-2 page request (None: the plan needed no request); its field
         #: tasks hold the open reported_* lists (PI ruling 73.1 b)
@@ -328,10 +361,42 @@ class _Adapter:
             _, self._page_request[page.page_id], self._page_pass1[page.page_id] = self._pass1(
                 to_pass1_page(first, page))
         ext = self._page_request[page.page_id]
-        if ext is None or not ext.activities:
+        spans = ext.activities if ext is not None else ()
+        self._span_pass1[page.page_id] = self._page_pass1[page.page_id]
+        if not spans and verdict_flipped_to_confirms(page_round):  # PI ruling 87 c
+            spans = self._activity_only_request(page, page_round).activities
+            self._span_pass1[page.page_id] = self._activity_only_job[page.page_id]
+        if not spans:
             return None
         return ActivityPageInput(to_pass1_page(page_round.result, page), page.country,
-                                 page.level_of_government, ext.activities)
+                                 page.level_of_government, spans)
+
+    def _activity_only_request(self, page: PageInput, page_round: PageRoundResult) -> Pass1Extraction:
+        """PI ruling 87 c: ONE activity-only pass-1 request for a page a halving flipped to
+        ``confirms_activity`` whose first-round request returned no activity.
+
+        The activity task alone (:func:`~g3o.extract.request_v27.activity_task_only`; the signed task,
+        no new wording), on the page's current part layout, with its own ``custom_id``
+        (:func:`activity_only_custom_id`). It goes through ``extract_fn`` like every extractor call, so
+        the per-institution journal records, prices (rulings 57 a / 58 a / 67 a) and replays it on a
+        resume (the same layout gives the same request). A failed or unparsable response raises
+        :class:`ExtractorResponseFailed` (C3 a: the institution is held and the request asked again)."""
+        pid = page.page_id
+        if pid not in self._activity_only:
+            p1 = replace(to_pass1_page(page_round.result, page), codes=())
+            plan = request_v27.activity_task_only(p1)
+            job = self.bound.pass1_job(p1, plan)
+            job = replace(job, custom_id=activity_only_custom_id(job.custom_id, p1))
+            ext = self._parsed("pass1", job, lambda r: parse_pass1_result(r, p1, plan))
+            self.extractions.append(ext)
+            self._activity_only[pid] = ext
+            self._activity_only_job[pid] = {"custom_id": job.custom_id, "params": job.params}
+        return self._activity_only[pid]
+
+    def activity_extraction(self, page_id: str) -> Pass1Extraction | None:
+        """The page's activity-only pass-1 request (PI ruling 87 c) when :meth:`activity_input` made one
+        (its spans are the page's activities; the T-015 assembler reads their fields from it), else None."""
+        return self._activity_only.get(page_id)
 
     def page_extraction(self, page_id: str) -> Pass1Extraction | None:
         """The page's T-022 pass-1 page request (its parsed answer with the actual response model and
@@ -399,7 +464,7 @@ class _Adapter:
                          for a in full.activities)
             quotes = self._pass2(replace(full, activities=acts), extra_round=True)
         sources = PageSources.from_page(inp.page)
-        names, name_request = self._names(inp), self._page_pass1.get(inp.page.page_id)
+        names, name_request = self._names(inp), self._span_pass1.get(inp.page.page_id)
         return [self._check(r, quotes.get((a, r.item_id, r.item_part, r.chunk_id, str(r.chosen_value), None)),
                             sources, activity_id=a, activity_name=names.get(a), name_request=name_request)
                 for a, r in records]
@@ -421,7 +486,7 @@ class _Adapter:
             self._rebuild_page_request2(inp)
         quotes = self._pair_quotes[pid]
         sources = PageSources.from_page(inp.page)
-        names, name_request = self._names(inp), self._page_pass1.get(pid)
+        names, name_request = self._names(inp), self._span_pass1.get(pid)
         out = []
         for pair in result.pairs:
             for rec in pair.records:
@@ -481,6 +546,10 @@ class ExtractorPerPageProviders(PerPageProviders):
     def page_pass2(self, inp: ActivityPageInput) -> pass2_support.Pass2Support | None:
         """The page's T-032 pass-2 page request (:meth:`_Adapter.page_pass2`, PI ruling 73.1 b)."""
         return self.adapter.page_pass2(inp)
+
+    def activity_extraction(self, page_id: str) -> Pass1Extraction | None:
+        """The page's activity-only pass-1 request, if any (:meth:`_Adapter.activity_extraction`, PI 87 c)."""
+        return self.adapter.activity_extraction(page_id)
 
     def with_seams(self, wrap_extract: Callable[[ExtractFn], ExtractFn],
                    wrap_entail: Callable[[EntailFn], EntailFn]) -> ExtractorPerPageProviders:
@@ -544,6 +613,7 @@ def build_perpage_providers(bound: Any, instrument: Mapping[str, Any], run_dir: 
                       x35_model)
 
 
-__all__ = ["EXTRA_ROUND_MARK", "P2C_QUESTION_SHA256", "PASS1_SYSTEM_SHA256", "PASS2_SYSTEM_SHA256",
-           "ExtractorPerPageProviders", "build_perpage_providers", "check_binding", "extra_round_custom_id",
+__all__ = ["ACTIVITY_ONLY_MARK", "EXTRA_ROUND_MARK", "P2C_QUESTION_SHA256", "PASS1_SYSTEM_SHA256", "PASS2_SYSTEM_SHA256",
+           "ExtractorPerPageProviders", "activity_only_custom_id", "build_perpage_providers", "check_binding",
+           "extra_round_custom_id",
            "pass2_extra_round_custom_id", "require_approved_quote_questions", "require_approved_system"]

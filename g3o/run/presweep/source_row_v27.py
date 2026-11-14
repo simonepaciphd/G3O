@@ -278,7 +278,9 @@ CONDITIONAL_ITEMS: Mapping[str, str] = {
     sc.CONTACT_ITEM: ("refused when a final content_contact_named / content_contact_details value is absent or is "
                       "neither yes, no nor a signed missing token"),
     sc.CONTACT_EMAILS_ITEM: f"reads {sc.CONTACT_ITEM} (refused on some pages)",
-    sf.SNIPPET: f"refused at {SUPERSEDED}, and when a quote-step record has no actual response model or request id",
+    sf.SNIPPET: (f"refused when the final page verdict has no T-024 support at its deciding part (verdict_support "
+                 f"is None), at {SUPERSEDED}, and when a quote-step record has no actual response model or "
+                 "request id"),
     sf.DATE: (f"refused when the page has no metadata or URL date and pass 1 sent no request for it (the date was "
               f"never asked), and at {SUPERSEDED}"),
     sf.UPPER_BOUND: f"reads {sf.DATE} (refused on some pages)",
@@ -547,6 +549,13 @@ class Provenance:
         return replace(self, response_model=getattr(support, "response_model", None),
                        request_id=getattr(support, "request_id", None), coder_version=PASS2_CODER_VERSION,
                        response="T-032 pass-2")
+
+    def for_activity_only(self, extraction: Any) -> Provenance:
+        """The provenance of a value read from the page's activity-only pass-1 request (PI ruling 87 c):
+        that response's model and request id (D-007), the same quote-step coder."""
+        return replace(self, response_model=getattr(extraction, "response_model", None),
+                       request_id=getattr(extraction, "request_id", None),
+                       response="T-022 pass-1 activity-only (PI ruling 87 c)")
 
     def quote_record(self, item: str, value: Any, chunk_id: str | None) -> CoderRecord:
         if not self.response_model or not self.request_id:
@@ -927,8 +936,12 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
                        followed: bool | None = None, sources: sc.PageSources | None = None,
                        verdict_support: sc.SupportResult | None = None,
                        provenance: Provenance | None = None, extraction: Any = None,
-                       hop: int | None = None, official_sites: Any = None) -> None:
-    """The page-level source-row values (see the module docstring) into ``rows.source``."""
+                       hop: int | None = None, official_sites: Any = None,
+                       activity_extraction: Any = None) -> None:
+    """The page-level source-row values (see the module docstring) into ``rows.source``.
+
+    The activity spans the content_* extracted fields read come from ``activity_extraction`` (the
+    activity-only request, PI ruling 87 c) when given, else from ``extraction``."""
     out = rows.source
     for item, attr in ((sf.URL, "url"), (sf.ACCESS_DATE, "access_date"), (sf.LANGUAGE, "language"),
                        (sf.SYNDICATION, "syndication_group"), (sf.TEXT_SOURCE, "text_source")):
@@ -951,7 +964,8 @@ def page_source_values(page: Any, page_fields: Any, page_values: Mapping[str, An
         _try(rows, out, item, lambda item=item: content_stated(item, verdict, acts))
     for item in SAFEGUARDS:
         _try(rows, out, item, lambda item=item: content_safeguard(item, acts))
-    spans = {s.activity_id: s for s in getattr(extraction, "activities", ())}
+    span_source = extraction if activity_extraction is None else activity_extraction
+    spans = {s.activity_id: s for s in getattr(span_source, "activities", ())}
     for item in EXTRACTED_FIELDS:
         _try(rows, out, item, lambda item=item: content_extracted(item, verdict, list(activities), spans))
     _try_quote(rows, out, rows.source_codes, sf.SNIPPET,
@@ -981,22 +995,26 @@ def _need(value: Any, item: str) -> Any:
 
 def activity_row_values(activities: Mapping[str, Mapping[str, Any]], rows: AssembledRows, *,
                         extraction: Any = None, sources: sc.PageSources | None = None,
-                        provenance: Provenance | None = None, pass2: Any = None) -> None:
+                        provenance: Provenance | None = None, pass2: Any = None,
+                        activity_extraction: Any = None, span_provenance: Provenance | None = None) -> None:
     """The per-observation activity-row values into ``rows.activities`` and their codes.
 
     ``unit_credit``; the T-022 pass-1 fields (:func:`activity_quote_value`) from the
-    activity's span in ``extraction`` (the page's pass-1 request); the reported
-    lists (:func:`reported_value`; an open gate reads ``pass2``, the page's T-032
-    pass-2 page request, PI ruling 73.1 b).
+    activity's span in ``extraction`` (the page's pass-1 request), or in
+    ``activity_extraction`` (the activity-only request, PI ruling 87 c) with
+    ``span_provenance`` when it is given; the reported lists (:func:`reported_value`;
+    an open gate reads ``pass2``, the page's T-032 pass-2 page request, PI ruling 73.1 b).
     """
-    spans = {s.activity_id: s for s in getattr(extraction, "activities", ())}
+    span_source = extraction if activity_extraction is None else activity_extraction
+    span_prov = provenance if activity_extraction is None else span_provenance
+    spans = {s.activity_id: s for s in getattr(span_source, "activities", ())}
     for aid, values in activities.items():
         out = rows.activities.setdefault(aid, {})
         codes = rows.activity_codes.setdefault(aid, [])
         _try(rows, out, "core.unit_credit", lambda values=values: unit_credit(values))
         for item in pass1_activity_fields():
             _try_quote(rows, out, codes, item, lambda item=item, aid=aid, values=values: activity_quote_value(
-                item, aid, _need(spans.get(aid), item), values, _need(sources, item), _need(provenance, item)))
+                item, aid, _need(spans.get(aid), item), values, _need(sources, item), _need(span_prov, item)))
         for item in REPORTED_GATES:
             _try_quote(rows, out, codes, item, lambda item=item, aid=aid, values=values: reported_value(
                 item, aid, values, _need(sources, item), _need(provenance, item), pass2))
@@ -1007,7 +1025,7 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
              extraction: Any = None, sources: sc.PageSources | None = None,
              verdict_support: sc.SupportResult | None = None,
              provenance: Provenance | None = None, hop: int | None = None,
-             official_sites: Any = None, pass2: Any = None) -> AssembledRows:
+             official_sites: Any = None, pass2: Any = None, activity_extraction: Any = None) -> AssembledRows:
     """Build every producible row value of one coded page and name every refused item.
 
     ``page`` is the :class:`~g3o.classify.jev_page_code.PageInput`,
@@ -1026,6 +1044,10 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
     without it ``source_on_official_domain`` and what reads it are refused. ``pass2`` is the page's
     T-032 pass-2 page request (:class:`~g3o.extract.pass2_support.Pass2Support`, from
     ``PerPageProviders.page_pass2``; PI ruling 73.1 b), read for an open reported_* gate.
+    ``activity_extraction`` is the page's activity-only pass-1 request (PI ruling 87 c, from
+    ``PerPageProviders.activity_extraction``) when the activities came from it: their spans and
+    pass-1 fields are read from it, with its response's model and request id
+    (:meth:`Provenance.for_activity_only`); the date and snippet still come from ``extraction``.
     """
     if page_fields is None:
         raise sf.MissingUpstreamError("perpage_inputs_v27.PageSourceFields (PageUpstream.page_fields)",
@@ -1036,9 +1058,12 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
         rows.refused.update(REFUSED_ACTIVITY_ITEMS)
     page_source_values(page, page_fields, page_values, activities, rows, followed=followed, sources=sources,
                        verdict_support=verdict_support, provenance=provenance, extraction=extraction, hop=hop,
-                       official_sites=official_sites)
+                       official_sites=official_sites, activity_extraction=activity_extraction)
+    span_prov = provenance
+    if activity_extraction is not None and provenance is not None:  # PI ruling 87 c
+        span_prov = provenance.for_activity_only(activity_extraction)
     activity_row_values(activities, rows, extraction=extraction, sources=sources, provenance=provenance,
-                        pass2=pass2)
+                        pass2=pass2, activity_extraction=activity_extraction, span_provenance=span_prov)
     return rows
 
 

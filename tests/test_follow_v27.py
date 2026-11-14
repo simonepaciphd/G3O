@@ -513,10 +513,49 @@ def test_load_state_mismatch_and_bad_count_are_wiring_errors_m3(tmp_path):
         fv.load_state(doc, institution_id=I1, release_id="R-OTHER", rules=rules)
     with pytest.raises(pp.FollowWiringError, match="disagrees with its records"):
         fv.load_state({**doc, "followed": 7}, institution_id=I1, release_id=inst.run_id, rules=rules)
-    with pytest.raises(pp.FollowWiringError, match="malformed: TypeError"):
+    with pytest.raises(pp.FollowWiringError, match="malformed: a records entry has keys"):
         fv.load_state({**doc, "records": [{"bogus": 1}]}, institution_id=I1, release_id=inst.run_id, rules=rules)
     with pytest.raises(pp.FollowWiringError, match="no searched page"):
         fv.FollowLeg(FakeFetch({})).start(run_dir, replace(inst, pages=[]))
+
+
+def test_load_state_checks_types_and_never_converts_l1(tmp_path):
+    """Review L-1: a stored value of the wrong type is refused (FollowWiringError), never converted:
+    ``bool("false")`` is True and ``int("3")`` passes; a bool is not an int; 0 is not False."""
+    run_dir, inst = _one(tmp_path)
+    page = inst.pages[0].page
+    fv.FollowLeg(FakeFetch({F1: "x"})).start(run_dir, inst).round(
+        [fv.RoundPage(page, "yes", selection(page, [F1]), ())])
+    doc = json.loads((institution_dir(run_dir, I1) / fv.FOLLOW_DIR / fv.STATE_FILE).read_text(encoding="utf-8"))
+    rules = fl.FollowRules()
+    kw = {"institution_id": I1, "release_id": inst.run_id, "rules": rules}
+    loaded = fv.load_state(doc, **kw)  # the state as written loads
+    assert loaded.followed == doc["followed"] and loaded.records and loaded.hops == doc["hops"]
+    rec = doc["records"][0]
+    bad = [
+        ({**doc, "cap_reached": "false"}, "cap_reached is str"),
+        ({**doc, "cap_reached": 0}, "cap_reached is int"),
+        ({**doc, "followed": str(doc["followed"])}, "followed is str"),
+        ({**doc, "followed": True}, "followed is bool"),
+        ({**doc, "hops": {"k": "1"}}, r"hops\['k'\] is str"),
+        ({**doc, "hops": {"k": True}}, r"hops\['k'\] is bool"),
+        ({**doc, "hops": [["k", 1]]}, "hops is list"),
+        ({**doc, "records": {"0": rec}}, "records is dict"),
+        ({**doc, "records": [{**rec, "hop": str(rec["hop"])}]}, r"records\.hop is str"),
+        ({**doc, "records": [{**rec, "counted": "true"}]}, r"records\.counted is str"),
+        ({**doc, "records": [{**rec, "backfill": 0}]}, r"records\.backfill is int"),
+        ({**doc, "records": [{**rec, "fetch_date": 20261114}]}, r"records\.fetch_date is int"),
+        ({**doc, "records": [{**rec, "extra": 1}]}, "a records entry has keys"),
+        ({**doc, "backfill": 0}, "another institution"),
+        ({**doc, "rules": {**doc["rules"], "url_cap": float(doc["rules"]["url_cap"])}}, "another institution"),
+    ]
+    for broken, match in bad:
+        with pytest.raises(pp.FollowWiringError, match=match):
+            fv.load_state(broken, **kw)
+    if doc["not_followed"]:
+        nf = doc["not_followed"][0]
+        with pytest.raises(pp.FollowWiringError, match=r"not_followed\.hop is str"):
+            fv.load_state({**doc, "not_followed": [{**nf, "hop": str(nf["hop"])}]}, **kw)
 
 
 def test_follow_state_write_failure_leaves_the_stage_l4(tmp_path, monkeypatch):
