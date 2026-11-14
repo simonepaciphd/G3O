@@ -113,8 +113,12 @@ Produced here (source row, page-level), PI ruling 70 b (2026-11-13):
   automatically, ``not_asked`` set by rule ``source_type_auto:<basis>``; a
   residual page that fails the R-015 readability check is not sent,
   ``not_asked`` set by rule ``readability_failure:<reason>``. A residual
-  readable page needs the residual classifier question and its supporting
-  quote (PI ruling 83 b, not wired here): refused (:data:`RESIDUAL_REFUSAL`).
+  readable page takes the residual classifier question's answer (PI ruling 95
+  a, building 83 b): asked by the per-page stage before T-022 on the page's
+  T-021 parts, its quote task in the page's first pass-1 request, checked by
+  T-024 (no first request: checked with no quote, ``downgraded_no_quote``);
+  :func:`residual_source_type_value`. Without that input it is refused
+  (:data:`RESIDUAL_PRODUCER`).
 - ``source_credibility`` (X22, :func:`g3o.common.source_fields.source_credibility`):
   ``low`` when the publication date is ``unknown`` / ``not_documented``
   whatever the type; otherwise the signed map cell of the automatic basis or of
@@ -252,14 +256,12 @@ PRODUCED_SOURCE_ITEMS = (
     sf.DATE, sf.UPPER_BOUND, *EXTRACTED_FIELDS, sf.OFFICIAL, sf.SOURCE_TYPE, sf.CREDIBILITY,
 )
 
-#: A readable residual page. PI ruling 83 b (2026-11-13, replacing 71 b): the residual jev source_type question
-#: runs before T-022 and the source_type quote task joins the page's first pass-1 request. Not wired on this
-#: branch (open PI question: the residual question's coder records carry the residual set's question-set version,
-#: which the instrument does not bind, and a page whose T-021 codes need no pass-1 request has no first request
-#: to join). Refused before the residual jev call is made, so nothing is spent on a value that could not be
-#: published.
-RESIDUAL_REFUSAL = ("the residual source_type question and its supporting quote (PI ruling 83 b not wired: "
-                    "open PI question on the residual set's instrument binding and pages with no pass-1 request)")
+#: A readable residual page. PI ruling 95 a (building 83 b): the residual jev source_type question runs before
+#: T-022 (the per-page stage) and its quote task rides in the page's first pass-1 request; the instrument binds
+#: the residual set as its second accepted question-set version. The per-page stage hands the answers and their
+#: checks to the assembler; their absence is a wiring gap (the stage stops, ruling 32 b).
+RESIDUAL_PRODUCER = ("the residual source_type answers and their T-024 checks (PI ruling 95 a: the per-page "
+                     "stage's residual question, PerPageProviders.source_type_codes)")
 
 
 def pass1_activity_fields() -> tuple[str, ...]:
@@ -287,8 +289,7 @@ CONDITIONAL_ITEMS: Mapping[str, str] = {
     sf.OFFICIAL: ("refused without the run's official sites (official_site_v27.load_run_official_sites) and for "
                   "an institution whose site is unresolved (failed or unfinished official-site step, a url "
                   "with no host, an unreadable file)"),
-    sf.SOURCE_TYPE: (f"refused on a readable residual page (neither official nor archive): {RESIDUAL_REFUSAL}; "
-                     f"and when it reads a refused {sf.OFFICIAL}"),
+    sf.SOURCE_TYPE: f"refused when it reads a refused {sf.OFFICIAL}",
     sf.CREDIBILITY: (f"refused when {sf.DATE} is refused, and when {sf.SOURCE_TYPE} is refused and the "
                      "publication date is not unknown/not_documented"),
     "core.content_vendor": ("refused on a GenAI-bearing page whose activities state no contracting party: it then "
@@ -812,17 +813,47 @@ def official_value(page: Any, official_sites: Any) -> sf.FieldValue:
     return official_sites.official(page.url, page.institution_id)
 
 
+def residual_source_type_value(typing: Any, codes: Any) -> tuple[QuoteValue, sf.SourceTyping]:
+    """A readable residual page's ``source_type`` (PI ruling 95 a, building 83 b): the residual question's
+    answers (``typing``, asked before T-022 on the page's T-021 parts) with their T-024 checks (``codes``:
+    (support, record) per answer; the quote task rode in the page's first pass-1 request, or the answer was
+    checked with no quote, ``downgraded_no_quote``, when the page had no such request). The value is the
+    check of the deciding part's answer (:func:`g3o.common.source_fields.checked_source_type`); a combined
+    missing token with no deciding part is the combined value. Every checked answer is a code of the row."""
+    if typing is None or codes is None:
+        raise sf.MissingUpstreamError(RESIDUAL_PRODUCER, [sf.SOURCE_TYPE])
+    if typing.typed_by != "classifier" or typing.outcome is None:
+        raise TypeError("the residual source_type input is not a classifier typing (wiring error)")
+    pairs = tuple(codes)
+    if any(rec.item_id != sf.SOURCE_TYPE or sr.item_id != sf.SOURCE_TYPE for sr, rec in pairs):
+        raise TypeError("residual source_type codes carry another item (wiring error)")
+    deciding = typing.outcome.part_id
+    found = [sr for sr, rec in pairs if rec.chunk_id == deciding] if deciding is not None else []
+    if deciding is not None and len(found) != 1:
+        raise TypeError(f"residual source_type: {len(found)} checked answers at the deciding part {deciding!r} "
+                        "(wiring error)")
+    checked = sf.checked_source_type(typing, found[0]) if found else typing
+    fv = checked.field
+    return QuoteValue(RowValue(sf.SOURCE_TYPE, fv.value, fv.basis), pairs), checked
+
+
 def source_type_value(page: Any, official: sf.FieldValue, archive_address: Any, sources: sc.PageSources,
-                      prov: Provenance) -> tuple[QuoteValue, sf.SourceTyping]:
+                      prov: Provenance, *, source_typing: Any = None,
+                      source_type_codes: Any = None) -> tuple[QuoteValue, sf.SourceTyping]:
     """``items/core.source_type/rules/0``: typed automatically (official domain, then archive address), or
     a residual page; an unreadable residual page is not sent (R-015). Each is ``not_asked`` set by its rule
-    (R-045) with a mechanical record. A readable residual page is refused (:data:`RESIDUAL_REFUSAL`)."""
+    (R-045) with a mechanical record. A readable residual page takes the residual question's checked answer
+    (:func:`residual_source_type_value`, PI ruling 95 a); without it the item is refused
+    (:data:`RESIDUAL_PRODUCER`)."""
     if not isinstance(archive_address, bool):
         raise sf.MissingUpstreamError("A2 archive-address test (PageSourceFields.archive_address)", [sf.SOURCE_TYPE])
     basis = sf.route_source_type(official, archive_address)
     typing = sf.auto_source_type(basis) if basis is not None else sf.readability_source_type(page)
     if typing is None:
-        raise sf.MissingUpstreamError(RESIDUAL_REFUSAL, [sf.SOURCE_TYPE])
+        return residual_source_type_value(source_typing, source_type_codes)
+    if source_typing is not None:
+        raise TypeError(f"page {page.page_id}: a residual source_type answer for a page typed by rule "
+                        f"({typing.field.rule_name}; wiring error)")
     fv = typing.field
     code = rule_code(sf.SOURCE_TYPE, fv.value, str(fv.rule_name), None, sources, prov)
     return QuoteValue(RowValue(sf.SOURCE_TYPE, fv.value, f"{fv.basis} ({fv.rule_name})"), (code,)), typing
@@ -839,8 +870,10 @@ def credibility_value(typing: sf.SourceTyping | None, date: sf.FieldValue) -> Ro
 
 
 def typed_source_values(page: Any, page_fields: Any, rows: AssembledRows, date: sf.FieldValue | None, *,
-                        official_sites: Any, sources: sc.PageSources | None, provenance: Provenance | None) -> None:
-    """``source_on_official_domain``, ``source_type`` and ``source_credibility`` into ``rows`` (ruling 70 b)."""
+                        official_sites: Any, sources: sc.PageSources | None, provenance: Provenance | None,
+                        source_typing: Any = None, source_type_codes: Any = None) -> None:
+    """``source_on_official_domain``, ``source_type`` and ``source_credibility`` into ``rows`` (ruling 70 b;
+    the residual ``source_type`` answer of PI ruling 95 a)."""
     out = rows.source
     try:
         official = official_value(page, official_sites)
@@ -854,7 +887,8 @@ def typed_source_values(page: Any, page_fields: Any, rows: AssembledRows, date: 
     if official is not None:
         try:
             qv, typing = source_type_value(page, official, getattr(page_fields, "archive_address", None),
-                                           _need(sources, sf.SOURCE_TYPE), _need(provenance, sf.SOURCE_TYPE))
+                                           _need(sources, sf.SOURCE_TYPE), _need(provenance, sf.SOURCE_TYPE),
+                                           source_typing=source_typing, source_type_codes=source_type_codes)
         except _REFUSALS as exc:
             rows.refused[sf.SOURCE_TYPE] = str(exc)
         else:

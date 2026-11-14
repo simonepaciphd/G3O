@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common.instrument import canonical_json, load_instrument, sha256_text, validate_instrument
-from g3o.common.jev_record import downgrade_source_original
+from g3o.common.jev_record import downgrade_source_original, residual_version_bound
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import match_quote
 
@@ -369,7 +369,10 @@ class StorageEnvelope:
             for key in ("configured_model", "actual_response_model", "request_id"):
                 _string(record[key], key)
             expected_model = self._instrument["configured_jev_model"] if record["coder_type"] == "classifier" else self._instrument["extractor_model_id"]
-            if record["configured_model"] != expected_model or record["question_set_version"] != self._instrument["question_set_version"]:
+            version_ok = (record["question_set_version"] == self._instrument["question_set_version"]
+                          or residual_version_bound(record["item_id"], record["question_set_version"],
+                                                    self._instrument))  # PI ruling 95 a
+            if record["configured_model"] != expected_model or not version_ok:
                 raise ValueError("coder configuration does not match the actual instrument")
             p = record["chosen_answer_probability"]
             if p is not None and (type(p) not in (int, float) or not 0 <= p <= 1):

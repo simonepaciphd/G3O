@@ -29,6 +29,13 @@ The seams:
   task, since those come from the stored page request; an extra round whose new
   codes need no quote makes no call. An extra-round request has its own
   ``custom_id`` (ruling 46 a, :func:`extra_round_custom_id`).
+  PI ruling 95 a: a readable residual page's ``source_type`` answers (asked by
+  the per-page stage before T-022 on the page's T-021 parts, handed over with
+  ``set_source_typing``) join that FIRST request as quote tasks (the item's
+  signed question and jev's answer, as every pass-1 quote task) and are checked
+  by T-024 on its quotes (``source_type_codes``). A page whose T-021 codes need
+  no request gets none for them: they are checked with no quote
+  (``downgraded_no_quote``) and no call is made.
 - ``activity_input`` - the spans of that page request. On resume (the page
   checkpoint holds the support, so ``page_support`` is not called again) the
   page request is rebuilt from the stored T-021 artifact; the per-page journal
@@ -118,6 +125,7 @@ from g3o.classify.question_rounds import (
     extra_round_started,
     verdict_flipped_to_confirms,
 )
+from g3o.common import source_fields as sf
 from g3o.common import support_check as sc
 from g3o.common.artifact_io import read_artifact
 from g3o.common.instrument import canonical_json, sha256_text
@@ -255,6 +263,9 @@ class _Adapter:
         #: page id -> why the final verdict's support is downgraded ``downgraded_no_quote`` (PI ruling 99.1 a /
         #: 99.2): the activity-only request reached its rejection cap, or gave no activity
         self._verdict_downgrade: dict[str, str] = {}
+        #: page id -> the residual source_type answers (PI ruling 95 a), and their checks (support, record)
+        self._source_typing: dict[str, sf.SourceTyping] = {}
+        self._source_type_codes: dict[str, tuple[tuple[SupportResult, CoderRecord], ...]] = {}
         #: page id -> the journaled pass-1 request (custom_id, params) behind ``_page_request`` (C4 a)
         self._page_pass1: dict[str, dict[str, Any] | None] = {}
         #: page id -> the parsed activity-only pass-1 request of a page flipped to confirms_activity (87 c)
@@ -355,6 +366,57 @@ class _Adapter:
         self.extractions.append(ext)
         return plan, ext, {"custom_id": job.custom_id, "params": job.params}
 
+    # --- residual source_type (PI ruling 95 a) --------------------------------
+
+    def set_source_typing(self, page_id: str, typing: sf.SourceTyping) -> None:
+        """The page's residual ``source_type`` answers (:func:`~g3o.common.source_fields.code_source_type`,
+        asked by the per-page stage before T-022 on the page's T-021 parts). Their quote tasks join the
+        page's first pass-1 request; set before that request is built (``page_support`` / ``activity_input``)."""
+        if typing.typed_by != "classifier" or typing.result is None:
+            raise TypeError(f"page {page_id}: only a classifier-typed (residual) source_type is set here")
+        if page_id in self._page_request and self._source_typing.get(page_id) != typing:
+            raise TypeError(f"page {page_id}: residual source_type set after its first pass-1 request was built")
+        self._source_typing[page_id] = typing
+
+    @staticmethod
+    def _type_records(typing: sf.SourceTyping) -> tuple[CoderRecord, ...]:
+        """The residual answers that are checked: every live classifier answer but the temporary part answer."""
+        return tuple(r for r in typing.result.records if r.coder_type == "classifier" and r.item_id == sf.SOURCE_TYPE
+                     and r.chosen_value != NOT_COVERED)
+
+    def _with_source_type(self, p1: Any) -> Any:
+        """``p1`` with the residual ``source_type`` answers as pass-1 codes, so the first request carries their
+        quote tasks (the signed question and jev's answer, as every pass-1 quote task; PI ruling 95 a). A page
+        whose T-021 codes need no request keeps none: no request is created for the quote (it is checked with
+        no quote, ``downgraded_no_quote``)."""
+        typing = self._source_typing.get(p1.page_id)
+        if typing is None or not request_v27.select_requests(p1).needs_request:
+            return p1
+        extra = tuple(request_v27.PageCode(r.item_id, r.chunk_id, str(r.chosen_value))
+                      for r in self._type_records(typing))
+        return replace(p1, codes=p1.codes + extra)
+
+    def _type_support(self, page_id: str, p1: Any, plan: Any, ext: Pass1Extraction | None) -> None:
+        """T-024 (with X35 where it reads it) of each residual answer, on the first request's quotes; no
+        request, or no usable quote: checked with no quote (``downgraded_no_quote``), no call made."""
+        typing = self._source_typing.get(page_id)
+        if typing is None:
+            return
+        quotes = sc.pass1_quotes(plan, ext) if ext is not None else {}
+        sources = PageSources.from_page(p1)
+        self._source_type_codes[page_id] = tuple(
+            (self._check(r, quotes.get((r.item_id, r.chunk_id)), sources), r) for r in self._type_records(typing))
+
+    def source_type_codes(self, page_id: str) -> tuple[tuple[SupportResult, CoderRecord], ...] | None:
+        """The checked residual ``source_type`` answers of the page (support, record), or None when the page
+        has no residual typing. Call after :meth:`activity_input` (which rebuilds the first request on a
+        resume)."""
+        if page_id not in self._source_typing:
+            return None
+        if page_id not in self._source_type_codes:
+            raise KeyError(f"no residual source_type check held for page {page_id!r} (activity_input not called)")
+        return self._source_type_codes[page_id]
+
     def page_support(self, page: PageInput, result: PageCodeResult,
                      records: Sequence[CoderRecord]) -> list[SupportResult]:
         full = to_pass1_page(result, page)
@@ -365,10 +427,13 @@ class _Adapter:
         # RC-D-024 extra round, which asks only their quotes (C1 a). Once an extra round has started,
         # every call is one, even when a halving left all live codes unchecked (ruling 46 a)
         first = codes == full.codes and not extra_round_started(result)
+        if first:  # PI ruling 95 a: the residual source_type quote tasks ride in the first request
+            p1 = self._with_source_type(p1)
         plan, ext, request = self._pass1(p1, extra_round=not first)
         if first and page.page_id not in self._page_request:
             self._page_request[page.page_id], self._page_pass1[page.page_id] = ext, request
             self._page_plan[page.page_id] = plan
+            self._type_support(page.page_id, p1, plan, ext)
         quotes = sc.pass1_quotes(plan, ext) if ext is not None else {}
         sources = PageSources.from_page(p1)
         return [self._check(r, quotes.get((r.item_id, r.chunk_id)), sources) for r in records]
@@ -378,8 +443,9 @@ class _Adapter:
         if pid not in self._page_request:  # resume: rebuild the page request from T-021
             first = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(
                 self.run_dir, page.institution_id, page.url)))
-            self._page_plan[pid], self._page_request[pid], self._page_pass1[pid] = self._pass1(
-                to_pass1_page(first, page))
+            p1 = self._with_source_type(to_pass1_page(first, page))
+            self._page_plan[pid], self._page_request[pid], self._page_pass1[pid] = self._pass1(p1)
+            self._type_support(pid, p1, self._page_plan[pid], self._page_request[pid])
         ext = self._page_request[pid]
         spans = ext.activities if ext is not None else ()
         self._span_pass1[pid] = self._page_pass1[pid]
@@ -594,6 +660,14 @@ class ExtractorPerPageProviders(PerPageProviders):
         """Why the page's verdict support is downgraded, if it is (:meth:`_Adapter.verdict_downgrade`,
         PI ruling 99.1 a / 99.2)."""
         return self.adapter.verdict_downgrade(page_id)
+
+    def set_source_typing(self, page_id: str, typing: sf.SourceTyping) -> None:
+        """The page's residual ``source_type`` answers (:meth:`_Adapter.set_source_typing`, PI ruling 95 a)."""
+        self.adapter.set_source_typing(page_id, typing)
+
+    def source_type_codes(self, page_id: str) -> tuple[tuple[SupportResult, CoderRecord], ...] | None:
+        """The checked residual ``source_type`` answers (:meth:`_Adapter.source_type_codes`, PI ruling 95 a)."""
+        return self.adapter.source_type_codes(page_id)
 
     def with_seams(self, wrap_extract: Callable[[ExtractFn], ExtractFn],
                    wrap_entail: Callable[[EntailFn], EntailFn]) -> ExtractorPerPageProviders:

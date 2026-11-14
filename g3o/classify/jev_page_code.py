@@ -404,12 +404,19 @@ def _single_chunk(page: PageInput, est: TokenEstimator) -> Chunk:
 
 
 def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
-              on_response: Callable[[JevResult], None] | None = None) -> PageCodeResult:
+              on_response: Callable[[JevResult], None] | None = None,
+              layout: Sequence[Chunk] | None = None) -> PageCodeResult:
     """Code one page (pass 1). Raises :class:`PageFailed` when no verdict can be made.
 
     ``ask_fn(state, questions)`` sends one jev request (``questions`` as
     ``{id: {instructions, criteria}}``). ``on_response`` sees every response (cost
     meter; it may raise to stop). :class:`JevAccountError` propagates.
+
+    ``layout``: the parts to ask on, instead of planning them from this question
+    set (PI ruling 95 a: the residual ``source_type`` question is asked on the
+    page's T-021 parts, so each answer's part is a part of the page's first
+    pass-1 request, R-044). The parts must tile the page text; a part over the
+    request limit is halved as usual.
     """
     s = _setup(config)
     qsv = s.qset["question_set_version"]
@@ -437,7 +444,17 @@ def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
         return PageCodeResult(status="not_assessable", chunks=(_single_chunk(page, config.estimator),),
                               records=tuple(records), items=items, chrome_status=chrome_status, **common)
 
-    layout = plan_layout(page, config, s)
+    if layout is None:
+        layout = plan_layout(page, config, s)
+    else:
+        layout = list(layout)
+        pos = 0
+        for c in layout:
+            if c.page_id != page.page_id or c.start != pos or page.text[c.start:c.end] != c.text:
+                raise ValueError(f"given layout part {c.chunk_id} does not tile page {page.page_id}")
+            pos = c.end
+        if not layout or pos != len(page.text):
+            raise ValueError(f"given layout does not cover page {page.page_id}")
     cache: dict[tuple[str, int, str], dict[str, Any]] = {}
     requests: list[dict[str, Any]] = []
     exhausted: set[str] = set()

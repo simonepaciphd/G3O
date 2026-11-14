@@ -330,7 +330,8 @@ class CoderRecord:
         if (payload["codebook_release"] == "2.7" and self.coder_type == "classifier"
                 and self.classifier_rule is None):
             raise ValueError("release 2.7 classifier projection requires the signed item/part downgrade rule")
-        if self.question_set_version != payload["question_set_version"]:
+        if (self.question_set_version != payload["question_set_version"]
+                and not residual_version_bound(self.item_id, self.question_set_version, payload)):
             raise ValueError("question-set version differs from the instrument")
         if self.classifier_rule is not None and self.classifier_rule.codebook_sha256 != payload["codebook_sha256"]:
             raise ValueError("signed downgrade rule differs from the instrument codebook")
@@ -355,6 +356,20 @@ class CoderRecord:
         if self.coder_type in {"mechanical", "derived"}:
             result["field_availability"] = {k: NOT_APPLICABLE for k in (*_PROVIDER_FIELDS, "chosen_answer_probability", "probability_distribution")}
         return result
+
+
+def residual_version_bound(item_id: str, question_set_version: str, payload: dict[str, Any]) -> bool:
+    """PI ruling 95 a: the instrument's second accepted question-set version, for ``source_type`` records
+    only: the residual set (:data:`g3o.common.source_fields.RESIDUAL_SET_VERSION`), bound when the
+    instrument payload's ``question_hashes`` holds its hash under
+    :data:`~g3o.common.source_fields.RESIDUAL_QUESTION_HASH_KEY` and that hash is the current set's.
+    Read by :meth:`CoderRecord.storage_projection` and the storage validator."""
+    from g3o.common import source_fields as sf
+
+    if item_id != sf.SOURCE_TYPE or question_set_version != sf.RESIDUAL_SET_VERSION:
+        return False
+    bound = (payload.get("question_hashes") or {}).get(sf.RESIDUAL_QUESTION_HASH_KEY)
+    return bound is not None and bound == sf.residual_set_sha256()
 
 
 def _downgrade_final(support: dict[str, Any], linked: Sequence[dict[str, Any]]) -> bool:

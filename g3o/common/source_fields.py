@@ -109,6 +109,11 @@ CODER_VERSION = "g3o.common.source_fields.v2"
 #: The residual source_type request is not part of a T-011 set (EXCLUDED there); its
 #: own version names the composition: signed codebook question + approved page state.
 RESIDUAL_SET_VERSION = "g3o.common.source_fields.source_type_residual.v1"
+#: PI ruling 95 a (building 83 b): the residual set is the instrument's SECOND accepted question-set version,
+#: for ``source_type`` records only. The instrument binds it by this ``question_hashes`` key, whose value is
+#: :func:`residual_set_sha256` (the set's canonical JSON, its version included); see
+#: :meth:`g3o.common.jev_record.CoderRecord.storage_projection`.
+RESIDUAL_QUESTION_HASH_KEY = "source_type_residual"
 
 CONFIDENCE_DECISION = (
     "codebook r14 items/core.confidence/rules/1 (RC-D-025 A1, C7 a; PI-signed 2026-11-10); "
@@ -606,6 +611,14 @@ def residual_question_set() -> dict[str, Any]:
             "questions": [question], "excluded": []}
 
 
+def residual_set_sha256() -> str:
+    """SHA256 of the residual question set's canonical JSON (instrument ``question_hashes``
+    :data:`RESIDUAL_QUESTION_HASH_KEY`, PI ruling 95 a); the same encoding as the T-011 set hashes."""
+    from g3o.common.instrument import canonical_json, sha256_text
+
+    return sha256_text(canonical_json(residual_question_set()))
+
+
 def readability_source_type(page: Any, *, vocab: SourceVocab | None = None) -> SourceTyping | None:
     """A residual page that fails the R-015 readability check is not sent: ``not_asked``, set by rule
     ``readability_failure:<reason>`` (as T-021). None: the page is readable (the question is asked)."""
@@ -671,14 +684,16 @@ def vendor_claim_only_value(types: Sequence[str | None]) -> str:
 
 
 def code_source_type(page: Any, ask_fn: Any, config: Any, *, vocab: SourceVocab | None = None,
-                     on_response: Any = None) -> SourceTyping:
+                     on_response: Any = None, layout: Any = None) -> SourceTyping:
     """Ask the residual ``source_type`` question of a page not typed automatically.
 
     ``page`` is a :class:`g3o.classify.jev_page_code.PageInput`, ``config`` a
     ``PageCoderConfig`` (its ``question_set`` is replaced by
     :func:`residual_question_set`); ``ask_fn`` is the injected jev call. A page
     that fails the R-015 readability check is not sent (``not_asked``, set by
-    rule ``readability_failure:<reason>``, as T-021).
+    rule ``readability_failure:<reason>``, as T-021). ``layout``: the parts to ask
+    on (the page's T-021 parts in the per-page stage, PI ruling 95 a); None plans
+    them from the residual set.
     """
     from dataclasses import replace
 
@@ -689,7 +704,7 @@ def code_source_type(page: Any, ask_fn: Any, config: Any, *, vocab: SourceVocab 
     if unreadable is not None:
         return unreadable
     res = jpc.code_page(page, ask_fn, replace(config, question_set=residual_question_set()),
-                        on_response=on_response)
+                        on_response=on_response, layout=layout)
     outcome = res.items[SOURCE_TYPE]
     if outcome.state == "stopped":
         raise UnruledError(SOURCE_TYPE, f"combiner stopped: {outcome.error}")
@@ -707,14 +722,37 @@ def source_type_evidence(typing: SourceTyping, *, quote: str | None, quote_chunk
     """The T-024 input for the classifier-typed ``source_type``.
 
     ``quote`` comes from the quote step and ``entailment`` from X35 (the item has
-    an entailment label). Neither producer covers ``source_type`` yet: T-022's
-    request plan has no source_type quote task.
+    an entailment label). In the v2.7 per-page stage the quote task rides in the
+    page's first T-022 pass-1 request (PI ruling 95 a) and the per-page provider
+    adapter runs the check itself; this helper serves other callers.
     """
     if typing.typed_by != "classifier" or typing.outcome is None:
         raise ValueError("only a classifier-typed source_type is support-checked")
     o = typing.outcome
     return CodeEvidence(item_id=SOURCE_TYPE, value=str(o.value), chunk_id=o.part_id, probability=o.probability,
                         quote=quote, quote_chunk_id=quote_chunk_id, entailment=entailment)
+
+
+def checked_source_type(typing: SourceTyping, support: SupportResult, *,
+                        vocab: SourceVocab | None = None) -> SourceTyping:
+    """The classifier-typed ``source_type`` after its T-024 check (PI ruling 95 a): the value is the
+    check's (``support.value``: a ``downgraded_*`` check gives the item's ``downgrade_target``,
+    ``unknown``), with the support record attached. ``support`` must be the check of the deciding
+    part's answer (``typing.outcome``)."""
+    v = vocab or default_vocab()
+    if typing.typed_by != "classifier" or typing.outcome is None:
+        raise ValueError("only a classifier-typed source_type is support-checked")
+    o = typing.outcome
+    if (support.item_id, support.chunk_id, support.original_value) != (SOURCE_TYPE, o.part_id, str(o.value)):
+        raise ValueError("source_type support is not the check of the deciding part's answer")
+    value = str(support.value)
+    if value not in (*v.source_type_codes, *v.missing_tokens(SOURCE_TYPE)):
+        raise ValueError(f"source_type value {value!r} after the support check is not a signed code")
+    fv = typing.field
+    field_value = FieldValue(fv.item_id, value, fv.coder, f"{fv.basis}; T-024 {support.support_status}",
+                             support=support, detail=dict(fv.detail))
+    return SourceTyping(field_value, typed_by=typing.typed_by, outcome=o, records=typing.records,
+                        result=typing.result)
 
 
 def source_type_label(typing: SourceTyping, *, vocab: SourceVocab | None = None) -> str:

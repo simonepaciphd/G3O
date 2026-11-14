@@ -666,3 +666,39 @@ def test_source_values_and_missing_items():
     assert "core.source_credibility (derived)" in missing and "core.source_url (mechanical)" not in missing
     with pytest.raises(ValueError):
         sf.source_values([sf.source_url("https://x.example/")] * 2)
+
+
+def test_residual_set_is_a_second_bound_version_for_source_type_only_95a():
+    """PI ruling 95 a: the instrument accepts the residual set's version for ``source_type`` records only,
+    and only when its ``question_hashes`` binds the current residual set under the residual key."""
+    from g3o.common.jev_record import residual_version_bound
+
+    bound = {"question_set_version": "v27-main", "question_hashes": {
+        sf.RESIDUAL_QUESTION_HASH_KEY: sf.residual_set_sha256()}}
+    assert residual_version_bound(sf.SOURCE_TYPE, sf.RESIDUAL_SET_VERSION, bound)
+    assert not residual_version_bound("core.page_verdict", sf.RESIDUAL_SET_VERSION, bound)
+    assert not residual_version_bound(sf.SOURCE_TYPE, "another-set", bound)
+    assert not residual_version_bound(sf.SOURCE_TYPE, sf.RESIDUAL_SET_VERSION, {"question_hashes": {}})
+    stale = {"question_hashes": {sf.RESIDUAL_QUESTION_HASH_KEY: "0" * 64}}
+    assert not residual_version_bound(sf.SOURCE_TYPE, sf.RESIDUAL_SET_VERSION, stale)
+
+
+def test_residual_question_on_a_given_layout_95a(rules):
+    """PI ruling 95 a: the residual question is asked on the parts it is given (the page's T-021 parts);
+    a layout that does not tile the page is refused before any call."""
+    from dataclasses import replace
+
+    para = "Background text about digital services in the administration. " * 120
+    text = "\n\n".join(f"{m} {para}" for m in ("ALPHA", "BRAVO", "CHARLIE"))
+    c = jpc.PageCoderConfig(rules=rules, setup_pointer="a" * 64, configured_model="jev-test-1",
+                            reserved_tokens=0, limit_tokens=6000)
+    planned = sf.code_source_type(page(text), FakeJev({"": ("academic", 0.9)}), c)
+    assert len(planned.result.chunks) > 1
+    whole = (replace(planned.result.chunks[0], end=len(text), text=text),)
+    fake = FakeJev({"": ("academic", 0.9)})
+    given = sf.code_source_type(page(text), fake, replace(c, limit_tokens=100_000), layout=whole)
+    assert [ch.chunk_id for ch in given.result.chunks] == [whole[0].chunk_id] and len(fake.calls) == 1
+    broken = FakeJev({"": ("academic", 0.9)})
+    with pytest.raises(ValueError, match="tile|cover"):
+        sf.code_source_type(page(text), broken, c, layout=planned.result.chunks[:1])
+    assert broken.calls == []

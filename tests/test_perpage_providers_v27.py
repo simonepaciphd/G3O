@@ -1367,6 +1367,104 @@ def test_activity_only_request_at_the_rejection_cap_downgrades_the_verdict_suppo
     assert failing.verdict_downgrade(page.page_id) is None
 
 
+def _type_ask(choice="vendor", p=0.95):
+    """A jev fake answering the residual source_type question (PI ruling 95 a)."""
+    from g3o.common.jev_client import JevAnswer, JevResult
+
+    calls = []
+
+    def ask(state, questions):
+        calls.append(state["page_part"])
+        out = {}
+        for qid, q in questions.items():
+            rest = [c for c in q["criteria"] if c != choice]
+            out[qid] = JevAnswer(qid, "choice", choice=choice, confidence=p,
+                                 probabilities={choice: p, **{c: (1 - p) / len(rest) for c in rest}})
+        return JevResult(out, "jev-fixture", f"req-type-{len(calls)}", 10, 1)
+
+    ask.calls = calls
+    return ask
+
+
+def test_residual_source_type_quote_rides_in_the_first_pass1_request_95a(tmp_path):
+    """PI ruling 95 a: the residual source_type answers (asked on the page's T-021 parts) join the page's
+    FIRST pass-1 request as quote tasks (the signed question and jev's answer); each answer is checked by
+    T-024 on that request's quote; a resume rebuilds the same request."""
+    from g3o.classify.question_rounds import PageRoundResult
+    from g3o.common import source_fields as sf
+    from g3o.extract import request_v27
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, _, records, _ = _flipped_round(run_dir, bound, page, flipped=False)
+    ask = _type_ask()
+    typing = sf.code_source_type(page, ask, bound.page_config, layout=result.chunks)
+    assert typing.typed_by == "classifier" and typing.result.question_set_version == sf.RESIDUAL_SET_VERSION
+    assert [c.chunk_id for c in typing.result.chunks] == [c.chunk_id for c in result.chunks]
+
+    extract = FakeExtractor(world)
+    providers = _providers(run_dir, bound, instrument, extract, FakeEntail())
+    providers.set_source_typing(page.page_id, typing)
+    providers.page_support(page, result, records)
+    first = extract.jobs[0]
+    tasks = [t for t in _tasks(first)["quote_tasks"] if t["answer"] == "vendor"]
+    question = request_v27.default_rules().questions[sf.SOURCE_TYPE]
+    assert tasks and all(t["question"] == question for t in tasks)
+    page_round = PageRoundResult(result, jpc.finalize_page(result, providers.page_support(page, result, records),
+                                                           bound.page_config), (), 0)
+    providers.activity_input(page, page_round)
+    codes = providers.source_type_codes(page.page_id)
+    assert {rec.chunk_id for _, rec in codes} == {t["part_id"] for t in tasks}
+    assert all(sr.item_id == sf.SOURCE_TYPE and sr.supporting_text for sr, _ in codes)
+
+    resumed = FakeExtractor(world)  # a fresh adapter: the first request rebuilt from T-021, the same params
+    fresh = _providers(run_dir, bound, instrument, resumed, FakeEntail())
+    fresh.set_source_typing(page.page_id, typing)
+    fresh.activity_input(page, page_round)
+    assert (resumed.jobs[0].custom_id, resumed.jobs[0].params) == (first.custom_id, first.params)
+    assert [sr for sr, _ in fresh.source_type_codes(page.page_id)] == [sr for sr, _ in codes]
+
+    plain = _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail())
+    assert plain.source_type_codes(page.page_id) is None  # no residual typing: none
+
+
+def test_residual_source_type_with_no_first_request_is_downgraded_without_a_call_95a(tmp_path):
+    """PI ruling 95 a: a page whose T-021 codes need no pass-1 request gets no request for the source_type
+    quote: each answer is checked with no quote (``downgraded_no_quote``) and no extractor or X35 call is
+    made for it."""
+    from g3o.classify.jev_page_code import to_pass1_page
+    from g3o.common import source_fields as sf
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, _, _, _ = _flipped_round(run_dir, bound, page, flipped=False)
+    typing = sf.code_source_type(page, _type_ask(), bound.page_config, layout=result.chunks)
+    extract, entail = FakeExtractor(world), FakeEntail()
+    adapter = _providers(run_dir, bound, instrument, extract, entail).adapter
+    adapter.set_source_typing(page.page_id, typing)
+    bare = replace(to_pass1_page(result, page), codes=(), verdict="no_genai", page_complete=None)
+    assert adapter._with_source_type(bare) is bare  # no first request to join
+    plan, ext, request = adapter._pass1(bare)
+    assert ext is None and request is None and extract.jobs == []
+    adapter._type_support(page.page_id, bare, plan, ext)
+    codes = adapter.source_type_codes(page.page_id)
+    assert codes and all(sr.support_status == support_check.NO_QUOTE for sr, _ in codes)
+    assert extract.jobs == [] and entail.calls == []
+
+
+def test_residual_typing_is_refused_after_the_first_request_was_built(tmp_path):
+    """The residual answers must be set before the page's first pass-1 request is built (wiring)."""
+    from g3o.common import source_fields as sf
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, _, records, _ = _flipped_round(run_dir, bound, page, flipped=False)
+    providers = _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail())
+    providers.page_support(page, result, records)
+    typing = sf.code_source_type(page, _type_ask(), bound.page_config, layout=result.chunks)
+    with pytest.raises(TypeError):
+        providers.set_source_typing(page.page_id, typing)
+    with pytest.raises(TypeError):
+        providers.set_source_typing(page.page_id, sf.auto_source_type(sf.AUTO_OFFICIAL))
+
+
 def test_downgrade_is_refused_for_a_verdict_other_than_confirms_activity(tmp_path):
     """Only a combined confirms_activity verdict is downgraded; anything else is a wiring error."""
     run_dir, bound, instrument, world, page = _flip_world(tmp_path)
