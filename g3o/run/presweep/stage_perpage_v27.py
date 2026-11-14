@@ -360,7 +360,7 @@ class Pass2RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as Ex
     def __init__(self, page_id: str, custom_id: str, key: str) -> None:
         super().__init__(f"page {page_id}: the rebuilt pass-2 page request {custom_id!r} (journal key {key}) has "
                          "no recorded response in the request journal; no live call made on a resume (PI ruling "
-                         "98 b)")
+                         f"98 b); naming this key in {PI_RELEASE_FILE} authorises one live re-ask (PI ruling 104 b)")
         self.page_id, self.custom_id, self.key = page_id, custom_id, key
 
 
@@ -1685,8 +1685,34 @@ def parse_pi_release(raw: bytes) -> dict[str, Any]:
     return {"keys": keys, "all": has_all, "released_by": by, "date": when}
 
 
+#: PI ruling 104 b: the hold stages whose ``request_key`` a ``pi_release.json`` key may name for one live
+#: re-ask. PI ruling 103 b: a 97 b page-data hold (:data:`ROW_VALUE_REFUSED`) is never releasable this way.
+REASK_RELEASABLE = frozenset({PASS2_NOT_JOURNALED})
+
+
+def _reaskable_keys(inst_dir: Path) -> frozenset[str]:
+    """The request keys the last run's ``held.json`` holds under :data:`REASK_RELEASABLE` (PI ruling 104 b).
+
+    An absent or unreadable ``held.json`` gives none, so a release naming such a key is refused."""
+    try:
+        doc = json.loads((inst_dir / WORK_DIR / HELD_FILE).read_bytes().decode("utf-8"))
+        holds = doc.get("held", []) if isinstance(doc, dict) else []
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return frozenset()
+    return frozenset(h["request_key"] for h in holds if isinstance(h, dict) and h.get("stage") in REASK_RELEASABLE
+                     and isinstance(h.get("request_key"), str))
+
+
 def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any] | None:
     """Consume ``<inst>/pi_release.json`` if present (ruling 34 b / 41 a); a hold dict when it cannot be.
+
+    PI ruling 104 b: a key the release names may also be the ``request_key`` of a 98 b hold
+    (:data:`REASK_RELEASABLE`) in the last run's ``held.json``; it is recorded in the release's
+    ``reask_keys`` and authorises ONE live re-ask of that request
+    (:meth:`~g3o.run.presweep.stage_validate_v27.RequestJournal.reask_authorised`), used up once that call
+    is journaled; a second re-ask needs a new release file. ``all`` authorises no re-ask. A key that is
+    neither rejected nor so held is refused (:data:`PI_RELEASE_MALFORMED`); PI ruling 103 b: a 97 b
+    page-data hold carries no request key and stays unreleasable.
 
     The file's bytes are read once; the same bytes are parsed and hashed. A valid
     file is recorded in the per-page journal (:meth:`RequestJournal.record_release`,
@@ -1713,14 +1739,17 @@ def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any]
         return _release_hold(PI_RELEASE_MALFORMED, path, f"refused (ruling 34 b / 41 a release format): {exc}")
     sha = hashlib.sha256(raw).hexdigest()
     if not journal.release_applied(sha):
-        unrejected = [k for k in release["keys"] or () if journal.rejections(k) == 0]
+        reaskable = _reaskable_keys(inst_dir)  # ruling 104 b: request keys held under 98 b
+        unrejected = [k for k in release["keys"] or () if journal.rejections(k) == 0 and k not in reaskable]
         if unrejected:
             return _release_hold(PI_RELEASE_MALFORMED, path,
-                                 f"refused (ruling 34 b / 41 a): key(s) with no extract_rejected entry counted "
-                                 f"in this journal since their last release: {unrejected}; drop these keys "
-                                 f"from {PI_RELEASE_FILE} and run again")
+                                 f"refused (ruling 34 b / 41 a / 104 b): key(s) with no extract_rejected entry "
+                                 f"counted in this journal since their last release and no {PASS2_NOT_JOURNALED} "
+                                 f"hold in {HELD_FILE}: {unrejected}; drop these keys from {PI_RELEASE_FILE} and "
+                                 f"run again")
+        reask = sorted(k for k in release["keys"] or () if k in reaskable)
         try:
-            journal.record_release({**release, "file_sha256": sha})
+            journal.record_release({**release, "file_sha256": sha, "reask_keys": reask})
         except OSError as exc:
             return _release_hold(PI_RELEASE_RECORD_FAILED, path,
                                  f"release not recorded, journal write failed: {type(exc).__name__}: {exc}")
