@@ -277,7 +277,9 @@ CONDITIONAL_ITEMS: Mapping[str, str] = {
     sc.CONTACT_ITEM: ("refused when a final content_contact_named / content_contact_details value is absent or is "
                       "neither yes, no nor a signed missing token"),
     sc.CONTACT_EMAILS_ITEM: f"reads {sc.CONTACT_ITEM} (refused on some pages)",
-    sf.SNIPPET: f"refused at {SUPERSEDED}, and when a quote-step record has no actual response model or request id",
+    sf.SNIPPET: (f"refused when the final page verdict has no T-024 support at its deciding part (verdict_support "
+                 f"is None), at {SUPERSEDED}, and when a quote-step record has no actual response model or "
+                 "request id"),
     sf.DATE: (f"refused when the page has no metadata or URL date and pass 1 sent no request for it (the date was "
               f"never asked), and at {SUPERSEDED}"),
     sf.UPPER_BOUND: f"reads {sf.DATE} (refused on some pages)",
