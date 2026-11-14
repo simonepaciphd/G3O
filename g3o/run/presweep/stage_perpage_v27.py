@@ -1808,9 +1808,8 @@ def parse_pi_release(raw: bytes) -> dict[str, Any]:
 
 
 #: PI ruling 104 b: the hold stages whose ``request_key`` a ``pi_release.json`` key may name for one live
-#: re-ask (the pass-1 and activity-only holds are 98 b holds too, PI ruling 105 b).
-#: PI ruling 103 b: a 97 b page-data hold (:data:`ROW_VALUE_REFUSED`) is never releasable this way.
-REASK_RELEASABLE = frozenset({PASS2_NOT_JOURNALED, PASS1_NOT_JOURNALED, ACTIVITY_ONLY_NOT_JOURNALED})
+#: re-ask. PI ruling 103 b: a 97 b page-data hold (:data:`ROW_VALUE_REFUSED`) is never releasable this way.
+REASK_RELEASABLE = frozenset({PASS2_NOT_JOURNALED})
 
 
 def _reaskable_keys(inst_dir: Path) -> frozenset[str]:
