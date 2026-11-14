@@ -446,18 +446,69 @@ def test_zero_page_institution_is_not_followed_l5(tmp_path):
 
 
 def test_follow_data_error_holds_the_institution_l5(tmp_path):
-    """Review L5: a follow-leg error that is institution data (here a stored follow state in another
-    format) holds that institution instead of stopping the stage."""
+    """Review L5: a follow-leg error that is institution data (here a fetched page whose URL is not the
+    URL tried) holds that institution instead of stopping the stage."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+
+    def moved(url):
+        return FetchResult(fl.FETCHED, rendered("https://elsewhere.example.org/x", REPORT))
+
+    ready, metrics = _run(run_dir, bound, instrument, providers, inst, WorldLeg(moved, world=world), _jev())
+    assert ready == [] and metrics.held == [INST]
+    held = json.loads((institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).read_text(encoding="utf-8"))
+    (hold,) = held["held"]
+    assert hold["stage"] == pp.FOLLOW_FAILED and "is not the URL tried" in hold["error"]
+
+
+@pytest.mark.parametrize("raw, match", [
+    (json.dumps({"format": "another-format"}).encode("utf-8"), "unsupported follow state format"),
+    (b"{not json", "not UTF-8 JSON"),
+    (b"\xff\xfe", "not UTF-8 JSON"),
+    (json.dumps([1, 2]).encode("utf-8"), "not a JSON object"),
+    (json.dumps({"format": fv.STATE_FORMAT}).encode("utf-8"), "malformed: KeyError"),
+])
+def test_unusable_stored_follow_state_stops_the_stage_m3(tmp_path, raw, match):
+    """Review M3: a stored follow state of another format, undecodable JSON, a missing key: a stage stop."""
     run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
     state = institution_dir(run_dir, INST) / fv.FOLLOW_DIR / fv.STATE_FILE
     state.parent.mkdir(parents=True, exist_ok=True)
-    state.write_text(json.dumps({"format": "another-format"}), encoding="utf-8")
+    state.write_bytes(raw)
     fetch = FakeFetch({REPORT_URL: REPORT})
-    ready, metrics = _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), _jev())
-    assert ready == [] and metrics.held == [INST] and fetch.calls == []
-    held = json.loads((institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).read_text(encoding="utf-8"))
-    (hold,) = held["held"]
-    assert hold["stage"] == pp.FOLLOW_FAILED and "unsupported follow state format" in hold["error"]
+    with pytest.raises(pp.FollowWiringError, match=match):
+        _run(run_dir, bound, instrument, providers, inst, WorldLeg(fetch, world=world), _jev())
+    assert fetch.calls == []
+
+
+def test_load_state_mismatch_and_bad_count_are_wiring_errors_m3(tmp_path):
+    run_dir, inst = _one(tmp_path)
+    page = inst.pages[0].page
+    fv.FollowLeg(FakeFetch({F1: "x"})).start(run_dir, inst).round(
+        [fv.RoundPage(page, "yes", selection(page, [F1]), ())])
+    doc = json.loads((institution_dir(run_dir, I1) / fv.FOLLOW_DIR / fv.STATE_FILE).read_text(encoding="utf-8"))
+    rules = fl.FollowRules()
+    with pytest.raises(pp.FollowWiringError, match="another institution"):
+        fv.load_state(doc, institution_id=I1, release_id="R-OTHER", rules=rules)
+    with pytest.raises(pp.FollowWiringError, match="disagrees with its records"):
+        fv.load_state({**doc, "followed": 7}, institution_id=I1, release_id=inst.run_id, rules=rules)
+    with pytest.raises(pp.FollowWiringError, match="malformed: TypeError"):
+        fv.load_state({**doc, "records": [{"bogus": 1}]}, institution_id=I1, release_id=inst.run_id, rules=rules)
+    with pytest.raises(pp.FollowWiringError, match="no searched page"):
+        fv.FollowLeg(FakeFetch({})).start(run_dir, replace(inst, pages=[]))
+
+
+def test_follow_state_write_failure_leaves_the_stage_l4(tmp_path, monkeypatch):
+    """Review L4: an OSError writing the follow state is not held as follow_failed (the searched-page
+    path holds an OSError only for a page-state archive, ruling 28 a): it leaves the stage."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+
+    def broken(path, text):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(fv, "_atomic_write", broken)
+    with pytest.raises(OSError, match="disk full"):
+        _run(run_dir, bound, instrument, providers, inst, WorldLeg(FakeFetch({REPORT_URL: REPORT}), world=world),
+             _jev())
+    assert not (institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).exists()
 
 
 def test_follow_wiring_error_stops_the_stage_l5(tmp_path):

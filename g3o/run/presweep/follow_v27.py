@@ -70,6 +70,7 @@ from g3o.common.artifact_io import artifact_exists, read_artifact, write_artifac
 from g3o.common.paths import institution_dir
 from g3o.common.syndication import group_pages
 from g3o.extract.batch import url_hash
+from g3o.persist.stage6_adapters import replace_with_retry
 from g3o.run.presweep import perpage_inputs_v27 as pin
 from g3o.run.presweep import stage_perpage_v27 as pp
 from g3o.run.presweep.stage_follow import ROBOTS_DISALLOWED, FetchResult
@@ -116,10 +117,14 @@ class RoundPage:
 
 
 def _atomic_write(path: Path, text: str) -> None:
+    """The follow state write: a sibling temp file, then ``os.replace`` retried on a transient
+    ``PermissionError`` like the per-page checkpoints (:func:`g3o.persist.stage6_adapters.replace_with_retry`).
+    An ``OSError`` that survives is not caught here: as for a searched page's checkpoint write, it leaves
+    the stage, and the next run resumes from the state written so far (review L4)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f"{path.name}.tmp.{os.getpid()}")
     tmp.write_bytes(text.encode("utf-8"))
-    os.replace(tmp, path)
+    replace_with_retry(tmp, path)
 
 
 def state_payload(state: fl.InstitutionFollow) -> dict[str, Any]:
@@ -140,24 +145,38 @@ def state_payload(state: fl.InstitutionFollow) -> dict[str, Any]:
     }
 
 
-def load_state(doc: Mapping[str, Any], *, institution_id: str, release_id: str,
+def load_state(doc: Any, *, institution_id: str, release_id: str,
                rules: fl.FollowRules) -> fl.InstitutionFollow:
-    """Rebuild a persisted follow state; refuses one written for another institution, release or rules."""
+    """Rebuild a persisted follow state.
+
+    Review M3: every defect of the stored state stops the stage
+    (:class:`~g3o.run.presweep.stage_perpage_v27.FollowWiringError`), consistently: not a JSON object, an
+    unsupported format, a state written for another institution, release, back-fill flag or follow
+    rules, a missing key, a field of the wrong shape, and a follow count that disagrees with its records.
+    """
+    if not isinstance(doc, Mapping):
+        raise pp.FollowWiringError(f"{institution_id}: the stored follow state is not a JSON object")
     if doc.get("format") != STATE_FORMAT:
-        raise ValueError(f"unsupported follow state format {doc.get('format')!r}")
+        raise pp.FollowWiringError(f"unsupported follow state format {doc.get('format')!r}")
     want = {"url_cap": rules.url_cap, "max_hops": rules.max_hops, "count_unfetched": rules.count_unfetched}
-    if (doc["institution_id"], doc["release_id"], doc["rules"], doc["backfill"]) != \
-            (institution_id, release_id, want, False):
-        raise ValueError(f"{institution_id}: the stored follow state was written for another institution, "
-                         "release, back-fill flag or follow rules")
-    state = fl.InstitutionFollow(institution_id, release_id, rules=rules)
-    state.hops = {str(k): int(v) for k, v in doc["hops"].items()}
-    state.records = [fl.FollowRecord(**r) for r in doc["records"]]
-    state.not_followed = [fl.NotFollowed(**n) for n in doc["not_followed"]]
-    state.followed = int(doc["followed"])
-    state.cap_reached = bool(doc["cap_reached"])
+    try:
+        stored = (doc["institution_id"], doc["release_id"], doc["rules"], doc["backfill"])
+        if stored != (institution_id, release_id, want, False):
+            raise pp.FollowWiringError(f"{institution_id}: the stored follow state was written for another "
+                                       "institution, release, back-fill flag or follow rules")
+        state = fl.InstitutionFollow(institution_id, release_id, rules=rules)
+        state.hops = {str(k): int(v) for k, v in doc["hops"].items()}
+        state.records = [fl.FollowRecord(**r) for r in doc["records"]]
+        state.not_followed = [fl.NotFollowed(**n) for n in doc["not_followed"]]
+        state.followed = int(doc["followed"])
+        state.cap_reached = bool(doc["cap_reached"])
+    except pp.FollowWiringError:
+        raise
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        raise pp.FollowWiringError(f"{institution_id}: the stored follow state is malformed: "
+                                   f"{type(exc).__name__}: {exc}") from exc
     if state.followed != sum(r.counted for r in state.records):
-        raise ValueError(f"{institution_id}: the stored follow count disagrees with its records")
+        raise pp.FollowWiringError(f"{institution_id}: the stored follow count disagrees with its records")
     return state
 
 
@@ -312,12 +331,16 @@ class FollowLeg:
 
     def start(self, run_dir: Path, inst: pp.PerPageInstitution) -> InstitutionLeg:
         """The institution's leg: its stored state (resume) or a new one, searched pages registered (hop 0)."""
-        if not inst.pages:
-            raise ValueError(f"{inst.institution_id}: no searched page to follow from")
+        if not inst.pages:  # the per-page stage never starts a leg without pages (review L5): a caller's gap
+            raise pp.FollowWiringError(f"{inst.institution_id}: no searched page to follow from")
         path = institution_dir(run_dir, inst.institution_id) / FOLLOW_DIR / STATE_FILE
         if path.exists():
-            state = load_state(json.loads(path.read_bytes().decode("utf-8")), institution_id=inst.institution_id,
-                               release_id=inst.run_id, rules=self.rules)
+            try:
+                doc = json.loads(path.read_bytes().decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:  # review M3: a stage stop
+                raise pp.FollowWiringError(f"{inst.institution_id}: the stored follow state is not UTF-8 "
+                                           f"JSON: {exc}") from exc
+            state = load_state(doc, institution_id=inst.institution_id, release_id=inst.run_id, rules=self.rules)
         else:
             state = fl.InstitutionFollow(inst.institution_id, inst.run_id, rules=self.rules)
         for spec in inst.pages:

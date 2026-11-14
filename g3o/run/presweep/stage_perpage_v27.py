@@ -281,13 +281,16 @@ PI_RELEASE_ARCHIVE_FAILED = "pi_release_archive_failed"
 PI_RELEASE_RECORD_FAILED = "pi_release_record_failed"
 _PI_RELEASE_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 _PI_RELEASE_FIELDS = frozenset({"released_by", "date", "keys", "all", "note"})
+
+
 class FollowWiringError(ValueError):
     """A T-025 follow-leg error that is a wiring gap, not institution data (review L5): the fetch seam
     broke its contract (unknown outcome; a page without ``fetched`` or ``fetched`` without a page), the
-    leg was handed a page of another institution or a page already followed, a round mixed hops, or a
-    followed page id was already coded. It stops the stage (:data:`STAGE_STOPS`); any other error of
-    the follow leg (e.g. a stored follow state written for another release or rules, a fetched page
-    whose URL is not the URL tried) holds its institution (:data:`FOLLOW_FAILED`)."""
+    leg was handed no page, a page of another institution or a page already followed, a round mixed
+    hops, a followed page id was already coded, or the stored follow state is unusable (review M3: not
+    UTF-8 JSON, another format, release, back-fill flag or rules, a missing key or a malformed field).
+    It stops the stage (:data:`STAGE_STOPS`); any other ``ValueError`` of the follow leg (e.g. a fetched
+    page whose URL is not the URL tried) holds its institution (:data:`FOLLOW_FAILED`)."""
 
 
 #: Review L5: an error of the T-025 follow leg that is institution data, not wiring: per-institution hold.
@@ -1273,7 +1276,10 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                                             metrics=metrics, cost_check_callback=cost_check_callback)
                 except STAGE_STOPS:
                     raise
-                except (ValueError, OSError) as exc:  # institution data: this institution is held
+                except ValueError as exc:  # institution data: this institution is held
+                    # Review L4: no OSError here. As on the searched-page path, an OSError holds only
+                    # where ruling 28 a says so (a page-state archive that survived the write retries,
+                    # held inside _code_states / _finish_failed_archives); any other leaves the stage.
                     broken = {"page_id": inst.institution_id, "stage": FOLLOW_FAILED,
                               "error": f"{type(exc).__name__}: {exc}"}
         finally:
