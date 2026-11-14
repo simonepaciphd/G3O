@@ -64,7 +64,7 @@ import os
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args, get_type_hints
 
 from g3o.classify.jev_page_code import PageInput
 from g3o.common import attrition
@@ -174,15 +174,26 @@ def load_state(doc: Any, *, institution_id: str, release_id: str,
     want = {"url_cap": rules.url_cap, "max_hops": rules.max_hops, "count_unfetched": rules.count_unfetched}
     try:
         stored = (doc["institution_id"], doc["release_id"], doc["rules"], doc["backfill"])
-        if stored != (institution_id, release_id, want, False):
+        # Review L-1: equality alone lets 0 stand for False and 10.0 for 10; the types must match too.
+        same_types = (type(stored[0]) is str and type(stored[1]) is str and type(stored[3]) is bool
+                      and type(stored[2]) is dict and set(stored[2]) == set(want)
+                      and all(type(stored[2][k]) is type(v) for k, v in want.items()))
+        if not same_types or stored != (institution_id, release_id, want, False):
             raise pp.FollowWiringError(f"{institution_id}: the stored follow state was written for another "
                                        "institution, release, back-fill flag or follow rules")
         state = fl.InstitutionFollow(institution_id, release_id, rules=rules)
-        state.hops = {str(k): int(v) for k, v in doc["hops"].items()}
-        state.records = [fl.FollowRecord(**r) for r in doc["records"]]
-        state.not_followed = [fl.NotFollowed(**n) for n in doc["not_followed"]]
-        state.followed = int(doc["followed"])
-        state.cap_reached = bool(doc["cap_reached"])
+        # Review L-1: values are checked, never converted (bool("false") is True; int("3") passes).
+        hops = _typed(doc["hops"], dict, "hops", institution_id)
+        for k, v in hops.items():
+            _typed(k, str, "hops key", institution_id)
+            _typed(v, int, f"hops[{k!r}]", institution_id)
+        state.hops = dict(hops)
+        state.records = [_typed_record(fl.FollowRecord, r, "records", institution_id)
+                         for r in _typed(doc["records"], list, "records", institution_id)]
+        state.not_followed = [_typed_record(fl.NotFollowed, n, "not_followed", institution_id)
+                              for n in _typed(doc["not_followed"], list, "not_followed", institution_id)]
+        state.followed = _typed(doc["followed"], int, "followed", institution_id)
+        state.cap_reached = _typed(doc["cap_reached"], bool, "cap_reached", institution_id)
     except pp.FollowWiringError:
         raise
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
@@ -191,6 +202,31 @@ def load_state(doc: Any, *, institution_id: str, release_id: str,
     if state.followed != sum(r.counted for r in state.records):
         raise pp.FollowWiringError(f"{institution_id}: the stored follow count disagrees with its records")
     return state
+
+
+def _typed(value: Any, kind: Any, name: str, institution_id: str) -> Any:
+    """``value`` when its type is exactly one of ``kind`` (a type, ``None`` or a tuple of them); else
+    :class:`~g3o.run.presweep.stage_perpage_v27.FollowWiringError`. Exact types: a bool is not an int."""
+    kinds = kind if isinstance(kind, tuple) else (kind,)
+    if not any(value is None if k is None else type(value) is k for k in kinds):
+        raise pp.FollowWiringError(f"{institution_id}: the stored follow state is malformed: {name} is "
+                                   f"{type(value).__name__} {value!r}, not "
+                                   + " or ".join("null" if k is None else k.__name__ for k in kinds))
+    return value
+
+
+def _typed_record(cls: Any, raw: Any, name: str, institution_id: str) -> Any:
+    """A stored ``cls`` record (:class:`g3o.scrape.follow.FollowRecord` / ``NotFollowed``) with its
+    keys and the type of every field checked (review L-1); a mismatch is a FollowWiringError."""
+    raw = _typed(raw, dict, name, institution_id)
+    hints = get_type_hints(cls)
+    if set(raw) != set(hints):
+        raise pp.FollowWiringError(f"{institution_id}: the stored follow state is malformed: a {name} entry "
+                                   f"has keys {sorted(raw)}, not {sorted(hints)}")
+    for key, hint in hints.items():
+        kinds = tuple(None if a is type(None) else a for a in (get_args(hint) or (hint,)))
+        _typed(raw[key], kinds, f"{name}.{key}", institution_id)
+    return cls(**raw)
 
 
 @dataclass
