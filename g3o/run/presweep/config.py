@@ -83,7 +83,7 @@ def refuse_v27_budget_settings(config: Any) -> None:
     """Refuse v2.7-stage budget figures on a v2.7 config (PI ruling 1 a, 2026-11-11).
 
     The cost monitor prices the jev and extractor parts of a v2.7 stage
-    (:func:`g3o.common.cost_monitor.price_v27_usage`; rulings 57 a, 58 a); the X35
+    (:func:`g3o.common.cost_monitor.price_v27_usage`; rulings 130 a, 58 a); the X35
     part stays unpriced until the X35 binding is decided (ruling 59 b,
     :data:`g3o.common.cost_monitor.V27_UNPRICED_PARTS`), so no v2.7 stage has a
     complete price, and v2.7 stages stay outside the budget (ruling 60 a): none can

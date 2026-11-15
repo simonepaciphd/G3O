@@ -483,7 +483,7 @@ def _v27_cost_block(run_dir: Path, summary: dict[str, Any], jev_model: str,
     """The cost report's :data:`V27_COST_KEY` block.
 
     Each stage is priced from its journals on disk (every journaled call of the run,
-    earlier sessions included; the extractor per request, rulings 57 a / 58 a). A stage
+    earlier sessions included; the extractor per request, rulings 130 a / 58 a). A stage
     that never journaled a call is absent.
 
     ``returned_this_session`` is True when the stage returned its usage to this
