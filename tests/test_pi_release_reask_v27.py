@@ -278,6 +278,7 @@ def test_second_reask_is_refused_after_the_one_release_is_used(tmp_path):
         assert _calls(again, cid) == [] and ready == [] and metrics.held == [INST]
         (held,) = _held(run_dir, INST)["held"]
         assert (held["stage"], held["request_key"]) == (pp.PASS2_NOT_JOURNALED, key)
+        assert "114 b" in held["error"]  # review L-2: the 98 b guard's hold carries the spent note
         _write_release(run_dir, doc)  # the same bytes: recorded already, so only archived next run
     assert [e["kind"] for e in _entries(run_dir)].count(rt.PI_RELEASED) == 1
     # a NEW release (other bytes) is a new PI decision: one more re-ask
@@ -317,6 +318,11 @@ KEY = "d" * 64
     # even if such an entry carried a request key, its stage is not releasable
     [{"page_id": "p1", "stage": pp.ROW_VALUE_REFUSED, "request_key": KEY, "items": [], "error": "x"}],
     [{"page_id": "p1", "stage": pp.PASS2_NOT_JOURNALED, "request_key": "e" * 64, "custom_id": "c", "error": "x"}],
+    # PI ruling 120 c: a residual-part hold releases only the jev key it names (none here, or another one)
+    [{"page_id": "p1", "stage": pp.RESIDUAL_PART_FAILED, "items": ["core.source_type"], "part_id": "p1#1",
+      "cause": "jev_answer_missing", "request_key": None, "error": "x"}],
+    [{"page_id": "p1", "stage": pp.RESIDUAL_PART_FAILED, "items": ["core.source_type"], "part_id": "p1#1",
+      "cause": "jev_answer_missing", "request_key": "e" * 64, "error": "x"}],
 ])
 def test_unknown_or_unreleasable_key_is_refused_loudly(tmp_path, held):
     inst_dir, journal, hold, sha = _apply(tmp_path, held, _release_doc([KEY]))
@@ -338,9 +344,10 @@ def test_98b_hold_key_is_accepted_and_all_authorises_no_reask(tmp_path):
 
 
 def test_page_data_hold_stays_outside_the_releasable_stages_103b():
-    # PI ruling 113 b: the 105 b pass-1 and activity-only holds are releasable for one re-ask too
+    # PI ruling 113 b: the 105 b pass-1 and activity-only holds are releasable for one re-ask too; PI ruling
+    # 120 c: so is the 110 b residual-part hold (its jev request key)
     assert pp.REASK_RELEASABLE == frozenset({pp.PASS2_NOT_JOURNALED, pp.PASS1_NOT_JOURNALED,
-                                             pp.ACTIVITY_ONLY_NOT_JOURNALED})
+                                             pp.ACTIVITY_ONLY_NOT_JOURNALED, pp.RESIDUAL_PART_FAILED})
     assert pp.ROW_VALUE_REFUSED not in pp.REASK_RELEASABLE
 
 
@@ -856,7 +863,9 @@ def test_activity_only_reask_that_fails_holds_the_next_run_with_no_live_call_h1(
         assert again.jobs == []  # no second live call
         return held.value
 
-    assert not held_again().spent  # the provider-level 105 b check, on the fresh record (fix b)
+    # the provider-level 105 b check, on the fresh record (fix b); review L-2: its hold carries the spent note too
+    guard = held_again()
+    assert guard.spent and "114 b" in str(guard) and "an \"all\" release authorises none" in str(guard)  # L-4
     assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
     aside = tmp_path / "pass1_requests.aside"
     (pdir / pp.PASS1_FILE).replace(aside)  # no record, as before review H-1: the journal refuses it (fix a)
@@ -926,7 +935,7 @@ def test_no_codes_page_reask_that_fails_holds_the_next_run_with_no_live_call_h1(
         assert again.jobs == []  # no second live call
         return held.value
 
-    assert not held_again().spent
+    assert held_again().spent  # review L-2: the 105 b guard's hold carries the spent note (fix b)
     assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
     aside = tmp_path / "pass1_requests.aside"
     (pdir / pp.PASS1_FILE).replace(aside)  # no record and no codes: before review H-1 this was sent live
@@ -1023,3 +1032,343 @@ def test_record_after_a_finished_broken_archive_keeps_the_other_field_l3(tmp_pat
                       level_of_government=None, url="https://example.gov/z2", title=None, text="z")
     pp.record_pass1_reask(run_dir, other, None, pp.ACTIVITY_ONLY_NOT_JOURNALED, "c-only2")
     assert pp.read_pass1_requests(run_dir, other)["page_request"] is None
+
+
+# ---------------------------------------------------------------------------
+# PI ruling 122 b: a release dropped straight after a failed re-ask is accepted (review M-1 of h1fix)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("outcome", OUTCOMES)
+def test_release_straight_after_a_failed_reask_authorises_one_more_122b(tmp_path, outcome):
+    """PI ruling 122 b at the stage. The released pass-1 re-ask dies while sending, times out, comes back
+    ``extract_failed`` or is rejected. A crash or timeout leaves the earlier 105 b hold in held.json; a failed or
+    rejected response leaves an ``extract_response_failed`` hold (before 122 b: a new release naming the key was
+    refused as malformed and stayed in place for ever, or, after a rejection, consumed with ``reask_keys`` []).
+    A NEW release naming the key, dropped straight away, is accepted as a re-ask (the journal reports the key as
+    a spent re-ask with no answer): the next run makes exactly one live call of the request, and a further run
+    with no new file makes none (the answer is replayed)."""
+    run_dir, world, run, hold, _ = _held_105b(tmp_path)
+    key, cid = hold["request_key"], hold["custom_id"]
+    _write_release(run_dir, _release_doc([key]))
+    bad = FailOn(world, cid, outcome)
+    if outcome in ("crash", "timeout"):
+        with pytest.raises((Crash, TimeoutError)):
+            run(bad)
+        (held,) = _held(run_dir, INST)["held"]  # the run died: held.json is the earlier 105 b hold
+        assert (held["stage"], held["request_key"]) == (pp.PASS1_NOT_JOURNALED, key)
+    else:
+        ready, metrics = run(bad)
+        assert ready == [] and metrics.held == [INST]
+        (held,) = _held(run_dir, INST)["held"]
+        assert held["stage"] == pp.EXTRACT_RESPONSE_FAILED and held["stage"] not in pp.REASK_RELEASABLE
+        # review L-1: not "asked again on the next run": the hold names the key and says a new release is needed
+        assert held["request_key"] == key and "122 b" in held["error"] and "with other bytes" in held["error"]
+    assert [j.custom_id for j in bad.jobs] == [cid]  # the one live re-ask, failed
+    journal_path = institution_dir(run_dir, INST) / pp.WORK_DIR / pp.JOURNAL
+    assert rt.RequestJournal(journal_path, {}).reask_spent_unanswered(key)
+
+    release = _write_release(run_dir, _release_doc([key], date="2026-11-15"))  # a new PI decision
+    ex = FakeExtractor(world)
+    run(ex)
+    assert not release.exists()  # consumed (archived), never left in place as malformed
+    assert [e["response"]["reask_keys"] for e in _entries(run_dir) if e["kind"] == rt.PI_RELEASED] == [[key], [key]]
+    assert len([j for j in ex.jobs if j.metadata["stage"] == PASS1 and j.custom_id == cid]) == 1
+    assert all(h.get("stage") != pp.PI_RELEASE_MALFORMED
+               for h in (_held(run_dir, INST)["held"] if (journal_path.parent / pp.HELD_FILE).exists() else []))
+
+    further = FakeExtractor(world)  # no new file: the re-asked answer is replayed, no live call
+    run(further)
+    assert [j for j in further.jobs if j.metadata["stage"] == PASS1 and j.custom_id == cid] == []
+    assert not rt.RequestJournal(journal_path, {}).reask_spent_unanswered(key)
+
+
+@pytest.mark.parametrize("outcome", OUTCOMES)
+def test_spent_unanswered_key_is_reaskable_with_no_releasable_hold_122b(tmp_path, outcome):
+    """PI ruling 122 b, ``_apply_pi_release`` alone: a key the journal reports as a spent re-ask with no answer is
+    accepted into ``reask_keys`` even when held.json names no releasable hold (here an ``extract_response_failed``
+    hold with no request key); a key never released and spent is still refused; the same bytes again are only
+    archived (ruling 47.2 a) and authorise nothing."""
+    job = ExtractorJob("cid-122b", {"model": "m", "messages": [{"p": 9}]}, {})
+    request = {"custom_id": job.custom_id, "params": job.params}
+    inst_dir = tmp_path / "inst"
+    (inst_dir / pp.WORK_DIR).mkdir(parents=True)
+    path = inst_dir / pp.WORK_DIR / pp.JOURNAL
+    ok = ExtractorResult("cid-122b", True, "{}", None, "fake-extractor-response", "msg-1", "x-1", "end_turn",
+                         dict(USAGE))
+    journal = rt.RequestJournal(path, {"s": 1})
+    wrap, _ = journal.seams(PROMPT)
+
+    def call(j):
+        if outcome == "crash":
+            raise Crash("killed")
+        if outcome == "timeout":
+            raise TimeoutError("read timed out")
+        return ExtractorResult(j.custom_id, False, None, {"type": "errored"}, usage=dict(USAGE)) \
+            if outcome == "extract_failed" else ok
+    fn = wrap(call)
+    key = fn.peek(job)[0]
+    journal.record_release({**_release_doc([key]), "all": False, "file_sha256": "e" * 64, "reask_keys": [key]})
+    if outcome in ("crash", "timeout"):
+        with pytest.raises((Crash, TimeoutError)):
+            fn(job)
+    else:
+        fn(job)
+    if outcome == "rejected":
+        assert journal.reject_extract(request, PROMPT, "ExtractContractError: bad")
+    (inst_dir / pp.WORK_DIR / pp.HELD_FILE).write_text(json.dumps({"institution_id": INST, "held": [
+        {"page_id": "p1", "stage": pp.EXTRACT_RESPONSE_FAILED, "pass": "pass1", "custom_id": job.custom_id,
+         "error": "x"}]}), encoding="utf-8")
+    reloaded = rt.RequestJournal(path, {"s": 1})
+    raw = json.dumps(_release_doc([key], date="2026-11-15")).encode("utf-8")
+    (inst_dir / pp.PI_RELEASE_FILE).write_bytes(raw)
+    assert pp._apply_pi_release(inst_dir, reloaded) is None and reloaded.reask_authorised(key)
+    assert not (inst_dir / pp.PI_RELEASE_FILE).exists()
+    (entry,) = [e for e in (json.loads(x) for x in path.read_text(encoding="utf-8").splitlines())
+                if e["kind"] == rt.PI_RELEASED and e["key"] == hashlib.sha256(raw).hexdigest()]
+    assert entry["response"]["reask_keys"] == [key]
+    w, _ = reloaded.seams(PROMPT)
+    calls = []
+    once = w(lambda j: calls.append(j.custom_id) or ok)
+    once(job)  # exactly one live call
+    assert calls == ["cid-122b"]
+    # the same bytes again: only archived, nothing authorised; the answer replays, no call
+    (inst_dir / pp.PI_RELEASE_FILE).write_bytes(raw)
+    later = rt.RequestJournal(path, {"s": 1})
+    assert pp._apply_pi_release(inst_dir, later) is None and not later.reask_authorised(key)
+    w2, _ = later.seams(PROMPT)
+    assert w2(lambda _: pytest.fail("replayed, never called"))(job).success
+    # a key never released and spent is still refused
+    other = "c" * 64
+    (inst_dir / pp.PI_RELEASE_FILE).write_bytes(json.dumps(_release_doc([other], date="2026-11-16")).encode("utf-8"))
+    hold = pp._apply_pi_release(inst_dir, rt.RequestJournal(path, {"s": 1}))
+    assert hold["stage"] == pp.PI_RELEASE_MALFORMED and other in hold["error"]
+
+
+# ---------------------------------------------------------------------------
+# PI ruling 120 c: a residual source_type deciding part with a request id but no answer is releasable
+# ---------------------------------------------------------------------------
+
+
+JEV_STATE = {"page_part": "1 of 2", "page_text": "residual part"}
+JEV_QUESTIONS = {"q-st": {"instructions": "i", "criteria": {"a": "A"}}}
+
+
+def _jev_result(answers, request_id):
+    from g3o.common.jev_client import JevAnswer, JevResult
+
+    return JevResult({q: JevAnswer(q, "choice", choice=v, confidence=0.9, probabilities={v: 0.9})
+                      for q, v in answers.items()}, "fake-jev-response", request_id, 10, 2)
+
+
+def _missing_then_key(path, calls):
+    """A first run: the jev response has a request id but no answer; journaled ``jev`` (the per-page journal
+    keeps such a response). Returns its request key."""
+    journal = rt.RequestJournal(path, {"s": 1})
+    ask = journal.ask(lambda s, q: calls.append("missing") or _jev_result({}, "j-missing"))
+    assert ask(JEV_STATE, JEV_QUESTIONS).answers == {}
+    return ask.request_key(JEV_STATE, JEV_QUESTIONS)
+
+
+def test_released_jev_key_is_asked_live_once_instead_of_replayed_120c(tmp_path):
+    """PI ruling 120 c, the journal: the answer-missing response is replayed on every run (no live call); a
+    release naming its key makes exactly one live call instead of the replay, after a ``reask_spent`` marker for
+    that slot; the new response is journaled in the same slot and replayed afterwards (no further call), and
+    both billed responses stay counted."""
+    path, calls = tmp_path / "journal.jsonl", []
+    key = _missing_then_key(path, calls)
+    again = rt.RequestJournal(path, {"s": 1})
+    assert again.ask(lambda s, q: pytest.fail("replayed"))(JEV_STATE, JEV_QUESTIONS).answers == {}
+    assert not again.reask_authorised(key)
+    assert not rt.RequestJournal(path, {"s": 1}).reask_spent_unanswered(key)  # never released: not spent
+
+    released = rt.RequestJournal(path, {"s": 1})
+    released.record_release({**_release_doc([key]), "all": False, "file_sha256": "e" * 64, "reask_keys": [key]})
+    ask = released.ask(lambda s, q: calls.append("answered") or _jev_result({"q-st": "a"}, "j-answered"))
+    assert ask(JEV_STATE, JEV_QUESTIONS).answers["q-st"].choice == "a"
+    assert calls == ["missing", "answered"] and not released.reask_authorised(key)
+    entries = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
+    assert [(e["kind"], e["key"], e["n"]) for e in entries if e["kind"] != rt.PI_RELEASED] == [
+        ("jev", key, 0), (rt.REASK_SPENT, key, 0), ("jev", key, 0)]
+
+    later = rt.RequestJournal(path, {"s": 1})
+    replay = later.ask(lambda s, q: pytest.fail("replayed, never called"))
+    assert replay(JEV_STATE, JEV_QUESTIONS).request_id == "j-answered" and later.replayed == 1
+    assert later.usage()["jev_responses"] == 2 and later.usage()["input_tokens"] == 20  # both billed
+
+
+@pytest.mark.parametrize("outcome", ["raised", "unidentified"])
+def test_spent_jev_reask_with_no_answer_is_refused_until_a_new_release_120c(tmp_path, outcome):
+    """PI rulings 120 c / 114 b: the released jev re-ask raises (a timeout) or comes back with no request id. The
+    marker used it up and displaced the old response, so neither is replayed: the journal refuses a live call
+    (``ReaskSpentUnanswered``, kind ``jev``, no call), in this process and on a reload. A new release (other
+    bytes) authorises exactly one more."""
+    path, calls = tmp_path / "journal.jsonl", []
+    key = _missing_then_key(path, calls)
+    journal = rt.RequestJournal(path, {"s": 1})
+    journal.record_release({**_release_doc([key]), "all": False, "file_sha256": "e" * 64, "reask_keys": [key]})
+
+    def failing(state, questions):
+        calls.append("failed")
+        if outcome == "raised":
+            raise TimeoutError("read timed out")
+        return _jev_result({"q-st": "a"}, None)
+    if outcome == "raised":
+        with pytest.raises(TimeoutError):
+            journal.ask(failing)(JEV_STATE, JEV_QUESTIONS)
+    else:
+        assert journal.ask(failing)(JEV_STATE, JEV_QUESTIONS).request_id is None
+    assert calls == ["missing", "failed"]
+    for j in (journal, rt.RequestJournal(path, {"s": 1})):  # this process, and a later load
+        refused = j.ask(lambda s, q: pytest.fail("no unauthorised live re-ask"))
+        with pytest.raises(rt.ReaskSpentUnanswered) as exc:
+            refused(JEV_STATE, JEV_QUESTIONS)
+        assert (exc.value.key, exc.value.kind) == (key, "jev")
+    assert rt.RequestJournal(path, {"s": 1}).reask_spent_unanswered(key)  # 122 b: a new release is accepted
+    later = rt.RequestJournal(path, {"s": 1})
+    later.record_release({**_release_doc([key], date="2026-11-15"), "all": False, "file_sha256": "f" * 64,
+                          "reask_keys": [key]})
+    once = later.ask(lambda s, q: calls.append("more") or _jev_result({"q-st": "a"}, "j-more"))
+    assert once(JEV_STATE, JEV_QUESTIONS).request_id == "j-more" and calls[-1] == "more"
+    with pytest.raises(rt.ReaskSpentUnanswered):
+        once(JEV_STATE, JEV_QUESTIONS)  # the next slot of the same request: never live without a release
+    assert calls.count("more") == 1
+
+
+def _part_one(state):  # the exact part index ("1 of n"), never a prefix ("10 of 12")
+    return state["page_part"].split(" of ")[0] == "1"
+
+
+class MissingAnswer(FakeJev):
+    """Part 1's residual source_type response carries a request id but no answer (``jev_answer_missing``)."""
+
+    def __call__(self, state, questions):
+        from g3o.common import source_fields as sf
+        from g3o.common.jev_client import JevResult
+
+        result = super().__call__(state, questions)
+        if sf.SOURCE_TYPE in questions and _part_one(state):
+            return JevResult({k: v for k, v in result.answers.items() if k != sf.SOURCE_TYPE},
+                             result.response_model, result.request_id, result.input_tokens, result.output_tokens)
+        return result
+
+
+def _residual_world(tmp_path, monkeypatch):
+    """INST-0000001 with only p1, a residual page: the residual question's part 1 answers "vendor" and every later
+    part "not covered", so part 1 decides. ``run(jev)`` runs the stage on a fresh fake extractor."""
+    from g3o.common import source_fields as sf
+    from g3o.common.part_combine import NOT_COVERED
+    from g3o.run.presweep import source_row_v27 as srow
+    from tests.test_e2e_perpage_v27 import assemble_spy
+    from tests.test_perpage_providers_v27 import _elsewhere, _residual_inst
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
+    seen = []
+    monkeypatch.setattr(srow, "assemble", assemble_spy(srow.assemble, lambda page, rows, kw: seen.append((rows, kw))))
+    inst = [_residual_inst(insts)]
+    extractors = []
+
+    def run(jev):
+        extractors.append(FakeExtractor(world))
+        return _run(run_dir, bound, instrument, inst,
+                    _providers(run_dir, bound, instrument, extractors[-1], FakeEntail()), jev)
+    return SimpleNamespace(run_dir=run_dir, run=run, extractors=extractors, seen=seen,
+                           answers={**ANSWERS, sf.SOURCE_TYPE: lambda st: "vendor" if _part_one(st) else NOT_COVERED},
+                           saved=pp.page_state_dir(run_dir, inst[0].pages[0].page) / pp.SOURCE_TYPE_FILE)
+
+
+def _residual_held(w):
+    """Run 1: part 1's response has no answer: held (110 b) before T-022, naming that part's jev request key.
+    Run 2 (no release): the response is replayed from the journal, never asked live: held again, the same key."""
+    from g3o.classify import jev_page_code as jpc
+    from tests.test_perpage_providers_v27 import _source_type_calls
+
+    ready, metrics = w.run(MissingAnswer(w.answers, RELATIONS))
+    assert ready == [] and metrics.held == [INST] and w.extractors[-1].jobs == [] and not w.saved.exists()
+    (hold,) = _held(w.run_dir, INST)["held"]
+    assert (hold["stage"], hold["cause"]) == (pp.RESIDUAL_PART_FAILED, jpc.ANSWER_MISSING)
+    key = hold["request_key"]
+    assert isinstance(key, str) and len(key) == 64 and "120 c" in hold["error"] and key in hold["error"]
+    assert ("jev", key) in [(e["kind"], e["key"]) for e in _entries(w.run_dir)]
+    jev2 = FakeJev(w.answers, RELATIONS)  # would answer if asked live: it is not
+    ready, metrics = w.run(jev2)
+    assert _source_type_calls(jev2) == [] and ready == [] and metrics.held == [INST]
+    (again,) = _held(w.run_dir, INST)["held"]
+    assert (again["stage"], again["request_key"], again["part_id"]) == (pp.RESIDUAL_PART_FAILED, key,
+                                                                         hold["part_id"])
+    return hold
+
+
+def test_released_residual_answer_missing_part_is_asked_live_once_120c(tmp_path, monkeypatch):
+    """PI ruling 120 c through the stage. The deciding part's response has a request id but no answer, so the
+    per-page journal replays it on every run and the 110 b hold would be permanent; the hold names the part's
+    jev request key. A pi_release.json naming it gives exactly one live re-ask of that part (the other parts
+    replayed); it answers, the answers are saved and the row's source_type is produced. A further run without a
+    new file makes no live residual call."""
+    from g3o.common import source_fields as sf
+    from tests.test_perpage_providers_v27 import _source_type_calls
+
+    w = _residual_world(tmp_path, monkeypatch)
+    hold = _residual_held(w)
+    key = hold["request_key"]
+    release = _write_release(w.run_dir, _release_doc([key]))
+    jev3 = FakeJev(w.answers, RELATIONS)
+    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler") as exc:
+        w.run(jev3)  # the stage reaches the assembler, which still refuses unproduced items (as in 110 b)
+    asked = _source_type_calls(jev3)
+    assert len(asked) == 1 and _part_one({"page_part": asked[0]})  # the one live re-ask
+    assert not release.exists() and w.saved.exists() and sf.SOURCE_TYPE not in exc.value.missing
+    (entry,) = [e for e in _entries(w.run_dir) if e["kind"] == rt.PI_RELEASED]
+    assert entry["response"]["reask_keys"] == [key]
+    assert (rt.REASK_SPENT, key) in [(e["kind"], e["key"]) for e in _entries(w.run_dir)]
+    rows, kw = w.seen[-1]
+    typing = kw["source_typing"]
+    assert typing.outcome.part_id == hold["part_id"] and typing.field.value == "vendor"
+    assert sf.SOURCE_TYPE in rows.source and sf.SOURCE_TYPE not in rows.refused
+
+    jev4 = FakeJev(w.answers, RELATIONS)  # no new file: no live residual call
+    with pytest.raises(pp.MissingUpstreamError):
+        w.run(jev4)
+    assert _source_type_calls(jev4) == []
+    journal = institution_dir(w.run_dir, INST) / pp.WORK_DIR / pp.JOURNAL
+    assert not rt.RequestJournal(journal, {}).reask_authorised(key)
+
+
+def test_spent_residual_reask_that_fails_is_refused_until_a_new_release_120c(tmp_path, monkeypatch):
+    """PI rulings 120 c / 114 b through the stage. The released re-ask of the deciding part raises: held again
+    (naming the key, with the spent note). The next run, with the same release bytes dropped again (only
+    archived, ruling 47.2 a), makes no live residual call: the journal refuses it and the part fails again. A new
+    file (other bytes) authorises exactly one more live re-ask, which answers."""
+    from g3o.classify import jev_page_code as jpc
+    from g3o.common import source_fields as sf
+    from tests.test_perpage_providers_v27 import _source_type_calls
+
+    w = _residual_world(tmp_path, monkeypatch)
+    key = _residual_held(w)["request_key"]
+    doc = _release_doc([key])
+    _write_release(w.run_dir, doc)
+
+    def part_one_fails(state, questions, n):
+        return RuntimeError("simulated timeout") if sf.SOURCE_TYPE in questions and _part_one(state) else None
+    jev3 = FakeJev(w.answers, RELATIONS, part_one_fails)
+    ready, metrics = w.run(jev3)
+    assert len(_source_type_calls(jev3)) == 1 and ready == [] and metrics.held == [INST]  # the one live re-ask
+    (held,) = _held(w.run_dir, INST)["held"]
+    assert (held["stage"], held["request_key"], held["cause"]) == (pp.RESIDUAL_PART_FAILED, key,
+                                                                    jpc.REQUEST_FAILED)
+    assert "114 b" in held["error"] and not w.saved.exists()
+
+    release = _write_release(w.run_dir, doc)  # the same bytes: only archived, nothing authorised
+    jev4 = FakeJev(w.answers, RELATIONS)
+    ready, metrics = w.run(jev4)
+    assert _source_type_calls(jev4) == [] and ready == [] and metrics.held == [INST]  # refused by the journal
+    assert not release.exists() and [e["kind"] for e in _entries(w.run_dir)].count(rt.PI_RELEASED) == 1
+    (held,) = _held(w.run_dir, INST)["held"]
+    assert (held["stage"], held["request_key"]) == (pp.RESIDUAL_PART_FAILED, key) and "114 b" in held["error"]
+
+    _write_release(w.run_dir, _release_doc([key], date="2026-11-15"))  # a new PI decision: one more re-ask
+    jev5 = FakeJev(w.answers, RELATIONS)
+    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler"):
+        w.run(jev5)
+    assert len(_source_type_calls(jev5)) == 1 and w.saved.exists()

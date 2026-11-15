@@ -227,6 +227,14 @@ def _job_key(job: ExtractorJob) -> str:
                           .encode("utf-8")).hexdigest()
 
 
+def _spent(extract_fn: Any, job: ExtractorJob) -> bool:
+    """Review L-2: whether the journal reports ``job``'s PI-released re-ask as spent with no answer (the journaled
+    call's ``spent_unanswered``; False for an unjournaled call), so a 98 b / 105 b guard hold carries the spent
+    note (PI ruling 114 b: a new release is needed) as the journal's own refusal does."""
+    spent = getattr(extract_fn, "spent_unanswered", None)
+    return bool(spent is not None and spent(job))
+
+
 #: Ruling 46 a: marks an extra-round (C1 a) pass-1 ``custom_id`` (see :func:`extra_round_custom_id`).
 EXTRA_ROUND_MARK = "-x"
 
@@ -625,7 +633,7 @@ class _Adapter:
             return
         key, recorded = peek(job)
         if not recorded:
-            raise Pass1RequestNotJournaled(page.page_id, job.custom_id, key, stage)
+            raise Pass1RequestNotJournaled(page.page_id, job.custom_id, key, stage, spent=_spent(self.extract_fn, job))
         reask_live = getattr(self.extract_fn, "reask_live", None)
         if reask_live is not None and reask_live(job) and (page.page_id, stage) not in self._reask_prepared:
             self._archive_for_reask(page, job, stage)  # PI rulings 113 b / 121 b: before the authorised live call
@@ -809,7 +817,7 @@ class _Adapter:
             return
         key, recorded = peek(job)
         if not recorded:
-            raise Pass2RequestNotJournaled(p2.page_id, job.custom_id, key)
+            raise Pass2RequestNotJournaled(p2.page_id, job.custom_id, key, spent=_spent(self.extract_fn, job))
 
     def page_pass2(self, inp: ActivityPageInput) -> pass2_support.Pass2Support | None:
         """The page's T-032 pass-2 page request (its parsed answer with the actual response model and
