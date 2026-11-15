@@ -759,6 +759,7 @@ def _v27_fake_anthropic_module(record: dict[str, list[Any]]) -> Any:
     class Anthropic:
         def __init__(self, *, api_key=None, **kw):
             record["clients"].append(api_key)
+            record["max_retries"].append(kw.get("max_retries"))
             self.messages = SimpleNamespace(create=self._create)
 
         def _create(self, **params):
@@ -918,7 +919,7 @@ def test_v27_launch_builds_the_real_providers_and_runs_to_stage6_without_the_fol
     monkeypatch.setattr(_FakeTypeSafeClient, "answer", jev)
     monkeypatch.setattr(jev_client.ts, "TypeSafeClient", _FakeTypeSafeClient)
     # The extractor: the anthropic SDK module.
-    extractor: dict[str, list[Any]] = {"clients": [], "params": []}
+    extractor: dict[str, list[Any]] = {"clients": [], "max_retries": [], "params": []}
     monkeypatch.setitem(sys.modules, "anthropic", _v27_fake_anthropic_module(extractor))
     # The X35 client (no approved binding exists, ruling 59 b; the real entry refuses).
     x35_calls: list[Any] = []
@@ -940,6 +941,7 @@ def test_v27_launch_builds_the_real_providers_and_runs_to_stage6_without_the_fol
     assert _FakeTypeSafeClient.instances[0].model == SETTINGS.jev_model
     assert _FakeTypeSafeClient.instances[0].calls == len(jev.calls) > 0
     assert extractor["clients"] == ["anthropic-test"] and extractor["params"]
+    assert extractor["max_retries"] == [0]  # PI ruling 135 a: no SDK-internal retry
     assert {p["model"] for p in extractor["params"]} == {SETTINGS.extractor_model}
     assert x35_calls
     assert set(seen["openai_clients"]) == {"sk-test"}
