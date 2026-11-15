@@ -45,15 +45,28 @@ Rules carried here, not decided here:
   again on the next run (answered parts replayed from the journal). PI ruling 120 c: a deciding part whose
   response has a request id but no answer is replayed every run (this stage keeps such responses), so the hold
   names that part's jev ``request_key``; a ``pi_release.json`` naming it authorises one live re-ask (the
-  journal's ``reask_spent`` marker first, the new response journaled and replayed afterwards).
+  journal's ``reask_spent`` marker first, the new response journaled and replayed afterwards). A part that
+  failed otherwise (the request raised or came back with no request id) has no journaled response and is asked
+  again live on the next run without a release; its hold text does not offer the key (review L-a / L-b,
+  :class:`ResidualPartFailed`). PI ruling 126 a (kept): once a jev key's one-time re-ask is spent, a further
+  ask of the same request in the same process (its next journal slot, with no response recorded there) is
+  refused by the journal like any spent key
+  (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`), not sent live.
   PI rulings 104 b / 113 b: a ``pi_release.json`` key naming one of these held requests
-  (:data:`REASK_RELEASABLE`) authorises one live re-ask; for a pass-1 or activity-only request the page's
+  (:data:`REASK_RELEASABLE`) authorises one live re-ask; only a release naming the key in ``keys`` does: a
+  release naming ``all`` authorises no re-ask (it only resets the 41 a rejection counts; PI ruling 125 a,
+  stated in every hold that offers a key). A release is checked against the last run's ``held.json``, which
+  lists only the institution-wide hold when one page broke the institution, so a held request of another page
+  is not releasable until that hold clears (review L-d, :func:`_apply_pi_release`). For a pass-1 or
+  activity-only request the page's
   activity-level state (:data:`ACTIVITY_STATE_FILES` and the T-023 activity artifact) is archived first
   (:func:`archive_activity_state`), so the new response's spans are coded from scratch. PI ruling 121 b: for a
   pass-1 page request (not an activity-only one) ``page.json`` is archived too
   (:data:`PAGE_REQUEST_STATE_FILES`, :func:`archive_page_request_state`), before the page's rounds start
   (``PerPageProviders.prepare_pass1_reask``), so the page-level support is checked again on the new response's
-  quotes and a row's snippet and provenance name one response. Review H-1 (PI ruling
+  quotes and a row's snippet and provenance name one response. PI ruling 127 a (accepted, spend control): that
+  re-ask's cost is the re-asked request plus the page-level support's X35 calls, and it may trigger further
+  jev extra-round and extractor extra-round calls; every one is journaled. Review H-1 (PI ruling
   114 b): the archive is followed by a fresh ``pass1_requests.json`` naming the request about to be sent
   (:func:`record_pass1_reask`), and the journal refuses a live call of any key whose re-ask was used up with no
   response recorded since (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`): the adapter
@@ -509,19 +522,54 @@ class ResidualPartFailed(Exception):  # noqa: N818 - names the hold, as Pass2Req
 
     Raised by :func:`_residual_source_type` before the answers are saved and before the page's first pass-1
     request is built, so that request (and its 105 b journal check) is only ever built on answers that are
-    final; the page is held as pending (:data:`RESIDUAL_PART_FAILED`). Not a stage stop."""
+    final; the page is held as pending (:data:`RESIDUAL_PART_FAILED`). Not a stage stop.
+
+    The message is chosen by case, so each is true for its cause (review L-a / L-b):
+
+    * ``spent`` (whatever the cause): the key's PI-released re-ask was used up with no answer (PI ruling 114 b),
+      so the journal refuses a live call of it on every later run; a new release naming the key authorises one
+      more (PI ruling 122 b).
+    * :data:`~g3o.classify.jev_page_code.ANSWER_MISSING` (a response with a request id but no answer): the
+      response is journaled and replayed on every run, so without a release the hold recurs; a release naming
+      ``request_key`` authorises one live re-ask (PI ruling 120 c). With no key (the request could not be named)
+      no release can name it.
+    * :data:`~g3o.classify.jev_page_code.REQUEST_FAILED` / :data:`~g3o.classify.jev_page_code.MISSING_REQUEST_ID`
+      (the request raised, or came back with no request id): no response is journaled to replay, so the next run
+      asks the part again live with no release (PI ruling 110 b). Any other cause: asked again on the next run
+      (110 b), and not offered for release either.
+
+    In the last two cases the hold still carries ``request_key`` (so :func:`_apply_pi_release` accepts a release
+    naming it, :data:`REASK_RELEASABLE`; what is accepted is unchanged), but the message does not offer the key
+    as releasable: no release is needed, and one naming the key would make that next live call the one-time
+    re-ask, so a second failure would then need a new release (PI ruling 114 b).
+
+    Every message that names a key as releasable says that only a release naming it in ``keys`` authorises the
+    re-ask: an ``all`` release authorises none (PI ruling 125 a, :data:`_NAME_KEY_NOTE`)."""
 
     def __init__(self, page_id: str, part_id: str, cause: str | None, request_key: str | None = None, *,
                  spent: bool = False) -> None:
-        release = "" if request_key is None else (
-            f"; a response with a request id but no answer ({jpc.ANSWER_MISSING}) is replayed from the journal on "
-            f"every run instead: naming its request key {request_key} in {PI_RELEASE_FILE} authorises one live "
-            f"re-ask (PI ruling 120 c){_NAME_KEY_NOTE}")
-        # review L-1: a spent re-ask is not asked again on the next run: the journal refuses it
-        again = ("not asked again live without a new release (PI ruling 114 b)" if spent
-                 else "asked again on the next run (PI ruling 110 b)")
+        if spent:  # review L-1: a spent re-ask is not asked again on the next run: the journal refuses it
+            tail = (f"held, not asked again live without a new release (PI ruling 114 b){_SPENT_NOTE}; naming "
+                    f"request key {request_key} in {PI_RELEASE_FILE} authorises one more live re-ask (PI rulings "
+                    f"120 c / 122 b){_NAME_KEY_NOTE}")
+        elif cause == jpc.ANSWER_MISSING and request_key is not None:
+            tail = ("held: the response has a request id but no answer, so it is replayed from the request journal "
+                    f"on every run and the hold recurs; naming its request key {request_key} in {PI_RELEASE_FILE} "
+                    f"authorises one live re-ask (PI ruling 120 c){_NAME_KEY_NOTE}")
+        elif cause == jpc.ANSWER_MISSING:
+            tail = ("held: the response has a request id but no answer, so it is replayed from the request journal "
+                    "on every run and the hold recurs; its request key could not be named, so no "
+                    f"{PI_RELEASE_FILE} can release it (PI ruling 120 c)")
+        elif cause in (jpc.REQUEST_FAILED, jpc.MISSING_REQUEST_ID):  # review L-a: nothing journaled to re-ask
+            tail = ("held; the request raised or came back with no request id, so no response is journaled to "
+                    "replay and the next run asks this part again live (PI ruling 110 b); no "
+                    f"{PI_RELEASE_FILE} is needed for this cause")
+        else:  # review L-a: not offered for release
+            tail = (f"held, asked again on the next run (PI ruling 110 b); no {PI_RELEASE_FILE} re-ask is offered "
+                    f"for this cause (only a response with a request id but no answer, {jpc.ANSWER_MISSING}, is "
+                    "released that way: PI ruling 120 c)")
         super().__init__(f"page {page_id}: the residual source_type question's deciding part {part_id!r} failed "
-                         f"with no answer ({cause}); held, {again}{release}{_SPENT_NOTE if spent else ''}")
+                         f"with no answer ({cause}); {tail}")
         self.page_id, self.part_id, self.cause = page_id, part_id, cause
         #: PI ruling 120 c: the journal key of the deciding part's jev request (None when it cannot be named)
         self.request_key, self.spent = request_key, spent
@@ -1333,7 +1381,10 @@ def archive_page_request_state(run_dir: Path, page: Any) -> list[str]:
     (:meth:`g3o.run.presweep.perpage_providers_v27._Adapter.prepare_pass1_reask`, from :func:`_rounds_for_page`
     right before ``page.json`` is loaded), never inside ``activity_input`` (too late: the page round of that run
     would already have been completed from the old ``page.json``). The adapter then writes a fresh
-    ``pass1_requests.json`` naming the request (:func:`record_pass1_reask`), as for 113 b. Crash-safe and
+    ``pass1_requests.json`` naming the request (:func:`record_pass1_reask`), as for 113 b. PI ruling 127 a
+    (accepted, spend control): the rebuilt rounds cost the re-ask plus the page-level support's X35 calls, and may
+    trigger further jev extra-round and extractor extra-round calls, all journaled; not only "one extra jev
+    page-support call". Crash-safe and
     idempotent as :func:`archive_activity_state` (the pending marker records this file set)."""
     return _archive_page_state(run_dir, page, PAGE_REQUEST_STATE_FILES)
 
@@ -1344,8 +1395,17 @@ _PASS1_SLOTS = {PASS1_NOT_JOURNALED: "page_request", ACTIVITY_ONLY_NOT_JOURNALED
 
 def _newest_archived_pass1(run_dir: Path, page: Any) -> dict[str, Any] | None:
     """Review L-3: the :data:`PASS1_FILE` record in the page's newest archive folder (highest ``NNN``) that holds
-    one, or None. The folder taken by an archive that found no live record holds none, so it is skipped. A
-    malformed record raises as :func:`read_pass1_requests` does (a stage stop, PI ruling 118 b)."""
+    one, or None. The folder taken by an archive that found no live record holds none, so it is skipped.
+
+    Review L-c: a malformed archived record (not UTF-8 JSON, another format or kind) raises
+    :class:`MalformedCheckpoint` (:class:`MalformedCheckpointJSON` for bytes that are not JSON) through
+    :func:`_read_checkpoint`, and the stage stops, as for a malformed live
+    page checkpoint (PI ruling 118 b); it is not skipped in favour of an older folder. Kept as built.
+
+    PI ruling 124 a (accepted as built): the newest folder holding a record may be one a C4 hold archived (ruling
+    33 a) rather than the re-ask archive whose record went missing, so the other field may carry a request name
+    from that older state and the next run's 105 b check may hold that page when it need not (an over-hold,
+    never a live call)."""
     root = page_state_dir(run_dir, page) / PAGE_ARCHIVE_DIR
     if not root.is_dir():
         return None
@@ -1381,7 +1441,9 @@ def record_pass1_reask(run_dir: Path, page: Any, previous: Mapping[str, Any] | N
     Review L-3: ``previous`` None is read again from the newest archive folder holding a record
     (:func:`_newest_archived_pass1`): an archive that died after moving the record was finished by the next run
     before the read (``_rounds_for_page``, ``held.json``'s ``archive_files``), so the read found none, and the other
-    field would otherwise be written None, dropping the 105 b trigger for the other request."""
+    field would otherwise be written None, dropping the 105 b trigger for the other request. That fallback may
+    read an older C4 archive's record and so over-hold the page (PI ruling 124 a, accepted as built), and a
+    malformed archived record stops the stage (review L-c, PI ruling 118 b)."""
     if stage not in _PASS1_SLOTS:
         raise TypeError(f"page {page.page_id}: no pass-1 request record for hold stage {stage!r} (wiring error)")
     if previous is None:  # review L-3
@@ -2177,7 +2239,13 @@ REASK_RELEASABLE = frozenset({PASS2_NOT_JOURNALED, PASS1_NOT_JOURNALED, ACTIVITY
 def _reaskable_keys(inst_dir: Path) -> frozenset[str]:
     """The request keys the last run's ``held.json`` holds under :data:`REASK_RELEASABLE` (PI ruling 104 b).
 
-    An absent or unreadable ``held.json`` gives none, so a release naming such a key is refused."""
+    An absent or unreadable ``held.json`` gives none, so a release naming such a key is refused.
+
+    Review L-d: when a page broke the institution (one institution-wide hold, e.g. another page's 98 b / 105 b
+    hold, a producer failure or a failed response), ``held.json`` lists only that hold, not the per-page holds of
+    the institution's other pages (such as a 110 b residual-part hold, which is kept per page). Their keys are
+    then not here, and a release naming one is refused (unless the journal reports it as a spent re-ask with no
+    answer, PI ruling 122 b) until a run without that institution-wide hold lists them again."""
     try:
         doc = json.loads((inst_dir / WORK_DIR / HELD_FILE).read_bytes().decode("utf-8"))
         holds = doc.get("held", []) if isinstance(doc, dict) else []
@@ -2203,7 +2271,15 @@ def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any]
     ``extract_response_failed`` hold): only a key already released and spent can match, and the release still
     authorises exactly one live call. A key that is neither rejected nor so held nor so spent is refused
     (:data:`PI_RELEASE_MALFORMED`); PI ruling 103 b: a 97 b page-data hold carries no request key and stays
-    unreleasable.
+    unreleasable. PI ruling 125 a: a re-ask needs its key named in ``keys``; a release naming ``all`` authorises
+    no re-ask (it resets the 41 a rejection counts only), as every hold that offers a key says.
+
+    Review L-d: the held keys are read from the last run's ``held.json`` (:func:`_reaskable_keys`), which lists
+    only the institution-wide hold when another page of the same institution broke it; a release naming a key of
+    a page held behind that hold (e.g. a 110 b residual-part key) is then refused, and stays refused until that
+    other page's hold clears and a run lists the key again. While an earlier page-state archive is still broken
+    (:func:`_finish_failed_archives` holds the institution), the release file is not read at all: it stays in
+    place and is applied on the first run that gets past that hold.
 
     The file's bytes are read once; the same bytes are parsed and hashed. A valid
     file is recorded in the per-page journal (:meth:`RequestJournal.record_release`,
@@ -2241,7 +2317,9 @@ def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any]
                                  f"extract_rejected entry counted in this journal since their last release, no "
                                  f"{' / '.join(sorted(REASK_RELEASABLE))} hold in {HELD_FILE} and no spent re-ask "
                                  f"left unanswered: {unrejected}; drop these keys from {PI_RELEASE_FILE} and run "
-                                 "again")
+                                 f"again (review L-d: when another page of this institution broke it, {HELD_FILE} "
+                                 "lists only that hold, so a key held on another page is not listed and is "
+                                 "refused until that hold clears)")
         reask = sorted(k for k in release["keys"] or () if k in reaskable or journal.reask_spent_unanswered(k))
         try:
             journal.record_release({**release, "file_sha256": sha, "reask_keys": reask})

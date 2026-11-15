@@ -666,7 +666,10 @@ class RequestJournal:
         request id but no answer), the recorded response is NOT replayed: the :data:`REASK_SPENT` entry is
         written first (it uses the authorisation up and displaces that response, PI ruling 114 b), then the
         call is made live and its response journaled in the same slot, replayed afterwards. A key whose re-ask
-        was used up with no response recorded since is refused (:class:`ReaskSpentUnanswered`, no call)."""
+        was used up with no response recorded since is refused (:class:`ReaskSpentUnanswered`, no call). PI ruling
+        126 a (kept): this holds per slot, so once the key's re-ask is spent, asking the same request again in the
+        same process (its next slot, with no response recorded there) is refused too, even when the re-ask
+        itself was answered in its own slot."""
         request = {"state": state, "questions": questions}
         slot = self._slot("jev", request)
         authorised = self.reask_authorised(slot[1])

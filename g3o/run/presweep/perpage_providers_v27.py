@@ -53,7 +53,8 @@ The seams:
   page request (not the activity-only one) ``page.json`` is archived too, before the page's rounds
   (:meth:`ExtractorPerPageProviders.prepare_pass1_reask`), so ``page_support`` makes the re-ask and checks the page
   support on the new quotes; its first call carries the 105 b check too when a record names the request and
-  ``page.json`` is absent (that re-ask's state, or a crash after it). A key whose re-ask was
+  ``page.json`` is absent (that re-ask's state, or a crash after it). PI ruling 127 a (accepted): those rounds may
+  also make further X35, jev extra-round and extractor extra-round calls, all journaled. A key whose re-ask was
   used up (PI ruling 114 b) with no response since is refused by the journal
   (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`) and held as not journaled under the
   stage of its kind, for pass 1, the activity-only request and pass 2 alike. PI ruling 87 c: when a halving in an extra round
@@ -527,8 +528,10 @@ class _Adapter:
         activity-level state are archived and a fresh ``pass1_requests.json`` names the request
         (:meth:`_archive_for_reask`). The page's rounds then start again from the stored T-021 result, so
         ``page_support`` makes the re-ask itself and checks the page-level support (with X35, journaled like every
-        X35 call) on the new response's quotes: the row's snippet and its provenance name one response. Returns
-        whether it archived. An activity-only re-ask is not prepared here (page.json stays, 113 b)."""
+        X35 call) on the new response's quotes: the row's snippet and its provenance name one response. PI ruling
+        127 a (accepted, spend control): those rounds may also make further jev extra-round and extractor
+        extra-round calls, all journaled, so the re-ask costs the request plus its X35 calls and possibly extra
+        rounds. Returns whether it archived. An activity-only re-ask is not prepared here (page.json stays, 113 b)."""
         pid = page.page_id
         reask_live = getattr(self.extract_fn, "reask_live", None)
         if reask_live is None or pid in self._page_request or (pid, PASS1_NOT_JOURNALED) in self._reask_prepared:
