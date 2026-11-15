@@ -868,3 +868,112 @@ def test_record_pass1_reask_names_the_request_and_keeps_the_other_field_h1(tmp_p
                                          SimpleNamespace(custom_id="c-only"))
     with pytest.raises(TypeError):
         pp.record_pass1_reask(run_dir, page, previous, pp.PASS2_NOT_JOURNALED, "c-2")
+
+
+# ---------------------------------------------------------------------------
+# PI ruling 122 b: a release dropped straight after a failed re-ask is accepted (review M-1 of h1fix)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("outcome", OUTCOMES)
+def test_release_straight_after_a_failed_reask_authorises_one_more_122b(tmp_path, outcome):
+    """PI ruling 122 b at the stage. The released pass-1 re-ask dies while sending, times out, comes back
+    ``extract_failed`` or is rejected. A crash or timeout leaves the earlier 105 b hold in held.json; a failed or
+    rejected response leaves an ``extract_response_failed`` hold (before 122 b: a new release naming the key was
+    refused as malformed and stayed in place for ever, or, after a rejection, consumed with ``reask_keys`` []).
+    A NEW release naming the key, dropped straight away, is accepted as a re-ask (the journal reports the key as
+    a spent re-ask with no answer): the next run makes exactly one live call of the request, and a further run
+    with no new file makes none (the answer is replayed)."""
+    run_dir, world, run, hold, _ = _held_105b(tmp_path)
+    key, cid = hold["request_key"], hold["custom_id"]
+    _write_release(run_dir, _release_doc([key]))
+    bad = FailOn(world, cid, outcome)
+    if outcome in ("crash", "timeout"):
+        with pytest.raises((Crash, TimeoutError)):
+            run(bad)
+        (held,) = _held(run_dir, INST)["held"]  # the run died: held.json is the earlier 105 b hold
+        assert (held["stage"], held["request_key"]) == (pp.PASS1_NOT_JOURNALED, key)
+    else:
+        ready, metrics = run(bad)
+        assert ready == [] and metrics.held == [INST]
+        (held,) = _held(run_dir, INST)["held"]
+        assert held["stage"] == pp.EXTRACT_RESPONSE_FAILED and held["stage"] not in pp.REASK_RELEASABLE
+    assert [j.custom_id for j in bad.jobs] == [cid]  # the one live re-ask, failed
+    journal_path = institution_dir(run_dir, INST) / pp.WORK_DIR / pp.JOURNAL
+    assert rt.RequestJournal(journal_path, {}).reask_spent_unanswered(key)
+
+    release = _write_release(run_dir, _release_doc([key], date="2026-11-15"))  # a new PI decision
+    ex = FakeExtractor(world)
+    run(ex)
+    assert not release.exists()  # consumed (archived), never left in place as malformed
+    assert [e["response"]["reask_keys"] for e in _entries(run_dir) if e["kind"] == rt.PI_RELEASED] == [[key], [key]]
+    assert len([j for j in ex.jobs if j.metadata["stage"] == PASS1 and j.custom_id == cid]) == 1
+    assert all(h.get("stage") != pp.PI_RELEASE_MALFORMED
+               for h in (_held(run_dir, INST)["held"] if (journal_path.parent / pp.HELD_FILE).exists() else []))
+
+    further = FakeExtractor(world)  # no new file: the re-asked answer is replayed, no live call
+    run(further)
+    assert [j for j in further.jobs if j.metadata["stage"] == PASS1 and j.custom_id == cid] == []
+    assert not rt.RequestJournal(journal_path, {}).reask_spent_unanswered(key)
+
+
+@pytest.mark.parametrize("outcome", OUTCOMES)
+def test_spent_unanswered_key_is_reaskable_with_no_releasable_hold_122b(tmp_path, outcome):
+    """PI ruling 122 b, ``_apply_pi_release`` alone: a key the journal reports as a spent re-ask with no answer is
+    accepted into ``reask_keys`` even when held.json names no releasable hold (here an ``extract_response_failed``
+    hold with no request key); a key never released and spent is still refused; the same bytes again are only
+    archived (ruling 47.2 a) and authorise nothing."""
+    job = ExtractorJob("cid-122b", {"model": "m", "messages": [{"p": 9}]}, {})
+    request = {"custom_id": job.custom_id, "params": job.params}
+    inst_dir = tmp_path / "inst"
+    (inst_dir / pp.WORK_DIR).mkdir(parents=True)
+    path = inst_dir / pp.WORK_DIR / pp.JOURNAL
+    ok = ExtractorResult("cid-122b", True, "{}", None, "fake-extractor-response", "msg-1", "x-1", "end_turn",
+                         dict(USAGE))
+    journal = rt.RequestJournal(path, {"s": 1})
+    wrap, _ = journal.seams(PROMPT)
+
+    def call(j):
+        if outcome == "crash":
+            raise Crash("killed")
+        if outcome == "timeout":
+            raise TimeoutError("read timed out")
+        return ExtractorResult(j.custom_id, False, None, {"type": "errored"}, usage=dict(USAGE)) \
+            if outcome == "extract_failed" else ok
+    fn = wrap(call)
+    key = fn.peek(job)[0]
+    journal.record_release({**_release_doc([key]), "all": False, "file_sha256": "e" * 64, "reask_keys": [key]})
+    if outcome in ("crash", "timeout"):
+        with pytest.raises((Crash, TimeoutError)):
+            fn(job)
+    else:
+        fn(job)
+    if outcome == "rejected":
+        assert journal.reject_extract(request, PROMPT, "ExtractContractError: bad")
+    (inst_dir / pp.WORK_DIR / pp.HELD_FILE).write_text(json.dumps({"institution_id": INST, "held": [
+        {"page_id": "p1", "stage": pp.EXTRACT_RESPONSE_FAILED, "pass": "pass1", "custom_id": job.custom_id,
+         "error": "x"}]}), encoding="utf-8")
+    reloaded = rt.RequestJournal(path, {"s": 1})
+    raw = json.dumps(_release_doc([key], date="2026-11-15")).encode("utf-8")
+    (inst_dir / pp.PI_RELEASE_FILE).write_bytes(raw)
+    assert pp._apply_pi_release(inst_dir, reloaded) is None and reloaded.reask_authorised(key)
+    assert not (inst_dir / pp.PI_RELEASE_FILE).exists()
+    (entry,) = [e for e in (json.loads(x) for x in path.read_text(encoding="utf-8").splitlines())
+                if e["kind"] == rt.PI_RELEASED and e["key"] == hashlib.sha256(raw).hexdigest()]
+    assert entry["response"]["reask_keys"] == [key]
+    w, _ = reloaded.seams(PROMPT)
+    calls = []
+    once = w(lambda j: calls.append(j.custom_id) or ok)
+    once(job)  # exactly one live call
+    assert calls == ["cid-122b"]
+    # the same bytes again: only archived, nothing authorised; the answer replays, no call
+    (inst_dir / pp.PI_RELEASE_FILE).write_bytes(raw)
+    later = rt.RequestJournal(path, {"s": 1})
+    assert pp._apply_pi_release(inst_dir, later) is None and not later.reask_authorised(key)
+    w2, _ = later.seams(PROMPT)
+    assert w2(lambda _: pytest.fail("replayed, never called"))(job).success
+    # a key never released and spent is still refused
+    other = "c" * 64
+    (inst_dir / pp.PI_RELEASE_FILE).write_bytes(json.dumps(_release_doc([other], date="2026-11-16")).encode("utf-8"))
+    hold = pp._apply_pi_release(inst_dir, rt.RequestJournal(path, {"s": 1}))
+    assert hold["stage"] == pp.PI_RELEASE_MALFORMED and other in hold["error"]

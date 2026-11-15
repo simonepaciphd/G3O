@@ -2067,9 +2067,14 @@ def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any]
     it is recorded in the release's ``reask_keys`` and authorises ONE live re-ask of that request
     (:meth:`~g3o.run.presweep.stage_validate_v27.RequestJournal.reask_authorised`), used up by the
     ``reask_spent`` journal entry written just before that call (PI ruling 114 b: a failure before or while
-    sending wastes it); a second re-ask needs a new release file. ``all`` authorises no re-ask. A key that is
-    neither rejected nor so held is refused (:data:`PI_RELEASE_MALFORMED`); PI ruling 103 b: a 97 b
-    page-data hold carries no request key and stays unreleasable.
+    sending wastes it); a second re-ask needs a new release file. ``all`` authorises no re-ask. PI ruling
+    122 b: a key the journal reports as a spent re-ask with no answer
+    (:meth:`~g3o.run.presweep.stage_validate_v27.RequestJournal.reask_spent_unanswered`) is re-askable the same
+    way, whatever ``held.json`` shows (an ``extract_failed`` or rejected re-ask leaves an
+    ``extract_response_failed`` hold): only a key already released and spent can match, and the release still
+    authorises exactly one live call. A key that is neither rejected nor so held nor so spent is refused
+    (:data:`PI_RELEASE_MALFORMED`); PI ruling 103 b: a 97 b page-data hold carries no request key and stays
+    unreleasable.
 
     The file's bytes are read once; the same bytes are parsed and hashed. A valid
     file is recorded in the per-page journal (:meth:`RequestJournal.record_release`,
@@ -2097,14 +2102,18 @@ def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any]
     sha = hashlib.sha256(raw).hexdigest()
     if not journal.release_applied(sha):
         reaskable = _reaskable_keys(inst_dir)  # ruling 104 b: request keys held under 98 b
-        unrejected = [k for k in release["keys"] or () if journal.rejections(k) == 0 and k not in reaskable]
+        # PI ruling 122 b: a key whose released re-ask was spent with no answer is re-askable too, whatever
+        # held.json says (after an extract_failed / rejected re-ask it shows extract_response_failed)
+        unrejected = [k for k in release["keys"] or () if journal.rejections(k) == 0 and k not in reaskable
+                      and not journal.reask_spent_unanswered(k)]
         if unrejected:
             return _release_hold(PI_RELEASE_MALFORMED, path,
-                                 f"refused (ruling 34 b / 41 a / 104 b / 113 b): key(s) with no extract_rejected "
-                                 f"entry counted in this journal since their last release and no "
-                                 f"{' / '.join(sorted(REASK_RELEASABLE))} hold in {HELD_FILE}: {unrejected}; drop "
-                                 f"these keys from {PI_RELEASE_FILE} and run again")
-        reask = sorted(k for k in release["keys"] or () if k in reaskable)
+                                 f"refused (ruling 34 b / 41 a / 104 b / 113 b / 122 b): key(s) with no "
+                                 f"extract_rejected entry counted in this journal since their last release, no "
+                                 f"{' / '.join(sorted(REASK_RELEASABLE))} hold in {HELD_FILE} and no spent re-ask "
+                                 f"left unanswered: {unrejected}; drop these keys from {PI_RELEASE_FILE} and run "
+                                 "again")
+        reask = sorted(k for k in release["keys"] or () if k in reaskable or journal.reask_spent_unanswered(k))
         try:
             journal.record_release({**release, "file_sha256": sha, "reask_keys": reask})
         except OSError as exc:
