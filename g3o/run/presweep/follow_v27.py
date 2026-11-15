@@ -55,9 +55,10 @@ with the state written so far, and the URL is tried again on the next run.
 Follow attempts not reviewed (PI rulings 79 b, 96 a, 102 a, 2026-11-13/14). A URL
 tried and not fetched (``fetch_failed``; a robots refusal enters as ``fetch_failed``,
 79 b) and a link not followed (cap or hop limit) are recorded in the follow state and
-the attrition ledger, and each enters Stage 6 (:func:`unread_products`) as a failed,
-unreviewed page (``ReviewedPage`` ``reviewed`` False, ``failed`` True, failure reason
-the recorded outcome) plus one page-level source row: ``core.page_review_state`` the
+the attrition ledger, and each enters Stage 6 (:func:`unread_products`) as an
+unreviewed page (``ReviewedPage`` ``reviewed`` False, failure reason the recorded
+outcome; ``failed`` True only for a fetch failure or robots refusal, PI ruling 115 b:
+a link not followed is not counted as failed) plus one page-level source row: ``core.page_review_state`` the
 review state, ``core.source_url`` the attempt's URL, ``core.page_verdict``
 ``not_assessable`` and every other item ``not_asked``, the coded ones set by the
 named rule :data:`FOLLOW_NOT_REVIEWED`; no observation and no page artifact (path and
@@ -110,6 +111,10 @@ REVIEW_STATE_OF = {fl.FETCH_FAILED: fl.FETCH_FAILED, ROBOTS_DISALLOWED: fl.FETCH
                    fl.LINK_NOT_FOLLOWED_HOPS: fl.LINK_NOT_FOLLOWED_HOPS}
 #: the outcomes of a URL actually tried (``ReviewedPage.followed`` True: it counts in ``n_followed_links``)
 TRIED_OUTCOMES = frozenset({fl.FETCH_FAILED, ROBOTS_DISALLOWED})
+#: PI ruling 115 b (2026-11-14): the outcomes that count as failed (``ReviewedPage.failed`` True: counted in
+#: ``core.review_depth`` ``n_pages_failed`` and the summary's "failed: N"): fetch failures and robots refusals
+#: only. A link not followed (cap or hop limit) keeps its unread row (102 a) but is not failed.
+FAILED_OUTCOMES = frozenset({fl.FETCH_FAILED, ROBOTS_DISALLOWED})
 #: PI ruling 82 c (2026-11-13): a page whose final ``core.page_complete`` is ``yes`` but whose links were not
 #: collected (it became ``yes`` only in an extra round, so its first pass-1 request had no link task, or its
 #: links were not measured) is recorded as "complete, links not collected" (attrition reason) and not followed.
@@ -447,8 +452,10 @@ def unread_products(attempts: Sequence[Mapping[str, Any]], *, run_id: str, insti
     :class:`~g3o.run.presweep.stage_perpage_v27.PageProduct`:
 
     - its page: ``ReviewedPage`` with page id ``url_hash(url)`` (as a fetched page would have),
-      ``not_assessable``, support ``set_by_rule``, ``reviewed`` False, ``failed`` True, failure reason the
-      recorded outcome, ``followed`` True only for a URL actually tried (:data:`TRIED_OUTCOMES`);
+      ``not_assessable``, support ``set_by_rule``, ``reviewed`` False, failure reason the recorded outcome,
+      ``failed`` True only for a fetch failure or robots refusal (:data:`FAILED_OUTCOMES`, PI ruling 115 b: a
+      link not followed is not counted in ``n_pages_failed`` / "failed: N"), ``followed`` True only for a URL
+      actually tried (:data:`TRIED_OUTCOMES`);
     - one page-level source row: ``core.page_review_state`` from :data:`REVIEW_STATE_OF` (a robots refusal
       is ``fetch_failed``, 79 b), ``core.source_url`` the attempt's URL, ``core.page_verdict``
       ``not_assessable`` and every other sources-table item ``not_asked`` (96 a, 102 a); no observation and
@@ -509,15 +516,16 @@ def unread_products(attempts: Sequence[Mapping[str, Any]], *, run_id: str, insti
             provenance.append(nodes.provenance)
         verdict = next(s for s in support if s["item_id"] == VERDICT)
         verdict_coder = next(c for c in coders if c["support_id"] == verdict["support_id"])
-        page = ReviewedPage(page_id, pp.PIPELINE, NOT_ASSESSABLE, None, SET_BY_RULE, False, True,
-                            outcome in TRIED_OUTCOMES, (sid,), (verdict_coder,), (verdict,), failure_reason=outcome)
+        page = ReviewedPage(page_id, pp.PIPELINE, NOT_ASSESSABLE, None, SET_BY_RULE, False,
+                            outcome in FAILED_OUTCOMES, outcome in TRIED_OUTCOMES, (sid,), (verdict_coder,),
+                            (verdict,), failure_reason=outcome)
         row = {"values": values, "item_support": support, "coder_records": coders, "observation_ids": [],
                "page_artifact_path": None, "page_content_sha256": None}
         out.append(pp.PageProduct(page=page, sources={sid: row}, provenance=provenance))
     return out
 
 
-__all__ = ["CAP_REACHED", "FOLLOW_NOT_REVIEWED", "LINKS_NOT_COLLECTED", "FOLLOW_DIR", "NOT_ASKED", "NOT_ASSESSABLE",
+__all__ = ["CAP_REACHED", "FAILED_OUTCOMES", "FOLLOW_NOT_REVIEWED", "LINKS_NOT_COLLECTED", "FOLLOW_DIR", "NOT_ASKED", "NOT_ASSESSABLE",
            "REVIEW_STATE_OF", "ROBOTS_DISALLOWED", "STAGE", "STATE_FILE", "STATE_FORMAT", "TRIED_OUTCOMES", "FetchFn",
            "FollowLeg", "FollowPage", "InstitutionLeg", "RoundPage", "load_state", "round_page", "state_payload",
            "unread_products"]

@@ -522,13 +522,13 @@ def test_perpage_failed_follow_fetch_enters_stage6_as_an_unread_page_102a(tmp_pa
 
 
 def test_robots_refusal_and_link_not_followed_review_states_79b(tmp_path):
-    """79 b: a robots refusal enters as fetch_failed (the failure reason keeps the outcome); a link not
-    followed (cap) is not counted as a followed link."""
+    """79 b: a robots refusal enters as fetch_failed (the failure reason keeps the outcome) and is failed; a
+    link not followed (cap) is not counted as a followed link, nor as failed (PI ruling 115 b)."""
     run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
     leg = WorldLeg(FakeFetch({}, robots={REPORT_URL}), world=world)
     (st,), _ = _run(run_dir, bound, instrument, providers, inst, leg, _jev())
     (page,), rows = _unread(st)
-    assert (page.failure_reason, page.followed) == (fv.ROBOTS_DISALLOWED, True)
+    assert (page.failure_reason, page.followed, page.failed) == (fv.ROBOTS_DISALLOWED, True, True)
     assert rows[page.page_id]["values"][REVIEW_STATE] == fl.FETCH_FAILED
     capped = tmp_path / "capped"
     capped.mkdir()
@@ -538,8 +538,52 @@ def test_robots_refusal_and_link_not_followed_review_states_79b(tmp_path):
                     WorldLeg(fetch, fl.FollowRules(url_cap=0), world=world), _jev())
     assert fetch.calls == []
     (page,), rows = _unread(st)
-    assert (page.failure_reason, page.followed, page.failed) == (fl.LINK_NOT_FOLLOWED_CAP, False, True)
+    assert (page.failure_reason, page.followed, page.failed) == (fl.LINK_NOT_FOLLOWED_CAP, False, False)
+    assert (page.reviewed, page.page_verdict) == (False, fv.NOT_ASSESSABLE)  # the unread row stays (102 a)
     assert rows[page.page_id]["values"][REVIEW_STATE] == fl.LINK_NOT_FOLLOWED_CAP
+
+
+def test_failed_outcomes_are_fetch_failures_and_robots_refusals_only_115b(tmp_path):
+    """PI ruling 115 b: only a fetch failure or a robots refusal is a failed unread page; a link not followed at
+    the cap or the hop limit keeps its unread row (102 a) with failed False."""
+    assert fv.FAILED_OUTCOMES == {fl.FETCH_FAILED, fv.ROBOTS_DISALLOWED}
+    assert not fv.FAILED_OUTCOMES & {fl.LINK_NOT_FOLLOWED_CAP, fl.LINK_NOT_FOLLOWED_HOPS}
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    kw = {"run_id": RUN_ID, "institution_uid": uid_for(INST), "institution_id": INST, "first_source": 3,
+          "coder_version": bound.page_config.coder_version, "instrument": instrument}
+    outcomes = (fl.FETCH_FAILED, fv.ROBOTS_DISALLOWED, fl.LINK_NOT_FOLLOWED_CAP, fl.LINK_NOT_FOLLOWED_HOPS)
+    attempts = [{"url": f"https://inst-0000001.example.gov/u{n}", "state": state, "hop": 1, "parent_page_id": "s1"}
+                for n, state in enumerate(outcomes)]
+    products = fv.unread_products(attempts, **kw)
+    assert [(p.page.reviewed, p.page.failed, p.page.failure_reason) for p in products] == [
+        (False, True, fl.FETCH_FAILED), (False, True, fv.ROBOTS_DISALLOWED),
+        (False, False, fl.LINK_NOT_FOLLOWED_CAP), (False, False, fl.LINK_NOT_FOLLOWED_HOPS)]
+    assert all(len(p.sources) == 1 for p in products)  # every attempt keeps its unread row
+
+
+def test_link_not_followed_is_not_counted_failed_in_stage6_115b(tmp_path):
+    """PI ruling 115 b end to end: a link not followed at the cap reaches Stage 6 storage as its unread row, and
+    neither ``core.review_depth`` ``n_pages_failed`` nor the summary's "failed: N" counts it."""
+    from tests.test_e2e_perpage_v27 import CLOCK, FakeQuotes
+
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    fetch = FakeFetch({REPORT_URL: REPORT})
+    ready, _ = _run(run_dir, bound, instrument, providers, inst,
+                    WorldLeg(fetch, fl.FollowRules(url_cap=0), world=world), _jev())
+    assert fetch.calls == []
+    (page,), rows = _unread(ready[0])
+    assert (page.reviewed, page.failed, page.failure_reason) == (False, False, fl.LINK_NOT_FOLLOWED_CAP)
+    s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=_jev(), quote_fn=FakeQuotes(), config=bound.stage6_config(),
+                            instrument=instrument, now=CLOCK, test_only_unbound_quote_fn=True)
+    assert s6m.written == [INST] and s6m.held == [] and s6m.failed == []
+    storage = json.loads((institution_dir(run_dir, INST) / "6_storage.json").read_text(encoding="utf-8"))
+    (sid,) = page.source_ids
+    assert storage["sources"][sid]["values"] == rows[page.page_id]["values"]
+    summary = storage["summary"]["values"]
+    depth = summary["core.review_depth"]["web_extract"]
+    n_reviewed = len([p for p in ready[0].pages if p.reviewed])
+    assert (depth["n_pages_reviewed"], depth["n_pages_failed"], depth["n_followed_links"]) == (n_reviewed, 0, 0)
+    assert summary["core.institution_summary"].endswith(f"Pages reviewed: {n_reviewed}; failed: 0.")
 
 
 @pytest.mark.parametrize("activity, searched_verdict, expected", [

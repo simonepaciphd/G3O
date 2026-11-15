@@ -160,6 +160,24 @@ def test_summary_uses_actual_release_label_and_only_x33_facts():
         "Stages: production. Pages reviewed: 1; failed: 0.")
 
 
+def test_links_not_followed_are_unreviewed_but_not_failed_115b():
+    """PI ruling 115 b: an unread follow page whose link was not followed (cap or hop limit) is reviewed=False,
+    failed=False with its reason (a valid page here); only fetch failures and robots refusals count in
+    ``n_pages_failed`` and the summary's "failed: N". Every unread page still keeps the verdict off "no"."""
+    def unread(key, reason, failed, followed):
+        return page(key, verdict="not_assessable", support_status="set_by_rule", chosen_probability=None,
+                    reviewed=False, failed=failed, followed=followed, failure_reason=reason)
+    pages = [page("p"), unread("f", "fetch_failed", True, True), unread("r", "robots_disallowed", True, True),
+             unread("c", "link_not_followed_cap", False, False), unread("h", "link_not_followed_hops", False, False)]
+    result = summary_values(pages, [], published_activity_values=[])
+    depth = result["core.review_depth"]["web_extract"]
+    assert (depth["n_pages_reviewed"], depth["n_pages_failed"], depth["n_followed_links"]) == (1, 2, 2)
+    assert result["core.institution_summary"].endswith("Pages reviewed: 1; failed: 2.")
+    assert result["core.has_genai_activity"] == "unclear"
+    with pytest.raises(ConsolidationError, match="attempted/unfollowed reason"):
+        summary_values([unread("c", None, False, False)], [], published_activity_values=[])
+
+
 @pytest.mark.parametrize("action", ["training", "proposal"])
 def test_tier_refuses_action_names_absent_from_signed_enum(action):
     positive = page(verdict="confirms_activity", support_status="supported")
