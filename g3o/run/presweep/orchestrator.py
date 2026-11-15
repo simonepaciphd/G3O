@@ -285,7 +285,9 @@ def _record_and_track_stage_budget(
 # (``run_perpage_v27``, providers from ``build_perpage_providers``) and v2.7
 # Stage 6 (``run_stage6_v27``, quote step from ``BoundRuntime.stage6_quote_fn``),
 # which write the per-institution Stage 6 artifacts. Every provider call is
-# injected (:class:`V27Dispatch`); nothing here builds a client. The v2.7
+# injected (:class:`V27Dispatch`); nothing here builds a client. A run given no
+# V27Dispatch gets one built from its config by ``v27_entry.build_v27_dispatch``
+# (PI ruling 132 a), whose clients are constructed lazily. The v2.7
 # modules are imported only on this path, so a v2.5 run imports nothing new.
 # ---------------------------------------------------------------------------
 
@@ -689,12 +691,27 @@ def run_presweep(
     write the manifest's credential fingerprints on every run, not just live ones.
 
     Run mode (T-030): ``config.pipeline_version="v2.7"`` (not production ready,
-    opt-in) replaces Stages 5/6 with :func:`run_v27_dispatch` and requires
-    ``v27`` (the injected calls); without it the run is refused here, before any
-    planning or spend. ``v27`` is refused on a v2.5 run.
+    opt-in) replaces Stages 5/6 with :func:`run_v27_dispatch`. Without an
+    injected ``v27`` the real providers are built from ``config.v27_runtime`` and
+    the resolved credentials (:func:`g3o.run.presweep.v27_entry.build_v27_dispatch`,
+    PI ruling 132 a); an unset ``v27_runtime`` or a missing jev / extractor key is
+    refused here. Either way :func:`_require_v27_dispatch` then runs its entry
+    refusals (the refusing X35 entry, ruling 59 b; the default per-page builder
+    while producers are missing, ruling 36 a; the binding checks), all before any
+    planning or spend. An injected ``v27`` whose settings differ from a set
+    ``config.v27_runtime`` is refused. ``v27`` is refused on a v2.5 run.
     """
+    # Resolved before the v2.7 entry, which builds its clients' keys from it (nothing is recorded).
+    resolved = resolve(credentials)
     if config.pipeline_version == PIPELINE_V27:
         refuse_v27_budget_settings(config)
+        from g3o.run.presweep import v27_entry
+
+        if v27 is None:  # PI ruling 132 a: the real providers, built from config
+            v27 = v27_entry.build_v27_dispatch(config, resolved)
+        elif config.v27_runtime is not None and v27_entry.runtime_settings(config) != getattr(v27, "settings", None):
+            raise ValueError("v2.7 dispatch: the injected settings differ from config.v27_runtime, which the "
+                             "manifest records; the run is refused before any work")
         v27 = _require_v27_dispatch(v27)
         if config.budget_usd is not None:
             logger.warning(
@@ -706,7 +723,6 @@ def run_presweep(
     elif v27 is not None:
         raise ValueError("v27 dispatch inputs were supplied but pipeline_version is "
                          f"{config.pipeline_version!r}")
-    resolved = resolve(credentials)
     tel = telemetry if telemetry is not None else NO_TELEMETRY
     if not config.dry_run:
         _assert_live_keys(config, resolved)
