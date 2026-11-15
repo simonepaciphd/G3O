@@ -46,8 +46,8 @@ Rules carried here, not decided here:
   response has a request id but no answer is replayed every run (this stage keeps such responses), so the hold
   names that part's jev ``request_key``; a ``pi_release.json`` naming it authorises one live re-ask (the
   journal's ``reask_spent`` marker first, the new response journaled and replayed afterwards). A part that
-  failed otherwise (the request raised or came back with no request id) has no journaled response and is asked
-  again live on the next run without a release; its hold text does not offer the key (review L-a / L-b,
+  failed otherwise (the request raised or came back with no request id) has no replayable journaled response (a
+  billed response with no request id is kept as ``jev_unidentified`` for accounting only) and is asked again live on the next run without a release; its hold text does not offer the key (review L-a / L-b,
   :class:`ResidualPartFailed`). PI ruling 126 a (kept): once a jev key's one-time re-ask is spent, a further
   ask of the same request in the same process (its next journal slot, with no response recorded there) is
   refused by the journal like any spent key
@@ -534,8 +534,9 @@ class ResidualPartFailed(Exception):  # noqa: N818 - names the hold, as Pass2Req
       ``request_key`` authorises one live re-ask (PI ruling 120 c). With no key (the request could not be named)
       no release can name it.
     * :data:`~g3o.classify.jev_page_code.REQUEST_FAILED` / :data:`~g3o.classify.jev_page_code.MISSING_REQUEST_ID`
-      (the request raised, or came back with no request id): no response is journaled to replay, so the next run
-      asks the part again live with no release (PI ruling 110 b). Any other cause: asked again on the next run
+      (the request raised, or came back with no request id): no replayable response is journaled (a billed
+      response with no request id is kept as ``jev_unidentified`` for accounting only), so the next run asks the
+      part again live with no release (PI ruling 110 b). Any other cause: asked again on the next run
       (110 b), and not offered for release either.
 
     In the last two cases the hold still carries ``request_key`` (so :func:`_apply_pi_release` accepts a release
@@ -560,9 +561,9 @@ class ResidualPartFailed(Exception):  # noqa: N818 - names the hold, as Pass2Req
             tail = ("held: the response has a request id but no answer, so it is replayed from the request journal "
                     "on every run and the hold recurs; its request key could not be named, so no "
                     f"{PI_RELEASE_FILE} can release it (PI ruling 120 c)")
-        elif cause in (jpc.REQUEST_FAILED, jpc.MISSING_REQUEST_ID):  # review L-a: nothing journaled to re-ask
-            tail = ("held; the request raised or came back with no request id, so no response is journaled to "
-                    "replay and the next run asks this part again live (PI ruling 110 b); no "
+        elif cause in (jpc.REQUEST_FAILED, jpc.MISSING_REQUEST_ID):  # review L-a: nothing replayable to re-ask
+            tail = ("held; the request raised or came back with no request id, so no replayable response is "
+                    "journaled and the next run asks this part again live (PI ruling 110 b); no "
                     f"{PI_RELEASE_FILE} is needed for this cause")
         else:  # review L-a: not offered for release
             tail = (f"held, asked again on the next run (PI ruling 110 b); no {PI_RELEASE_FILE} re-ask is offered "
@@ -2242,7 +2243,8 @@ def _reaskable_keys(inst_dir: Path) -> frozenset[str]:
     An absent or unreadable ``held.json`` gives none, so a release naming such a key is refused.
 
     Review L-d: when a page broke the institution (one institution-wide hold, e.g. another page's 98 b / 105 b
-    hold, a producer failure or a failed response), ``held.json`` lists only that hold, not the per-page holds of
+    hold, a failed extractor response or an incomplete page-state archive), ``held.json`` lists only that hold,
+    not the per-page holds of
     the institution's other pages (such as a 110 b residual-part hold, which is kept per page). Their keys are
     then not here, and a release naming one is refused (unless the journal reports it as a spent re-ask with no
     answer, PI ruling 122 b) until a run without that institution-wide hold lists them again."""
