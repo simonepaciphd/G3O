@@ -493,6 +493,31 @@ def test_unread_follow_page_reaches_stage6_storage_102a(tmp_path, activity, sear
     assert storage["summary"]["values"]["core.has_genai_activity"] == expected
 
 
+def test_institution_with_pages_and_no_activity_is_written_with_zero_input_rows_119b(tmp_path):
+    """PI ruling 119 b: a v2.7 institution whose reviewed page holds no activity reaches Stage 6 with zero
+    observations and is WRITTEN (not ENVELOPE_FAILED): ``consolidation_metadata.n_input_rows`` keeps counting
+    observations, here 0, which the v2.7-only metadata model accepts."""
+    from g3o.common.response_v27 import ConsolidationMetadataV27, parse_validate_payload
+    from tests.test_e2e_perpage_v27 import CLOCK, FakeQuotes
+
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path, activity=False)
+    ready, _ = _run(run_dir, bound, instrument, providers, inst, None, _jev("other_body"))
+    assert [i.institution_id for i in ready] == [INST] and list(ready[0].observations) == []
+    s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=_jev("other_body"), quote_fn=FakeQuotes(),
+                            config=bound.stage6_config(), instrument=instrument, now=CLOCK,
+                            test_only_unbound_quote_fn=True)
+    assert s6m.written == [INST] and s6m.held == [] and s6m.failed == []
+    inst_dir = institution_dir(run_dir, INST)
+    payload = json.loads((inst_dir / "6_validate.json").read_text(encoding="utf-8"))
+    meta = payload["consolidation_metadata"]
+    assert (meta["n_input_rows"], meta["n_input_pages"]) == (0, 1) and payload["activities"] == []
+    reloaded = parse_validate_payload(payload)
+    assert isinstance(reloaded.consolidation_metadata, ConsolidationMetadataV27)
+    assert reloaded.consolidation_metadata.n_input_rows == 0
+    storage = json.loads((inst_dir / "6_storage.json").read_text(encoding="utf-8"))
+    assert storage["activities"] == {} and len(storage["sources"]) == 1
+
+
 def test_unread_follow_rows_survive_a_resume_with_no_call_l8(tmp_path):
     """Review L8 (kept for 102 a): the next run finds the same unread attempt from the stored follow state
     and the journal: no fetch, no live jev or extractor call, the same row."""

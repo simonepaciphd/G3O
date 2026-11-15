@@ -108,6 +108,31 @@ def test_key_sequence_and_link_checks():
                            activity_ids=[], sources=[("S1", "_NA_")])
 
 
+def test_v27_metadata_counts_observations_and_accepts_zero_v25_still_refuses_119b():
+    """PI ruling 119 b: the v2.7-only metadata model accepts ``n_input_rows`` 0 (an institution with pages and
+    no activity) and refuses a negative count; every other field is identical to the v2.5
+    ``ConsolidationMetadata``, which still refuses 0 (``ge=1``, unchanged)."""
+    from g3o.common.contract import ConsolidationMetadata
+    from g3o.common.response_v27 import ConsolidationMetadataV27
+
+    zero = {**META, "n_input_rows": 0}
+    response = build_response_v27(institution=IDENTITY, metadata=zero, activity_ids=[], sources=[("S1", "_NA_")])
+    assert isinstance(response.consolidation_metadata, ConsolidationMetadataV27)
+    assert response.consolidation_metadata.n_input_rows == 0
+    assert parse_validate_payload(response.model_dump(mode="json")).consolidation_metadata.n_input_rows == 0
+    for bad in ({**META, "n_input_rows": -1}, {**META, "n_input_pages": 0}):
+        with pytest.raises(ValidationError, match="greater than or equal to"):
+            build_response_v27(institution=IDENTITY, metadata=bad, activity_ids=[], sources=[("S1", "_NA_")])
+    with pytest.raises(ValidationError, match="n_input_rows"):
+        ConsolidationMetadata.model_validate(zero)
+    assert ConsolidationMetadata.model_validate(META).n_input_rows == 2
+    v25, v27 = (m.model_json_schema() for m in (ConsolidationMetadata, ConsolidationMetadataV27))
+    assert (v25["properties"]["n_input_rows"]["minimum"], v27["properties"]["n_input_rows"]["minimum"]) == (1, 0)
+    assert ({k: v for k, v in v25["properties"].items() if k != "n_input_rows"}
+            == {k: v for k, v in v27["properties"].items() if k != "n_input_rows"})
+    assert set(v25["required"]) == set(v27["required"]) and v27.get("additionalProperties") is False
+
+
 def test_dispatch_keeps_legacy_payloads_on_the_legacy_model(tmp_path):
     _, _, legacy, _ = fixture_bundle(tmp_path)
     parsed = parse_validate_payload(legacy.model_dump(mode="json"))

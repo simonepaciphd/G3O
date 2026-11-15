@@ -4,7 +4,8 @@ PI ruling 2026-11-10 (RC-D-028 item 4 a): "T-012 adds a 2.7 response model
 carrying identity and row keys only, values only from 6_storage.json".
 
 A v2.7 ``6_validate.json`` therefore names the institution (master identity
-columns, pipeline data), the Stage 6 run bookkeeping (``ConsolidationMetadata``)
+columns, pipeline data), the Stage 6 run bookkeeping (:class:`ConsolidationMetadataV27`:
+the v2.5 ``ConsolidationMetadata`` with ``n_input_rows`` allowed to be 0, PI ruling 119 b)
 and the final row keys: ``activity_id`` per activity and ``(source_id,
 activity_id)`` per source claim. It carries no questionnaire value at all;
 every model is ``extra="forbid"``, so a value field (``has_genai_activity``,
@@ -76,6 +77,15 @@ class SourceKeyV27(BaseModel):
     activity_id: Annotated[str, StringConstraints(pattern=ACTIVITY_OR_NA_PATTERN)]
 
 
+class ConsolidationMetadataV27(ConsolidationMetadata):
+    """The v2.7 Stage 6 run bookkeeping: :class:`~g3o.common.contract.ConsolidationMetadata` with every field
+    identical except ``n_input_rows``, which keeps counting the institution's observations and may be 0 (PI
+    ruling 119 b, 2026-11-14): an institution whose reviewed pages hold no activity is written, not failed.
+    The v2.5 model (``ge=1``) is unchanged."""
+
+    n_input_rows: int = Field(ge=0)
+
+
 class ConsolidatedInstitutionResponseV27(BaseModel):
     """``6_validate.json`` for a v2.7 institution: identity and row keys only."""
 
@@ -83,7 +93,7 @@ class ConsolidatedInstitutionResponseV27(BaseModel):
 
     format: Literal["g3o-validate-v27"]
     codebook_release: Literal["2.7"]
-    consolidation_metadata: ConsolidationMetadata
+    consolidation_metadata: ConsolidationMetadataV27
     institution: InstitutionIdentityV27
     activities: list[ActivityKeyV27]
     sources: list[SourceKeyV27] = Field(min_length=1)
@@ -218,7 +228,7 @@ def list_members(value: Any) -> list[str]:
 
 __all__ = [
     "AnyValidateResponse", "CODEBOOK_RELEASE", "ActivityKeyV27", "ConsolidatedInstitutionResponseV27",
-    "InstitutionIdentityV27", "SourceKeyV27", "VALIDATE_FORMAT_V27", "build_response_v27",
+    "ConsolidationMetadataV27", "InstitutionIdentityV27", "SourceKeyV27", "VALIDATE_FORMAT_V27", "build_response_v27",
     "check_storage_binding", "is_v27_payload", "list_members", "parse_validate_payload",
     "response_from_storage", "retired_legacy_cells", "year_deployed",
 ]
