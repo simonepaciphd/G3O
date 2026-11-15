@@ -985,3 +985,41 @@ def test_record_pass1_reask_names_the_request_and_keeps_the_other_field_h1(tmp_p
                                          SimpleNamespace(custom_id="c-only"))
     with pytest.raises(TypeError):
         pp.record_pass1_reask(run_dir, page, previous, pp.PASS2_NOT_JOURNALED, "c-2")
+
+
+def test_record_after_a_finished_broken_archive_keeps_the_other_field_l3(tmp_path):
+    """Review L-3: an earlier re-ask archive died after moving pass1_requests.json; the next run finishes it first,
+    so the adapter reads no live record (``previous`` None). The fresh record then takes the other field from the
+    newest archive folder holding a record (here 001; the folder 002 this archive takes for page.json holds none),
+    so the 105 b trigger for the other request (the activity-only one) is kept."""
+    from g3o.classify.jev_page_code import PageInput
+
+    run_dir, bound, instrument, world, _ = _world(tmp_path)
+    adapter = _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()).adapter
+    page = PageInput(page_id="z1", institution_id="INST-0000009", institution="Z", country=None,
+                     level_of_government=None, url="https://example.gov/z1", title=None, text="z")
+    pdir = pp.page_state_dir(run_dir, page)
+    pdir.mkdir(parents=True)
+    for name in ("page.json", "activity.json", pp.PAIRS_FILE):
+        (pdir / name).write_text(name, encoding="utf-8")
+    pp._record_pass1_requests(pdir, SimpleNamespace(custom_id="c-page"), SimpleNamespace(custom_id="c-only"))
+    # an activity-only re-ask archive (113 b) that died right after moving the record: its marker is left
+    (pdir / pp.PAGE_ARCHIVE_PENDING).write_text(json.dumps({
+        "format": pp.CHECKPOINT_FORMAT, "kind": "archive_pending", "archive": "001",
+        "files": list(pp.ACTIVITY_STATE_FILES)}), encoding="utf-8")
+    first = pdir / pp.PAGE_ARCHIVE_DIR / "001"
+    first.mkdir(parents=True)
+    for name in pp.ACTIVITY_STATE_FILES:
+        (pdir / name).replace(first / name)
+    assert pp._archive_page_state(run_dir, page) == []  # the next run finishes it (nothing left but the marker)
+    assert pp.read_pass1_requests(run_dir, page) is None
+    adapter._archive_for_reask(page, SimpleNamespace(custom_id="c-new"), pp.PASS1_NOT_JOURNALED)
+    second = pdir / pp.PAGE_ARCHIVE_DIR / "002"
+    assert (second / "page.json").exists() and not (second / pp.PASS1_FILE).exists()
+    assert pp.read_pass1_requests(run_dir, page) == {"format": pp.CHECKPOINT_FORMAT, "kind": "pass1_requests",
+                                                     "page_request": "c-new", "activity_only": "c-only"}
+    # no archived record at all: the other field stays None, as before
+    other = PageInput(page_id="z2", institution_id="INST-0000009", institution="Z", country=None,
+                      level_of_government=None, url="https://example.gov/z2", title=None, text="z")
+    pp.record_pass1_reask(run_dir, other, None, pp.ACTIVITY_ONLY_NOT_JOURNALED, "c-only2")
+    assert pp.read_pass1_requests(run_dir, other)["page_request"] is None

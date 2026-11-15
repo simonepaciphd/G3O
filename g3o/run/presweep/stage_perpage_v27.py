@@ -1325,6 +1325,21 @@ def archive_page_request_state(run_dir: Path, page: Any) -> list[str]:
 _PASS1_SLOTS = {PASS1_NOT_JOURNALED: "page_request", ACTIVITY_ONLY_NOT_JOURNALED: "activity_only"}
 
 
+def _newest_archived_pass1(run_dir: Path, page: Any) -> dict[str, Any] | None:
+    """Review L-3: the :data:`PASS1_FILE` record in the page's newest archive folder (highest ``NNN``) that holds
+    one, or None. The folder taken by an archive that found no live record holds none, so it is skipped. A
+    malformed record raises as :func:`read_pass1_requests` does (a stage stop, PI ruling 118 b)."""
+    root = page_state_dir(run_dir, page) / PAGE_ARCHIVE_DIR
+    if not root.is_dir():
+        return None
+    folders = sorted((p for p in root.iterdir() if p.is_dir() and re.fullmatch(r"[0-9]{3,}", p.name)),
+                     key=lambda p: int(p.name), reverse=True)
+    for folder in folders:
+        if (folder / PASS1_FILE).exists():
+            return _read_checkpoint(folder / PASS1_FILE, "pass1_requests")
+    return None
+
+
 def record_pass1_reask(run_dir: Path, page: Any, previous: Mapping[str, Any] | None, stage: str,
                        custom_id: str) -> None:
     """Review H-1 (PI rulings 105 b / 113 b / 114 b): write a fresh :data:`PASS1_FILE` naming the request about to
@@ -1344,9 +1359,16 @@ def record_pass1_reask(run_dir: Path, page: Any, previous: Mapping[str, Any] | N
 
     PI ruling 123 a (accepted, left as is): a crash after this write and before the journal's ``reask_spent``
     marker leaves the release unspent, so the next run archives again; the only file left to move is this fresh
-    record, which then lands alone in a second archive folder (``archive/<NNN+1>/pass1_requests.json``)."""
+    record, which then lands alone in a second archive folder (``archive/<NNN+1>/pass1_requests.json``).
+
+    Review L-3: ``previous`` None is read again from the newest archive folder holding a record
+    (:func:`_newest_archived_pass1`): an archive that died after moving the record was finished by the next run
+    before the read (``_rounds_for_page``, ``held.json``'s ``archive_files``), so the read found none, and the other
+    field would otherwise be written None, dropping the 105 b trigger for the other request."""
     if stage not in _PASS1_SLOTS:
         raise TypeError(f"page {page.page_id}: no pass-1 request record for hold stage {stage!r} (wiring error)")
+    if previous is None:  # review L-3
+        previous = _newest_archived_pass1(run_dir, page)
     doc = {name: (previous or {}).get(name) for name in _PASS1_SLOTS.values()}
     doc[_PASS1_SLOTS[stage]] = custom_id
     _atomic_write(page_state_dir(run_dir, page) / PASS1_FILE,
