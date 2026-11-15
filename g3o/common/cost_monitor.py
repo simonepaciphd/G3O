@@ -946,14 +946,22 @@ EXTRACTOR_UNBILLED_CANCELED_RESULT = "canceled"
 def price_extractor_requests(
     usages: list[dict[str, Any] | None], *, model: str,
 ) -> dict[str, Any]:
-    """Price v2.7 extractor calls one request at a time (PI rulings 57 a, 58 a).
+    """Price v2.7 extractor calls one request at a time (PI rulings 130 a, 58 a).
 
     Each element is one journaled response's own ``usage``
-    (:meth:`RequestJournal.extractor_usages`). Every v2.7 run is priced at Message
-    Batches rates (57 a); the long-prompt tier is applied per request, cache reads
-    and writes included (58 a), by :func:`g3o.common.pricing.anthropic_request_usd`.
-    A response without the :data:`EXTRACTOR_USAGE_KEYS` is counted in
+    (:meth:`RequestJournal.extractor_usages`). v2.7 extractor calls are made live (a
+    synchronous ``messages.create`` per job), so each is priced at STANDARD (non-batch)
+    Anthropic rates (PI ruling 130 a, which supersedes 57 a for live calls); the
+    long-prompt tier is applied per request, cache reads and writes included (58 a), by
+    :func:`g3o.common.pricing.anthropic_request_usd`. ``rates`` in the result names
+    that basis. A response without the :data:`EXTRACTOR_USAGE_KEYS` is counted in
     ``unpriced_calls``; while any is, ``usd`` is ``None`` (never a partial sum).
+
+    Only journaled responses are priced. A call that was sent and died without a
+    response (e.g. a read timeout) is not journaled and so not priced (PI ruling
+    131.1 b: accepted). A torn last journal line (an interrupted write) is skipped on a
+    read-only load and dropped on repair, so at most one billed call can be missing
+    from any report (PI ruling 131.2 a: accepted).
 
     A failed call that reports no usage comes as ``{EXTRACTOR_FAILED_RESULT_KEY: type}``
     (PI ruling 67 a): an ``errored`` or ``expired`` result costs $0 and is counted in
@@ -965,7 +973,7 @@ def price_extractor_requests(
     """
     row = pricing_for(model)
     rates = None if row is None else row.get("tiers", {}).get("up_to_threshold", row)
-    priceable_row = rates is not None and "batch_cache_write_5m_per_1m_usd" in rates
+    priceable_row = rates is not None and "standard_cache_write_5m_per_1m_usd" in rates
     total = 0.0
     unpriced = unbilled_failed = unbilled_canceled = 0
     tokens = dict.fromkeys(EXTRACTOR_USAGE_KEYS, 0)
@@ -983,11 +991,15 @@ def price_extractor_requests(
         for k in EXTRACTOR_USAGE_KEYS:
             tokens[k] += int(u.get(k) or 0)
         if priceable_row:
-            total += anthropic_request_usd(u, row, batch=True)
+            # PI ruling 130 a: live calls at standard rates. Hook: no production batch
+            # path exists yet (a separate future design); once batch-submitted responses
+            # exist, they are priced at batch rates (batch=True) and must be told apart
+            # from live ones here, with ``rates`` reporting the basis used.
+            total += anthropic_request_usd(u, row, batch=False)
     out: dict[str, Any] = {
         "model": model, "calls": len(usages), "unpriced_calls": unpriced,
         "unbilled_failed_calls": unbilled_failed, "unbilled_canceled_calls": unbilled_canceled,
-        "rates": "batch", **tokens,
+        "rates": "standard", **tokens,
         "usd": _round_usd(total) if priceable_row and not unpriced else None,
     }
     if not priceable_row and usages:
@@ -1010,9 +1022,15 @@ def price_v27_usage(
     (``input_tokens`` / ``output_tokens``; jev responses, unidentified and incomplete
     ones included) is priced from ``jev_model``'s rate row at its standard rates (jev
     is synchronous; RS-031 names jev-1.13.0). The extractor part is priced per request
-    from ``extractor_usages`` (:func:`price_extractor_requests`; rulings 57 a, 58 a);
-    given totals only, it is unpriced. The X35 part is unpriced
-    (:data:`V27_UNPRICED_PARTS`, ruling 59 b).
+    from ``extractor_usages`` (:func:`price_extractor_requests`; rulings 130 a, 58 a:
+    live calls at standard rates, the long-prompt tier per request); given totals
+    only, it is unpriced. The X35 part is unpriced (:data:`V27_UNPRICED_PARTS`,
+    ruling 59 b).
+
+    The figures cover journaled calls only: a call sent that died without a response
+    (e.g. a read timeout) is neither journaled nor priced (PI ruling 131.1 b), and a
+    torn last journal line drops at most one billed call from the report (PI ruling
+    131.2 a); both accepted.
 
     ``total_usd`` is a number only when every part with calls is priced: an
     unpriced part with calls makes it ``None``, never a partial sum (review F2). A

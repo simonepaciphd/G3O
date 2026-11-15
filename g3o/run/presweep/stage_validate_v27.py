@@ -502,7 +502,8 @@ class RequestJournal:
             try:
                 entry = json.loads(line.decode("utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError):
-                if last:  # torn final record: the write was interrupted; drop it
+                if last:  # torn final record: the write was interrupted; drop it (PI ruling 131.2 a:
+                    # accepted that this can leave at most one billed call out of every report)
                     break
                 raise ValueError(f"corrupt Stage 6 journal line {n + 1}: {self.path}") from None
             keep.append(line)
@@ -691,7 +692,9 @@ class RequestJournal:
                 self.replayed += 1
                 return _jev_from_json(recorded)
         start = time.monotonic()
-        result = ask_fn(state, questions)  # an exception is not recorded: asked again on resume
+        # An exception is not recorded: asked again on resume. A call sent that died without a
+        # response (e.g. a read timeout) is therefore unjournaled and unpriced (PI ruling 131.1 b).
+        result = ask_fn(state, questions)
         self.live += 1
         if not has_request_id(result.request_id):
             # billed but unidentified: a failed request (asked again, unless a re-ask), still accounted
@@ -717,7 +720,9 @@ class RequestJournal:
             elif self.reask_spent_unanswered(slot[1], slot[2], kind="extract"):  # review H-1: never unauthorised
                 raise ReaskSpentUnanswered(slot[1], job.custom_id)
             start = time.monotonic()
-            result = extract_fn(job)  # an exception is not recorded: asked again on resume
+            # An exception is not recorded: asked again on resume. A call sent that died without a
+            # response (e.g. a read timeout) is therefore unjournaled and unpriced (PI ruling 131.1 b).
+            result = extract_fn(job)
             self.live += 1
             if result.success:
                 self._append(slot, asdict(result), _elapsed_ms(start))
@@ -825,12 +830,18 @@ class RequestJournal:
     def extractor_usages(self) -> list[dict[str, Any] | None]:
         """Each journaled extractor response's own ``usage`` (``None`` where it has none), for the
         calls ``usage()["extractor_calls"]`` counts: successful, failed and rejected results.
-        Priced per request by :func:`g3o.common.cost_monitor.price_extractor_requests` (ruling 58 a).
+        Priced per request by :func:`g3o.common.cost_monitor.price_extractor_requests` (rulings 58 a,
+        130 a: standard rates for these live calls).
 
         A failed result (``extract_failed``) that reports no usage gives
         ``{EXTRACTOR_FAILED_RESULT_KEY: <its error type>}`` instead, read from the journaled
         result's ``error["type"]`` (on disk, so the same after a resume): the pricing decides
         what that type costs (PI ruling 67 a). Without a string type it stays ``None``.
+
+        Only journaled calls appear. A call sent that died without a response (e.g. a read
+        timeout) is not journaled, so it is neither counted nor priced (PI ruling 131.1 b:
+        accepted). A torn last journal line is skipped on a read-only load and dropped on repair,
+        so at most one billed call can be missing here (PI ruling 131.2 a: accepted).
         """
         from g3o.common.cost_monitor import EXTRACTOR_FAILED_RESULT_KEY
 
@@ -860,6 +871,11 @@ class RequestJournal:
         count X35 calls (their client reports no tokens here); ``request_ms`` is
         the summed call time. A quote step without seams is counted only as
         ``quote_responses``.
+
+        A call sent that died without a response (e.g. a read timeout) is not journaled,
+        so it is not in these totals (PI ruling 131.1 b: accepted); a torn last journal
+        line, skipped on a read-only load and dropped on repair, leaves out at most one
+        billed call (PI ruling 131.2 a: accepted).
         """
         def recorded(kind: str) -> list[dict[str, Any]]:
             return [r for (k, _, _), r in self._recorded.items() if k == kind]
