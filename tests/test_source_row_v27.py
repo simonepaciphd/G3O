@@ -829,6 +829,20 @@ def test_residual_page_routing_70b():
     assert v[sf.CREDIBILITY] == sf.signed_credibility_map().cells["not_asked"]
 
 
+def test_missing_residual_answers_stop_the_stage_111a():
+    """PI ruling 111 a (97 b split): a readable residual page handed no residual source_type answers is a wiring
+    gap (RESIDUAL_PRODUCER is a wiring producer): source_type stops the stage, never holds the institution, and
+    so does the credibility that reads it; neither is a data refusal."""
+    assert srow.RESIDUAL_PRODUCER in srow.WIRING_PRODUCERS
+    rows = _typed(_page(), FIELDS_P1, ELSEWHERE)
+    assert srow.RESIDUAL_PRODUCER in rows.refused[sf.SOURCE_TYPE] and sf.SOURCE_TYPE in rows.stops
+    assert sf.SOURCE_TYPE not in rows.data_refusals()
+    assert _values(rows)[sf.CREDIBILITY] == "low"  # undated: low whatever the type, not refused
+    dated = _typed(_page(), _dated(), ELSEWHERE)
+    assert {sf.SOURCE_TYPE, sf.CREDIBILITY} <= dated.stops
+    assert not {sf.SOURCE_TYPE, sf.CREDIBILITY} & set(dated.data_refusals())
+
+
 def test_unresolved_official_site_refuses_its_readers_70b():
     sites = osv.RunOfficialSites("fixture", {}, frozenset(), {INST: "the classify_official_site step failed for it"})
     rows = _typed(_page(), FIELDS_P1, sites)

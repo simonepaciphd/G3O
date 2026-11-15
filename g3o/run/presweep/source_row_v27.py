@@ -121,7 +121,8 @@ Produced here (source row, page-level), PI ruling 70 b (2026-11-13):
   T-021 parts, its quote task in the page's first pass-1 request, checked by
   T-024 (no first request: checked with no quote, ``downgraded_no_quote``);
   :func:`residual_source_type_value`. Without that input it is refused
-  (:data:`RESIDUAL_PRODUCER`).
+  (:data:`RESIDUAL_PRODUCER`), a wiring gap that stops the stage (PI ruling 111 a,
+  :data:`WIRING_PRODUCERS`).
 - ``source_credibility`` (X22, :func:`g3o.common.source_fields.source_credibility`):
   ``low`` when the publication date is ``unknown`` / ``not_documented``
   whatever the type; otherwise the signed map cell of the automatic basis or of
@@ -271,7 +272,8 @@ PRODUCED_SOURCE_ITEMS = (
 #: A readable residual page. PI ruling 95 a (building 83 b): the residual jev source_type question runs before
 #: T-022 (the per-page stage) and its quote task rides in the page's first pass-1 request; the instrument binds
 #: the residual set as its second accepted question-set version. The per-page stage hands the answers and their
-#: checks to the assembler; their absence is a wiring gap (the stage stops, ruling 32 b).
+#: checks to the assembler; their absence is a wiring gap (the stage stops, ruling 32 b; PI ruling 111 a: it is
+#: in :data:`WIRING_PRODUCERS`).
 RESIDUAL_PRODUCER = ("the residual source_type answers and their T-024 checks (PI ruling 95 a: the per-page "
                      "stage's residual question, PerPageProviders.source_type_codes)")
 
@@ -826,8 +828,10 @@ ARCHIVE_TEST = "A2 archive-address test (PageSourceFields.archive_address)"
 PAGE_FIELDS = "perpage_inputs_v27.PageSourceFields"
 #: PI ruling 97 b (2026-11-14): producers whose absence is a wiring gap, never a page's data. A refusal naming
 #: one of them stops the per-page stage even for a :data:`CONDITIONAL_ITEMS` item (PI 32 b); any other
-#: refusal of a conditional item is the page's own data and holds that institution only.
-WIRING_PRODUCERS = frozenset({MISSING_EXTRACTION, OFFICIAL_SITES, ARCHIVE_TEST, PAGE_FIELDS})
+#: refusal of a conditional item is the page's own data and holds that institution only. PI ruling 111 a
+#: (2026-11-14): a readable residual page handed no residual ``source_type`` answers
+#: (:data:`RESIDUAL_PRODUCER`) is a wiring gap too: the stage stops.
+WIRING_PRODUCERS = frozenset({MISSING_EXTRACTION, OFFICIAL_SITES, ARCHIVE_TEST, PAGE_FIELDS, RESIDUAL_PRODUCER})
 
 
 def official_value(page: Any, official_sites: Any) -> sf.FieldValue:
