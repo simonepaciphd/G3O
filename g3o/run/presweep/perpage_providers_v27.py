@@ -589,7 +589,7 @@ class _Adapter:
         The activity task alone (:func:`~g3o.extract.request_v27.activity_task_only`; the signed task,
         no new wording), on the page's current part layout, with its own ``custom_id``
         (:func:`activity_only_custom_id`). It goes through ``extract_fn`` like every extractor call, so
-        the per-institution journal records, prices (rulings 57 a / 58 a / 67 a) and replays it on a
+        the per-institution journal records, prices (rulings 130 a / 58 a / 67 a) and replays it on a
         resume (the same layout gives the same request). A failed or unparsable response raises
         :class:`ExtractorResponseFailed` (C3 a: the institution is held and the request asked again);
         once the journal's rejection cap is reached it raises
