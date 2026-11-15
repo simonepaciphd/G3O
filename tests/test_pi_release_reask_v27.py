@@ -1,6 +1,7 @@
 """PI ruling 104 b (2026-11-14): the 41 a ``pi_release.json`` also authorises ONE live re-ask of a request key
 held under 98 b (stage ``pass2_request_not_journaled``). PI ruling 103 b: a 97 b page-data hold stays
-unreleasable by ``pi_release.json``.
+unreleasable by ``pi_release.json``. PI ruling 113 b: the 105 b pass-1 and activity-only holds are releasable the
+same way, and the page's activity-level state is archived before that live re-ask.
 
 No network: every extractor / jev / X35 answer is a fake. Covers the journal's re-ask authorisation (used up by
 the one live call it allows, also across a reload), the per-page stage end to end (98 b hold -> release -> one
@@ -11,11 +12,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
+from types import SimpleNamespace
 
 import pytest
 
 from g3o.common.paths import institution_dir
 from g3o.extract.anthropic_client import ExtractorJob, ExtractorResult
+from g3o.extract.request_v27 import field_name
+from g3o.run.presweep import perpage_providers_v27 as ppv
 from g3o.run.presweep import stage_perpage_v27 as pp
 from g3o.run.presweep import stage_validate_v27 as rt
 from tests.test_e2e_perpage_v27 import (  # noqa: F401 - _paragraph_layout is an autouse fixture
@@ -25,12 +30,17 @@ from tests.test_e2e_perpage_v27 import (  # noqa: F401 - _paragraph_layout is an
     _paragraph_layout,
 )
 from tests.test_perpage_providers_v27 import (
+    PASS1,
     PASS2,
     USAGE,
     BadResponse,
     FakeEntail,
     FakeExtractor,
+    NoFirstRoundActivities,
+    _flip_world,
+    _flipped_round,
     _held,
+    _is_activity_only,
     _providers,
     _run,
     _world,
@@ -236,5 +246,196 @@ def test_98b_hold_key_is_accepted_and_all_authorises_no_reask(tmp_path):
 
 
 def test_page_data_hold_stays_outside_the_releasable_stages_103b():
-    assert pp.REASK_RELEASABLE == frozenset({pp.PASS2_NOT_JOURNALED})
+    # PI ruling 113 b: the 105 b pass-1 and activity-only holds are releasable for one re-ask too
+    assert pp.REASK_RELEASABLE == frozenset({pp.PASS2_NOT_JOURNALED, pp.PASS1_NOT_JOURNALED,
+                                             pp.ACTIVITY_ONLY_NOT_JOURNALED})
     assert pp.ROW_VALUE_REFUSED not in pp.REASK_RELEASABLE
+
+
+# ---------------------------------------------------------------------------
+# PI ruling 113 b: a released pass-1 / activity-only re-ask archives the activity-level state first
+# ---------------------------------------------------------------------------
+
+
+class Renamed(FakeExtractor):
+    """Pass-1 answers on ``page`` name its activities ``name``: the re-asked response's spans differ from the
+    ones the stale activity state was built on."""
+
+    def __init__(self, world, page, name):
+        super().__init__(world)
+        self.page, self.name = page, name
+
+    def __call__(self, job):
+        result = super().__call__(job)
+        if job.metadata["stage"] != PASS1 or job.metadata["page_id"] != self.page:
+            return result
+        payload = json.loads(result.text)
+        for act in payload["activities"]:
+            for f in act["fields"]:
+                if f["field"] == field_name("core.activity_name"):
+                    f["value"] = self.name
+        return replace(result, text=json.dumps(payload))
+
+
+def _held_105b(tmp_path, page="p1"):
+    """A first full run, then the page's first pass-1 (T-022 page request) response dropped from the journal:
+    the resumed run holds the institution under 105 b (no pass-1 call). Returns the run pieces and that hold."""
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    one = [i for i in insts if i.institution_id == INST]
+
+    def run(extract):
+        return _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, extract, FakeEntail()),
+                    FakeJev(ANSWERS, RELATIONS))
+
+    ex1 = FakeExtractor(world)
+    ready, _ = run(ex1)
+    assert [i.institution_id for i in ready] == [INST]
+    first = next(j for j in ex1.jobs if j.metadata["stage"] == PASS1 and j.metadata["page_id"] == page)
+    journal = institution_dir(run_dir, INST) / pp.WORK_DIR / pp.JOURNAL
+    lines = journal.read_text(encoding="utf-8").splitlines()
+    kept = [x for x in lines if not (json.loads(x)["kind"] == "extract"
+                                     and json.loads(x)["response"]["custom_id"] == first.custom_id)]
+    assert len(kept) == len(lines) - 1
+    journal.write_text("".join(x + "\n" for x in kept), encoding="utf-8")
+    ex2 = FakeExtractor(world)
+    ready, metrics = run(ex2)
+    assert ready == [] and metrics.held == [INST] and ex2.jobs == []
+    (hold,) = _held(run_dir, INST)["held"]
+    assert (hold["page_id"], hold["stage"], hold["pass"]) == (page, pp.PASS1_NOT_JOURNALED, "pass1")
+    assert hold["custom_id"] == first.custom_id
+    spec = next(s for s in one[0].pages if s.page.page_id == page)
+    return run_dir, world, run, hold, spec.page
+
+
+def _spy_coded(monkeypatch):
+    """The T-023 inputs coded from now on (``stage_activity_code.run_stage``)."""
+    from g3o.run.presweep import stage_activity_code
+
+    coded = []
+    real = stage_activity_code.run_stage
+
+    def spy(pages, *a, **kw):
+        pages = list(pages)
+        coded.extend(pages)
+        return real(pages, *a, **kw)
+    monkeypatch.setattr(stage_activity_code, "run_stage", spy)
+    return coded
+
+
+def test_released_pass1_reask_archives_the_activity_state_and_codes_it_afresh_113b(tmp_path, monkeypatch):
+    """PI ruling 113 b: a pi_release.json key naming a 105 b pass-1 hold authorises one live re-ask; before
+    that call the page's activity-level state (activity.json, pass1_requests.json, the T-023 artifact) is moved
+    to ``<page dir>/archive/001/``, so T-023 codes the page again on the new response's spans instead of
+    resuming from state built on the old ones. page.json stays at its live path (activity-level state only)."""
+    from g3o.common.artifact_io import artifact_exists
+    from g3o.run.presweep import stage_activity_code
+
+    run_dir, world, run, hold, page = _held_105b(tmp_path)
+    key, cid = hold["request_key"], hold["custom_id"]
+    pdir = pp.page_state_dir(run_dir, page)
+    inst_dir = institution_dir(run_dir, INST)
+    art = stage_activity_code.artifact_path(inst_dir / pp.ACTIVITY_DIR, page.page_id)
+    stale_activity = (pdir / "activity.json").read_bytes()
+    assert (pdir / pp.PASS1_FILE).exists() and artifact_exists(art) and (pdir / "page.json").exists()
+
+    _write_release(run_dir, _release_doc([key]))
+    coded = _spy_coded(monkeypatch)
+    ex3 = Renamed(world, page.page_id, "Renamed drafting")
+    run(ex3)
+    assert len([j for j in ex3.jobs if j.metadata["stage"] == PASS1 and j.custom_id == cid]) == 1  # the re-ask
+    archive = pdir / pp.PAGE_ARCHIVE_DIR / "001"
+    assert (archive / "activity.json").read_bytes() == stale_activity  # archived, never deleted
+    assert (archive / pp.PASS1_FILE).exists() and len(list((archive / pp.ACTIVITY_DIR).iterdir())) == 1
+    assert not (archive / "page.json").exists() and (pdir / "page.json").exists()
+    assert not (pdir / pp.PAGE_ARCHIVE_PENDING).exists()  # the archive is complete
+    # T-023 ran again for the page, on the re-asked response's spans; fresh state is written at the live paths
+    (inp,) = [p for p in coded if p.page.page_id == page.page_id]
+    assert [f.value for s in inp.spans for f in s.fields if f.item_id == "core.activity_name"] == ["Renamed drafting"]
+    assert (pdir / "activity.json").exists() and artifact_exists(art) and (pdir / pp.PASS1_FILE).exists()
+    assert not rt.RequestJournal(inst_dir / pp.WORK_DIR / pp.JOURNAL, {}).reask_authorised(key)
+    assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
+
+
+def test_released_activity_only_reask_archives_the_activity_state_first_113b(tmp_path):
+    """PI ruling 113 b, the 87 c activity-only request: a release of its 105 b hold lets the one live re-ask
+    through, after the page's activity-level state (activity.json, pairs.json, pass1_requests.json, the T-023
+    artifact) is moved to ``archive/001/``; page.json and the residual source_type answers stay."""
+    from g3o.classify.jev_page_code import to_pass1_page
+    from g3o.common.artifact_io import artifact_exists, write_artifact
+    from g3o.extract import request_v27
+    from g3o.run.presweep import stage_activity_code
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, started, records, page_round_of = _flipped_round(run_dir, bound, page)
+    page_cid = request_v27.make_custom_id(page.institution_id, page.url)
+    only_cid = ppv.activity_only_custom_id(page_cid, to_pass1_page(started, page))
+    path, pdir = tmp_path / "journal113b.jsonl", pp.page_state_dir(run_dir, page)
+    art = stage_activity_code.artifact_path(institution_dir(run_dir, page.institution_id) / pp.ACTIVITY_DIR,
+                                            page.page_id)
+
+    def journaled(extract):
+        journal = rt.RequestJournal(path, {"s": 1})
+        base = _providers(run_dir, bound, instrument, extract, FakeEntail())
+        providers = base.with_seams(*journal.seams(base.journal_prompt))
+        return journal, providers, page_round_of(providers.page_support(page, result, records))
+
+    pp._record_pass1_requests(pdir, SimpleNamespace(custom_id=page_cid), SimpleNamespace(custom_id=only_cid))
+    ex1 = NoFirstRoundActivities(world)
+    _, providers, page_round = journaled(ex1)
+    with pytest.raises(pp.Pass1RequestNotJournaled) as exc:
+        providers.activity_input(page, page_round)
+    assert exc.value.stage == pp.ACTIVITY_ONLY_NOT_JOURNALED and not any(_is_activity_only(j) for j in ex1.jobs)
+    key = exc.value.key
+    # stale activity-level state built on the old spans, and the state that must stay
+    stale = ("activity.json", pp.PAIRS_FILE)
+    for name in (*stale, "page.json", pp.SOURCE_TYPE_FILE):
+        (pdir / name).write_text(f"stale {name}", encoding="utf-8")
+    art.parent.mkdir(parents=True, exist_ok=True)
+    write_artifact(art, json.dumps({"stale": True}))
+
+    rt.RequestJournal(path, {"s": 1}).record_release({**_release_doc([key]), "all": False, "file_sha256": "a" * 64,
+                                                      "reask_keys": [key]})
+    ex2 = NoFirstRoundActivities(world)
+    journal, providers, page_round = journaled(ex2)
+    assert providers.activity_input(page, page_round) is not None
+    assert [j.custom_id for j in ex2.jobs if _is_activity_only(j)] == [only_cid]  # the one live re-ask
+    archive = pdir / pp.PAGE_ARCHIVE_DIR / "001"
+    for name in (*stale, pp.PASS1_FILE):
+        assert not (pdir / name).exists() and (archive / name).exists()
+    assert (archive / "activity.json").read_text(encoding="utf-8") == "stale activity.json"
+    assert not artifact_exists(art) and len(list((archive / pp.ACTIVITY_DIR).iterdir())) == 1
+    for name in ("page.json", pp.SOURCE_TYPE_FILE):  # not activity-level state (113 b; review M-1)
+        assert (pdir / name).read_text(encoding="utf-8") == f"stale {name}" and not (archive / name).exists()
+    assert not (pdir / pp.PAGE_ARCHIVE_PENDING).exists() and not journal.reask_authorised(key)
+
+
+def test_activity_state_archive_finishes_its_own_file_set_113b(tmp_path):
+    """Unit: the 113 b archive moves only the activity-level files and the T-023 artifact; an incomplete one
+    is finished with the file set its pending marker records (never page.json), into the same folder."""
+    from g3o.classify.jev_page_code import PageInput
+    from g3o.common.artifact_io import write_artifact
+    from g3o.run.presweep import stage_activity_code
+
+    run_dir = tmp_path / "run"
+    page = PageInput(page_id="z1", institution_id="INST-0000009", institution="Z", country=None,
+                     level_of_government=None, url="https://example.gov/z1", title=None, text="z")
+    assert pp.archive_activity_state(run_dir, page) == []  # nothing saved: no folder taken
+    pdir = pp.page_state_dir(run_dir, page)
+    inst_dir = institution_dir(run_dir, page.institution_id)
+    art = stage_activity_code.artifact_path(inst_dir / pp.ACTIVITY_DIR, page.page_id)
+    pdir.mkdir(parents=True)
+    for name in (*pp.PAGE_STATE_FILES, pp.SOURCE_TYPE_FILE):
+        (pdir / name).write_text(name, encoding="utf-8")
+    art.parent.mkdir(parents=True, exist_ok=True)
+    write_artifact(art, json.dumps({"n": 1}))
+    # an earlier 113 b archive left incomplete: its marker names folder 001 and the activity-level files
+    (pdir / pp.PAGE_ARCHIVE_PENDING).write_text(json.dumps({
+        "format": pp.CHECKPOINT_FORMAT, "kind": "archive_pending", "archive": "001",
+        "files": list(pp.ACTIVITY_STATE_FILES)}), encoding="utf-8")
+    moved = pp._archive_page_state(run_dir, page)  # the default file set is overridden by the marker's
+    dest = pdir / pp.PAGE_ARCHIVE_DIR / "001"
+    assert len(moved) == len(pp.ACTIVITY_STATE_FILES) + 1
+    assert all((dest / name).exists() for name in pp.ACTIVITY_STATE_FILES)
+    assert (pdir / "page.json").exists() and (pdir / pp.SOURCE_TYPE_FILE).exists()
+    assert not (dest / "page.json").exists() and (dest / pp.PAGE_ARCHIVE_PENDING).exists()
+    assert pp.archive_activity_state(run_dir, page) == [] and not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()

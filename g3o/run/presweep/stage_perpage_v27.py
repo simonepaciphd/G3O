@@ -40,7 +40,10 @@ Rules carried here, not decided here:
   a resumed page's pass-1 page request (:data:`PASS1_NOT_JOURNALED`) and 87 c activity-only request
   (:data:`ACTIVITY_ONLY_NOT_JOURNALED`); the residual ``source_type`` answers are saved before the first
   pass-1 request and loaded on a resume (:data:`SOURCE_TYPE_FILE`), never asked again, also after a C4
-  archive (review M-1).
+  archive (review M-1). PI rulings 104 b / 113 b: a ``pi_release.json`` key naming one of these held requests
+  (:data:`REASK_RELEASABLE`) authorises one live re-ask; for a pass-1 or activity-only request the page's
+  activity-level state (:data:`ACTIVITY_STATE_FILES` and the T-023 activity artifact) is archived first
+  (:func:`archive_activity_state`), so the new response's spans are coded from scratch.
 - **Publication.** A page with any pending or stopped question (an extra
   round that failed, a gate awaiting it) holds its whole institution: the
   holds go to ``perpage_v27/held.json`` and the attrition ledger, nothing is
@@ -296,6 +299,11 @@ PASS1_FILE = "pass1_requests.json"
 #: is the only path that resets a page's saved state; a future path that resets ALL of it must also archive
 #: :data:`SOURCE_TYPE_FILE`.
 PAGE_STATE_FILES = ("page.json", "activity.json", PAIRS_FILE, PASS1_FILE)
+#: PI ruling 113 b: the page's activity-level state, archived (with the T-023 activity artifact) before the one
+#: live re-ask a PI release authorises for a pass-1 / activity-only hold (:func:`archive_activity_state`), so
+#: the new response's spans are never mixed with state built on the old ones. ``page.json`` stays (the ruling
+#: names activity-level state only), and so does :data:`SOURCE_TYPE_FILE` (review M-1).
+ACTIVITY_STATE_FILES = ("activity.json", PAIRS_FILE, PASS1_FILE)
 #: written in the page dir before a C4 archive moves anything and moved into the archive folder last;
 #: while it is in the page dir the archive is incomplete and the page's saved state is never loaded
 PAGE_ARCHIVE_PENDING = "archive_pending.json"
@@ -416,10 +424,14 @@ class PageArchiveIncomplete(Exception):
     finished.
     """
 
-    def __init__(self, archived: list[str], left: list[str], error: OSError) -> None:
+    def __init__(self, archived: list[str], left: list[str], error: OSError,
+                 files: Sequence[str] = PAGE_STATE_FILES) -> None:
         super().__init__(f"page-state archive incomplete: {type(error).__name__}: {error}")
         self.archived, self.left = archived, left
         self.error = f"{type(error).__name__}: {error}"
+        #: the page-dir files this archive moves (:data:`PAGE_STATE_FILES`, or :data:`ACTIVITY_STATE_FILES`
+        #: for a PI ruling 113 b archive); the next run finishes the same archive
+        self.files = tuple(files)
 
 
 #: PI ruling 97 b (2026-11-14): a row value the T-015 assembler refused on the page's own data
@@ -1096,43 +1108,55 @@ def page_state_dir(run_dir: Path, page: Any) -> Path:
 _page_dir = page_state_dir
 
 
-def _archive_page_state(run_dir: Path, page: PageInput) -> list[str]:
+def _archive_page_state(run_dir: Path, page: PageInput, files: Sequence[str] = PAGE_STATE_FILES) -> list[str]:
     """Move ``page``'s saved state to ``<page dir>/archive/<NNN>/`` (ruling 33 a); never deletes.
 
-    The per-page checkpoints (:data:`PAGE_STATE_FILES`) and the T-023 activity
-    artifact (either stored form, kept under ``activity_code_v27/`` in the archive
-    folder) are moved; the residual ``source_type`` answers (:data:`SOURCE_TYPE_FILE`)
-    stay (review M-1). Each call takes the next free ``NNN``. Returns the archived
-    paths relative to the institution dir (empty when the page had no saved state).
+    The per-page checkpoints named in ``files`` (default :data:`PAGE_STATE_FILES`;
+    :data:`ACTIVITY_STATE_FILES` for a PI ruling 113 b re-ask, :func:`archive_activity_state`)
+    and the T-023 activity artifact (either stored form, kept under ``activity_code_v27/``
+    in the archive folder) are moved; the residual ``source_type`` answers
+    (:data:`SOURCE_TYPE_FILE`) stay (review M-1). Each call takes the next free ``NNN``.
+    Returns the archived paths relative to the institution dir (empty when the page had
+    no saved state).
 
-    All or nothing across runs (ruling 28 a): the folder is first recorded in
+    All or nothing across runs (ruling 28 a): the folder and ``files`` are first recorded in
     :data:`PAGE_ARCHIVE_PENDING` in the page dir, and that marker is moved into
     the archive folder only after every file. An ``OSError`` that survives the
     write retries raises :class:`PageArchiveIncomplete` (the caller holds the
     institution); the marker stays, so :func:`_rounds_for_page` finishes this
     same archive before it loads any state. A call with the marker present
-    resumes the recorded folder instead of taking a new ``NNN``.
+    resumes the recorded folder and file set instead of taking a new ``NNN`` (a marker
+    written before ``files`` were recorded moves :data:`PAGE_STATE_FILES`).
     """
     inst_dir = institution_dir(run_dir, page.institution_id)
     pdir = _page_dir(run_dir, page)
     marker = pdir / PAGE_ARCHIVE_PENDING
     art = stage_activity_code.artifact_path(inst_dir / ACTIVITY_DIR, page.page_id)
-    moves = [(pdir / name, Path(name)) for name in PAGE_STATE_FILES]
-    moves += [(p, Path(ACTIVITY_DIR) / p.name) for p in (gz_path(art), plain_path(art))]
-    moves = [(src, rel) for src, rel in moves if src.exists()]
 
     def rel_inst(path: Path) -> str:
         return path.relative_to(inst_dir).as_posix()
 
+    def state_moves(names: Sequence[str]) -> list[tuple[Path, Path]]:
+        if not set(names) <= set(PAGE_STATE_FILES):
+            raise ValueError(f"unsupported per-page checkpoint: page-state archive of {list(names)}")
+        found = [(pdir / name, Path(name)) for name in names]
+        found += [(p, Path(ACTIVITY_DIR) / p.name) for p in (gz_path(art), plain_path(art))]
+        return [(src, rel) for src, rel in found if src.exists()]
+
+    files = tuple(files)
     root = pdir / PAGE_ARCHIVE_DIR
     archived: list[str] = []
+    moves: list[tuple[Path, Path]] = []
     try:
         if marker.exists():  # an earlier archive of this page was left incomplete: finish that one
             doc = json.loads(marker.read_bytes().decode("utf-8"))
             if doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != "archive_pending":
                 raise ValueError(f"unsupported per-page checkpoint: {marker}")
             dest = root / doc["archive"]
+            files = tuple(doc.get("files", PAGE_STATE_FILES))
+            moves = state_moves(files)
         else:
+            moves = state_moves(files)
             if not moves:
                 return []
             taken = {p.name for p in root.iterdir()} if root.is_dir() else set()
@@ -1141,7 +1165,7 @@ def _archive_page_state(run_dir: Path, page: PageInput) -> list[str]:
                 n += 1
             dest = root / f"{n:03d}"
             _atomic_write(marker, canonical_json({"format": CHECKPOINT_FORMAT, "kind": "archive_pending",
-                                                  "archive": dest.name}))
+                                                  "archive": dest.name, "files": list(files)}))
         for src, rel in moves:
             target = dest / rel
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -1153,8 +1177,27 @@ def _archive_page_state(run_dir: Path, page: PageInput) -> list[str]:
         left = [rel_inst(src) for src, _ in moves if src.exists()]
         if marker.exists():
             left.append(rel_inst(marker))
-        raise PageArchiveIncomplete(archived, left, exc) from exc
+        raise PageArchiveIncomplete(archived, left, exc, files) from exc
     return archived
+
+
+def archive_activity_state(run_dir: Path, page: Any) -> list[str]:
+    """PI ruling 113 b: move ``page``'s activity-level state (:data:`ACTIVITY_STATE_FILES` and the T-023
+    activity artifact) to ``<page dir>/archive/<NNN>/`` before the one live re-ask a PI release authorises
+    for a pass-1 / activity-only hold (:data:`PASS1_NOT_JOURNALED`, :data:`ACTIVITY_ONLY_NOT_JOURNALED`).
+
+    Called by the provider adapter right before that call
+    (:meth:`g3o.run.presweep.perpage_providers_v27._Adapter._require_journaled`), inside
+    ``activity_input``: the activity checkpoint, the T-023 artifact and the pair checkpoint are read only
+    after it, and ``pass1_requests.json`` is written only after it, so the page's activity state is built
+    again from the new response's spans. ``page.json`` and :data:`SOURCE_TYPE_FILE` stay.
+
+    Crash-safe and idempotent, as the 33 a archive (:func:`_archive_page_state`): the pending marker records
+    the file set, an incomplete archive is finished by the next run before any state is loaded (or from
+    ``held.json``'s ``archive_files``), and a call that finds nothing to move (an earlier run archived it and
+    then stopped before the call) takes no new folder. The re-ask's authorisation is spent by the journal
+    only after this returns (PI ruling 114 b), so a crash here leaves it to the next run."""
+    return _archive_page_state(run_dir, page, ACTIVITY_STATE_FILES)
 
 
 def _failure_reason(run_dir: Path, page: PageInput) -> str:
@@ -1711,7 +1754,10 @@ def _producer_hold(page_id: str, exc: BaseException) -> dict[str, Any]:
 
 
 def _archive_detail(exc: PageArchiveIncomplete) -> dict[str, Any]:
-    return {"archived": exc.archived, "archive_left": exc.left, "archive_error": exc.error}
+    detail = {"archived": exc.archived, "archive_left": exc.left, "archive_error": exc.error}
+    if exc.files != PAGE_STATE_FILES:  # PI ruling 113 b: the next run finishes the same (activity-level) archive
+        detail["archive_files"] = list(exc.files)
+    return detail
 
 
 def _archive_hold(page_id: str, exc: PageArchiveIncomplete) -> dict[str, Any]:
@@ -1735,17 +1781,19 @@ def _finish_failed_archives(run_dir: Path, states: Sequence[_PageState], held_pa
     """Finish each page-state archive the last run's ``held.json`` names as failed (ruling 33 a).
 
     This also covers a failure before the pending marker was written, when
-    nothing but ``held.json`` records that the page's state must not be used.
+    nothing but ``held.json`` records that the page's state must not be used
+    (its ``archive_files`` name a PI ruling 113 b activity-level archive; absent: the 33 a file set).
     Returns the hold for the first page whose archive fails again, else None.
     """
     if not held_path.exists():
         return None
     previous = json.loads(held_path.read_bytes().decode("utf-8")).get("held", [])
-    failed = {h["page_id"] for h in previous if "archive_error" in h}
+    failed = {h["page_id"]: tuple(h.get("archive_files") or PAGE_STATE_FILES) for h in previous
+              if "archive_error" in h}
     for st in states:
         if st.spec.page.page_id in failed:
             try:
-                _archive_page_state(run_dir, st.spec.page)
+                _archive_page_state(run_dir, st.spec.page, failed[st.spec.page.page_id])
             except PageArchiveIncomplete as exc:
                 return _archive_hold(st.spec.page.page_id, exc)
     return None
@@ -1829,8 +1877,10 @@ def parse_pi_release(raw: bytes) -> dict[str, Any]:
 
 
 #: PI ruling 104 b: the hold stages whose ``request_key`` a ``pi_release.json`` key may name for one live
-#: re-ask. PI ruling 103 b: a 97 b page-data hold (:data:`ROW_VALUE_REFUSED`) is never releasable this way.
-REASK_RELEASABLE = frozenset({PASS2_NOT_JOURNALED})
+#: re-ask; PI ruling 113 b adds the 105 b pass-1 and activity-only holds (their page's activity-level state is
+#: archived before that call, :func:`archive_activity_state`). PI ruling 103 b: a 97 b page-data hold
+#: (:data:`ROW_VALUE_REFUSED`) is never releasable this way.
+REASK_RELEASABLE = frozenset({PASS2_NOT_JOURNALED, PASS1_NOT_JOURNALED, ACTIVITY_ONLY_NOT_JOURNALED})
 
 
 def _reaskable_keys(inst_dir: Path) -> frozenset[str]:
@@ -1849,9 +1899,9 @@ def _reaskable_keys(inst_dir: Path) -> frozenset[str]:
 def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any] | None:
     """Consume ``<inst>/pi_release.json`` if present (ruling 34 b / 41 a); a hold dict when it cannot be.
 
-    PI ruling 104 b: a key the release names may also be the ``request_key`` of a 98 b hold
-    (:data:`REASK_RELEASABLE`) in the last run's ``held.json``; it is recorded in the release's
-    ``reask_keys`` and authorises ONE live re-ask of that request
+    PI ruling 104 b: a key the release names may also be the ``request_key`` of a 98 b hold, or (PI ruling
+    113 b) of a 105 b pass-1 / activity-only hold (:data:`REASK_RELEASABLE`), in the last run's ``held.json``;
+    it is recorded in the release's ``reask_keys`` and authorises ONE live re-ask of that request
     (:meth:`~g3o.run.presweep.stage_validate_v27.RequestJournal.reask_authorised`), used up once that call
     is journaled; a second re-ask needs a new release file. ``all`` authorises no re-ask. A key that is
     neither rejected nor so held is refused (:data:`PI_RELEASE_MALFORMED`); PI ruling 103 b: a 97 b
@@ -1945,6 +1995,7 @@ __all__ = [
     "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS",
     "ROW_VALUE_REFUSED", "RowValueRefused", "quote_stage_as_of", "PASS2_NOT_JOURNALED", "Pass2RequestNotJournaled", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "FOLLOW_FAILED", "FollowWiringError", "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
+    "ACTIVITY_STATE_FILES", "archive_activity_state",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]

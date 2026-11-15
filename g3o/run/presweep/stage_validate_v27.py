@@ -622,7 +622,16 @@ class RequestJournal:
             recorded = ("extract", key, self._seen.get(("extract", key), 0)) in self._recorded
             return key, recorded or self.reask_authorised(key)
 
+        def reask_live(job: Any) -> bool:
+            """PI ruling 113 b: whether the next call of ``job`` is the live re-ask a PI release authorised
+            (no recorded response to replay, and :meth:`reask_authorised`); the per-page adapter archives the
+            page's activity-level state before such a pass-1 / activity-only call. Uses no slot."""
+            key = self._key({"custom_id": job.custom_id, "params": job.params}, prompt)
+            recorded = ("extract", key, self._seen.get(("extract", key), 0)) in self._recorded
+            return not recorded and self.reask_authorised(key)
+
         wrapped.peek = peek  # type: ignore[attr-defined]
+        wrapped.reask_live = reask_live  # type: ignore[attr-defined]
         return wrapped
 
     def _entail(self, entail_fn: Any, prompt: Mapping[str, Any]) -> Any:
