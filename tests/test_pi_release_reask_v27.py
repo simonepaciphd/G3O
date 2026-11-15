@@ -421,7 +421,8 @@ def test_released_pass1_reask_archives_the_activity_state_and_codes_it_afresh_11
     """PI ruling 113 b: a pi_release.json key naming a 105 b pass-1 hold authorises one live re-ask; before
     that call the page's activity-level state (activity.json, pass1_requests.json, the T-023 artifact) is moved
     to ``<page dir>/archive/001/``, so T-023 codes the page again on the new response's spans instead of
-    resuming from state built on the old ones. page.json stays at its live path (activity-level state only)."""
+    resuming from state built on the old ones. PI ruling 121 b: for this pass-1 page request page.json is moved
+    to the same folder, and a fresh one is written by the page's rounds."""
     from g3o.common.artifact_io import artifact_exists
     from g3o.run.presweep import stage_activity_code
 
@@ -441,7 +442,7 @@ def test_released_pass1_reask_archives_the_activity_state_and_codes_it_afresh_11
     archive = pdir / pp.PAGE_ARCHIVE_DIR / "001"
     assert (archive / "activity.json").read_bytes() == stale_activity  # archived, never deleted
     assert (archive / pp.PASS1_FILE).exists() and len(list((archive / pp.ACTIVITY_DIR).iterdir())) == 1
-    assert not (archive / "page.json").exists() and (pdir / "page.json").exists()
+    assert (archive / "page.json").exists() and (pdir / "page.json").exists()  # PI ruling 121 b
     assert not (pdir / pp.PAGE_ARCHIVE_PENDING).exists()  # the archive is complete
     # T-023 ran again for the page, on the re-asked response's spans; fresh state is written at the live paths
     (inp,) = [p for p in coded if p.page.page_id == page.page_id]
@@ -449,6 +450,121 @@ def test_released_pass1_reask_archives_the_activity_state_and_codes_it_afresh_11
     assert (pdir / "activity.json").exists() and artifact_exists(art) and (pdir / pp.PASS1_FILE).exists()
     assert not rt.RequestJournal(inst_dir / pp.WORK_DIR / pp.JOURNAL, {}).reask_authorised(key)
     assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
+
+
+class ShortQuotes(FakeExtractor):
+    """The response to ``custom_id`` quotes each part without its last word: still a match (R-042: its words are a
+    subset of the part's), but other text than the whole-part quotes of the first response, so page support built
+    on the old quotes would show. Keeps the quotes it sent (by part) and its request id."""
+
+    def __init__(self, world, custom_id):
+        super().__init__(world)
+        self.custom_id, self.sent, self.request_id = custom_id, {}, None
+
+    def __call__(self, job):
+        result = super().__call__(job)
+        if job.custom_id != self.custom_id:
+            return result
+        payload = json.loads(result.text)
+        for q in payload["quotes"]:
+            words = q["quote"].split()
+            q["quote"] = " ".join(words[:-1]) if len(words) > 1 else q["quote"]
+            self.sent[q["part_id"]] = q["quote"]
+        self.request_id = result.request_id
+        return replace(result, text=json.dumps(payload))
+
+
+def _verdict_support(page_round):
+    """The final verdict's support at its deciding part (what ``produce_page`` hands the snippet, X25)."""
+    from g3o.classify import jev_page_code as jpc
+
+    verdict = page_round.final.items[jpc.VERDICT]
+    assert verdict.state == "combined"
+    return next(s for s in page_round.support if s.item_id == jpc.VERDICT and s.activity_id is None
+                and s.part is None and s.chunk_id == verdict.part_id)
+
+
+def test_released_pass1_reask_rebuilds_the_page_support_on_the_new_quotes_121b(tmp_path, monkeypatch):
+    """PI ruling 121 b (review M-1): on a released pass-1 page-request re-ask, page.json is archived before the
+    page's rounds, so the page-level support (the verdict's supporting text, the row's snippet) is checked again on
+    the NEW response's quotes, and the page request the rows read (request_id, their provenance) is that same
+    response: one response, not the old one's text under the new one's id. The re-ask is made once, inside the page
+    rounds; a later run replays everything (no extractor call, nothing new in the journal)."""
+    run_dir, world, run, hold, page = _held_105b(tmp_path)
+    key, cid = hold["request_key"], hold["custom_id"]
+    pdir = pp.page_state_dir(run_dir, page)
+    old_page_json = (pdir / "page.json").read_bytes()
+    seen = {}
+    real = pp.produce_page
+
+    def spy(**kw):
+        if kw["spec"].page.page_id == page.page_id:
+            seen["extraction"], seen["page_round"] = kw["extraction"], kw["page_round"]
+        return real(**kw)
+    monkeypatch.setattr(pp, "produce_page", spy)
+
+    _write_release(run_dir, _release_doc([key]))
+    ex3 = ShortQuotes(world, cid)
+    ready, _ = run(ex3)
+    assert [i.institution_id for i in ready] == [INST]
+    assert [j.custom_id for j in ex3.jobs if j.custom_id == cid] == [cid]  # the one live re-ask
+    archive = pdir / pp.PAGE_ARCHIVE_DIR / "001"
+    assert (archive / "page.json").read_bytes() == old_page_json  # archived, never deleted
+    assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
+    old = _verdict_support(SimpleNamespace(final=seen["page_round"].final,
+                                           support=pp.Checkpoint(archive / "page.json", "page").load()[1]))
+    new = _verdict_support(seen["page_round"])
+    # the snippet's text is the new response's quote (the old page.json held the whole-part quote) ...
+    assert new.supporting_text == ex3.sent[new.quote_chunk_id] != old.supporting_text
+    # ... and the page request the rows read is that same response (provenance names one response)
+    assert (seen["extraction"].custom_id, seen["extraction"].request_id) == (cid, ex3.request_id)
+    saved = _verdict_support(SimpleNamespace(final=seen["page_round"].final,
+                                             support=pp.Checkpoint(pdir / "page.json", "page").load()[1]))
+    assert saved.supporting_text == new.supporting_text  # the fresh page.json
+
+    entries = len(_entries(run_dir))
+    seen.clear()
+    ex4 = ShortQuotes(world, cid)
+    ready, _ = run(ex4)
+    assert [i.institution_id for i in ready] == [INST] and ex4.jobs == []  # replayed, never asked again
+    assert len(_entries(run_dir)) == entries  # no live extractor, X35 or jev call journaled
+    assert (seen["extraction"].custom_id, seen["extraction"].request_id) == (cid, ex3.request_id)
+    assert _verdict_support(seen["page_round"]).supporting_text == new.supporting_text
+    assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
+
+
+def test_only_a_pass1_page_request_reask_archives_page_json_121b(tmp_path):
+    """PI ruling 121 b: the archive before a released re-ask moves page.json for a pass-1 page request
+    (``pass1_request_not_journaled``) and NOT for an activity-only request (113 b: activity-level state only); the
+    residual source_type answers stay in both (review M-1). Each then writes a fresh record naming the request in
+    its own field, keeping the other, and is marked done for this process (never archived twice before the call)."""
+    from g3o.classify.jev_page_code import PageInput
+
+    assert pp.PAGE_REQUEST_STATE_FILES == ("page.json", *pp.ACTIVITY_STATE_FILES)
+    assert pp.SOURCE_TYPE_FILE not in pp.PAGE_REQUEST_STATE_FILES
+    run_dir, bound, instrument, world, _ = _world(tmp_path)
+    adapter = _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()).adapter
+    for n, stage in enumerate((pp.ACTIVITY_ONLY_NOT_JOURNALED, pp.PASS1_NOT_JOURNALED)):
+        page = PageInput(page_id=f"z{n}", institution_id="INST-0000009", institution="Z", country=None,
+                         level_of_government=None, url=f"https://example.gov/z{n}", title=None, text="z")
+        pdir = pp.page_state_dir(run_dir, page)
+        pdir.mkdir(parents=True)
+        for name in ("page.json", "activity.json", pp.PAIRS_FILE, pp.SOURCE_TYPE_FILE):
+            (pdir / name).write_text(name, encoding="utf-8")
+        pp._record_pass1_requests(pdir, SimpleNamespace(custom_id="c-page"), SimpleNamespace(custom_id="c-only"))
+        adapter._archive_for_reask(page, SimpleNamespace(custom_id="c-new"), stage)
+        archive = pdir / pp.PAGE_ARCHIVE_DIR / "001"
+        page_request = stage == pp.PASS1_NOT_JOURNALED
+        assert (archive / "page.json").exists() is page_request and (pdir / "page.json").exists() is not page_request
+        assert all((archive / name).exists() and not (pdir / name).exists()
+                   for name in ("activity.json", pp.PAIRS_FILE))
+        assert (archive / pp.PASS1_FILE).exists()
+        assert (pdir / pp.SOURCE_TYPE_FILE).exists() and not (archive / pp.SOURCE_TYPE_FILE).exists()
+        record = pp.read_pass1_requests(run_dir, page)
+        assert (record["page_request"], record["activity_only"]) == (("c-new", "c-only") if page_request
+                                                                     else ("c-page", "c-new"))
+        assert (page.page_id, stage) in adapter._reask_prepared
+        assert not (pdir / pp.PAGE_ARCHIVE_PENDING).exists()
 
 
 class CrashOn(FakeExtractor):
@@ -480,6 +596,7 @@ def test_crash_during_the_released_reask_spends_it_and_the_next_run_holds_114b(t
     assert (rt.REASK_SPENT, key) in kinds and ("extract", key) not in kinds
     pdir = pp.page_state_dir(run_dir, page)
     assert (pdir / pp.PAGE_ARCHIVE_DIR / "001" / "activity.json").exists()
+    assert (pdir / pp.PAGE_ARCHIVE_DIR / "001" / "page.json").exists()  # PI ruling 121 b, before the call
 
     again = FakeExtractor(world)
     ready, metrics = run(again)

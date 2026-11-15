@@ -46,7 +46,11 @@ Rules carried here, not decided here:
   PI rulings 104 b / 113 b: a ``pi_release.json`` key naming one of these held requests
   (:data:`REASK_RELEASABLE`) authorises one live re-ask; for a pass-1 or activity-only request the page's
   activity-level state (:data:`ACTIVITY_STATE_FILES` and the T-023 activity artifact) is archived first
-  (:func:`archive_activity_state`), so the new response's spans are coded from scratch. Review H-1 (PI ruling
+  (:func:`archive_activity_state`), so the new response's spans are coded from scratch. PI ruling 121 b: for a
+  pass-1 page request (not an activity-only one) ``page.json`` is archived too
+  (:data:`PAGE_REQUEST_STATE_FILES`, :func:`archive_page_request_state`), before the page's rounds start
+  (``PerPageProviders.prepare_pass1_reask``), so the page-level support is checked again on the new response's
+  quotes and a row's snippet and provenance name one response. Review H-1 (PI ruling
   114 b): the archive is followed by a fresh ``pass1_requests.json`` naming the request about to be sent
   (:func:`record_pass1_reask`), and the journal refuses a live call of any key whose re-ask was used up with no
   response recorded since (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`): the adapter
@@ -309,9 +313,15 @@ PASS1_FILE = "pass1_requests.json"
 PAGE_STATE_FILES = ("page.json", "activity.json", PAIRS_FILE, PASS1_FILE)
 #: PI ruling 113 b: the page's activity-level state, archived (with the T-023 activity artifact) before the one
 #: live re-ask a PI release authorises for a pass-1 / activity-only hold (:func:`archive_activity_state`), so
-#: the new response's spans are never mixed with state built on the old ones. ``page.json`` stays (the ruling
-#: names activity-level state only), and so does :data:`SOURCE_TYPE_FILE` (review M-1).
+#: the new response's spans are never mixed with state built on the old ones. For an activity-only re-ask
+#: ``page.json`` stays (the ruling names activity-level state only; a pass-1 page request re-ask also moves it, PI
+#: ruling 121 b, :data:`PAGE_REQUEST_STATE_FILES`), and so does :data:`SOURCE_TYPE_FILE` (review M-1).
 ACTIVITY_STATE_FILES = ("activity.json", PAIRS_FILE, PASS1_FILE)
+#: PI ruling 121 b: before the one live re-ask a PI release authorises for a pass-1 PAGE request hold
+#: (:data:`PASS1_NOT_JOURNALED`, not an activity-only one), ``page.json`` is archived with the activity-level state
+#: (:func:`archive_page_request_state`): its page-level support was checked on the old response's quotes. Still not
+#: :data:`SOURCE_TYPE_FILE` (review M-1).
+PAGE_REQUEST_STATE_FILES = ("page.json", *ACTIVITY_STATE_FILES)
 #: written in the page dir before a C4 archive moves anything and moved into the archive folder last;
 #: while it is in the page dir the archive is incomplete and the page's saved state is never loaded
 PAGE_ARCHIVE_PENDING = "archive_pending.json"
@@ -467,7 +477,8 @@ class PageArchiveIncomplete(Exception):
         self.archived, self.left = archived, left
         self.error = f"{type(error).__name__}: {error}"
         #: the page-dir files this archive moves (:data:`PAGE_STATE_FILES`, or :data:`ACTIVITY_STATE_FILES`
-        #: for a PI ruling 113 b archive); the next run finishes the same archive
+        #: for a PI ruling 113 b archive, :data:`PAGE_REQUEST_STATE_FILES` for 121 b); the next run finishes the
+        #: same archive
         self.files = tuple(files)
 
 
@@ -1285,8 +1296,29 @@ def archive_activity_state(run_dir: Path, page: Any) -> list[str]:
     the file set, an incomplete archive is finished by the next run before any state is loaded (or from
     ``held.json``'s ``archive_files``), and a call that finds nothing to move (an earlier run archived it and
     then stopped before the call) takes no new folder. The re-ask's authorisation is spent by the journal
-    only after this returns (PI ruling 114 b), so a crash here leaves it to the next run."""
+    only after this returns (PI ruling 114 b), so a crash here leaves it to the next run.
+
+    Since PI ruling 121 b this is the archive of an activity-only re-ask (:data:`ACTIVITY_ONLY_NOT_JOURNALED`); a
+    pass-1 page request re-ask uses :func:`archive_page_request_state`."""
     return _archive_page_state(run_dir, page, ACTIVITY_STATE_FILES)
+
+
+def archive_page_request_state(run_dir: Path, page: Any) -> list[str]:
+    """PI ruling 121 b: before the one live re-ask a PI release authorises for a pass-1 page request hold
+    (:data:`PASS1_NOT_JOURNALED`), move ``page.json`` with the page's activity-level state
+    (:data:`PAGE_REQUEST_STATE_FILES` and the T-023 activity artifact) to ``<page dir>/archive/<NNN>/``.
+    :data:`SOURCE_TYPE_FILE` stays (review M-1).
+
+    The page-level support saved in ``page.json`` was checked on the old response's quotes, while the stage reads
+    the page request (its ``request_id``, the row's provenance) from the new response: archiving it makes the
+    page's rounds start again from the stored T-021 result, so ``page_support`` makes the page request itself
+    (the re-ask) and checks the support on the new quotes. So it is called before the page's rounds
+    (:meth:`g3o.run.presweep.perpage_providers_v27._Adapter.prepare_pass1_reask`, from :func:`_rounds_for_page`
+    right before ``page.json`` is loaded), never inside ``activity_input`` (too late: the page round of that run
+    would already have been completed from the old ``page.json``). The adapter then writes a fresh
+    ``pass1_requests.json`` naming the request (:func:`record_pass1_reask`), as for 113 b. Crash-safe and
+    idempotent as :func:`archive_activity_state` (the pending marker records this file set)."""
+    return _archive_page_state(run_dir, page, PAGE_REQUEST_STATE_FILES)
 
 
 #: review H-1: the :data:`PASS1_FILE` field that names a request of each 105 b hold stage
@@ -1296,8 +1328,9 @@ _PASS1_SLOTS = {PASS1_NOT_JOURNALED: "page_request", ACTIVITY_ONLY_NOT_JOURNALED
 def record_pass1_reask(run_dir: Path, page: Any, previous: Mapping[str, Any] | None, stage: str,
                        custom_id: str) -> None:
     """Review H-1 (PI rulings 105 b / 113 b / 114 b): write a fresh :data:`PASS1_FILE` naming the request about to
-    be sent as the one live re-ask a PI release authorised, right after :func:`archive_activity_state` moved the
-    old record away and before that call (:meth:`g3o.run.presweep.perpage_providers_v27._Adapter._require_journaled`).
+    be sent as the one live re-ask a PI release authorised, right after :func:`archive_activity_state` (or, for a
+    pass-1 page request, :func:`archive_page_request_state`, PI ruling 121 b) moved the old record away and before
+    that call (:meth:`g3o.run.presweep.perpage_providers_v27._Adapter._archive_for_reask`).
 
     ``custom_id`` goes in the field of ``stage`` (:data:`PASS1_NOT_JOURNALED`: ``page_request``;
     :data:`ACTIVITY_ONLY_NOT_JOURNALED`: ``activity_only``); the other field keeps the archived record's value
@@ -1555,6 +1588,11 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
             raise TypeError(f"page {page.page_id}: the per-page providers take no residual source_type "
                             "(set_source_typing; PI ruling 95 a): a wiring error, the stage stops")
         set_typing(page.page_id, st.source_typing)
+    # PI ruling 121 b: a released pass-1 page request re-ask archives page.json (with the activity-level state)
+    # BEFORE it is loaded, so this run's page rounds check the support on the new response's quotes (absent on fakes)
+    prepare_reask = getattr(providers, "prepare_pass1_reask", None)
+    if prepare_reask is not None:
+        prepare_reask(page)
     page_ckpt = Checkpoint(pdir / "page.json", "page")
     saved = page_ckpt.load()
     if saved is None:
@@ -2159,7 +2197,8 @@ __all__ = [
     "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS",
     "ROW_VALUE_REFUSED", "RowValueRefused", "quote_stage_as_of", "PASS2_NOT_JOURNALED", "Pass2RequestNotJournaled", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "FOLLOW_FAILED", "FollowWiringError", "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
-    "ACTIVITY_STATE_FILES", "archive_activity_state", "record_pass1_reask", "MalformedCheckpoint", "MalformedCheckpointJSON",
+    "ACTIVITY_STATE_FILES", "archive_activity_state", "PAGE_REQUEST_STATE_FILES", "archive_page_request_state",
+    "record_pass1_reask", "MalformedCheckpoint", "MalformedCheckpointJSON",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]
