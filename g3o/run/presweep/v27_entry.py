@@ -100,10 +100,15 @@ class LazyJevAsk:
 
 
 def anthropic_sdk_client(api_key: str) -> Any:
-    """An ``anthropic.Anthropic`` client given the run's resolved key (the SDK is imported here only)."""
+    """An ``anthropic.Anthropic`` client given the run's resolved key (the SDK is imported here only).
+
+    ``max_retries=0`` (PI ruling 135 a): no SDK-internal retry, so every attempt is either
+    journaled or surfaces to the stage as its hold-and-retry; a retried, possibly billed
+    attempt never goes unrecorded.
+    """
     import anthropic
 
-    return anthropic.Anthropic(api_key=api_key)
+    return anthropic.Anthropic(api_key=api_key, max_retries=0)
 
 
 class LazyExtractor:
