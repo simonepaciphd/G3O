@@ -321,7 +321,7 @@ KEY = "d" * 64
 def test_unknown_or_unreleasable_key_is_refused_loudly(tmp_path, held):
     inst_dir, journal, hold, sha = _apply(tmp_path, held, _release_doc([KEY]))
     assert hold["stage"] == pp.PI_RELEASE_MALFORMED and hold["error"].startswith("refused")
-    assert KEY in hold["error"] and pp.PASS2_NOT_JOURNALED in hold["error"]
+    assert KEY in hold["error"] and all(stage in hold["error"] for stage in pp.REASK_RELEASABLE)  # review L-4
     assert (inst_dir / pp.PI_RELEASE_FILE).exists() and not journal.release_applied(sha)
     assert not journal.reask_authorised(KEY)
 
@@ -395,6 +395,9 @@ def _held_105b(tmp_path, page="p1"):
     (hold,) = _held(run_dir, INST)["held"]
     assert (hold["page_id"], hold["stage"], hold["pass"]) == (page, pp.PASS1_NOT_JOURNALED, "pass1")
     assert hold["custom_id"] == first.custom_id
+    # review L-4: the hint names the re-ask a release of this key authorises (no longer "pass-2 only")
+    assert "authorises one live re-ask" in hold["error"] and "113 b" in hold["error"]
+    assert "only a pass-2" not in hold["error"]
     spec = next(s for s in one[0].pages if s.page.page_id == page)
     return run_dir, world, run, hold, spec.page
 

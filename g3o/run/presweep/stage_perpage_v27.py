@@ -88,8 +88,9 @@ Rules carried here, not decided here:
 - **Stale page state on a C4 hold (ruling 33 a).** A C4 a hold (a pass-1 activity
   with no ``activity_name``; :attr:`ExtractorResponseFailed.archive_page_state`)
   moves that page's saved state (``page.json``, ``activity.json``, ``pairs.json``,
-  ``source_type.json``, ``pass1_requests.json`` and the T-023 activity artifact) to ``<page dir>/archive/<NNN>/`` (archive,
-  never delete), so the next run codes the page again from the new pass-1 answer
+  ``pass1_requests.json`` and the T-023 activity artifact; :data:`PAGE_STATE_FILES`) to
+  ``<page dir>/archive/<NNN>/`` (archive, never delete; ``source_type.json`` stays, review M-1),
+  so the next run codes the page again from the new pass-1 answer
   instead of resuming from state built on the rejected one. The archive is all or
   nothing across runs: a pending marker (:data:`PAGE_ARCHIVE_PENDING`) is written
   first and moved last, and an ``OSError`` that survives the write retries (ruling
@@ -428,8 +429,8 @@ class Pass1RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as Pa
     def __init__(self, page_id: str, custom_id: str, key: str, stage: str) -> None:
         super().__init__(f"page {page_id}: the rebuilt pass-1 request {custom_id!r} (journal key {key}) has no "
                          "recorded response in the request journal; no live call made on a resume (PI ruling "
-                         f"105 b); naming this key in {PI_RELEASE_FILE} does not authorise a live re-ask: only a "
-                         "pass-2 hold's key does (PI ruling 104 b)")
+                         f"105 b); naming this key in {PI_RELEASE_FILE} authorises one live re-ask, after the "
+                         "page's activity-level state is archived (PI rulings 104 b / 113 b)")
         self.page_id, self.custom_id, self.key, self.stage = page_id, custom_id, key, stage
 
 
@@ -1984,10 +1985,10 @@ def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any]
         unrejected = [k for k in release["keys"] or () if journal.rejections(k) == 0 and k not in reaskable]
         if unrejected:
             return _release_hold(PI_RELEASE_MALFORMED, path,
-                                 f"refused (ruling 34 b / 41 a / 104 b): key(s) with no extract_rejected entry "
-                                 f"counted in this journal since their last release and no {PASS2_NOT_JOURNALED} "
-                                 f"hold in {HELD_FILE}: {unrejected}; drop these keys from {PI_RELEASE_FILE} and "
-                                 f"run again")
+                                 f"refused (ruling 34 b / 41 a / 104 b / 113 b): key(s) with no extract_rejected "
+                                 f"entry counted in this journal since their last release and no "
+                                 f"{' / '.join(sorted(REASK_RELEASABLE))} hold in {HELD_FILE}: {unrejected}; drop "
+                                 f"these keys from {PI_RELEASE_FILE} and run again")
         reask = sorted(k for k in release["keys"] or () if k in reaskable)
         try:
             journal.record_release({**release, "file_sha256": sha, "reask_keys": reask})
