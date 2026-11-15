@@ -1489,8 +1489,14 @@ def load_source_typing(path: Path, layout: Sequence[Any]) -> Any:
     if [c.chunk_id for c in typing.result.chunks] != [c.chunk_id for c in layout]:
         raise MalformedCheckpoint(f"per-page checkpoint {path} was asked on parts other than the page's T-021 parts")
     if srow.residual_deciding_part_failed(typing) is not None:  # never saved since PI ruling 110 b
+        # review L-1: only code before PI ruling 110 b wrote such a file; the stage stops (PI ruling 118 b) and the
+        # message tells the operator how to clear it
         raise MalformedCheckpoint(f"per-page checkpoint {path} holds residual answers whose deciding part failed "
-                                  "with no answer (PI ruling 110 b: such answers are never saved)")
+                                  "with no answer (PI ruling 110 b: such answers are never saved; this file was "
+                                  "written by code before that ruling). To clear it, move this file by hand into "
+                                  "an archive folder (never delete it) and run the stage again: the next run asks "
+                                  "the residual source_type question again (answered parts replayed from the "
+                                  "journal)")
     return typing
 
 
