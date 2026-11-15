@@ -430,3 +430,122 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
         for url in CANNED_URLS
     }
     assert {j.custom_id for j in extract_jobs} == expected_ids
+
+
+# ---------------------------------------------------------------------------
+# v2.7 gate 5: language-id (lingua) timing (PI ruling 24, 2026-11-11)
+# ---------------------------------------------------------------------------
+#
+# PI ruling 24: "No text cap for now; measure lingua time on the mocked
+# end-to-end run before ruling." The mocked v2.7 e2e through ``run_presweep``
+# cannot run green on this candidate (the followed page stops the per-page
+# stage on the T-015 assembler's unproduced items; see the T-030 builder
+# report), so lingua is timed here on the pipeline's own per-page call and on
+# lingua directly. lingua is NOT mocked. Nothing here fails on timing.
+
+LINGUA_SIZES = (2_000, 20_000, 100_000, 500_000)
+TIMING_ENV = "G3O_E2E_TIMING_OUT"
+
+
+def _synthetic_text(base: str, n_chars: int) -> str:
+    """``base`` repeated and cut to exactly ``n_chars`` characters."""
+    return (base * (n_chars // len(base) + 1))[:n_chars]
+
+
+def _page(url: str, text: str) -> RenderedPage:
+    return RenderedPage(
+        url=url, text=text, title="Timing page", content_type="html",
+        fetch_metadata=FetchMetadata(access_date=ACCESS_DATE, http_status=200, final_url=url,
+                                     fetch_method="html", elapsed_ms=10, wait_for=None),
+    )
+
+
+def test_v27_language_id_timing(tmp_path: Path, monkeypatch, capsys):
+    """Time the pipeline's language-id call and raw lingua on ~2k-500k-character pages (en, fr, de).
+
+    Pipeline path: ``source_fields.source_language_of_page`` (the call
+    ``perpage_inputs_v27.page_source_fields`` makes per stored page), with the
+    real ``language_id.identify`` wrapped by a ``perf_counter`` timer via
+    monkeypatch. Direct path: the same pinned detector's
+    ``detect_multiple_languages_of``. The cold detector build is timed
+    separately. JSON goes to ``$G3O_E2E_TIMING_OUT`` (else ``tmp_path``) and to
+    stdout.
+    """
+    import os
+    import platform
+    import time
+    from importlib.metadata import version
+
+    from g3o.common import language_id as lid
+    from g3o.common import source_fields as sf
+    from tests.test_language_id import DE, EN, FR
+
+    texts = {"en": EN, "fr": FR, "de": DE}
+    pipeline_calls: list[dict[str, Any]] = []
+    real_identify = lid.identify
+
+    def timed_identify(main_text: str):
+        t0 = time.perf_counter()
+        res = real_identify(main_text)
+        pipeline_calls.append({"chars": len(main_text), "seconds": time.perf_counter() - t0,
+                               "tag": res.tag, "reason": res.reason})
+        return res
+
+    monkeypatch.setattr(lid, "identify", timed_identify)
+
+    # Cold build of the pinned detector (all languages, high accuracy; models load lazily on first use).
+    lid._detector.cache_clear()
+    t0 = time.perf_counter()
+    detector = lid._detector()
+    build_seconds = time.perf_counter() - t0
+
+    pipeline: list[dict[str, Any]] = []
+    direct: list[dict[str, Any]] = []
+    order = 0
+    for size in LINGUA_SIZES:
+        for lang, base in texts.items():
+            text = _synthetic_text(base, size)
+            order += 1
+            value = sf.source_language_of_page(_page(f"https://example.gov/{lang}/{size}", text))
+            call = pipeline_calls[-1]
+            assert call["chars"] == size
+            pipeline.append({"order": order, "lang": lang, "chars": size, "seconds": call["seconds"],
+                             "tag": call["tag"], "reason": call["reason"], "value": value.value})
+            order += 1
+            t0 = time.perf_counter()
+            spans = detector.detect_multiple_languages_of(text)
+            direct.append({"order": order, "lang": lang, "chars": size,
+                           "seconds": time.perf_counter() - t0, "n_spans": len(spans)})
+
+    # Below MIN_MAIN_TEXT_CHARS (ruling 21: 200): unknown, lingua not consulted.
+    short = sf.source_language_of_page(_page("https://example.gov/short", EN[:150]))
+    assert pipeline_calls[-1]["reason"] == "below_min_length"
+
+    timing = {
+        "kind": "g3o_v27_lingua_timing",
+        "lingua_version": version(lid.LIBRARY),
+        "language_id_version": lid.LANGUAGE_ID_VERSION,
+        "min_main_text_chars": lid.MIN_MAIN_TEXT_CHARS,
+        "python": platform.python_version(),
+        "platform": platform.platform(),
+        "cpu_count": os.cpu_count(),
+        "detector_build_seconds": build_seconds,
+        "note": ("order is call order in one process: the first detection call includes lingua's lazy "
+                 "model load; pipeline = source_language_of_page -> language_id.identify (real lingua, "
+                 "timed by a monkeypatch wrapper); direct = detect_multiple_languages_of on the same text"),
+        "pipeline_source_language_of_page": pipeline,
+        "direct_detect_multiple_languages_of": direct,
+        "below_min_length": {"chars": len(EN[:150]), "value": short.value,
+                             "seconds": pipeline_calls[-1]["seconds"]},
+        "totals_seconds": {"pipeline": sum(r["seconds"] for r in pipeline),
+                           "direct": sum(r["seconds"] for r in direct)},
+    }
+    out = Path(os.environ.get(TIMING_ENV) or tmp_path / "lingua_timing.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(timing, indent=2, sort_keys=True), encoding="utf-8")
+    with capsys.disabled():
+        print(f"\n[lingua timing -> {out}]\n{json.dumps(timing, indent=2, sort_keys=True)}")
+
+    # Sanity only (never timing): single-language pages are identified as their language.
+    for row in pipeline:
+        assert row["tag"] == row["lang"], row
