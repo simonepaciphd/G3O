@@ -46,7 +46,11 @@ Rules carried here, not decided here:
   PI rulings 104 b / 113 b: a ``pi_release.json`` key naming one of these held requests
   (:data:`REASK_RELEASABLE`) authorises one live re-ask; for a pass-1 or activity-only request the page's
   activity-level state (:data:`ACTIVITY_STATE_FILES` and the T-023 activity artifact) is archived first
-  (:func:`archive_activity_state`), so the new response's spans are coded from scratch.
+  (:func:`archive_activity_state`), so the new response's spans are coded from scratch. Review H-1 (PI ruling
+  114 b): the archive is followed by a fresh ``pass1_requests.json`` naming the request about to be sent
+  (:func:`record_pass1_reask`), and the journal refuses a live call of any key whose re-ask was used up with no
+  response recorded since (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`): the adapter
+  turns it into the not-journaled hold of the request's kind, which only a new release file lifts.
 - **Publication.** A page with any pending or stopped question (an extra
   round that failed, a gate awaiting it) holds its whole institution: the
   holds go to ``perpage_v27/held.json`` and the attrition ledger, nothing is
@@ -397,6 +401,10 @@ class ExtractorResponseFailed(Exception):
 #: PI ruling 98 b (2026-11-14): on a resume, a rebuilt pass-2 page request with no recorded response in the
 #: institution's request journal holds the institution (held.json names the page, ``custom_id`` and request key)
 PASS2_NOT_JOURNALED = "pass2_request_not_journaled"
+#: review H-1: the hint a not-journaled hold carries when the journal itself refused the call because the key's
+#: PI-released re-ask was used up (PI ruling 114 b) with no response recorded since
+_SPENT_NOTE = (" (review H-1: its PI-released re-ask was used up by a reask_spent journal entry and no response "
+               "was recorded after it, so a new release file, with other bytes, is needed: PI ruling 114 b)")
 
 
 class Pass2RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as ExtractRejectCapReached does
@@ -404,13 +412,16 @@ class Pass2RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as Ex
     in the institution's request journal (PI ruling 98 b): no live paid call is made; the institution is held.
 
     Raised by :meth:`g3o.run.presweep.perpage_providers_v27._Adapter._rebuild_page_request2` before any call;
-    not a stage stop."""
+    not a stage stop. Review H-1: also raised (``spent`` True) when the journal refuses a live call of a request
+    whose PI-released re-ask was used up with no response recorded since
+    (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`, PI ruling 114 b)."""
 
-    def __init__(self, page_id: str, custom_id: str, key: str) -> None:
+    def __init__(self, page_id: str, custom_id: str, key: str, *, spent: bool = False) -> None:
         super().__init__(f"page {page_id}: the rebuilt pass-2 page request {custom_id!r} (journal key {key}) has "
                          "no recorded response in the request journal; no live call made on a resume (PI ruling "
-                         f"98 b); naming this key in {PI_RELEASE_FILE} authorises one live re-ask (PI ruling 104 b)")
-        self.page_id, self.custom_id, self.key = page_id, custom_id, key
+                         f"98 b){_SPENT_NOTE if spent else ''}; naming this key in {PI_RELEASE_FILE} authorises one "
+                         "live re-ask (PI ruling 104 b)")
+        self.page_id, self.custom_id, self.key, self.spent = page_id, custom_id, key, spent
 
 
 #: PI ruling 105 b (2026-11-14, extending 98 b): on a resume, the page's rebuilt T-022 pass-1 page request with
@@ -427,14 +438,17 @@ class Pass1RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as Pa
     (:data:`PASS1_NOT_JOURNALED` / :data:`ACTIVITY_ONLY_NOT_JOURNALED`).
 
     Raised by the provider adapter (:mod:`g3o.run.presweep.perpage_providers_v27`) before any call; not a
-    stage stop."""
+    stage stop. Review H-1: also raised (``spent`` True) when the journal refuses a live call of a request
+    whose PI-released re-ask was used up with no response recorded since
+    (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`, PI ruling 114 b)."""
 
-    def __init__(self, page_id: str, custom_id: str, key: str, stage: str) -> None:
+    def __init__(self, page_id: str, custom_id: str, key: str, stage: str, *, spent: bool = False) -> None:
         super().__init__(f"page {page_id}: the rebuilt pass-1 request {custom_id!r} (journal key {key}) has no "
                          "recorded response in the request journal; no live call made on a resume (PI ruling "
-                         f"105 b); naming this key in {PI_RELEASE_FILE} authorises one live re-ask, after the "
-                         "page's activity-level state is archived (PI rulings 104 b / 113 b)")
-        self.page_id, self.custom_id, self.key, self.stage = page_id, custom_id, key, stage
+                         f"105 b){_SPENT_NOTE if spent else ''}; naming this key in {PI_RELEASE_FILE} authorises "
+                         "one live re-ask, after the page's activity-level state is archived (PI rulings 104 b / "
+                         "113 b)")
+        self.page_id, self.custom_id, self.key, self.stage, self.spent = page_id, custom_id, key, stage, spent
 
 
 class PageArchiveIncomplete(Exception):
@@ -1262,8 +1276,10 @@ def archive_activity_state(run_dir: Path, page: Any) -> list[str]:
     Called by the provider adapter right before that call
     (:meth:`g3o.run.presweep.perpage_providers_v27._Adapter._require_journaled`), inside
     ``activity_input``: the activity checkpoint, the T-023 artifact and the pair checkpoint are read only
-    after it, and ``pass1_requests.json`` is written only after it, so the page's activity state is built
-    again from the new response's spans. ``page.json`` and :data:`SOURCE_TYPE_FILE` stay.
+    after it, so the page's activity state is built again from the new response's spans. ``page.json`` and
+    :data:`SOURCE_TYPE_FILE` stay. Review H-1: the adapter then writes a fresh ``pass1_requests.json`` naming the
+    request about to be sent (:func:`record_pass1_reask`), so a re-ask that dies or fails is still checked by
+    the next run's 105 b guard.
 
     Crash-safe and idempotent, as the 33 a archive (:func:`_archive_page_state`): the pending marker records
     the file set, an incomplete archive is finished by the next run before any state is loaded (or from
@@ -1271,6 +1287,33 @@ def archive_activity_state(run_dir: Path, page: Any) -> list[str]:
     then stopped before the call) takes no new folder. The re-ask's authorisation is spent by the journal
     only after this returns (PI ruling 114 b), so a crash here leaves it to the next run."""
     return _archive_page_state(run_dir, page, ACTIVITY_STATE_FILES)
+
+
+#: review H-1: the :data:`PASS1_FILE` field that names a request of each 105 b hold stage
+_PASS1_SLOTS = {PASS1_NOT_JOURNALED: "page_request", ACTIVITY_ONLY_NOT_JOURNALED: "activity_only"}
+
+
+def record_pass1_reask(run_dir: Path, page: Any, previous: Mapping[str, Any] | None, stage: str,
+                       custom_id: str) -> None:
+    """Review H-1 (PI rulings 105 b / 113 b / 114 b): write a fresh :data:`PASS1_FILE` naming the request about to
+    be sent as the one live re-ask a PI release authorised, right after :func:`archive_activity_state` moved the
+    old record away and before that call (:meth:`g3o.run.presweep.perpage_providers_v27._Adapter._require_journaled`).
+
+    ``custom_id`` goes in the field of ``stage`` (:data:`PASS1_NOT_JOURNALED`: ``page_request``;
+    :data:`ACTIVITY_ONLY_NOT_JOURNALED`: ``activity_only``); the other field keeps the archived record's value
+    (``previous``, as :func:`read_pass1_requests` read it before the archive; None: there was none). So when that
+    call dies while sending, times out, fails or is rejected (``activity_input`` never returns, and
+    :func:`_record_pass1_requests` never runs), the next run's provider-level 105 b check still finds the request
+    named and holds it instead of sending it live; the journal refuses that call as well
+    (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`). Once ``activity_input`` returns, the
+    stage rewrites the record from the requests actually built. Any other ``stage`` is a wiring error
+    (``TypeError``, the stage stops)."""
+    if stage not in _PASS1_SLOTS:
+        raise TypeError(f"page {page.page_id}: no pass-1 request record for hold stage {stage!r} (wiring error)")
+    doc = {name: (previous or {}).get(name) for name in _PASS1_SLOTS.values()}
+    doc[_PASS1_SLOTS[stage]] = custom_id
+    _atomic_write(page_state_dir(run_dir, page) / PASS1_FILE,
+                  canonical_json({"format": CHECKPOINT_FORMAT, "kind": "pass1_requests", **doc}))
 
 
 def _failure_reason(run_dir: Path, page: PageInput) -> str:
@@ -2110,7 +2153,7 @@ __all__ = [
     "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS",
     "ROW_VALUE_REFUSED", "RowValueRefused", "quote_stage_as_of", "PASS2_NOT_JOURNALED", "Pass2RequestNotJournaled", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "FOLLOW_FAILED", "FollowWiringError", "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
-    "ACTIVITY_STATE_FILES", "archive_activity_state", "MalformedCheckpoint", "MalformedCheckpointJSON",
+    "ACTIVITY_STATE_FILES", "archive_activity_state", "record_pass1_reask", "MalformedCheckpoint", "MalformedCheckpointJSON",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]

@@ -533,8 +533,12 @@ def test_released_activity_only_reask_archives_the_activity_state_first_113b(tmp
     assert providers.activity_input(page, page_round) is not None
     assert [j.custom_id for j in ex2.jobs if _is_activity_only(j)] == [only_cid]  # the one live re-ask
     archive = pdir / pp.PAGE_ARCHIVE_DIR / "001"
-    for name in (*stale, pp.PASS1_FILE):
+    for name in stale:
         assert not (pdir / name).exists() and (archive / name).exists()
+    # review H-1: the old record is archived and a fresh one names the request sent (the other field kept)
+    assert (archive / pp.PASS1_FILE).exists()
+    assert pp.read_pass1_requests(run_dir, page) == {"format": pp.CHECKPOINT_FORMAT, "kind": "pass1_requests",
+                                                     "page_request": page_cid, "activity_only": only_cid}
     assert (archive / "activity.json").read_text(encoding="utf-8") == "stale activity.json"
     assert not artifact_exists(art) and len(list((archive / pp.ACTIVITY_DIR).iterdir())) == 1
     for name in ("page.json", pp.SOURCE_TYPE_FILE):  # not activity-level state (113 b; review M-1)
@@ -572,3 +576,295 @@ def test_activity_state_archive_finishes_its_own_file_set_113b(tmp_path):
     assert (pdir / "page.json").exists() and (pdir / pp.SOURCE_TYPE_FILE).exists()
     assert not (dest / "page.json").exists() and (dest / pp.PAGE_ARCHIVE_PENDING).exists()
     assert pp.archive_activity_state(run_dir, page) == [] and not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
+
+
+# ---------------------------------------------------------------------------
+# Review H-1 (PI ruling 114 b): a spent re-ask with no answer never goes live again without a new release
+# ---------------------------------------------------------------------------
+
+
+class FailOn(FakeExtractor):
+    """The extractor call for ``custom_id`` ends with ``outcome``: the process dies while sending (``crash``),
+    the call times out (``timeout``), a failed result (``extract_failed``) or an unparsable one (``rejected``)."""
+
+    def __init__(self, world, custom_id, outcome):
+        super().__init__(world)
+        self.custom_id, self.outcome = custom_id, outcome
+
+    def __call__(self, job):
+        if job.custom_id != self.custom_id:
+            return super().__call__(job)
+        self.jobs.append(job)
+        if self.outcome == "crash":
+            raise Crash("killed while sending the re-ask")
+        if self.outcome == "timeout":
+            raise TimeoutError("read timed out")
+        if self.outcome == "extract_failed":
+            return ExtractorResult(job.custom_id, False, None, {"type": "errored"}, usage=dict(USAGE))
+        return ExtractorResult(job.custom_id, True, "not json {", None, "fake-extractor-response", "msg-bad",
+                               "x-bad", "end_turn", dict(USAGE))
+
+
+OUTCOMES = ["crash", "timeout", "extract_failed", "rejected"]
+
+
+def _failed_reask(providers, journal, call, outcome):
+    """``call()`` (the released re-ask) ends with ``outcome``; a rejected response is rejected in the journal,
+    as the per-page stage does with every ``ExtractorResponseFailed`` (C3 a)."""
+    with pytest.raises((Crash, TimeoutError, pp.ExtractorResponseFailed)) as exc:
+        call()
+    if outcome == "rejected":
+        assert journal.reject_extract(exc.value.request, providers.journal_prompt, exc.value.detail)
+    elif outcome == "extract_failed":
+        assert isinstance(exc.value, pp.ExtractorResponseFailed)
+
+
+@pytest.mark.parametrize("outcome", OUTCOMES)
+def test_spent_reask_with_no_answer_is_refused_by_the_journal_h1(tmp_path, outcome):
+    """Review H-1, the journal (fix a): after the ``reask_spent`` marker, a crash while sending, a timeout, an
+    ``extract_failed`` result or a rejected response leaves no answer to replay; the journal then refuses a live
+    call of that key (``ReaskSpentUnanswered``, no extractor call), in this process and on every later load, and
+    ``peek`` / ``reask_live`` agree (not recorded, not a live re-ask). A NEW release authorises exactly one more."""
+    job = ExtractorJob("cid-h1", {"model": "m", "messages": [{"p": 7}]}, {})
+    request = {"custom_id": job.custom_id, "params": job.params}
+    path = tmp_path / "journal.jsonl"
+    ok = ExtractorResult("cid-h1", True, "{}", None, "fake-extractor-response", "msg-1", "x-1", "end_turn",
+                         dict(USAGE))
+    failed = ExtractorResult("cid-h1", False, None, {"type": "errored"}, usage=dict(USAGE))
+    journal = rt.RequestJournal(path, {"s": 1})
+    wrap, _ = journal.seams(PROMPT)
+    calls = []
+
+    def call(j):
+        calls.append(j.custom_id)
+        if outcome == "crash":
+            raise Crash("killed")
+        if outcome == "timeout":
+            raise TimeoutError("read timed out")
+        return failed if outcome == "extract_failed" else ok
+    fn = wrap(call)
+    key = fn.peek(job)[0]
+    journal.record_release({**_release_doc([key]), "all": False, "file_sha256": "e" * 64, "reask_keys": [key]})
+    if outcome in ("crash", "timeout"):
+        with pytest.raises((Crash, TimeoutError)):
+            fn(job)
+    else:
+        fn(job)
+    if outcome == "rejected":
+        assert journal.reject_extract(request, PROMPT, "ExtractContractError: bad")
+    assert calls == ["cid-h1"]
+    for j in (journal, rt.RequestJournal(path, {"s": 1})):  # this process, and a later load
+        w, _ = j.seams(PROMPT)
+        again = w(lambda _: pytest.fail("no unauthorised live re-ask"))
+        assert j.reask_spent_unanswered(key) and again.peek(job) == (key, False) and not again.reask_live(job)
+        with pytest.raises(rt.ReaskSpentUnanswered) as exc:
+            again(job)
+        assert (exc.value.key, exc.value.custom_id) == (key, "cid-h1")
+    # a NEW release (other bytes) authorises exactly one more live re-ask
+    later = rt.RequestJournal(path, {"s": 1})
+    later.record_release({**_release_doc([key], date="2026-11-15"), "all": False, "file_sha256": "f" * 64,
+                          "reask_keys": [key]})
+    w, _ = later.seams(PROMPT)
+    more = []
+    once = w(lambda j: more.append(j.custom_id) or failed)
+    assert once.peek(job) == (key, True) and once.reask_live(job)
+    once(job)
+    with pytest.raises(rt.ReaskSpentUnanswered):
+        once(job)
+    assert more == ["cid-h1"]
+
+
+def test_spent_reask_that_was_answered_replays_and_is_never_refused_h1(tmp_path):
+    """The refusal needs a missing answer: a spent re-ask whose response is recorded is replayed (no call)."""
+    job = ExtractorJob("cid-h1", {"model": "m", "messages": [{"p": 8}]}, {})
+    path = tmp_path / "journal.jsonl"
+    ok = ExtractorResult("cid-h1", True, "{}", None, "fake-extractor-response", "msg-1", "x-1", "end_turn",
+                         dict(USAGE))
+    journal = rt.RequestJournal(path, {"s": 1})
+    wrap, _ = journal.seams(PROMPT)
+    fn = wrap(lambda j: ok)
+    key = fn.peek(job)[0]
+    journal.record_release({**_release_doc([key]), "all": False, "file_sha256": "e" * 64, "reask_keys": [key]})
+    fn(job)
+    reloaded = rt.RequestJournal(path, {"s": 1})
+    w, _ = reloaded.seams(PROMPT)
+    replay = w(lambda _: pytest.fail("replayed, never called"))
+    assert not reloaded.reask_spent_unanswered(key) and replay.peek(job) == (key, True)
+    assert replay(job).success and reloaded.replayed == 1
+
+
+@pytest.mark.parametrize("outcome", OUTCOMES)
+def test_activity_only_reask_that_fails_holds_the_next_run_with_no_live_call_h1(tmp_path, outcome):
+    """Review H-1 at the provider adapter, the 87 c activity-only request (pass1_requests.json is its only 105 b
+    trigger, and the 113 b re-ask archives it). The released re-ask dies while sending, times out, fails or is
+    rejected; the next run holds (activity_only_request_not_journaled, its request_key) with no second live call:
+    first by the fresh record (fix b), and, with that record gone (as before the fix), by the journal itself (fix
+    a). A NEW release authorises exactly one more re-ask."""
+    from g3o.classify.jev_page_code import to_pass1_page
+    from g3o.extract import request_v27
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, started, records, page_round_of = _flipped_round(run_dir, bound, page)
+    page_cid = request_v27.make_custom_id(page.institution_id, page.url)
+    only_cid = ppv.activity_only_custom_id(page_cid, to_pass1_page(started, page))
+    path, pdir = tmp_path / "journalh1.jsonl", pp.page_state_dir(run_dir, page)
+
+    def journaled(extract):
+        journal = rt.RequestJournal(path, {"s": 1})
+        base = _providers(run_dir, bound, instrument, extract, FakeEntail())
+        providers = base.with_seams(*journal.seams(base.journal_prompt))
+        return journal, providers, page_round_of(providers.page_support(page, result, records))
+
+    pp._record_pass1_requests(pdir, SimpleNamespace(custom_id=page_cid), SimpleNamespace(custom_id=only_cid))
+    _, providers, page_round = journaled(NoFirstRoundActivities(world))
+    with pytest.raises(pp.Pass1RequestNotJournaled) as exc:
+        providers.activity_input(page, page_round)
+    key = exc.value.key
+    rt.RequestJournal(path, {"s": 1}).record_release({**_release_doc([key]), "all": False, "file_sha256": "a" * 64,
+                                                      "reask_keys": [key]})
+    bad = FailOn(world, only_cid, outcome)
+    journal, providers, page_round = journaled(bad)
+    _failed_reask(providers, journal, lambda: providers.activity_input(page, page_round), outcome)
+    assert [j.custom_id for j in bad.jobs] == [only_cid]  # the one live re-ask (the page request replayed)
+    assert (pdir / pp.PAGE_ARCHIVE_DIR / "001" / pp.PASS1_FILE).exists()  # 113 b: the old record archived
+    assert pp.read_pass1_requests(run_dir, page)["activity_only"] == only_cid  # fix b: a fresh one names it
+
+    def held_again():
+        again = NoFirstRoundActivities(world)
+        _, providers, page_round = journaled(again)
+        with pytest.raises(pp.Pass1RequestNotJournaled) as held:
+            providers.activity_input(page, page_round)
+        assert (held.value.stage, held.value.key, held.value.custom_id) == (pp.ACTIVITY_ONLY_NOT_JOURNALED, key,
+                                                                            only_cid)
+        assert again.jobs == []  # no second live call
+        return held.value
+
+    assert not held_again().spent  # the provider-level 105 b check, on the fresh record (fix b)
+    assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
+    aside = tmp_path / "pass1_requests.aside"
+    (pdir / pp.PASS1_FILE).replace(aside)  # no record, as before review H-1: the journal refuses it (fix a)
+    refused = held_again()
+    assert refused.spent and "H-1" in str(refused) and "114 b" in str(refused)
+    aside.replace(pdir / pp.PASS1_FILE)
+    # a NEW release (other bytes) authorises exactly one more re-ask; its answer then replays
+    rt.RequestJournal(path, {"s": 1}).record_release({**_release_doc([key], date="2026-11-15"), "all": False,
+                                                      "file_sha256": "b" * 64, "reask_keys": [key]})
+    ex = NoFirstRoundActivities(world)
+    _, providers, page_round = journaled(ex)
+    assert providers.activity_input(page, page_round) is not None
+    assert [j.custom_id for j in ex.jobs] == [only_cid]
+    replayed = NoFirstRoundActivities(world)
+    _, providers, page_round = journaled(replayed)
+    assert providers.activity_input(page, page_round) is not None and replayed.jobs == []
+
+
+@pytest.mark.parametrize("outcome", OUTCOMES)
+def test_no_codes_page_reask_that_fails_holds_the_next_run_with_no_live_call_h1(tmp_path, monkeypatch, outcome):
+    """Review H-1, a first pass-1 request whose rebuilt page has no pass-1 codes (pass1_requests.json is its only
+    105 b trigger, archived by the 113 b re-ask). Variant of
+    ``test_crash_during_the_released_reask_spends_it_and_the_next_run_holds_114b``, whose page has codes: the
+    released re-ask dies while sending, times out, fails or is rejected; the next run holds
+    (pass1_request_not_journaled, its request_key) with no second live call, by the fresh record (fix b) and,
+    with that record gone, by the journal (fix a). A NEW release authorises exactly one more re-ask."""
+    from g3o.extract import request_v27
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    # ambiguous_genai: the first-round plan has the activity task, so a page with no codes still needs a request
+    result, _, records, page_round_of = _flipped_round(run_dir, bound, page, flipped=False,
+                                                       first_verdict="ambiguous_genai")
+    page_round = page_round_of(_providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail())
+                               .page_support(page, result, records))
+    real = ppv.to_pass1_page
+    monkeypatch.setattr(ppv, "to_pass1_page", lambda *a, **kw: replace(real(*a, **kw), codes=()))
+    page_cid = request_v27.make_custom_id(page.institution_id, page.url)
+    path, pdir = tmp_path / "journalh1nc.jsonl", pp.page_state_dir(run_dir, page)
+
+    def journaled(extract):
+        journal = rt.RequestJournal(path, {"s": 1})
+        base = _providers(run_dir, bound, instrument, extract, FakeEntail())
+        return journal, base.with_seams(*journal.seams(base.journal_prompt))
+
+    pp._record_pass1_requests(pdir, SimpleNamespace(custom_id=page_cid), None)  # an earlier process made it
+    first = FakeExtractor(world)
+    _, providers = journaled(first)
+    with pytest.raises(pp.Pass1RequestNotJournaled) as exc:
+        providers.activity_input(page, page_round)
+    assert exc.value.stage == pp.PASS1_NOT_JOURNALED and first.jobs == []
+    key = exc.value.key
+    rt.RequestJournal(path, {"s": 1}).record_release({**_release_doc([key]), "all": False, "file_sha256": "a" * 64,
+                                                      "reask_keys": [key]})
+    bad = FailOn(world, page_cid, outcome)
+    journal, providers = journaled(bad)
+    _failed_reask(providers, journal, lambda: providers.activity_input(page, page_round), outcome)
+    assert [j.custom_id for j in bad.jobs] == [page_cid]
+    assert (pdir / pp.PAGE_ARCHIVE_DIR / "001" / pp.PASS1_FILE).exists()
+    assert pp.read_pass1_requests(run_dir, page)["page_request"] == page_cid  # fix b
+
+    def held_again():
+        again = FakeExtractor(world)
+        _, providers = journaled(again)
+        with pytest.raises(pp.Pass1RequestNotJournaled) as held:
+            providers.activity_input(page, page_round)
+        assert (held.value.stage, held.value.key, held.value.custom_id) == (pp.PASS1_NOT_JOURNALED, key, page_cid)
+        assert again.jobs == []  # no second live call
+        return held.value
+
+    assert not held_again().spent
+    assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
+    aside = tmp_path / "pass1_requests.aside"
+    (pdir / pp.PASS1_FILE).replace(aside)  # no record and no codes: before review H-1 this was sent live
+    assert held_again().spent
+    aside.replace(pdir / pp.PASS1_FILE)
+    rt.RequestJournal(path, {"s": 1}).record_release({**_release_doc([key], date="2026-11-15"), "all": False,
+                                                      "file_sha256": "b" * 64, "reask_keys": [key]})
+    ex = FakeExtractor(world)
+    _, providers = journaled(ex)
+    assert providers.activity_input(page, page_round) is not None
+    assert [j.custom_id for j in ex.jobs] == [page_cid]
+    replayed = FakeExtractor(world)
+    _, providers = journaled(replayed)
+    assert providers.activity_input(page, page_round) is not None and replayed.jobs == []
+
+
+def test_journal_refusal_maps_to_the_hold_of_the_request_kind_h1(tmp_path):
+    """Review H-1: the adapter turns the journal's refusal into the not-journaled hold of the request's kind
+    (pass 2 here; pass 1 and activity-only above), carrying the request key, so held.json lists a releasable
+    stage (REASK_RELEASABLE) that a new release file can name."""
+    run_dir, bound, instrument, world, _ = _world(tmp_path)
+    adapter = _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()).adapter
+    job = ExtractorJob("cid-h1", {"model": "m"}, {})
+
+    def refused(j):
+        raise rt.ReaskSpentUnanswered("k" * 64, j.custom_id)
+    adapter.extract_fn = refused
+    with pytest.raises(pp.Pass2RequestNotJournaled) as exc:
+        adapter._parsed("pass2", job, lambda r: r, page_id="b1", hold_stage=pp.PASS2_NOT_JOURNALED)
+    assert (exc.value.page_id, exc.value.custom_id, exc.value.key, exc.value.spent) == ("b1", "cid-h1", "k" * 64,
+                                                                                         True)
+    for stage in (pp.PASS1_NOT_JOURNALED, pp.ACTIVITY_ONLY_NOT_JOURNALED):
+        with pytest.raises(pp.Pass1RequestNotJournaled) as exc1:
+            adapter._parsed("pass1", job, lambda r: r, page_id="p1", hold_stage=stage)
+        assert (exc1.value.stage, exc1.value.key, exc1.value.spent) == (stage, "k" * 64, True)
+        assert exc1.value.stage in pp.REASK_RELEASABLE
+
+
+def test_record_pass1_reask_names_the_request_and_keeps_the_other_field_h1(tmp_path):
+    """Review H-1 (fix b): the fresh record names the request in the field of its kind and keeps the archived
+    record's other field; another hold stage is a wiring error."""
+    from g3o.classify.jev_page_code import PageInput
+
+    run_dir = tmp_path / "run"
+    page = PageInput(page_id="z1", institution_id="INST-0000009", institution="Z", country=None,
+                     level_of_government=None, url="https://example.gov/z1", title=None, text="z")
+    pp.record_pass1_reask(run_dir, page, None, pp.PASS1_NOT_JOURNALED, "c-page")
+    assert pp.read_pass1_requests(run_dir, page) == {"format": pp.CHECKPOINT_FORMAT, "kind": "pass1_requests",
+                                                     "page_request": "c-page", "activity_only": None}
+    previous = pp.read_pass1_requests(run_dir, page)
+    pp.record_pass1_reask(run_dir, page, previous, pp.ACTIVITY_ONLY_NOT_JOURNALED, "c-only")
+    assert pp.read_pass1_requests(run_dir, page)["page_request"] == "c-page"
+    assert pp.read_pass1_requests(run_dir, page)["activity_only"] == "c-only"
+    # the stage's own record of the same requests is byte-equal: nothing is rewritten
+    assert not pp._record_pass1_requests(pp.page_state_dir(run_dir, page), SimpleNamespace(custom_id="c-page"),
+                                         SimpleNamespace(custom_id="c-only"))
+    with pytest.raises(TypeError):
+        pp.record_pass1_reask(run_dir, page, previous, pp.PASS2_NOT_JOURNALED, "c-2")

@@ -370,7 +370,9 @@ PI_RELEASED = "pi_released"
 #: PI ruling 114 b (2026-11-14): written (fsynced) just before the live extractor call a PI release authorised,
 #: it uses that re-ask up, whatever happens next: a failure before or while sending (an exception, a timeout,
 #: a crash) wastes the release, and the PI drops a new file (different bytes; identical bytes are only
-#: archived, ruling 47.2 a). Never replayed or accounted: ``response`` is ``{}``.
+#: archived, ruling 47.2 a). Never replayed or accounted: ``response`` is ``{}``. Review H-1: while no response
+#: to the key is recorded after it (and no new release authorises the key), the journal refuses a live call of
+#: that key (:class:`ReaskSpentUnanswered`).
 REASK_SPENT = "reask_spent"
 #: the journal entry kinds that record a live extractor call; they also consume a 104 b re-ask authorisation
 #: (journals written before PI ruling 114 b have no :data:`REASK_SPENT` entry)
@@ -391,6 +393,25 @@ class ExtractRejectCapReached(Exception):  # noqa: N818 - named after the ruling
         super().__init__(f"extractor request {key} ({custom_id!r}) was rejected {rejections} times: permanent "
                          f"hold, no further call until the PI releases it (ruling 34 b / 41 a)")
         self.key, self.rejections, self.custom_id, self.pass_name = key, rejections, custom_id, pass_name
+
+
+class ReaskSpentUnanswered(Exception):  # noqa: N818 - names the hold, as ExtractRejectCapReached does
+    """PI ruling 114 b (review H-1): a live extractor call of a key whose PI-released re-ask was used up.
+
+    The key has a :data:`REASK_SPENT` entry, no recorded response to replay (the call died while sending,
+    timed out, came back ``extract_failed``, or its response was rejected, ``extract_rejected``) and no
+    unused re-ask authorisation: the call would be an unauthorised live re-ask, so the journaled extractor
+    call raises this *instead of* calling the extractor, also when no ``pass1_requests.json`` triggers the
+    provider-level 105 b check (it was archived by the 113 b re-ask). Not a stage stop: the provider adapter
+    turns it into the 98 b / 105 b not-journaled hold of the request's kind (``held.json`` names the
+    ``request_key``), which a NEW ``pi_release.json`` (other bytes, ruling 47.2 a) releases for one more re-ask
+    (PI ruling 104 b). ``key`` is the journal's request key, ``custom_id`` the request's id."""
+
+    def __init__(self, key: str, custom_id: Any) -> None:
+        super().__init__(f"extractor request {key} ({custom_id!r}): its PI-released re-ask was used up (a "
+                         f"{REASK_SPENT} entry) and no response to it is recorded; no live call without a new "
+                         "release (PI rulings 104 b / 114 b)")
+        self.key, self.custom_id = key, custom_id
 
 
 def _tokens(usage: Mapping[str, Any] | None, name: str) -> int:
@@ -445,6 +466,9 @@ class RequestJournal:
         self._releases: set[str] = set()  # file_sha256 of every PI release applied to this journal
         #: PI ruling 104 b: request keys a PI release authorised for one live re-ask, not yet used
         self._reask: set[str] = set()
+        #: PI ruling 114 b (review H-1): request keys with a :data:`REASK_SPENT` entry. Such a key is never
+        #: called live again unless a new release authorises it (:meth:`reask_spent_unanswered`)
+        self._spent: set[str] = set()
         self.live = 0
         self.replayed = 0
         if path.exists():
@@ -473,6 +497,7 @@ class RequestJournal:
                 self._apply_release(entry["response"])
             elif entry["kind"] == REASK_SPENT:  # PI ruling 114 b: used up before its call
                 self._reask.discard(entry["key"])
+                self._spent.add(entry["key"])
             elif entry["kind"] in ACCOUNTING_KINDS:
                 self._accounting.append(entry)
                 if entry["kind"] == JEV_UNIDENTIFIED:
@@ -544,6 +569,19 @@ class RequestJournal:
         self._write({"kind": REASK_SPENT, "key": key, "n": 0, "response": {}, "elapsed_ms": 0})
         self._elapsed.append(0)
         self._reask.discard(key)
+        self._spent.add(key)
+
+    def reask_spent_unanswered(self, key: str, n: int | None = None) -> bool:
+        """PI ruling 114 b (review H-1): ``key``'s PI-released re-ask was used up (a :data:`REASK_SPENT` entry),
+        no unused authorisation is left, and no response to replay is recorded for its next ``extract`` slot
+        (``n``; default: the next one this process would use). Then a live call of ``key`` is refused
+        (:class:`ReaskSpentUnanswered`): after the marker, a crash while sending, a timeout, an
+        ``extract_failed`` result or an ``extract_rejected`` response all leave the key here, on this run and
+        on every later load, until a new release (other bytes) authorises one more re-ask."""
+        if key not in self._spent or self.reask_authorised(key):
+            return False
+        slot = ("extract", key, self._seen.get(("extract", key), 0) if n is None else n)
+        return slot not in self._recorded
 
     def extract_key(self, request: Mapping[str, Any], prompt: Mapping[str, Any]) -> str:
         """The journal key of an extractor request (``custom_id``, ``params``) under ``prompt``."""
@@ -622,6 +660,8 @@ class RequestJournal:
                 raise ExtractRejectCapReached(slot[1], self.rejections(slot[1]), job.custom_id)
             if self.reask_authorised(slot[1]):  # PI ruling 114 b: the re-ask is used up BEFORE the call
                 self._spend_reask(slot[1])
+            elif self.reask_spent_unanswered(slot[1], slot[2]):  # review H-1: never an unauthorised re-ask
+                raise ReaskSpentUnanswered(slot[1], job.custom_id)
             start = time.monotonic()
             result = extract_fn(job)  # an exception is not recorded: asked again on resume
             self.live += 1
@@ -636,7 +676,9 @@ class RequestJournal:
             response it would replay, without using the slot (PI ruling 98 b reads it before a rebuild).
             PI ruling 104 b: ``recorded`` is also True while a PI release authorises one live re-ask of the
             key (:meth:`reask_authorised`); the :data:`REASK_SPENT` entry written just before that call uses
-            the authorisation up (PI ruling 114 b)."""
+            the authorisation up (PI ruling 114 b). Review H-1: a key whose re-ask was used up with no response
+            to replay since (:meth:`reask_spent_unanswered`) is False here, and the wrapped call refuses it
+            (:class:`ReaskSpentUnanswered`), so the two agree: neither lets it go live."""
             key = self._key({"custom_id": job.custom_id, "params": job.params}, prompt)
             recorded = ("extract", key, self._seen.get(("extract", key), 0)) in self._recorded
             return key, recorded or self.reask_authorised(key)
@@ -1341,5 +1383,5 @@ __all__ = [
     "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_PRODUCED_A8", "MERGE_REFUSED_R1", "MERGE_UNION", "MERGE_UNRULED",
     "Stage6Metrics", "build_envelope", "hold_reasons", "independence_groups_of", "merge_values", "run_stage6_v27",
     "EXTRACT_REJECT_CAP", "IDENTITY_COLUMNS", "PI_RELEASED", "REASK_SPENT", "WIRING_STOPS", "ExtractRejectCapReached",
-    "UpstreamRowMalformed", "require_a8_form", "require_identity",
+    "ReaskSpentUnanswered", "UpstreamRowMalformed", "require_a8_form", "require_identity",
 ]

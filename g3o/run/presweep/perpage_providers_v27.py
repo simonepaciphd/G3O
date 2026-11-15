@@ -48,7 +48,11 @@ The seams:
   ``PASS1_FILE`` names. PI ruling 113 b: when a PI release authorises one live
   re-ask of such a held request (ruling 104 b), the page's activity-level state is
   archived just before that call
-  (:func:`~g3o.run.presweep.stage_perpage_v27.archive_activity_state`). PI ruling 87 c: when a halving in an extra round
+  (:func:`~g3o.run.presweep.stage_perpage_v27.archive_activity_state`), and a fresh ``PASS1_FILE`` naming it is
+  written (review H-1, :func:`~g3o.run.presweep.stage_perpage_v27.record_pass1_reask`). A key whose re-ask was
+  used up (PI ruling 114 b) with no response since is refused by the journal
+  (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`) and held as not journaled under the
+  stage of its kind, for pass 1, the activity-only request and pass 2 alike. PI ruling 87 c: when a halving in an extra round
   flipped the verdict to ``confirms_activity`` from its first-round value
   (:func:`~g3o.classify.question_rounds.verdict_flipped_to_confirms`, ruling 101
   a), the stored first-round plan had no activity task (ruling 100 b) and the
@@ -154,6 +158,7 @@ from g3o.run.presweep.stage_perpage_v27 import (
     ACTIVITY_ONLY_NOT_JOURNALED,
     PAIRS_FILE,
     PASS1_NOT_JOURNALED,
+    PASS2_NOT_JOURNALED,
     ExtractorResponseFailed,
     Pass1RequestNotJournaled,
     Pass2RequestNotJournaled,
@@ -161,8 +166,9 @@ from g3o.run.presweep.stage_perpage_v27 import (
     archive_activity_state,
     page_state_dir,
     read_pass1_requests,
+    record_pass1_reask,
 )
-from g3o.run.presweep.stage_validate_v27 import ExtractRejectCapReached
+from g3o.run.presweep.stage_validate_v27 import ExtractRejectCapReached, ReaskSpentUnanswered
 
 ExtractFn = Callable[[ExtractorJob], ExtractorResult]
 EntailFn = Callable[[str, str], Entailment]
@@ -323,14 +329,26 @@ class _Adapter:
             self._responses[key] = result
         return result
 
-    def _parsed(self, name: str, job: ExtractorJob, parse: Callable[[ExtractorResult], Any]) -> Any:
+    def _parsed(self, name: str, job: ExtractorJob, parse: Callable[[ExtractorResult], Any], *, page_id: str,
+                hold_stage: str) -> Any:
         """The parsed answer to ``job``; a failed or unparsable response raises
-        :class:`ExtractorResponseFailed` (C3 a), never a bare parser error."""
+        :class:`ExtractorResponseFailed` (C3 a), never a bare parser error.
+
+        Review H-1 (PI ruling 114 b): when the journal refuses the call because the key's PI-released re-ask was
+        used up with no response recorded since (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`),
+        the institution is held under the not-journaled stage of the request's kind, ``hold_stage``
+        (:data:`~g3o.run.presweep.stage_perpage_v27.PASS2_NOT_JOURNALED`, ``PASS1_NOT_JOURNALED`` or
+        ``ACTIVITY_ONLY_NOT_JOURNALED``), with its ``request_key``: a new ``pi_release.json`` naming it
+        authorises one more re-ask (PI ruling 104 b)."""
         try:
             result = self._call(job)
         except ExtractRejectCapReached as exc:  # ruling 34 b / 41 a: name the pass in the hold
             exc.pass_name = name
             raise
+        except ReaskSpentUnanswered as exc:  # review H-1: no call was made
+            if hold_stage == PASS2_NOT_JOURNALED:
+                raise Pass2RequestNotJournaled(page_id, job.custom_id, exc.key, spent=True) from exc
+            raise Pass1RequestNotJournaled(page_id, job.custom_id, exc.key, hold_stage, spent=True) from exc
         request = {"custom_id": job.custom_id, "params": job.params}
         if not result.success or not result.text:
             self._responses.pop(_job_key(job), None)
@@ -392,7 +410,8 @@ class _Adapter:
         job = self.bound.pass1_job(p1, plan)
         if extra_round:  # ruling 46 a: its own custom_id, never the page's first-round one
             job = replace(job, custom_id=extra_round_custom_id(job.custom_id, p1.codes))
-        ext = self._parsed("pass1", job, lambda r: parse_pass1_result(r, p1, plan))
+        ext = self._parsed("pass1", job, lambda r: parse_pass1_result(r, p1, plan), page_id=p1.page_id,
+                           hold_stage=PASS1_NOT_JOURNALED)
         self.extractions.append(ext)
         return plan, ext, {"custom_id": job.custom_id, "params": job.params}
 
@@ -527,7 +546,8 @@ class _Adapter:
             made = read_pass1_requests(self.run_dir, page) or {}
             if made.get("activity_only") == job.custom_id:  # PI ruling 105 b: an earlier process got its answer
                 self._require_journaled(page, job, ACTIVITY_ONLY_NOT_JOURNALED)
-            ext = self._parsed("pass1", job, lambda r: parse_pass1_result(r, p1, plan))
+            ext = self._parsed("pass1", job, lambda r: parse_pass1_result(r, p1, plan), page_id=pid,
+                               hold_stage=ACTIVITY_ONLY_NOT_JOURNALED)
             self.extractions.append(ext)
             self._activity_only[pid] = ext
             self._activity_only_job[pid] = {"custom_id": job.custom_id, "params": job.params}
@@ -543,9 +563,13 @@ class _Adapter:
         (``reask_live``; PI ruling 104 b), the page's activity-level state is archived first
         (:func:`~g3o.run.presweep.stage_perpage_v27.archive_activity_state`): ``activity_input`` makes the call
         right after this, and the activity checkpoint, T-023 artifact and pair checkpoint are read (and
-        ``pass1_requests.json`` written) only after ``activity_input`` returns, so the page's activity state is
+        ``pass1_requests.json`` rewritten) only after ``activity_input`` returns, so the page's activity state is
         built again from the new spans. An incomplete archive raises
-        :class:`~g3o.run.presweep.stage_perpage_v27.PageArchiveIncomplete` (the institution is held, no call)."""
+        :class:`~g3o.run.presweep.stage_perpage_v27.PageArchiveIncomplete` (the institution is held, no call).
+        Review H-1: right after the archive (which moved ``pass1_requests.json``, the only trigger of this check
+        for an activity-only request or a page with no pass-1 codes), a fresh record naming ``job`` is written
+        (:func:`~g3o.run.presweep.stage_perpage_v27.record_pass1_reask`) before the call, so a re-ask that dies
+        or fails is held by the next run's check; the journal refuses it as well (:meth:`_parsed`)."""
         peek = getattr(self.extract_fn, "peek", None)
         if peek is None or _job_key(job) in self._responses:  # unjournaled, or answered in this process
             return
@@ -554,7 +578,10 @@ class _Adapter:
             raise Pass1RequestNotJournaled(page.page_id, job.custom_id, key, stage)
         reask_live = getattr(self.extract_fn, "reask_live", None)
         if reask_live is not None and reask_live(job):  # PI ruling 113 b: before the authorised live call
+            previous = read_pass1_requests(self.run_dir, page)  # read before the archive moves it
             archive_activity_state(self.run_dir, page)
+            # review H-1: name the request about to be sent, so the next run's 105 b check still sees it
+            record_pass1_reask(self.run_dir, page, previous, stage, job.custom_id)
 
     def activity_extraction(self, page_id: str) -> Pass1Extraction | None:
         """The page's activity-only pass-1 request (PI ruling 87 c) when :meth:`activity_input` made one
@@ -598,7 +625,8 @@ class _Adapter:
         job = self.bound.pass2_job(p2, plan)
         if extra_round:  # ruling 49 a: its own custom_id, never the page's first-round one
             job = replace(job, custom_id=pass2_extra_round_custom_id(job.custom_id, p2))
-        sup = self._parsed("pass2", job, lambda r: pass2_support.parse_pass2_result(r, p2, plan))
+        sup = self._parsed("pass2", job, lambda r: pass2_support.parse_pass2_result(r, p2, plan), page_id=p2.page_id,
+                           hold_stage=PASS2_NOT_JOURNALED)
         self.extractions.append(sup)
         if not extra_round:
             self._page_pass2[p2.page_id] = sup
