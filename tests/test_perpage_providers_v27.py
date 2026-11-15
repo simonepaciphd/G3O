@@ -1687,6 +1687,54 @@ def test_residual_answers_are_saved_and_never_asked_again_on_a_resume_105b(tmp_p
     assert len(hold["request_key"]) == 64
 
 
+def test_c4_archive_at_the_stage_keeps_the_residual_answers_and_the_rejection_count_m1(tmp_path, monkeypatch):
+    """Review L-2 (review M-1 at the stage). Run 1: a readable residual page (b1) is typed by the residual
+    source_type question, then its first pass-1 answer names no activity: a C4 hold, whose archive moves the
+    page's state but not source_type.json. Run 2: the saved answers are loaded, so no source_type call is made;
+    the page's first pass-1 request is rebuilt with the same custom_id and params (the same journal key), and
+    the 34 b rejection count of that key is kept (1, not reset by a changed key)."""
+    from g3o.common import source_fields as sf
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
+    inst_id, page = "INST-0000002", "b1"
+    b = next(i for i in insts if i.institution_id == inst_id)
+    spec = next(s for s in b.pages if s.page.page_id == page)
+    spec = replace(spec, upstream=replace(spec.upstream, activity_values=None, source_values=None, codes=None,
+                                          page_fields=_page_fields(spec.page)))
+    one = [replace(b, pages=[spec])]
+    saved = pp.page_state_dir(run_dir, spec.page) / pp.SOURCE_TYPE_FILE
+    journal = institution_dir(run_dir, inst_id) / pp.WORK_DIR / pp.JOURNAL
+    answers = {**ANSWERS, sf.SOURCE_TYPE: "vendor"}
+
+    jev1, ex1 = FakeJev(answers, RELATIONS, _fail_verdict), NamelessActivity(world, page)
+    ready, metrics = _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, ex1, FakeEntail()),
+                          jev1)
+    assert ready == [] and metrics.held == [inst_id]
+    (hold,) = _held(run_dir, inst_id)["held"]
+    assert hold["stage"] == pp.EXTRACT_RESPONSE_FAILED and "C4 a" in hold["error"] and hold["archived"]
+    assert not any(pp.SOURCE_TYPE_FILE in p for p in hold["archived"])
+    assert _source_type_calls(jev1) and saved.exists()
+    saved_bytes = saved.read_bytes()
+    first = _bad_job(ex1, PASS1, page)
+    (key,) = [json.loads(x)["key"] for x in journal.read_text(encoding="utf-8").splitlines()
+              if json.loads(x)["kind"] == "extract_rejected"]
+
+    jev2, ex2 = FakeJev(answers, RELATIONS, _fail_verdict), FakeExtractor(world)
+    try:
+        _run(run_dir, bound, instrument, one, _providers(run_dir, bound, instrument, ex2, FakeEntail()), jev2)
+    except pp.MissingUpstreamError as exc:  # the assembler's unproduced items (as in the 95 a tests)
+        assert sf.SOURCE_TYPE not in exc.missing
+    assert _source_type_calls(jev2) == []  # loaded, never asked again
+    assert saved.read_bytes() == saved_bytes
+    again = next(j for j in ex2.jobs if j.metadata["stage"] == PASS1 and j.metadata["page_id"] == page)
+    assert (again.custom_id, again.params) == (first.custom_id, first.params)  # the same first request
+    entries = [json.loads(x) for x in journal.read_text(encoding="utf-8").splitlines()]
+    assert [e["key"] for e in entries if e["kind"] == "extract_rejected"] == [key]
+    assert any(e["kind"] == "extract" and e["key"] == key for e in entries)  # asked again under the same key
+    assert rt.RequestJournal(journal, {}).rejections(key) == 1  # the 34 b count is kept
+
+
 def test_residual_part_over_the_limit_holds_the_institution_m2(tmp_path, monkeypatch):
     """Review M2: a T-021 part over the request limit of the residual source_type question is not halved
     (``Pass1Page`` would refuse the halves' answers inside ``page_support``: a stage crash). The page's own
@@ -1918,6 +1966,26 @@ def test_malformed_105b_page_state_is_refused_like_the_page_checkpoints(tmp_path
         path.write_bytes(b"{not json")
         with pytest.raises(json.JSONDecodeError):
             load()
+
+
+@pytest.mark.parametrize("raw", [b"{not json", b"\xff\xfe", b"[1, 2]",
+                                 json.dumps({"format": pp.CHECKPOINT_FORMAT, "kind": "page"}).encode("utf-8")])
+def test_record_pass1_requests_refuses_a_malformed_record_118b(tmp_path, raw):
+    """PI ruling 118 b: ``_record_pass1_requests`` no longer overwrites a malformed pass1_requests.json silently:
+    it raises ``MalformedCheckpoint`` (a stage stop) and leaves the file as it is. A valid record that changes
+    is still rewritten."""
+    pdir = tmp_path / "page"
+    pdir.mkdir()
+    path = pdir / pp.PASS1_FILE
+    path.write_bytes(raw)
+    with pytest.raises(pp.MalformedCheckpoint):
+        pp._record_pass1_requests(pdir, SimpleNamespace(custom_id="c-1"), None)
+    assert path.read_bytes() == raw
+    path.unlink()
+    assert pp._record_pass1_requests(pdir, SimpleNamespace(custom_id="c-1"), None)
+    assert not pp._record_pass1_requests(pdir, SimpleNamespace(custom_id="c-1"), None)  # unchanged: not written
+    assert pp._record_pass1_requests(pdir, SimpleNamespace(custom_id="c-1"), SimpleNamespace(custom_id="c-2"))
+    assert json.loads(path.read_text(encoding="utf-8"))["activity_only"] == "c-2"
 
 
 @pytest.mark.parametrize("damage", [{"kind": "page"}, {"format": "another-format"}])

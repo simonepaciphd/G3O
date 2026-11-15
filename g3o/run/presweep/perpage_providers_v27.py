@@ -45,7 +45,10 @@ The seams:
   journal holds no response for the rebuild,
   :class:`~g3o.run.presweep.stage_perpage_v27.Pass1RequestNotJournaled` holds the
   institution before any call; the same for an activity-only request the page's
-  ``PASS1_FILE`` names. PI ruling 87 c: when a halving in an extra round
+  ``PASS1_FILE`` names. PI ruling 113 b: when a PI release authorises one live
+  re-ask of such a held request (ruling 104 b), the page's activity-level state is
+  archived just before that call
+  (:func:`~g3o.run.presweep.stage_perpage_v27.archive_activity_state`). PI ruling 87 c: when a halving in an extra round
   flipped the verdict to ``confirms_activity`` from its first-round value
   (:func:`~g3o.classify.question_rounds.verdict_flipped_to_confirms`, ruling 101
   a), the stored first-round plan had no activity task (ruling 100 b) and the
@@ -155,6 +158,7 @@ from g3o.run.presweep.stage_perpage_v27 import (
     Pass1RequestNotJournaled,
     Pass2RequestNotJournaled,
     PerPageProviders,
+    archive_activity_state,
     page_state_dir,
     read_pass1_requests,
 )
@@ -474,7 +478,7 @@ class _Adapter:
             if base.codes or read_pass1_requests(self.run_dir, page) is not None:  # PI ruling 105 b: a resume
                 plan = request_v27.select_requests(p1)
                 if plan.needs_request:
-                    self._require_journaled(pid, self.bound.pass1_job(p1, plan), PASS1_NOT_JOURNALED)
+                    self._require_journaled(page, self.bound.pass1_job(p1, plan), PASS1_NOT_JOURNALED)
             self._page_plan[pid], self._page_request[pid], self._page_pass1[pid] = self._pass1(p1)
             self._type_support(pid, p1, self._page_plan[pid], self._page_request[pid])
         ext = self._page_request[pid]
@@ -522,24 +526,35 @@ class _Adapter:
             job = replace(job, custom_id=activity_only_custom_id(job.custom_id, p1))
             made = read_pass1_requests(self.run_dir, page) or {}
             if made.get("activity_only") == job.custom_id:  # PI ruling 105 b: an earlier process got its answer
-                self._require_journaled(pid, job, ACTIVITY_ONLY_NOT_JOURNALED)
+                self._require_journaled(page, job, ACTIVITY_ONLY_NOT_JOURNALED)
             ext = self._parsed("pass1", job, lambda r: parse_pass1_result(r, p1, plan))
             self.extractions.append(ext)
             self._activity_only[pid] = ext
             self._activity_only_job[pid] = {"custom_id": job.custom_id, "params": job.params}
         return self._activity_only[pid]
 
-    def _require_journaled(self, page_id: str, job: ExtractorJob, stage: str) -> None:
+    def _require_journaled(self, page: PageInput, job: ExtractorJob, stage: str) -> None:
         """PI ruling 105 b (the 98 b check): a resumed pass-1 request must be replayed from the journal, never
         sent live; with no recorded response :class:`~g3o.run.presweep.stage_perpage_v27.Pass1RequestNotJournaled`
         (``stage``) holds the institution before any call. An extractor call that is not journaled (no
-        ``peek``, e.g. offline fakes) is not checked."""
+        ``peek``, e.g. offline fakes) is not checked.
+
+        PI ruling 113 b: when the journal will send it as the one live re-ask a PI release authorised
+        (``reask_live``; PI ruling 104 b), the page's activity-level state is archived first
+        (:func:`~g3o.run.presweep.stage_perpage_v27.archive_activity_state`): ``activity_input`` makes the call
+        right after this, and the activity checkpoint, T-023 artifact and pair checkpoint are read (and
+        ``pass1_requests.json`` written) only after ``activity_input`` returns, so the page's activity state is
+        built again from the new spans. An incomplete archive raises
+        :class:`~g3o.run.presweep.stage_perpage_v27.PageArchiveIncomplete` (the institution is held, no call)."""
         peek = getattr(self.extract_fn, "peek", None)
         if peek is None or _job_key(job) in self._responses:  # unjournaled, or answered in this process
             return
         key, recorded = peek(job)
         if not recorded:
-            raise Pass1RequestNotJournaled(page_id, job.custom_id, key, stage)
+            raise Pass1RequestNotJournaled(page.page_id, job.custom_id, key, stage)
+        reask_live = getattr(self.extract_fn, "reask_live", None)
+        if reask_live is not None and reask_live(job):  # PI ruling 113 b: before the authorised live call
+            archive_activity_state(self.run_dir, page)
 
     def activity_extraction(self, page_id: str) -> Pass1Extraction | None:
         """The page's activity-only pass-1 request (PI ruling 87 c) when :meth:`activity_input` made one

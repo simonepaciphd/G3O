@@ -618,6 +618,31 @@ def test_unread_follow_page_reaches_stage6_storage_102a(tmp_path, activity, sear
     assert storage["summary"]["values"]["core.has_genai_activity"] == expected
 
 
+def test_institution_with_pages_and_no_activity_is_written_with_zero_input_rows_119b(tmp_path):
+    """PI ruling 119 b: a v2.7 institution whose reviewed page holds no activity reaches Stage 6 with zero
+    observations and is WRITTEN (not ENVELOPE_FAILED): ``consolidation_metadata.n_input_rows`` keeps counting
+    observations, here 0, which the v2.7-only metadata model accepts."""
+    from g3o.common.response_v27 import ConsolidationMetadataV27, parse_validate_payload
+    from tests.test_e2e_perpage_v27 import CLOCK, FakeQuotes
+
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path, activity=False)
+    ready, _ = _run(run_dir, bound, instrument, providers, inst, None, _jev("other_body"))
+    assert [i.institution_id for i in ready] == [INST] and list(ready[0].observations) == []
+    s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=_jev("other_body"), quote_fn=FakeQuotes(),
+                            config=bound.stage6_config(), instrument=instrument, now=CLOCK,
+                            test_only_unbound_quote_fn=True)
+    assert s6m.written == [INST] and s6m.held == [] and s6m.failed == []
+    inst_dir = institution_dir(run_dir, INST)
+    payload = json.loads((inst_dir / "6_validate.json").read_text(encoding="utf-8"))
+    meta = payload["consolidation_metadata"]
+    assert (meta["n_input_rows"], meta["n_input_pages"]) == (0, 1) and payload["activities"] == []
+    reloaded = parse_validate_payload(payload)
+    assert isinstance(reloaded.consolidation_metadata, ConsolidationMetadataV27)
+    assert reloaded.consolidation_metadata.n_input_rows == 0
+    storage = json.loads((inst_dir / "6_storage.json").read_text(encoding="utf-8"))
+    assert storage["activities"] == {} and len(storage["sources"]) == 1
+
+
 def test_unread_follow_rows_survive_a_resume_with_no_call_l8(tmp_path):
     """Review L8 (kept for 102 a): the next run finds the same unread attempt from the stored follow state
     and the journal: no fetch, no live jev or extractor call, the same row."""
@@ -870,6 +895,43 @@ def test_follow_wiring_error_stops_the_stage_l5(tmp_path):
     with pytest.raises(pp.FollowWiringError, match="unknown outcome"):
         _run(run_dir, bound, instrument, providers, inst, WorldLeg(bogus, world=world), _jev())
     assert pp.FollowWiringError in pp.STAGE_STOPS
+
+
+@pytest.mark.parametrize("kind", ["searched", "followed"])
+@pytest.mark.parametrize("name", ["page.json", pp.PASS1_FILE])
+@pytest.mark.parametrize("damage", ["other_kind", "not_json"])
+def test_malformed_page_checkpoint_stops_the_stage_on_both_page_kinds_118b(tmp_path, kind, name, damage):
+    """PI ruling 118 b: a malformed page checkpoint (here page.json, or pass1_requests.json, which
+    ``_record_pass1_requests`` no longer overwrites) stops the stage on a FOLLOWED page exactly as on a
+    searched page: a ``MalformedCheckpoint`` (bytes that are not JSON: also a ``json.JSONDecodeError``), never a
+    follow_failed hold. The file is left as it is and no held.json is written."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    ready, _ = _run(run_dir, bound, instrument, providers, inst,
+                    WorldLeg(FakeFetch({REPORT_URL: REPORT}), world=world), _jev())
+    assert [i.institution_id for i in ready] == [INST]
+    page = (inst.pages[0].page if kind == "searched"
+            else SimpleNamespace(institution_id=INST, url=REPORT_URL))
+    path = pp.page_state_dir(run_dir, page) / name
+    raw = (b"{not json" if damage == "not_json"
+           else json.dumps({"format": pp.CHECKPOINT_FORMAT, "kind": "other-kind"}).encode("utf-8"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(raw)
+    with pytest.raises(pp.MalformedCheckpoint) as exc:
+        _run(run_dir, bound, instrument, providers, inst, WorldLeg(FakeFetch({REPORT_URL: REPORT}), world=world),
+             _jev())
+    assert isinstance(exc.value, json.JSONDecodeError) == (damage == "not_json")
+    if damage == "other_kind":
+        assert "unsupported per-page checkpoint" in str(exc.value)
+    assert str(path) in str(exc.value) and path.read_bytes() == raw  # never overwritten
+    assert not (institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).exists()
+
+
+def test_malformed_checkpoint_is_a_stage_stop_other_follow_errors_still_hold_118b():
+    """PI ruling 118 b: the checkpoint errors are told apart by type; any other ValueError of the follow leg
+    keeps its per-institution hold (test_follow_data_error_holds_the_institution_l5)."""
+    assert issubclass(pp.MalformedCheckpoint, pp.STAGE_STOPS) and issubclass(pp.MalformedCheckpoint, ValueError)
+    assert issubclass(pp.MalformedCheckpointJSON, (pp.MalformedCheckpoint, json.JSONDecodeError))
+    assert not issubclass(ValueError, pp.STAGE_STOPS) and not issubclass(json.JSONDecodeError, pp.STAGE_STOPS)
 
 
 # ---------------------------------------------------------------------------
