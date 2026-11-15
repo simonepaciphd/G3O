@@ -154,6 +154,11 @@ def config_snapshot(
     if config.pipeline_version == PIPELINE_V25 and not config.v27_not_production_ready_opt_in:
         del config_dict["pipeline_version"]
         del config_dict["v27_not_production_ready_opt_in"]
+    # v2.7 runtime settings (T-030, PI ruling 132 a): left out while unset, so no
+    # earlier snapshot changes; set, the manifest records the settings the run's
+    # instrument is bound from (before any 2.7 row).
+    if config_dict.get("v27_runtime") is None:
+        config_dict.pop("v27_runtime", None)
     return config_dict
 
 
@@ -615,6 +620,13 @@ def _assert_manifest_matches_on_resume(
     if old_mode != new_mode:
         diffs.append(
             f"config.pipeline_version: {old_mode!r} (manifest) != {new_mode!r} (this run)"
+        )
+    # v2.7 runtime settings (T-030): an absent key is unset. A resume that changes
+    # them would code one run's pages under two instruments, so it is refused.
+    if old_cfg.get("v27_runtime") != new_cfg.get("v27_runtime"):
+        diffs.append(
+            f"config.v27_runtime: {old_cfg.get('v27_runtime')!r} (manifest) != "
+            f"{new_cfg.get('v27_runtime')!r} (this run)"
         )
     for key in _GUARDED_CONFIG_KEYS:
         if key not in old_cfg and key in _ABSENT_TOLERATED_CONFIG_KEYS:

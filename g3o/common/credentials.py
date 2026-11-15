@@ -42,6 +42,9 @@ from typing import Literal
 OPENAI_ENV_VAR = "OPENAI_API_KEY"
 SERPER_ENV_VAR = "SERPER_API_KEY"
 TYPESAFE_ENV_VAR = "TYPESAFE_API_KEY"
+#: The v2.7 extractor's key (RC-D-021 Anthropic key slot; T-030). Resolved like the others and
+#: passed explicitly to the Anthropic client, so the SDK never reads the environment itself.
+ANTHROPIC_ENV_VAR = "ANTHROPIC_API_KEY"
 
 # Fingerprint width. 8 hex chars = 32 bits: enough to tell "key A" from "key B"
 # in a manifest or a server-side batch listing, far too little to attack the key
@@ -85,12 +88,15 @@ class Credentials:
     serper_api_key: str | None = None
     typesafe_api_key: str | None = None
     label: str | None = None
+    #: Last, so a positional construction of the four fields above is unchanged.
+    anthropic_api_key: str | None = None
 
     def __repr__(self) -> str:  # §3.3 — never render key material
         return (
             f"Credentials(openai={_redact(self.openai_api_key)}, "
             f"serper={_redact(self.serper_api_key)}, "
-            f"typesafe={_redact(self.typesafe_api_key)}, label={self.label!r})"
+            f"typesafe={_redact(self.typesafe_api_key)}, "
+            f"anthropic={_redact(self.anthropic_api_key)}, label={self.label!r})"
         )
 
 
@@ -112,6 +118,10 @@ class ResolvedCredentials:
     serper_source: Source
     typesafe_source: Source
     label: str | None = None
+    #: The v2.7 extractor's key (RC-D-021). Defaulted, so every existing construction is unchanged.
+    #: Not in :meth:`telemetry`: that block's shape is the published manifest contract.
+    anthropic_api_key: str | None = None
+    anthropic_source: Source = "unset"
 
     @property
     def openai_fingerprint(self) -> str | None:
@@ -136,6 +146,14 @@ class ResolvedCredentials:
     @property
     def has_typesafe(self) -> bool:
         return bool(self.typesafe_api_key)
+
+    @property
+    def anthropic_fingerprint(self) -> str | None:
+        return fingerprint(self.anthropic_api_key)
+
+    @property
+    def has_anthropic(self) -> bool:
+        return bool(self.anthropic_api_key)
 
 
     def telemetry(self) -> dict[str, dict[str, str | None]]:
@@ -174,7 +192,8 @@ class ResolvedCredentials:
             f"ResolvedCredentials(openai={_redact(self.openai_api_key)}"
             f"/{self.openai_source}, serper={_redact(self.serper_api_key)}"
             f"/{self.serper_source}, typesafe={_redact(self.typesafe_api_key)}"
-            f"/{self.typesafe_source}, label={self.label!r})"
+            f"/{self.typesafe_source}, anthropic={_redact(self.anthropic_api_key)}"
+            f"/{self.anthropic_source}, label={self.label!r})"
         )
 
 
@@ -220,6 +239,9 @@ def resolve(
     typesafe_key, typesafe_source = _resolve_one(
         creds.typesafe_api_key, TYPESAFE_ENV_VAR, environ
     )
+    anthropic_key, anthropic_source = _resolve_one(
+        creds.anthropic_api_key, ANTHROPIC_ENV_VAR, environ
+    )
     return ResolvedCredentials(
         openai_api_key=openai_key,
         serper_api_key=serper_key,
@@ -228,10 +250,13 @@ def resolve(
         serper_source=serper_source,
         typesafe_source=typesafe_source,
         label=creds.label,
+        anthropic_api_key=anthropic_key,
+        anthropic_source=anthropic_source,
     )
 
 
 __all__ = [
+    "ANTHROPIC_ENV_VAR",
     "FINGERPRINT_CHARS",
     "OPENAI_ENV_VAR",
     "SERPER_ENV_VAR",

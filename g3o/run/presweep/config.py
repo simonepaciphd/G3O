@@ -418,6 +418,15 @@ class PresweepConfig:
     # production ready (upstream producers are absent and the X35 entry still
     # refuses). Refused when set on a v2.5 run.
     v27_not_production_ready_opt_in: bool = False
+    # The v2.7 run's runtime settings (T-030, PI ruling 132 a): the keyword
+    # arguments of ``instrument_binding.RuntimeSettings`` (jev / extractor / X35
+    # models, extractor effort and max tokens, reserved tokens, reference year,
+    # approval reference), every one explicit. With no injected ``V27Dispatch``,
+    # ``run_presweep`` binds the instrument from these and builds the real
+    # providers (``g3o.run.presweep.v27_entry``). None (the default) is left out
+    # of the config snapshot, so no earlier manifest or config_hash changes; set,
+    # it is recorded in the manifest's config. Refused on a v2.5 run.
+    v27_runtime: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         """Reject a language this run could not actually query (A7, 2026-08-02).
@@ -454,6 +463,16 @@ class PresweepConfig:
                 "v27_not_production_ready_opt_in is set but pipeline_version is "
                 f"{self.pipeline_version!r}; it only opts in to 'v2.7'"
             )
+        if self.v27_runtime is not None:
+            if self.pipeline_version != PIPELINE_V27:
+                raise ValueError(
+                    "v27_runtime is set but pipeline_version is "
+                    f"{self.pipeline_version!r}; it only configures a 'v2.7' run"
+                )
+            if not isinstance(self.v27_runtime, Mapping):
+                raise ValueError("v27_runtime must be a mapping of RuntimeSettings keyword arguments")
+            # A plain dict copy: snapshotted by asdict() and not shared with the caller.
+            self.v27_runtime = dict(self.v27_runtime)
         # Validate budget_usd is positive (fix: previously accepted zero, which would always abort)
         if self.budget_usd is not None and self.budget_usd <= 0:
             raise ValueError(

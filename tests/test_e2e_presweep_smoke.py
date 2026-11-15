@@ -17,10 +17,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from g3o.common import attrition, batch_client
 from g3o.common.artifact_io import ARTIFACT_SUFFIX, glob_artifacts
 from g3o.common.batch_client import BatchHandle, BatchResult, BatchStatus
-from g3o.common.credentials import fingerprint
+from g3o.common.credentials import Credentials, fingerprint
 from g3o.common.run_state import done_path, state_dir
 from g3o.discovery import serper_client
 from g3o.extract.batch import make_custom_id, url_hash
@@ -549,3 +551,476 @@ def test_v27_language_id_timing(tmp_path: Path, monkeypatch, capsys):
     # Sanity only (never timing): single-language pages are identified as their language.
     for row in pipeline:
         assert row["tag"] == row["lang"], row
+
+
+# ---------------------------------------------------------------------------
+# v2.7 new-run entry (T-030, PI ruling 132 a, 2026-11-15)
+# ---------------------------------------------------------------------------
+#
+# ``launch()`` with a v2.7 config and no injected ``V27Dispatch``: the run builds
+# its real providers from ``config.v27_runtime`` and the resolved credentials
+# (``g3o.run.presweep.v27_entry``). Mocks sit at the provider/client boundary
+# only: Serper (``search_google_detailed``), the fetcher (``scrape_url``), the
+# OpenAI Batch API (Stages 2/3), the TypeSafe SDK client (jev), the ``anthropic``
+# SDK module (extractor), the X35 client seam, and a test-injected per-page
+# builder (ruling 36 a: the default builder is refused at entry while
+# ``MISSING_PRODUCERS`` is non-empty). No stage function is stubbed; the page
+# layout is the real one. WITHOUT the follow leg (ruling 132 a: the follow-leg
+# e2e waits for codebook r16 and T-026 P12), so the follow seam returns None.
+
+V27_KEYS = dict(openai_api_key="sk-test", serper_api_key="serper-test", typesafe_api_key="typesafe-test",
+                anthropic_api_key="anthropic-test")
+V27_SENTENCE = "The council deployed Copilot for drafting letters in 2025."
+V27_INSTITUTIONS = {
+    # keyword (in every query / prompt of that institution): (master row, name, country, url, text, activities)
+    "quillfield": (1, "Council Quillfield", "Australia", "https://quillfield.example.gov/ai-drafting",
+                   "The council publishes notes on how its staff write letters to residents. "
+                   + V27_SENTENCE + " Staff review every draft before it is sent, and the council "
+                   "reports how many letters were drafted this way each quarter.",
+                   [("Copilot drafting", "Copilot", V27_SENTENCE)]),
+    "brackenmoor": (2, "Council Brackenmoor", "New Zealand", "https://brackenmoor.example.gov/services",
+                    "The council publishes its bin collection calendar and its library opening hours on "
+                    "this page. It does not use generative AI tools in any of its services, and all "
+                    "letters to residents are written by council staff without software assistance.",
+                    []),
+    "valtorde": (3, "Conseil Valtorde", "France", "https://valtorde.example.gov/services",
+                 "Le conseil municipal publie sur cette page le calendrier de collecte des déchets et "
+                 "les horaires d'ouverture de la bibliothèque. Les courriers adressés aux habitants "
+                 "sont rédigés par les agents du conseil, qui répondent aussi aux questions "
+                 "posées au guichet de la mairie.",
+                 []),
+}
+#: url -> (keyword, master row, name, country, url, text, activities)
+V27_BY_URL = {v[3]: (k, *v) for k, v in V27_INSTITUTIONS.items()}
+
+
+def _v27_write_master(path: Path) -> Path:
+    columns = ["institution_uid", "master_row_id", "country", "government_level", "branch", "institution_type",
+               "institution_name", "website", "source_dataset_id", "source_url", "source_file", "retrieval_date",
+               "notes"]
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=columns)
+        w.writeheader()
+        for row, name, country, *_ in V27_INSTITUTIONS.values():
+            w.writerow({"institution_uid": f"G3O-I-{row:08d}", "master_row_id": str(row), "country": country,
+                        "government_level": "local", "branch": "executive", "institution_type": "council",
+                        "institution_name": name, "website": "", "source_dataset_id": "synth", "source_url": "",
+                        "source_file": "synth.csv", "retrieval_date": "", "notes": "synth"})
+    return path
+
+
+def _v27_config(tmp_path: Path, **kw: Any) -> PresweepConfig:
+    from dataclasses import asdict
+
+    from tests.test_e2e_perpage_v27 import SETTINGS
+
+    values = dict(run_id="v27-entry", runs_dir=tmp_path / "runs", master_csv=_v27_write_master(tmp_path / "m.csv"),
+                  sample_size=3, seed=22294, dry_run=False, stop_after="validate", poll_interval=0,
+                  max_wait_per_stage=10, scrape_respect_robots=False, scrape_host_delay_seconds=0,
+                  classify_official_site_model=None, classify_triage_model=None, validate_model=None,
+                  pipeline_version="v2.7", v27_not_production_ready_opt_in=True, v27_runtime=asdict(SETTINGS))
+    values.update(kw)
+    return PresweepConfig(**values)
+
+
+def _v27_keyword(text: str) -> str | None:
+    low = text.lower()
+    return next((k for k in V27_INSTITUTIONS if k in low), None)
+
+
+def _v27_stub_stages_1_to_4_clients(monkeypatch) -> dict[str, list[Any]]:
+    """Serper, the fetcher and the OpenAI Batch API (Stages 2/3), each at its client boundary."""
+    seen: dict[str, list[Any]] = {"serper": [], "scrape": [], "openai_clients": []}
+    monkeypatch.setattr(serper_client, "_live_mode", False, raising=False)
+
+    def search(query, num_results=5, **kw):
+        seen["serper"].append(query)
+        key = _v27_keyword(query)
+        results = []
+        if key is not None:
+            url = V27_INSTITUTIONS[key][3]
+            results = [{"link": url, "title": V27_INSTITUTIONS[key][1], "snippet": "s",
+                        "domain": url.split("/")[2], "position": 1, "date": None, "sitelinks": []}]
+        return serper_client.SerperResult(results=results, search_parameters={"q": query, "num": num_results},
+                                          from_cache=False, payload={"q": query, "num": num_results})
+
+    monkeypatch.setattr(ps.stage_discovery, "search_google_detailed", search)
+
+    def scrape(url: str, **kwargs) -> RenderedPage:
+        seen["scrape"].append(url)
+        _key, _row, name, _country, _url, text, _acts = V27_BY_URL[url]
+        return RenderedPage(url=url, text=text, title=name, content_type="html",
+                            fetch_metadata=FetchMetadata(access_date=ACCESS_DATE, http_status=200, final_url=url,
+                                                         fetch_method="html", elapsed_ms=10, wait_for=None))
+
+    monkeypatch.setattr(ps.stage_scrape, "scrape_url", scrape)
+
+    class OpenAIClient:  # the Batch API client object: constructed, never used (the calls below are stubbed)
+        def __init__(self, *a, **kw):
+            seen["openai_clients"].append(kw.get("api_key"))
+
+    monkeypatch.setattr(batch_client, "OpenAI", OpenAIClient)
+    batches: dict[str, dict[str, Any]] = {}
+
+    def submit(jobs, *, model, completion_window, endpoint, metadata, client=None):
+        batch_id = f"batch-{metadata['g3o_stage']}-{metadata['g3o_chunk']}"
+        batches[batch_id] = {"stage": metadata["g3o_stage"], "jobs": list(jobs)}
+        return BatchHandle(batch_id=batch_id, input_file_id="file-x", submitted_at=datetime.now(timezone.utc),
+                           n_jobs=len(jobs))
+
+    def fetch(batch_id, *, client=None, status=None):
+        rec = batches[batch_id]
+        for job in rec["jobs"]:
+            if rec["stage"] == "classify_official_site":
+                key = _v27_keyword(json.dumps(job.messages, ensure_ascii=False))
+                content = json.dumps({"url": V27_INSTITUTIONS[key][3] if key else None,
+                                      "confidence": "high", "rationale": "smoke"})
+            elif rec["stage"] == "classify_triage":
+                payload = json.loads(job.messages[1]["content"].split("INPUT:\n", 1)[1])
+                content = json.dumps({"decisions": [{"url": u, "decision": "keep", "rationale": "smoke"}
+                                                    for u in payload["candidate_urls"]]})
+            else:  # pragma: no cover - a v2.7 run has no v2.5 Stage 5/6 batch
+                raise AssertionError(f"unexpected batch stage {rec['stage']!r} on a v2.7 run")
+            yield BatchResult(custom_id=job.custom_id, success=True,
+                              response={"body": {"choices": [{"message": {"content": content}}]}}, error=None)
+
+    monkeypatch.setattr(batch_client, "submit_batch", submit)
+    monkeypatch.setattr(batch_client, "poll_batch", lambda batch_id, *, client=None: BatchStatus(
+        batch_id=batch_id, status="completed", request_counts={}, output_file_id="out", error_file_id=None))
+    monkeypatch.setattr(batch_client, "fetch_results", fetch)
+    monkeypatch.setattr(batch_client, "find_batches_by_metadata", lambda md, **kw: [])
+    return seen
+
+
+class _FakeTypeSafeClient:
+    """Stands in for ``typesafe_sdk.TypeSafeClient``: answers through the e2e world's ``FakeJev``."""
+
+    instances: list[_FakeTypeSafeClient] = []
+    answer: Any = None
+
+    def __init__(self, *, api_key=None, model=None, retry=None, **kw):
+        self.api_key, self.model = api_key, model
+        self.calls = 0
+        type(self).instances.append(self)
+
+    def system_one(self, state, questions, *, model=None, **kw):
+        from types import SimpleNamespace
+
+        import typesafe_sdk as ts
+
+        self.calls += 1
+        plain = {qid: {"instructions": q.instructions, "criteria": dict(q.criteria)} for qid, q in questions.items()}
+        res = type(self).answer(state, plain)
+        answers = {qid: ts.ChoiceAnswer(choice=a.choice, confidence=float(a.confidence),
+                                        probabilities={k: float(v) for k, v in a.probabilities.items()})
+                   for qid, a in res.answers.items()}
+        return SimpleNamespace(answers=answers, model=res.response_model, request_id=res.request_id,
+                               usage=SimpleNamespace(input_tokens=res.input_tokens, output_tokens=res.output_tokens))
+
+
+def _v27_fake_anthropic_module(record: dict[str, list[Any]]) -> Any:
+    """A stand-in ``anthropic`` module whose ``Anthropic`` client answers the v2.7 extractor requests.
+
+    Answered from the request alone (as the real API sees it): pass-1 / pass-2 quote
+    tasks get their part's text, pass 1's activity task the fixture's activities, and
+    the Stage 6 quote step its first shown quote.
+    """
+    import re
+    import types
+    from types import SimpleNamespace
+
+    from g3o.extract.request_v27 import field_name
+
+    def answer(params: dict[str, Any]) -> dict[str, Any]:
+        user = params["messages"][0]["content"]
+        if user.startswith("QUOTES:\n"):  # the Stage 6 quote step
+            rows = json.loads(user.split("QUOTES:\n", 1)[1].split("\n\nTASK:\n", 1)[0])
+            return {"quote_id": rows[0]["quote_id"], "quote": rows[0]["text"]}
+        url = re.search(r"^PAGE ADDRESS: (.*)$", user, re.M).group(1)
+        text = V27_BY_URL[url][5]
+        tasks = json.loads(user.split("\nTASKS:\n", 1)[1])
+        quotes = [{"task_id": t["task_id"], "part_id": t["part_id"], "quote": text.strip()}
+                  for t in tasks["quote_tasks"]]
+        if "field_tasks" in tasks:  # T-032 pass 2
+            return {"quotes": quotes, "fields": [{"task_id": t["task_id"], "value": None, "part_id": None,
+                                                  "supporting_text": None} for t in tasks["field_tasks"]]}
+        payload: dict[str, Any] = {"quotes": quotes, "links": [], "activities": [], "publication_date": None}
+        if tasks["activity_task"] is not None:
+            part = re.search(r'<part id="([^"]+)">', user).group(1)
+            wanted = set(tasks["activity_task"]["fields"])
+            for name, tool, sentence in V27_BY_URL[url][6]:
+                fields = [{"field": f, "value": v, "part_id": part, "supporting_text": sentence}
+                          for f, v in ((field_name("core.activity_name"), name),
+                                       (field_name("core.tool_name"), tool)) if f in wanted]
+                payload["activities"].append({"part_id": part, "start_text": sentence, "end_text": sentence,
+                                              "fields": fields})
+        return payload
+
+    class Anthropic:
+        def __init__(self, *, api_key=None, **kw):
+            record["clients"].append(api_key)
+            self.messages = SimpleNamespace(create=self._create)
+
+        def _create(self, **params):
+            record["params"].append(params)
+            n = len(record["params"])
+            return SimpleNamespace(model="fake-extractor-response", id=f"msg-{n}", _request_id=f"req-{n}",
+                                   stop_reason="end_turn", usage={"input_tokens": 100, "output_tokens": 10},
+                                   content=[{"type": "text", "text": json.dumps(answer(params))}])
+
+    module = types.ModuleType("anthropic")
+    module.Anthropic = Anthropic
+    return module
+
+
+class _ExplicitRowValues:
+    """The test-injected per-page builder (ruling 36 a): the real default builder over the stored
+    scrape artifacts, plus the row values whose producers are missing (T-015 / T-022 / T-024),
+    declared as ``test_e2e_perpage_v27.World.upstream`` declares them, keyed to the real page ids
+    and the real one-part layout (``<page_id>#p001``). The URL, access date and A3 language of each
+    source row are the builder's own values (A3: real lingua)."""
+
+    def __init__(self) -> None:
+        self.page_fields: dict[str, Any] = {}
+        self.n = 0
+
+    def _code(self, bound, instrument, sources, chunk, aid, item, value, text):
+        from g3o.classify.questions.v27 import JEV_QUESTION_SET_VERSION as QSV
+        from g3o.common.jev_client import JevAnswer, JevResult
+        from g3o.common.jev_record import CoderRecord
+        from g3o.common.storage_fields import FIELDS
+        from g3o.common.support_check import CodeEvidence, check_code
+        from tests.test_e2e_perpage_v27 import TRUE, _no_quote_value
+
+        quote = None if _no_quote_value(item, value) else text
+        sr = check_code(CodeEvidence(item, value, chunk, probability=0.95, quote=quote,
+                                     quote_chunk_id=chunk if quote else None,
+                                     entailment=TRUE if quote else None, activity_id=aid), sources)
+        self.n += 1
+        context = dict(item_id=item, item_part=None, support_id=None, observation_id=None, chunk_id=chunk,
+                       coder_version="fake-upstream-v1", question_set_version=QSV,
+                       setup_pointer=instrument["instrument_id"])
+        if FIELDS[item]["coder"] == "classifier":  # core.source_type: T-015's classifier
+            res = JevResult({"Q": JevAnswer("Q", "choice", choice=value, confidence=0.95,
+                                            probabilities={value: 0.95})}, "fake-jev-response", f"up-{self.n}", 1, 1)
+            rec = CoderRecord.from_jev(res, question_id="Q", configured_model=bound.settings.jev_model,
+                                       classifier_rule=bound.activity_config.rules[(item, None)], **context)
+        else:
+            rec = CoderRecord(question_id=None, coder_type="quote_step",
+                              configured_model=bound.settings.extractor_model,
+                              actual_response_model="fake-extractor-response", request_id=f"upx-{self.n}",
+                              answer_type="extracted", chosen_value=value, confidence=None,
+                              probability_distribution=None, **context)
+        return sr, rec
+
+    def _rows(self, bound, instrument, page, page_fields):
+        from g3o.classify import jev_page_code as jpc
+        from g3o.common.storage_fields import FIELDS
+        from g3o.common.support_check import PageSources
+        from g3o.run.presweep import stage_perpage_v27 as pp
+        from tests._storage_fixture import _values
+
+        pid, chunk = page.page_id, f"{page.page_id}#p001"  # a short page is one part (page_chunks.chunk_page)
+        sources = PageSources(pid, {chunk: page.text}, jpc.contact_text(page))
+        real = {"core.source_url": page_fields.url.value, "core.source_access_date": page_fields.access_date.value,
+                "core.source_language": page_fields.language.value}
+
+        def source_values():
+            sv = {k: v for k, v in _values("sources").items()
+                  if k in pp.SOURCE_ITEMS and (FIELDS[k]["coder"] != "classifier" or k == "core.source_type")}
+            sv.update({k: v for k, v in real.items() if k in sv})
+            sv.update({"core.source_title": page.title, "core.content_contact_emails": [],
+                       "core.source_publication_date": "not_documented", "core.date_upper_bound": "not_asked"})
+            return sv
+
+        def code(aid, item, value, text):
+            return self._code(bound, instrument, sources, chunk, aid, item, value, text)
+
+        a_vals, s_vals, codes = {}, {}, {}
+        for n, (name, tool, sentence) in enumerate(V27_BY_URL[page.url][6], start=1):
+            aid = f"{pid}#a{n:03d}"  # the id the pass-1 parser assigns
+            av = {k: v for k, v in _values("activities").items()
+                  if k in pp.ACTIVITY_ITEMS and FIELDS[k]["coder"] != "classifier" and k != "core.uncertainty_flags"}
+            av.update({"core.activity_name": name, "core.tool_name": [tool], "core.reported_outcomes": [],
+                       "core.deployment_scale_number": "not_documented", "core.unit_credit": "no"})
+            sv = source_values()
+            codes[aid] = [code(aid, "core.activity_name", name, sentence), code(aid, "core.tool_name", tool, sentence),
+                          code(aid, "core.observed_actor_name", av["core.observed_actor_name"], None),
+                          code(aid, "core.contracting_party", av["core.contracting_party"], None),
+                          code(aid, "core.deployment_scale_number", "not_documented", None),
+                          code(aid, "core.source_type", sv["core.source_type"], sentence),
+                          code(aid, "core.source_publication_date", "not_documented", None),
+                          code(aid, "core.source_snippet", sv["core.source_snippet"], None)]
+            a_vals[aid], s_vals[aid] = av, sv
+        if not V27_BY_URL[page.url][6]:  # RC-D-030 Y2 a: the page-level source row
+            sv = source_values()
+            s_vals[pp.NO_ACTIVITY] = sv
+            codes[pp.NO_ACTIVITY] = [code(None, "core.source_type", sv["core.source_type"], page.text),
+                                     code(None, "core.source_publication_date", "not_documented", None),
+                                     code(None, "core.source_snippet", sv["core.source_snippet"], None)]
+        return a_vals, s_vals, codes
+
+    def __call__(self, run_dir, sample, scraped, bound, instrument):
+        from dataclasses import replace
+
+        from g3o.run.presweep import perpage_inputs_v27 as pin
+
+        out = []
+        for inst in pin.build_perpage_inputs(run_dir, sample, scraped, bound, instrument):
+            specs = []
+            for spec in inst.pages:
+                self.page_fields[spec.page.url] = spec.upstream.page_fields
+                a_vals, s_vals, codes = self._rows(bound, instrument, spec.page, spec.upstream.page_fields)
+                specs.append(replace(spec, upstream=replace(spec.upstream, activity_values=a_vals,
+                                                            source_values=s_vals, codes=codes)))
+            out.append(replace(inst, pages=specs))
+        return out
+
+
+def _v27_refuse_real_clients(monkeypatch) -> None:
+    """Tripwires: any TypeSafe or Anthropic client construction fails the test."""
+    import sys
+    import types
+
+    from g3o.common import jev_client
+
+    def refuse(*_a, **_k):
+        raise AssertionError("a provider client was constructed")
+
+    monkeypatch.setattr(jev_client.ts, "TypeSafeClient", refuse)
+    module = types.ModuleType("anthropic")
+    module.Anthropic = refuse
+    monkeypatch.setitem(sys.modules, "anthropic", module)
+
+
+def test_v27_launch_builds_the_real_providers_and_runs_to_stage6_without_the_follow_leg(tmp_path: Path,
+                                                                                       monkeypatch):
+    """PI ruling 132 a: ``launch()`` on a v2.7 config with no injected dispatch builds the real
+    providers from config and runs Stages 1-4, the v2.7 per-page stage and v2.7 Stage 6, every
+    provider mocked at its client boundary; no follow leg."""
+    import sys
+    from dataclasses import asdict
+
+    from g3o.classify import jev_page_code as jpc
+    from g3o.common import jev_client
+    from g3o.common.storage import StorageEnvelope
+    from g3o.report.outcomes import compute_institution_report
+    from g3o.run.presweep import planning, v27_entry
+    from g3o.run.presweep import stage_perpage_v27 as pp
+    from g3o.run.presweep import stage_validate_v27 as svv
+    from tests.test_e2e_perpage_v27 import ANSWERS, RELATIONS, SETTINGS, TRUE, FakeJev
+
+    seen = _v27_stub_stages_1_to_4_clients(monkeypatch)
+    # jev: the TypeSafe SDK client, answered by the e2e world's FakeJev (verdict by page content).
+    jev = FakeJev({**ANSWERS, jpc.VERDICT: lambda st: "confirms_activity" if "Copilot" in st.get("page_text", "")
+                   else "no_genai"}, RELATIONS)
+    monkeypatch.setattr(_FakeTypeSafeClient, "instances", [])
+    monkeypatch.setattr(_FakeTypeSafeClient, "answer", jev)
+    monkeypatch.setattr(jev_client.ts, "TypeSafeClient", _FakeTypeSafeClient)
+    # The extractor: the anthropic SDK module.
+    extractor: dict[str, list[Any]] = {"clients": [], "params": []}
+    monkeypatch.setitem(sys.modules, "anthropic", _v27_fake_anthropic_module(extractor))
+    # The X35 client (no approved binding exists, ruling 59 b; the real entry refuses).
+    x35_calls: list[Any] = []
+    monkeypatch.setattr(v27_entry, "x35_entail_fn",
+                        lambda settings, creds: lambda q, text: x35_calls.append((q, text)) or TRUE)
+    # Ruling 36 a: the default builder is refused at entry, so the builder is injected.
+    builder = _ExplicitRowValues()
+    monkeypatch.setattr(v27_entry, "perpage_inputs_builder", lambda config: builder)
+    # Ruling 132 a: no follow leg in this e2e.
+    monkeypatch.setattr(v27_entry, "follow_fetch", lambda config: None)
+
+    receipt = launch(_v27_config(tmp_path), credentials=Credentials(**V27_KEYS), session_id="sess-v27",
+                     invocation="api")
+    summary = receipt.summary
+    run_dir = Path(summary["run_dir"])
+
+    # The real providers were built from config, lazily, over the mocked clients only.
+    assert [c.api_key for c in _FakeTypeSafeClient.instances] == ["typesafe-test"]
+    assert _FakeTypeSafeClient.instances[0].model == SETTINGS.jev_model
+    assert _FakeTypeSafeClient.instances[0].calls == len(jev.calls) > 0
+    assert extractor["clients"] == ["anthropic-test"] and extractor["params"]
+    assert {p["model"] for p in extractor["params"]} == {SETTINGS.extractor_model}
+    assert x35_calls
+    assert set(seen["openai_clients"]) == {"sk-test"}
+    assert sorted(set(seen["scrape"])) == sorted(v[3] for v in V27_INSTITUTIONS.values())
+
+    # Stages 1-4 and both v2.7 stages ran; nothing held or failed.
+    assert summary["pipeline_version"] == "v2.7" and summary["n_institutions"] == 3
+    assert summary["n_pages_scraped"] == 3
+    assert summary["n_perpage_held"] == 0 and summary["n_perpage_failed_pages"] == 0
+    assert summary["n_stage6_written"] == 3
+    assert summary["n_stage6_held"] == summary["n_stage6_failed"] == 0
+    assert "n_extracted" not in summary and "n_consolidated" not in summary
+    assert pp.DONE_MARKER == "perpage_v27" and svv.DONE_MARKER == "stage6_v27"
+    assert done_path(run_dir, pp.DONE_MARKER).exists() and done_path(run_dir, svv.DONE_MARKER).exists()
+
+    # The manifest records the runtime settings the instrument was bound from, and the bound instrument.
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["config"]["v27_runtime"] == asdict(SETTINGS)
+    instrument_id = manifest[planning.RUN_PIPELINE_KEY]["instrument_id"]
+    assert summary["instrument_id"] == instrument_id
+
+    # One non-English page: the builder's own A3 language (real lingua) is French.
+    languages = {url: fields.language.value for url, fields in builder.page_fields.items()}
+    assert languages == {V27_INSTITUTIONS["quillfield"][3]: "en", V27_INSTITUTIONS["brackenmoor"][3]: "en",
+                         V27_INSTITUTIONS["valtorde"][3]: "fr"}
+
+    # Every 6_storage.json loads as a validated storage envelope against the bound instrument.
+    for key, (row, *_rest) in V27_INSTITUTIONS.items():
+        inst_id = f"INST-{row:07d}"
+        envelope = StorageEnvelope.load(inst_dir_of(run_dir, inst_id) / "6_storage.json",
+                                        run_dir / "final" / "instruments", artifact_root=run_dir)
+        assert envelope.data["setup_pointer"] == instrument_id and envelope.data["institution_id"] == inst_id
+        if key == "valtorde":
+            assert any(r.get("values", {}).get("core.source_language") == "fr"
+                       for r in envelope.data["sources"].values())
+
+    # Outcomes from the run report.
+    report = {r["institution_id"]: r for r in compute_institution_report(run_dir)}
+    assert {k: r["final_status"] for k, r in report.items()} == {
+        "INST-0000001": "EVIDENCE_FOUND", "INST-0000002": "NO_EVIDENCE_FOUND",
+        "INST-0000003": "NO_EVIDENCE_FOUND"}
+    assert report["INST-0000001"]["consolidated_row_count"] >= 1
+
+
+def test_v27_launch_with_the_real_factory_is_refused_at_entry_before_any_spend(tmp_path: Path, monkeypatch):
+    """With no injected mocks the real factory's dispatch is refused at entry (ruling 59 b: the X35
+    entry; with an X35 client given, ruling 36 a: the default per-page builder), before planning or
+    any Stage 1-4 call, and no client is constructed. A missing extractor key or an unset
+    v27_runtime is refused too."""
+    from g3o.persist.stage6_adapters import MissingUpstreamError
+    from g3o.run.presweep import perpage_inputs_v27 as pin
+    from g3o.run.presweep import v27_entry
+    from tests.test_e2e_perpage_v27 import TRUE
+
+    _v27_refuse_real_clients(monkeypatch)
+    calls: list[str] = []
+
+    def no_spend(*_a, **_k):
+        calls.append("stage 1-4 client")
+        raise AssertionError("a Stage 1-4 client was called before the v2.7 entry refusal")
+
+    monkeypatch.setattr(ps.stage_discovery, "search_google_detailed", no_spend)
+    monkeypatch.setattr(ps.stage_scrape, "scrape_url", no_spend)
+    monkeypatch.setattr(batch_client, "submit_batch", no_spend)
+    monkeypatch.setattr(serper_client, "_live_mode", False, raising=False)
+    config = _v27_config(tmp_path)
+    run_dir = config.runs_dir / config.run_id
+
+    with pytest.raises(ValueError, match="run_entailment"):  # ruling 59 b
+        launch(config, credentials=Credentials(**V27_KEYS))
+    assert not run_dir.exists() and calls == []
+
+    assert pin.MISSING_PRODUCERS
+    monkeypatch.setattr(v27_entry, "x35_entail_fn", lambda settings, creds: lambda q, text: TRUE)
+    with pytest.raises(MissingUpstreamError, match="ruling 36 a"):
+        launch(config, credentials=Credentials(**V27_KEYS))
+    assert not run_dir.exists() and calls == []
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+        launch(config, credentials=Credentials(**{**V27_KEYS, "anthropic_api_key": None}))
+    with pytest.raises(ValueError, match="no default client"):
+        launch(_v27_config(tmp_path, v27_runtime=None), credentials=Credentials(**V27_KEYS))
+    assert not run_dir.exists() and calls == []
