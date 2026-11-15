@@ -40,7 +40,9 @@ Rules carried here, not decided here:
   a resumed page's pass-1 page request (:data:`PASS1_NOT_JOURNALED`) and 87 c activity-only request
   (:data:`ACTIVITY_ONLY_NOT_JOURNALED`); the residual ``source_type`` answers are saved before the first
   pass-1 request and loaded on a resume (:data:`SOURCE_TYPE_FILE`), never asked again, also after a C4
-  archive (review M-1).
+  archive (review M-1). PI ruling 110 b: answers whose deciding part failed with no answer are not saved;
+  the institution is held before that request (:data:`RESIDUAL_PART_FAILED`) and the question is asked
+  again on the next run (answered parts replayed from the journal).
 - **Publication.** A page with any pending or stopped question (an extra
   round that failed, a gate awaiting it) holds its whole institution: the
   holds go to ``perpage_v27/held.json`` and the attrition ledger, nothing is
@@ -430,6 +432,28 @@ ROW_VALUE_REFUSED = "row_value_refused"
 #: source_type question has a T-021 part over the request limit: that part is not halved (its halves are not
 #: parts of the page's first pass-1 request, PI ruling 95 a), so the page's own data holds the institution
 RESIDUAL_OVER_LIMIT = "source_type_residual_part_over_limit"
+#: PI ruling 110 b (2026-11-14): the residual source_type question's deciding part failed with no answer
+#: (:func:`~g3o.run.presweep.source_row_v27.residual_deciding_part_failed`): per-institution hold before T-022
+#: (held.json names the page, the part and its cause); the answers are not saved, and the next run asks the
+#: question again (answered parts replayed from the journal, the failed part asked live). Never ``unknown``.
+RESIDUAL_PART_FAILED = "source_type_residual_part_failed"
+
+
+class ResidualPartFailed(Exception):  # noqa: N818 - names the hold, as Pass2RequestNotJournaled does
+    """PI ruling 110 b: the deciding part of a page's residual ``source_type`` question failed with no answer.
+
+    Raised by :func:`_residual_source_type` before the answers are saved and before the page's first pass-1
+    request is built, so that request (and its 105 b journal check) is only ever built on answers that are
+    final; the page is held as pending (:data:`RESIDUAL_PART_FAILED`). Not a stage stop."""
+
+    def __init__(self, page_id: str, part_id: str, cause: str | None) -> None:
+        super().__init__(f"page {page_id}: the residual source_type question's deciding part {part_id!r} failed "
+                         f"with no answer ({cause}); held, asked again on the next run (PI ruling 110 b)")
+        self.page_id, self.part_id, self.cause = page_id, part_id, cause
+
+    def hold(self) -> dict[str, Any]:
+        return {"page_id": self.page_id, "stage": RESIDUAL_PART_FAILED, "items": [sf.SOURCE_TYPE],
+                "part_id": self.part_id, "cause": self.cause, "error": str(self)}
 
 
 class RowValueRefused(ConsolidationError):
@@ -1242,11 +1266,20 @@ def _residual_source_type(run_dir: Path, spec: PageSpec, ask: Any, page_config: 
     made, and the assembler refuses or types the page itself).
 
     PI ruling 105 b: the answers are saved in the page dir (:data:`SOURCE_TYPE_FILE`) before the page's first
-    pass-1 request is built, and a later run loads them instead of asking again: a part that failed in an
-    earlier run (an exception or a response with no request id, never replayed by the journal) is not asked
-    again live, so the first pass-1 request is rebuilt with the same parameters and replayed from the journal.
-    The file is kept across a C4 archive (ruling 33 a; review M-1, :data:`PAGE_STATE_FILES`): the answers
-    depend on no pass-1 answer."""
+    pass-1 request is built, and a later run loads them instead of asking again: a non-deciding part that
+    failed in an earlier run (an exception or a response with no request id, never replayed by the journal)
+    is not asked again live, so the first pass-1 request is rebuilt with the same parameters and replayed
+    from the journal. The file is kept across a C4 archive (ruling 33 a; review M-1, :data:`PAGE_STATE_FILES`):
+    the answers depend on no pass-1 answer.
+
+    PI ruling 110 b: when the deciding part failed with no answer
+    (:func:`~g3o.run.presweep.source_row_v27.residual_deciding_part_failed`), the answers are NOT saved and
+    :class:`ResidualPartFailed` is raised; the caller holds the institution before the page's first pass-1
+    request is built. Saving only final answers (rather than saving these and re-asking the failed part on
+    load) keeps that request, and so its 105 b journal check, built once on the answers it carries: a re-ask
+    after the request was sent would change its quote tasks and hold the page as not journaled. The next run
+    asks the question again through the journal: every answered part's response is replayed (no live call),
+    only the failed part is asked live."""
     page, up = spec.page, spec.upstream
     if up.page_fields is None or any(v is not None for v in (up.activity_values, up.source_values, up.codes)):
         return None
@@ -1269,6 +1302,9 @@ def _residual_source_type(run_dir: Path, spec: PageSpec, ask: Any, page_config: 
         raise RowValueRefused(page.page_id, {sf.SOURCE_TYPE: f"{RESIDUAL_OVER_LIMIT}: {exc}"}) from exc
     if typing.typed_by != "classifier":
         return None
+    failed_part = srow.residual_deciding_part_failed(typing)
+    if failed_part is not None:  # PI ruling 110 b: not saved, so the next run asks again; held before T-022
+        raise ResidualPartFailed(page.page_id, failed_part, typing.outcome.cause)
     save_source_typing(path, typing)
     return typing
 
@@ -1278,6 +1314,9 @@ def save_source_typing(path: Path, typing: Any) -> None:
     105 b; :data:`SOURCE_TYPE_FILE`)."""
     if typing.typed_by != "classifier" or typing.result is None:
         raise TypeError("only a classifier-typed (residual) source_type is saved")
+    if srow.residual_deciding_part_failed(typing) is not None:
+        raise TypeError("a residual source_type whose deciding part failed with no answer is never saved (PI "
+                        "ruling 110 b)")
     _atomic_write(path, canonical_json({"format": CHECKPOINT_FORMAT, "kind": "source_type",
                                         "result": typing.result.to_dict()}))
 
@@ -1295,6 +1334,9 @@ def load_source_typing(path: Path, layout: Sequence[Any]) -> Any:
     typing = sf.classifier_source_typing(PageCodeResult.from_dict(doc["result"]))
     if [c.chunk_id for c in typing.result.chunks] != [c.chunk_id for c in layout]:
         raise ValueError(f"per-page checkpoint {path} was asked on parts other than the page's T-021 parts")
+    if srow.residual_deciding_part_failed(typing) is not None:  # never saved since PI ruling 110 b
+        raise ValueError(f"per-page checkpoint {path} holds residual answers whose deciding part failed with no "
+                         "answer (PI ruling 110 b: such answers are never saved)")
     return typing
 
 
@@ -1342,6 +1384,9 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
         st.source_typing = _residual_source_type(run_dir, st.spec, ask, page_config, official_sites)
     except RowValueRefused as exc:  # review M2: the page's own data; held where 97 b holds are (PI ruling 106 a)
         st.source_typing, st.row_refusal = None, exc
+    except ResidualPartFailed as exc:  # PI ruling 110 b: held before the first pass-1 request is built
+        st.holds.append(exc.hold())
+        return
     if st.source_typing is not None:
         set_typing = getattr(providers, "set_source_typing", None)
         if set_typing is None:

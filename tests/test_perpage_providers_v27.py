@@ -1649,9 +1649,9 @@ def test_residual_answers_are_saved_and_never_asked_again_on_a_resume_105b(tmp_p
     saved = pp.page_state_dir(run_dir, spec.page) / pp.SOURCE_TYPE_FILE
     answers = {**ANSWERS, sf.SOURCE_TYPE: "vendor"}
 
-    # The failed part must NOT be the deciding part. A deciding part with no answer has no check, and the
-    # assembler stops the stage on its deliberately unbuilt path (TypeError, "0 checked answers at the deciding
-    # part"; open PI question 110), which this test is not about. source_type combines by first_section (the
+    # The failed part must NOT be the deciding part. A deciding part with no answer is held before T-022 and
+    # never saved (PI ruling 110 b; test_residual_deciding_part_failed_holds_then_only_that_part_is_asked_again_
+    # 110b), which this test is not about. source_type combines by first_section (the
     # first part with a real, not failed answer), so part 1 answering pins it as the deciding part; every later
     # part fails. Matched on the exact part index ("1 of n"), never a prefix ("10 of 12" starts with "1").
     def later_parts_fail(state, questions, n):
@@ -1715,6 +1715,99 @@ def test_residual_part_over_the_limit_holds_the_institution_m2(tmp_path, monkeyp
     details = [r.get("detail") for r in attrition.read_records(run_dir)
                if r.get("stage") == pp.STAGE and r.get("reason") == pp.HELD_REASON]
     assert details == [f"p1:{pp.ROW_VALUE_REFUSED}:{sf.SOURCE_TYPE}"]
+
+
+def test_residual_deciding_part_failed_is_never_saved_or_coded_110b(tmp_path):
+    """PI ruling 110 b: a residual typing whose deciding part failed with no answer (every part's request
+    raised, so first_section falls back to the failed part's ``unknown``) is never coded ``unknown``: it is
+    not saved, a file holding one (written before this ruling) is refused on load, and the assembler refuses
+    it as a wiring error naming the ruling (the stage holds such a page before T-022)."""
+    from g3o.common import source_fields as sf
+    from g3o.common.instrument import canonical_json
+    from g3o.run.presweep import source_row_v27 as srow
+
+    run_dir, bound, instrument, world, page = _flip_world(tmp_path)
+    result, _, _, _ = _flipped_round(run_dir, bound, page, flipped=False)
+
+    def failing(state, questions):
+        raise RuntimeError("simulated residual part failure")
+
+    typing = sf.code_source_type(page, failing, bound.page_config, layout=result.chunks)
+    first = result.chunks[0].chunk_id
+    assert typing.typed_by == "classifier" and typing.outcome.part_id == first and typing.outcome.failed
+    assert srow.residual_deciding_part_failed(typing) == first
+    answered = sf.code_source_type(page, _type_ask(), bound.page_config, layout=result.chunks)
+    assert srow.residual_deciding_part_failed(answered) is None
+    assert srow.residual_deciding_part_failed(sf.auto_source_type(sf.AUTO_OFFICIAL)) is None
+    path = tmp_path / "source_type.json"
+    with pytest.raises(TypeError, match="110 b"):
+        pp.save_source_typing(path, typing)
+    assert not path.exists()
+    path.write_text(canonical_json({"format": pp.CHECKPOINT_FORMAT, "kind": "source_type",
+                                    "result": typing.result.to_dict()}), encoding="utf-8")
+    with pytest.raises(ValueError, match="110 b"):
+        pp.load_source_typing(path, result.chunks)
+    with pytest.raises(TypeError, match="110 b"):
+        srow.residual_source_type_value(typing, ())
+
+
+def test_residual_deciding_part_failed_holds_then_only_that_part_is_asked_again_110b(tmp_path, monkeypatch):
+    """PI ruling 110 b through the stage. Run 1: the residual question's part 1 raises and every later part
+    answers "not covered", so the failed part 1 decides: the institution is held (source_type_residual_part_
+    failed, naming the part and its cause) before the page's first pass-1 request is built (no extractor
+    call), nothing is saved, and the stage goes on (no TypeError). Run 2: the question is asked again through
+    the journal; the parts answered in run 1 are replayed (no live call), only part 1 is asked live and now
+    answers; the answers are saved and ride in the first pass-1 request, sent live (the 105 b journal check is
+    not tripped: that request was never built before), and the row's source_type is produced."""
+    from g3o.common import source_fields as sf
+    from g3o.extract import request_v27
+    from g3o.run.presweep import source_row_v27 as srow
+    from tests.test_e2e_perpage_v27 import assemble_spy
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
+    seen = []
+    monkeypatch.setattr(srow, "assemble", assemble_spy(srow.assemble, lambda page, rows, kw: seen.append((rows, kw))))
+    inst = [_residual_inst(insts)]
+    saved = pp.page_state_dir(run_dir, inst[0].pages[0].page) / pp.SOURCE_TYPE_FILE
+
+    def part_one(state):  # the exact part index ("1 of n"), never a prefix ("10 of 12")
+        return state["page_part"].split(" of ")[0] == "1"
+
+    answers = {**ANSWERS, sf.SOURCE_TYPE: lambda st: "vendor" if part_one(st) else NOT_COVERED}
+
+    def part_one_fails(state, questions, n):
+        if sf.SOURCE_TYPE in questions and part_one(state):
+            return RuntimeError("simulated residual part failure")
+        return None
+
+    jev1, ex1 = FakeJev(answers, RELATIONS, part_one_fails), FakeExtractor(world)
+    ready, metrics = _run(run_dir, bound, instrument, inst, _providers(run_dir, bound, instrument, ex1, FakeEntail()),
+                          jev1)
+    assert len(_source_type_calls(jev1)) > 1  # every T-021 part asked
+    assert ready == [] and metrics.held == ["INST-0000001"]
+    assert ex1.jobs == [] and not saved.exists() and seen == []  # held before T-022; nothing saved or produced
+    (hold,) = _held(run_dir, "INST-0000001")["held"]
+    assert (hold["page_id"], hold["stage"], hold["items"], hold["cause"]) == (
+        "p1", pp.RESIDUAL_PART_FAILED, [sf.SOURCE_TYPE], jpc.REQUEST_FAILED)
+    details = [r.get("detail") for r in attrition.read_records(run_dir)
+               if r.get("stage") == pp.STAGE and r.get("reason") == pp.HELD_REASON]
+    assert details == [f"p1:{pp.RESIDUAL_PART_FAILED}"]
+
+    jev2, ex2 = FakeJev(answers, RELATIONS), FakeExtractor(world)
+    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler") as exc:
+        _run(run_dir, bound, instrument, inst, _providers(run_dir, bound, instrument, ex2, FakeEntail()), jev2)
+    asked = _source_type_calls(jev2)
+    assert len(asked) == 1 and asked[0].split(" of ")[0] == "1"  # answered parts replayed, never re-asked
+    assert saved.exists() and sf.SOURCE_TYPE not in exc.value.missing
+    rows, kw = seen[-1]
+    typing = kw["source_typing"]
+    assert typing.outcome.part_id == hold["part_id"] and typing.field.value == "vendor"
+    assert srow.residual_deciding_part_failed(typing) is None
+    first = next(j for j in ex2.jobs if j.metadata["stage"] == PASS1 and j.metadata["page_id"] == "p1")
+    question = request_v27.default_rules().questions[sf.SOURCE_TYPE]
+    assert [t["part_id"] for t in _tasks(first)["quote_tasks"] if t["question"] == question] == [hold["part_id"]]
+    assert sf.SOURCE_TYPE in rows.source and sf.SOURCE_TYPE not in rows.refused
 
 
 def test_resumed_activity_only_request_missing_from_the_journal_holds_105b(tmp_path):

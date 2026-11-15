@@ -122,7 +122,9 @@ Produced here (source row, page-level), PI ruling 70 b (2026-11-13):
   T-024 (no first request: checked with no quote, ``downgraded_no_quote``);
   :func:`residual_source_type_value`. Without that input it is refused
   (:data:`RESIDUAL_PRODUCER`), a wiring gap that stops the stage (PI ruling 111 a,
-  :data:`WIRING_PRODUCERS`).
+  :data:`WIRING_PRODUCERS`). A deciding part that failed with no answer never reaches this
+  assembler: the per-page stage holds the institution before T-022 and asks the question again on
+  the next run (PI ruling 110 b, :func:`residual_deciding_part_failed`).
 - ``source_credibility`` (X22, :func:`g3o.common.source_fields.source_credibility`):
   ``low`` when the publication date is ``unknown`` / ``not_documented``
   whatever the type; otherwise the signed map cell of the automatic basis or of
@@ -156,6 +158,7 @@ from g3o.classify.jev_activity_code import GATE_RULE
 from g3o.common import source_fields as sf
 from g3o.common import support_check as sc
 from g3o.common.jev_record import CoderRecord
+from g3o.common.part_combine import NOT_COVERED
 from g3o.common.storage import METADATA_ITEMS, table_fields
 from g3o.common.storage_fields import FIELDS
 from g3o.extract import pass2_support, request_v27
@@ -841,6 +844,28 @@ def official_value(page: Any, official_sites: Any) -> sf.FieldValue:
     return official_sites.official(page.url, page.institution_id)
 
 
+def residual_deciding_part_failed(typing: Any) -> str | None:
+    """PI ruling 110 b (2026-11-14): the deciding part of a residual ``source_type`` typing when that part
+    failed with no answer, else None.
+
+    "No answer" is no live classifier record of the item at the part (the temporary part answer aside, as
+    the per-page provider adapter's checked records): the request raised, came back with no request id, or
+    returned no answer to the question (``jev_page_code`` records a failure, no record). ``first_section``
+    skips failed parts, so such a part decides only when no part gave a real answer. The per-page stage never
+    saves or codes such a typing: it holds the institution before T-022 and asks the question again on the
+    next run (answered parts replayed from the journal); it is never coded ``unknown`` from a failure."""
+    if typing is None or getattr(typing, "typed_by", None) != "classifier" or typing.outcome is None:
+        return None
+    deciding = typing.outcome.part_id
+    if deciding is None:
+        return None
+    if typing.result is None:
+        raise TypeError("a residual source_type typing without its stored result (wiring error)")
+    answered = any(r.coder_type == "classifier" and r.item_id == sf.SOURCE_TYPE and r.chunk_id == deciding
+                   and r.chosen_value != NOT_COVERED for r in typing.result.records)
+    return None if answered else str(deciding)
+
+
 def residual_source_type_value(typing: Any, codes: Any) -> tuple[QuoteValue, sf.SourceTyping]:
     """A readable residual page's ``source_type`` (PI ruling 95 a, building 83 b): the residual question's
     answers (``typing``, asked before T-022 on the page's T-021 parts) with their T-024 checks (``codes``:
@@ -858,8 +883,12 @@ def residual_source_type_value(typing: Any, codes: Any) -> tuple[QuoteValue, sf.
     deciding = typing.outcome.part_id
     found = [sr for sr, rec in pairs if rec.chunk_id == deciding] if deciding is not None else []
     if deciding is not None and len(found) != 1:
-        raise TypeError(f"residual source_type: {len(found)} checked answers at the deciding part {deciding!r} "
-                        "(wiring error)")
+        why = ""
+        if not found and getattr(typing.outcome, "failed", False):  # PI ruling 110 b: held by the stage instead
+            why = ("; the deciding part failed with no answer: the per-page stage holds such a page before T-022 "
+                   "and asks it again (PI ruling 110 b)")
+        raise TypeError(f"residual source_type: {len(found)} checked answers at the deciding part {deciding!r}"
+                        f"{why} (wiring error)")
     checked = sf.checked_source_type(typing, found[0]) if found else typing
     fv = checked.field
     return QuoteValue(RowValue(sf.SOURCE_TYPE, fv.value, fv.basis), pairs), checked
@@ -1168,7 +1197,8 @@ __all__ = [
     "REFUSED_SOURCE_ITEMS", "STAGE6_ACTIVITY_ITEMS", "WIRING_PRODUCERS", "AssembledRows", "RowValue", "activity_row_items",
     "activity_row_values", "assemble",
     "content_contact", "content_contact_emails", "content_safeguard", "content_stated", "genai_verdicts",
-    "entry_refused_items", "page_source_values", "source_row_items", "source_title", "stated", "unit_credit",
+    "entry_refused_items", "page_source_values", "residual_deciding_part_failed", "source_row_items", "source_title",
+    "stated", "unit_credit",
     "unproduced_items",
     "vendor_claim_only",
 ]
