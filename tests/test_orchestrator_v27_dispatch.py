@@ -882,7 +882,7 @@ def test_v27_unpriced_preflight_preview_is_labelled(tmp_path):
 
 
 def test_v27_cost_block_prices_each_stage_from_its_journals_and_marks_an_interrupted_one(tmp_path):
-    """RC-D-021 cost_monitor hunks with rulings 57 a / 58 a: each stage is priced from its journals on
+    """RC-D-021 cost_monitor hunks with rulings 130 a / 58 a: each stage is priced from its journals on
     disk (the extractor per request from the journaled responses' own usage); a stage that returned no
     usage (it stopped) is marked interrupted; outside total_usd."""
     from g3o.common.jev_client import JevResult
@@ -906,7 +906,7 @@ def test_v27_cost_block_prices_each_stage_from_its_journals_and_marks_an_interru
     block = orch._v27_cost_block(run_dir, summary, "jev-1.13.0", "claude-haiku-5-5")
     per = block[orch.V27_PERPAGE_SPAN]
     assert per["source"] == "journals_on_disk" and per["returned_this_session"] is True and per["priced"]
-    assert per["parts"]["extractor"]["usd"] == pytest.approx((1_000 * 0.05 + 200 * 0.25) / 1e6)
+    assert per["parts"]["extractor"]["usd"] == pytest.approx((1_000 * 0.10 + 200 * 0.50) / 1e6)  # standard (130 a)
     stage6 = block[orch.V27_STAGE6_SPAN]
     assert stage6["returned_this_session"] is False and stage6["usage"]["input_tokens"] == 1_000_000
     assert stage6["parts"]["jev"]["calls"] == 1

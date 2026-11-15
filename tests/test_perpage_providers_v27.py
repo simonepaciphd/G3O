@@ -1244,7 +1244,7 @@ def test_verdict_flipped_to_confirms_gets_one_activity_only_request_87c(tmp_path
 
 
 def test_activity_only_request_is_journaled_priced_and_replayed_87c(tmp_path):
-    """PI ruling 87 c with 57 a / 58 a / 67 a: the activity-only request goes through the request journal
+    """PI ruling 87 c with 130 a / 58 a / 67 a: the activity-only request goes through the request journal
     like every extractor call: counted with its own usage, and replayed (no new call) on a resume."""
     run_dir, bound, instrument, world, insts = _world(tmp_path)
     a = [i for i in insts if i.institution_id == "INST-0000001"]
