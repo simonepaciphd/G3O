@@ -425,7 +425,8 @@ class ReaskSpentUnanswered(Exception):  # noqa: N818 - names the hold, as Extrac
     def __init__(self, key: str, custom_id: Any, kind: str = "extractor") -> None:
         super().__init__(f"{kind} request {key} ({custom_id!r}): its PI-released re-ask was used up (a "
                          f"{REASK_SPENT} entry) and no response to it is recorded; no live call without a new "
-                         "release (PI rulings 104 b / 114 b)")
+                         "release naming this key in its \"keys\" (an \"all\" release authorises no re-ask; PI "
+                         "rulings 104 b / 114 b)")
         self.key, self.custom_id, self.kind = key, custom_id, kind
 
 
@@ -741,8 +742,16 @@ class RequestJournal:
             recorded = ("extract", key, self._seen.get(("extract", key), 0)) in self._recorded
             return not recorded and self.reask_authorised(key)
 
+        def spent_unanswered(job: Any) -> bool:
+            """Review L-2: whether the next call of ``job`` is one the journal refuses because its PI-released
+            re-ask was used up with no response recorded since (:meth:`reask_spent_unanswered`); the per-page
+            adapter's own 98 b / 105 b guards pass it on, so their holds carry the spent note. Uses no slot."""
+            key = self._key({"custom_id": job.custom_id, "params": job.params}, prompt)
+            return self.reask_spent_unanswered(key, kind="extract")
+
         wrapped.peek = peek  # type: ignore[attr-defined]
         wrapped.reask_live = reask_live  # type: ignore[attr-defined]
+        wrapped.spent_unanswered = spent_unanswered  # type: ignore[attr-defined]
         return wrapped
 
     def _entail(self, entail_fn: Any, prompt: Mapping[str, Any]) -> Any:

@@ -408,6 +408,10 @@ PASS2_NOT_JOURNALED = "pass2_request_not_journaled"
 #: PI-released re-ask was used up (PI ruling 114 b) with no response recorded since
 _SPENT_NOTE = (" (review H-1: its PI-released re-ask was used up by a reask_spent journal entry and no response "
                "was recorded after it, so a new release file, with other bytes, is needed: PI ruling 114 b)")
+#: review L-4: a re-ask is authorised only by a release that names the key; an ``all`` release resets the 41 a
+#: rejection counts and authorises no re-ask
+_NAME_KEY_NOTE = ("; the key must be named in the release's \"keys\" to authorise a re-ask: an \"all\" release "
+                  "authorises none")
 
 
 class Pass2RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as ExtractRejectCapReached does
@@ -423,7 +427,7 @@ class Pass2RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as Ex
         super().__init__(f"page {page_id}: the rebuilt pass-2 page request {custom_id!r} (journal key {key}) has "
                          "no recorded response in the request journal; no live call made on a resume (PI ruling "
                          f"98 b){_SPENT_NOTE if spent else ''}; naming this key in {PI_RELEASE_FILE} authorises one "
-                         "live re-ask (PI ruling 104 b)")
+                         f"live re-ask (PI ruling 104 b){_NAME_KEY_NOTE}")
         self.page_id, self.custom_id, self.key, self.spent = page_id, custom_id, key, spent
 
 
@@ -450,7 +454,7 @@ class Pass1RequestNotJournaled(Exception):  # noqa: N818 - names the hold, as Pa
                          "recorded response in the request journal; no live call made on a resume (PI ruling "
                          f"105 b){_SPENT_NOTE if spent else ''}; naming this key in {PI_RELEASE_FILE} authorises "
                          "one live re-ask, after the page's activity-level state is archived (PI rulings 104 b / "
-                         "113 b)")
+                         f"113 b){_NAME_KEY_NOTE}")
         self.page_id, self.custom_id, self.key, self.stage, self.spent = page_id, custom_id, key, stage, spent
 
 
@@ -501,10 +505,12 @@ class ResidualPartFailed(Exception):  # noqa: N818 - names the hold, as Pass2Req
         release = "" if request_key is None else (
             f"; a response with a request id but no answer ({jpc.ANSWER_MISSING}) is replayed from the journal on "
             f"every run instead: naming its request key {request_key} in {PI_RELEASE_FILE} authorises one live "
-            "re-ask (PI ruling 120 c)")
+            f"re-ask (PI ruling 120 c){_NAME_KEY_NOTE}")
+        # review L-1: a spent re-ask is not asked again on the next run: the journal refuses it
+        again = ("not asked again live without a new release (PI ruling 114 b)" if spent
+                 else "asked again on the next run (PI ruling 110 b)")
         super().__init__(f"page {page_id}: the residual source_type question's deciding part {part_id!r} failed "
-                         f"with no answer ({cause}); held, asked again on the next run (PI ruling 110 b)"
-                         f"{release}{_SPENT_NOTE if spent else ''}")
+                         f"with no answer ({cause}); held, {again}{release}{_SPENT_NOTE if spent else ''}")
         self.page_id, self.part_id, self.cause = page_id, part_id, cause
         #: PI ruling 120 c: the journal key of the deciding part's jev request (None when it cannot be named)
         self.request_key, self.spent = request_key, spent
@@ -1730,6 +1736,8 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
                 if journal.rejections(key) >= EXTRACT_REJECT_CAP:  # ruling 34 b / 41 a
                     broken = _cap_hold(page.page_id, exc.pass_name, broken["custom_id"], key,
                                        journal.rejections(key), exc.detail)
+                elif journal.reask_spent_unanswered(key, kind="extract"):  # review L-1: not asked again
+                    broken = _response_hold(page.page_id, exc, spent_key=key)
             if exc.archive_page_state:  # ruling 33 a: the next run codes the page again
                 try:
                     broken["archived"] = _archive_page_state(run_dir, page)
@@ -2001,10 +2009,23 @@ def _finish_failed_archives(run_dir: Path, states: Sequence[_PageState], held_pa
     return None
 
 
-def _response_hold(page_id: str, exc: ExtractorResponseFailed) -> dict[str, Any]:
+def _response_hold(page_id: str, exc: ExtractorResponseFailed, spent_key: str | None = None) -> dict[str, Any]:
+    """C3 a: the hold of a failed or unparsable extractor response (asked again on the next run).
+
+    Review L-1: ``spent_key`` is the request key when that response answered a PI-released re-ask the journal now
+    reports as spent with no answer (:meth:`~g3o.run.presweep.stage_validate_v27.RequestJournal.
+    reask_spent_unanswered`): the next run does NOT ask it again (the journal refuses the live call, PI ruling
+    114 b), so the hold names the key and says a new release is needed (PI ruling 122 b accepts it)."""
     request = exc.request or {}
-    return {"page_id": page_id, "stage": EXTRACT_RESPONSE_FAILED, "pass": exc.pass_name,
+    hold = {"page_id": page_id, "stage": EXTRACT_RESPONSE_FAILED, "pass": exc.pass_name,
             "custom_id": request.get("custom_id"), "error": exc.detail}
+    if spent_key is not None:
+        hold["request_key"] = spent_key
+        hold["error"] = (f"{exc.detail} (review L-1: this response answered a PI-released re-ask, used up by its "
+                         "reask_spent journal entry (PI ruling 114 b), so the next run does not ask the request "
+                         f"again; a new {PI_RELEASE_FILE}, with other bytes, naming request key {spent_key} "
+                         f"authorises one more re-ask: PI ruling 122 b{_NAME_KEY_NOTE})")
+    return hold
 
 
 def _cap_hold(page_id: str, pass_name: str | None, custom_id: Any, key: str, rejections: int,

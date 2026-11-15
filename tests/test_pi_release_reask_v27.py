@@ -278,6 +278,7 @@ def test_second_reask_is_refused_after_the_one_release_is_used(tmp_path):
         assert _calls(again, cid) == [] and ready == [] and metrics.held == [INST]
         (held,) = _held(run_dir, INST)["held"]
         assert (held["stage"], held["request_key"]) == (pp.PASS2_NOT_JOURNALED, key)
+        assert "114 b" in held["error"]  # review L-2: the 98 b guard's hold carries the spent note
         _write_release(run_dir, doc)  # the same bytes: recorded already, so only archived next run
     assert [e["kind"] for e in _entries(run_dir)].count(rt.PI_RELEASED) == 1
     # a NEW release (other bytes) is a new PI decision: one more re-ask
@@ -745,7 +746,9 @@ def test_activity_only_reask_that_fails_holds_the_next_run_with_no_live_call_h1(
         assert again.jobs == []  # no second live call
         return held.value
 
-    assert not held_again().spent  # the provider-level 105 b check, on the fresh record (fix b)
+    # the provider-level 105 b check, on the fresh record (fix b); review L-2: its hold carries the spent note too
+    guard = held_again()
+    assert guard.spent and "114 b" in str(guard) and "an \"all\" release authorises none" in str(guard)  # L-4
     assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
     aside = tmp_path / "pass1_requests.aside"
     (pdir / pp.PASS1_FILE).replace(aside)  # no record, as before review H-1: the journal refuses it (fix a)
@@ -815,7 +818,7 @@ def test_no_codes_page_reask_that_fails_holds_the_next_run_with_no_live_call_h1(
         assert again.jobs == []  # no second live call
         return held.value
 
-    assert not held_again().spent
+    assert held_again().spent  # review L-2: the 105 b guard's hold carries the spent note (fix b)
     assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
     aside = tmp_path / "pass1_requests.aside"
     (pdir / pp.PASS1_FILE).replace(aside)  # no record and no codes: before review H-1 this was sent live
@@ -904,6 +907,8 @@ def test_release_straight_after_a_failed_reask_authorises_one_more_122b(tmp_path
         assert ready == [] and metrics.held == [INST]
         (held,) = _held(run_dir, INST)["held"]
         assert held["stage"] == pp.EXTRACT_RESPONSE_FAILED and held["stage"] not in pp.REASK_RELEASABLE
+        # review L-1: not "asked again on the next run": the hold names the key and says a new release is needed
+        assert held["request_key"] == key and "122 b" in held["error"] and "with other bytes" in held["error"]
     assert [j.custom_id for j in bad.jobs] == [cid]  # the one live re-ask, failed
     journal_path = institution_dir(run_dir, INST) / pp.WORK_DIR / pp.JOURNAL
     assert rt.RequestJournal(journal_path, {}).reask_spent_unanswered(key)
