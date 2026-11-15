@@ -1902,8 +1902,9 @@ def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any]
     PI ruling 104 b: a key the release names may also be the ``request_key`` of a 98 b hold, or (PI ruling
     113 b) of a 105 b pass-1 / activity-only hold (:data:`REASK_RELEASABLE`), in the last run's ``held.json``;
     it is recorded in the release's ``reask_keys`` and authorises ONE live re-ask of that request
-    (:meth:`~g3o.run.presweep.stage_validate_v27.RequestJournal.reask_authorised`), used up once that call
-    is journaled; a second re-ask needs a new release file. ``all`` authorises no re-ask. A key that is
+    (:meth:`~g3o.run.presweep.stage_validate_v27.RequestJournal.reask_authorised`), used up by the
+    ``reask_spent`` journal entry written just before that call (PI ruling 114 b: a failure before or while
+    sending wastes it); a second re-ask needs a new release file. ``all`` authorises no re-ask. A key that is
     neither rejected nor so held is refused (:data:`PI_RELEASE_MALFORMED`); PI ruling 103 b: a 97 b
     page-data hold carries no request key and stays unreleasable.
 

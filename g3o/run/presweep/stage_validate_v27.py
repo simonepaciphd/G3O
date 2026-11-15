@@ -364,10 +364,16 @@ EXTRACT_REJECT_CAP = 3
 #: :meth:`RequestJournal.record_release`); ``extract_rejected`` entries for the released keys that
 #: come before it no longer count towards :data:`EXTRACT_REJECT_CAP`. Never replayed or accounted.
 #: PI ruling 104 b (2026-11-14): its ``reask_keys`` (request keys held under 98 b, named in the release file)
-#: each authorise ONE live re-ask: the next journaled ``extract`` / ``extract_failed`` entry of that key
-#: consumes it (:meth:`RequestJournal.reask_authorised`), on this run and on every later load.
+#: each authorise ONE live re-ask, consumed (:meth:`RequestJournal.reask_authorised`) on this run and on every
+#: later load by the :data:`REASK_SPENT` entry written before that call (PI ruling 114 b).
 PI_RELEASED = "pi_released"
-#: the journal entry kinds that record a live extractor call (they consume a 104 b re-ask authorisation)
+#: PI ruling 114 b (2026-11-14): written (fsynced) just before the live extractor call a PI release authorised,
+#: it uses that re-ask up, whatever happens next: a failure before or while sending (an exception, a timeout,
+#: a crash) wastes the release, and the PI drops a new file (different bytes; identical bytes are only
+#: archived, ruling 47.2 a). Never replayed or accounted: ``response`` is ``{}``.
+REASK_SPENT = "reask_spent"
+#: the journal entry kinds that record a live extractor call; they also consume a 104 b re-ask authorisation
+#: (journals written before PI ruling 114 b have no :data:`REASK_SPENT` entry)
 _LIVE_EXTRACT_KINDS = frozenset({"extract", "extract_failed"})
 
 
@@ -465,6 +471,8 @@ class RequestJournal:
                 self._reask.discard(entry["key"])
             if entry["kind"] == PI_RELEASED:
                 self._apply_release(entry["response"])
+            elif entry["kind"] == REASK_SPENT:  # PI ruling 114 b: used up before its call
+                self._reask.discard(entry["key"])
             elif entry["kind"] in ACCOUNTING_KINDS:
                 self._accounting.append(entry)
                 if entry["kind"] == JEV_UNIDENTIFIED:
@@ -525,9 +533,17 @@ class RequestJournal:
         self._reask.update(release.get("reask_keys") or ())  # ruling 104 b (absent in older entries)
 
     def reask_authorised(self, key: str) -> bool:
-        """PI ruling 104 b: a recorded PI release named ``key`` (held under 98 b) for one live re-ask, and no
-        live extractor call of ``key`` (``extract`` / ``extract_failed``) has been journaled since."""
+        """PI ruling 104 b: a recorded PI release named ``key`` (a 98 b / 105 b hold) for one live re-ask, and
+        since then neither a :data:`REASK_SPENT` entry (PI ruling 114 b) nor a live extractor call of ``key``
+        (``extract`` / ``extract_failed``) has been journaled."""
         return key in self._reask
+
+    def _spend_reask(self, key: str) -> None:
+        """PI ruling 114 b: append (fsynced) the :data:`REASK_SPENT` entry of ``key`` before its live call.
+        An ``OSError`` writing it propagates before any call, leaving the authorisation unspent."""
+        self._write({"kind": REASK_SPENT, "key": key, "n": 0, "response": {}, "elapsed_ms": 0})
+        self._elapsed.append(0)
+        self._reask.discard(key)
 
     def extract_key(self, request: Mapping[str, Any], prompt: Mapping[str, Any]) -> str:
         """The journal key of an extractor request (``custom_id``, ``params``) under ``prompt``."""
@@ -604,6 +620,8 @@ class RequestJournal:
                 return ExtractorResult(**self._recorded[slot])
             if self.rejections(slot[1]) >= EXTRACT_REJECT_CAP:  # ruling 34 b / 41 a: never called again
                 raise ExtractRejectCapReached(slot[1], self.rejections(slot[1]), job.custom_id)
+            if self.reask_authorised(slot[1]):  # PI ruling 114 b: the re-ask is used up BEFORE the call
+                self._spend_reask(slot[1])
             start = time.monotonic()
             result = extract_fn(job)  # an exception is not recorded: asked again on resume
             self.live += 1
@@ -617,7 +635,8 @@ class RequestJournal:
             """``(request key, recorded)`` for the next call of ``job``: whether this journal holds a
             response it would replay, without using the slot (PI ruling 98 b reads it before a rebuild).
             PI ruling 104 b: ``recorded`` is also True while a PI release authorises one live re-ask of the
-            key (:meth:`reask_authorised`); that call, once journaled, uses the authorisation up."""
+            key (:meth:`reask_authorised`); the :data:`REASK_SPENT` entry written just before that call uses
+            the authorisation up (PI ruling 114 b)."""
             key = self._key({"custom_id": job.custom_id, "params": job.params}, prompt)
             recorded = ("extract", key, self._seen.get(("extract", key), 0)) in self._recorded
             return key, recorded or self.reask_authorised(key)
@@ -1321,6 +1340,6 @@ __all__ = [
     "ENVELOPE_FAILED", "ENVELOPE_HOLDS", "EXECUTOR_FAILED", "MISSING_UPSTREAM", "HELD_REASON", "STAGE_STOPS", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
     "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_PRODUCED_A8", "MERGE_REFUSED_R1", "MERGE_UNION", "MERGE_UNRULED",
     "Stage6Metrics", "build_envelope", "hold_reasons", "independence_groups_of", "merge_values", "run_stage6_v27",
-    "EXTRACT_REJECT_CAP", "IDENTITY_COLUMNS", "PI_RELEASED", "WIRING_STOPS", "ExtractRejectCapReached",
+    "EXTRACT_REJECT_CAP", "IDENTITY_COLUMNS", "PI_RELEASED", "REASK_SPENT", "WIRING_STOPS", "ExtractRejectCapReached",
     "UpstreamRowMalformed", "require_a8_form", "require_identity",
 ]

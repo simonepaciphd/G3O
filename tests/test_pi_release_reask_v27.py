@@ -100,6 +100,98 @@ def test_release_entry_authorises_exactly_one_live_call_of_its_key(tmp_path, suc
     assert fn2.peek(job) == (key, success)
 
 
+class Crash(BaseException):
+    """The process dies inside the extractor call (after the journal's re-ask marker)."""
+
+
+@pytest.mark.parametrize("error", [Crash("killed"), TimeoutError("read timed out")])
+def test_reask_is_spent_by_a_marker_written_before_the_call_114b(tmp_path, error):
+    """PI ruling 114 b: the re-ask is used up by a ``reask_spent`` entry journaled BEFORE the call. A crash
+    after it, or a timeout raised by the call, records no response, yet the reloaded journal no longer
+    authorises a live call (peek says not recorded: the adapter holds again, no second live call). Only a
+    new release (other bytes) authorises one more."""
+    job = ExtractorJob("cid-114b", {"model": "m", "messages": [{"p": 4}]}, {})
+    path = tmp_path / "journal.jsonl"
+    journal = rt.RequestJournal(path, {"s": 1})
+    wrap, _ = journal.seams(PROMPT)
+    calls = []
+
+    def raising(j):
+        calls.append(j.custom_id)
+        raise error
+    fn = wrap(raising)
+    key = fn.peek(job)[0]
+    journal.record_release({**_release_doc([key]), "all": False, "file_sha256": "e" * 64, "reask_keys": [key]})
+    assert fn.reask_live(job) and fn.peek(job) == (key, True)
+    with pytest.raises(type(error)):
+        fn(job)
+    assert calls == ["cid-114b"] and not journal.reask_authorised(key)
+    kinds = [json.loads(x)["kind"] for x in path.read_text(encoding="utf-8").splitlines()]
+    assert kinds == [rt.PI_RELEASED, rt.REASK_SPENT]  # the marker, and no response
+    reloaded = rt.RequestJournal(path, {"s": 1})
+    wrap2, _ = reloaded.seams(PROMPT)
+    fn2 = wrap2(lambda j: pytest.fail("no second live call"))
+    assert not reloaded.reask_authorised(key) and fn2.peek(job) == (key, False) and not fn2.reask_live(job)
+    assert reloaded.usage()["extractor_calls"] == 0  # the marker is not a call
+    # a new release file (other bytes) is a new PI decision: one more re-ask
+    reloaded.record_release({**_release_doc([key], date="2026-11-15"), "all": False, "file_sha256": "f" * 64,
+                             "reask_keys": [key]})
+    assert rt.RequestJournal(path, {"s": 1}).reask_authorised(key)
+
+
+def test_marker_write_failure_leaves_the_reask_unspent_114b(tmp_path, monkeypatch):
+    """An OSError writing the ``reask_spent`` marker propagates before the call: nothing was sent, so the
+    authorisation stands."""
+    job = ExtractorJob("cid-114b", {"model": "m", "messages": [{"p": 5}]}, {})
+    path = tmp_path / "journal.jsonl"
+    journal = rt.RequestJournal(path, {"s": 1})
+    wrap, _ = journal.seams(PROMPT)
+    fn = wrap(lambda j: pytest.fail("no call without the marker"))
+    key = fn.peek(job)[0]
+    journal.record_release({**_release_doc([key]), "all": False, "file_sha256": "e" * 64, "reask_keys": [key]})
+    real = journal._write
+
+    def failing(entry):
+        if entry["kind"] == rt.REASK_SPENT:
+            raise PermissionError(13, "Access is denied", str(path))
+        return real(entry)
+    monkeypatch.setattr(journal, "_write", failing)
+    with pytest.raises(PermissionError):
+        fn(job)
+    assert journal.reask_authorised(key) and rt.RequestJournal(path, {"s": 1}).reask_authorised(key)
+
+
+def test_identical_release_file_after_a_spent_reask_is_only_archived_114b(tmp_path):
+    """Ruling 47.2 a still holds with the 114 b marker: the same release bytes dropped again after the re-ask
+    was spent (here by a timeout) are only archived and authorise nothing; other bytes authorise one more."""
+    job = ExtractorJob("cid-114b", {"model": "m", "messages": [{"p": 6}]}, {})
+    inst_dir = tmp_path / "inst"
+    (inst_dir / pp.WORK_DIR).mkdir(parents=True)
+    journal = rt.RequestJournal(inst_dir / pp.WORK_DIR / pp.JOURNAL, {"s": 1})
+    wrap, _ = journal.seams(PROMPT)
+
+    def timeout(j):
+        raise TimeoutError("read timed out")
+    fn = wrap(timeout)
+    key = fn.peek(job)[0]
+    (inst_dir / pp.WORK_DIR / pp.HELD_FILE).write_text(json.dumps({"institution_id": INST, "held": [
+        {"page_id": "p1", "stage": pp.PASS1_NOT_JOURNALED, "pass": "pass1", "custom_id": job.custom_id,
+         "request_key": key, "error": "x"}]}), encoding="utf-8")
+    doc = _release_doc([key])
+    raw = json.dumps(doc).encode("utf-8")
+    (inst_dir / pp.PI_RELEASE_FILE).write_bytes(raw)
+    assert pp._apply_pi_release(inst_dir, journal) is None and journal.reask_authorised(key)
+    with pytest.raises(TimeoutError):
+        fn(job)
+    assert not journal.reask_authorised(key)
+    (inst_dir / pp.PI_RELEASE_FILE).write_bytes(raw)  # the same bytes again
+    assert pp._apply_pi_release(inst_dir, journal) is None and not (inst_dir / pp.PI_RELEASE_FILE).exists()
+    assert not journal.reask_authorised(key)
+    assert not rt.RequestJournal(inst_dir / pp.WORK_DIR / pp.JOURNAL, {"s": 1}).reask_authorised(key)
+    (inst_dir / pp.PI_RELEASE_FILE).write_bytes(json.dumps(_release_doc([key], date="2026-11-15")).encode("utf-8"))
+    assert pp._apply_pi_release(inst_dir, journal) is None and journal.reask_authorised(key)
+
+
 def test_release_without_reask_keys_authorises_nothing(tmp_path):
     """A 41 a release (rejection keys or ``all``), and an entry written before 104 b, authorise no re-ask."""
     path = tmp_path / "journal.jsonl"
@@ -353,6 +445,44 @@ def test_released_pass1_reask_archives_the_activity_state_and_codes_it_afresh_11
     assert [f.value for s in inp.spans for f in s.fields if f.item_id == "core.activity_name"] == ["Renamed drafting"]
     assert (pdir / "activity.json").exists() and artifact_exists(art) and (pdir / pp.PASS1_FILE).exists()
     assert not rt.RequestJournal(inst_dir / pp.WORK_DIR / pp.JOURNAL, {}).reask_authorised(key)
+    assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
+
+
+class CrashOn(FakeExtractor):
+    """The process dies inside the extractor call for ``custom_id``."""
+
+    def __init__(self, world, custom_id):
+        super().__init__(world)
+        self.custom_id = custom_id
+
+    def __call__(self, job):
+        if job.custom_id == self.custom_id:
+            self.jobs.append(job)
+            raise Crash("killed while sending the re-ask")
+        return super().__call__(job)
+
+
+def test_crash_during_the_released_reask_spends_it_and_the_next_run_holds_114b(tmp_path):
+    """PI ruling 114 b at the stage: the process dies during the authorised re-ask (after the activity state
+    was archived, 113 b, and the reask_spent marker journaled). The next run makes no live call of that
+    request: it holds under 105 b again, and the archive is not repeated (no second folder)."""
+    run_dir, world, run, hold, page = _held_105b(tmp_path)
+    key, cid = hold["request_key"], hold["custom_id"]
+    _write_release(run_dir, _release_doc([key]))
+    crash = CrashOn(world, cid)
+    with pytest.raises(Crash):
+        run(crash)
+    assert [j.custom_id for j in crash.jobs] == [cid]
+    kinds = [(e["kind"], e["key"]) for e in _entries(run_dir)]
+    assert (rt.REASK_SPENT, key) in kinds and ("extract", key) not in kinds
+    pdir = pp.page_state_dir(run_dir, page)
+    assert (pdir / pp.PAGE_ARCHIVE_DIR / "001" / "activity.json").exists()
+
+    again = FakeExtractor(world)
+    ready, metrics = run(again)
+    assert ready == [] and metrics.held == [INST] and [j for j in again.jobs if j.custom_id == cid] == []
+    (held,) = _held(run_dir, INST)["held"]
+    assert (held["stage"], held["request_key"]) == (pp.PASS1_NOT_JOURNALED, key)
     assert not (pdir / pp.PAGE_ARCHIVE_DIR / "002").exists()
 
 
