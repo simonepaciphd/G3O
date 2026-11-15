@@ -38,7 +38,11 @@ module adds, each from signed text:
   ``text_source`` ``new_run`` (ruling 62 a: fetched by this run). The A4
   near-duplicate grouping is over all of the institution's pages, searched and
   followed (A4.2 a: the scope is one institution), so a searched page's
-  ``syndication_group`` is recomputed once followed pages join.
+  ``syndication_group`` is recomputed once followed pages join. A followed page is
+  coded before these exist; PI ruling 112 a: it still gets the residual
+  ``source_type`` question at coding time, its archive test worked out from its URL
+  (:func:`g3o.run.presweep.stage_perpage_v27.followed_archive_address`, equal to the
+  ``archive_address`` :meth:`InstitutionLeg.finish` stores).
 
 Resume (no duplicate fetch, no duplicate paid call). ``<inst>/follow/state_v27.json``
 is rewritten atomically after every URL tried; each fetched page is stored as

@@ -122,7 +122,8 @@ Produced here (source row, page-level), PI ruling 70 b (2026-11-13):
   T-024 (no first request: checked with no quote, ``downgraded_no_quote``);
   :func:`residual_source_type_value`. Without that input it is refused
   (:data:`RESIDUAL_PRODUCER`), a wiring gap that stops the stage (PI ruling 111 a,
-  :data:`WIRING_PRODUCERS`). A deciding part that failed with no answer never reaches this
+  :data:`WIRING_PRODUCERS`). A followed page is asked at coding time too, before its
+  ``PageSourceFields`` exist, its archive test worked out from its URL (PI ruling 112 a). A deciding part that failed with no answer never reaches this
   assembler: the per-page stage holds the institution before T-022 and asks the question again on
   the next run (PI ruling 110 b, :func:`residual_deciding_part_failed`).
 - ``source_credibility`` (X22, :func:`g3o.common.source_fields.source_credibility`):

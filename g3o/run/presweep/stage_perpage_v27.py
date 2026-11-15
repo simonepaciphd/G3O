@@ -1265,6 +1265,13 @@ def _residual_source_type(run_dir: Path, spec: PageSpec, ask: Any, page_config: 
     :class:`~g3o.common.source_fields.SourceTyping`, or None (typed by rule, or a refused input: no call is
     made, and the assembler refuses or types the page itself).
 
+    PI ruling 112 a: a page the T-025 follow leg fetched (``followed`` True, no injected rows) is coded before
+    its ``page_fields`` exist (``follow_v27.InstitutionLeg.finish`` builds them once every page is known, for
+    the A4 grouping), and they always come from ``perpage_inputs_v27.page_source_fields``, so its rows are the
+    assembler's. It is asked at coding time too, with the A2 archive test worked out from its URL
+    (:func:`followed_archive_address`, the value ``finish`` later stores; a mismatch would stop the stage in the
+    assembler: a residual answer for a page typed by rule, or a residual page with none, PI ruling 111 a).
+
     PI ruling 105 b: the answers are saved in the page dir (:data:`SOURCE_TYPE_FILE`) before the page's first
     pass-1 request is built, and a later run loads them instead of asking again: a non-deciding part that
     failed in an earlier run (an exception or a response with no request id, never replayed by the journal)
@@ -1281,13 +1288,17 @@ def _residual_source_type(run_dir: Path, spec: PageSpec, ask: Any, page_config: 
     asks the question again through the journal: every answered part's response is replayed (no live call),
     only the failed part is asked live."""
     page, up = spec.page, spec.upstream
-    if up.page_fields is None or any(v is not None for v in (up.activity_values, up.source_values, up.codes)):
+    if any(v is not None for v in (up.activity_values, up.source_values, up.codes)):
+        return None
+    followed_now = up.page_fields is None and getattr(up, "followed", None) is True  # PI ruling 112 a
+    if up.page_fields is None and not followed_now:
         return None
     try:
         official = srow.official_value(page, official_sites)
     except srow._REFUSALS:  # absent data: the assembler refuses source_type; nothing is asked
         return None
-    archive = getattr(up.page_fields, "archive_address", None)
+    archive = (followed_archive_address(page) if followed_now
+               else getattr(up.page_fields, "archive_address", None))
     if not isinstance(archive, bool) or sf.route_source_type(official, archive) is not None:
         return None
     t021 = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(run_dir, page.institution_id,
@@ -1307,6 +1318,15 @@ def _residual_source_type(run_dir: Path, spec: PageSpec, ask: Any, page_config: 
         raise ResidualPartFailed(page.page_id, failed_part, typing.outcome.cause)
     save_source_typing(path, typing)
     return typing
+
+
+def followed_archive_address(page: Any) -> bool:
+    """PI ruling 112 a: the A2 archive-address test of a followed page at coding time, from its URL. The same
+    test on the same input as the page fields the follow leg builds later
+    (``perpage_inputs_v27.page_source_fields``: :func:`~g3o.common.source_fields.source_archive_address` of
+    ``RenderedPage.url``, which equals the followed ``PageInput.url``: ``rendered_page_input`` copies it and
+    ``follow_v27`` refuses a fetched page whose URL is not the URL tried), so the two values are equal."""
+    return sf.source_archive_address(page.url)
 
 
 def save_source_typing(path: Path, typing: Any) -> None:

@@ -10,7 +10,7 @@ the hop, and the dispatch's ``follow_fetch`` seam.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from types import SimpleNamespace
 from typing import Any
 
@@ -297,6 +297,26 @@ def test_finish_regroups_a4_over_followed_pages_and_builds_their_page_fields(tmp
     assert rows.source[sf.DISCOVERY].value == "followed_hop_1"  # ruling 61 a
 
 
+@pytest.mark.parametrize("url, archive", [
+    ("https://inst-0000001.example.gov/report", False),
+    ("https://web.archive.org/web/https://inst-0000001.example.gov/report", True),
+    ("https://archive.org/details/council-report", True),
+    ("https://archive.org/about", False),
+])
+def test_coding_time_archive_test_equals_the_finish_value_112a(url, archive):
+    """PI ruling 112 a: the archive test a followed page is coded with (worked out from its URL before its page
+    fields exist) equals the ``archive_address`` the follow leg's ``finish`` stores for it later (through
+    ``FollowLeg.followed_upstream`` -> ``perpage_inputs_v27.page_source_fields``), on archive and other URLs."""
+    from g3o.common.syndication import group_pages
+
+    page = rendered(url, REPORT)
+    inp = pin.rendered_page_input(page, institution_id=INST, institution="Council One", country="Australia",
+                                  level_of_government="local")
+    grouping = group_pages({inp.page_id: inp.text}, institution_id=INST)
+    up = fv.FollowLeg(FakeFetch({})).followed_upstream(page, inp, 1, grouping)
+    assert pp.followed_archive_address(inp) is up.page_fields.archive_address is archive
+
+
 def test_start_refuses_followed_input_pages(tmp_path):
     run_dir, inst = _one(tmp_path)
     bad = replace(inst, pages=[replace(inst.pages[0], upstream=replace(inst.pages[0].upstream, followed=True,
@@ -320,6 +340,30 @@ REPORT_URL = "https://inst-0000001.example.gov/report"
 @dataclass(frozen=True)
 class FollowProviders(pp.PerPageProviders):
     page_extraction: Any = None
+
+
+@dataclass(frozen=True)
+class ResidualFollowProviders(FollowProviders):
+    """``FollowProviders`` that take a page's residual source_type answers (the PI ruling 95 a seam) and check
+    each with no quote (``downgraded_no_quote``), as the real adapter does for a page with no first request."""
+
+    typings: dict = field(default_factory=dict)
+
+    def set_source_typing(self, page_id, typing):
+        self.typings[page_id] = typing
+
+    def source_type_codes(self, page_id):
+        from g3o.common.part_combine import NOT_COVERED
+        from g3o.common.support_check import CodeEvidence, PageSources, check_code
+
+        typing = self.typings.get(page_id)
+        if typing is None:
+            return None
+        sources = PageSources(page_id, {c.chunk_id: c.text for c in typing.result.chunks}, None)
+        return tuple((check_code(CodeEvidence(sf.SOURCE_TYPE, str(r.chosen_value), r.chunk_id,
+                                              probability=r.chosen_answer_probability), sources), r)
+                     for r in typing.result.records
+                     if r.coder_type == "classifier" and r.item_id == sf.SOURCE_TYPE and r.chosen_value != NOT_COVERED)
 
 
 @dataclass(frozen=True)
@@ -396,6 +440,43 @@ def test_perpage_without_a_follow_leg_follows_nothing(tmp_path):
     ready, metrics = _run(run_dir, bound, instrument, providers, inst, None, _jev())
     assert metrics.ready == [INST] and [p.page_id for p in ready[0].pages] == ["s1"]
     assert not (institution_dir(run_dir, INST) / fv.FOLLOW_DIR).exists()
+
+
+def test_followed_residual_page_is_asked_at_coding_time_and_reaches_its_row_112a(tmp_path, monkeypatch):
+    """PI ruling 112 a through the stage: a followed page that is neither official nor an archive address and is
+    readable gets the residual source_type question at coding time (before the follow leg's ``finish`` builds
+    its page fields), its answers reach the T-015 assembler with the page fields ``finish`` built (the real
+    ``FollowLeg``: no injected rows), and its row carries the checked source_type (no first pass-1 request
+    here: checked with no quote, ``unknown``). The stage then stops on what the assembler still refuses (a
+    wiring gap), never on source_type (PI ruling 111 a would stop it for a residual page with no answers)."""
+    from g3o.run.presweep import official_site_v27 as osv
+
+    run_dir, bound, instrument, world, inst, base = _follow_world(tmp_path)
+    providers = ResidualFollowProviders(base.page_support, base.activity_input, base.activity_support,
+                                        base.pair_support, base.page_extraction)
+    sites = osv.RunOfficialSites("fixture: 2_official_site.json", {INST: "council-elsewhere.gov.au"}, frozenset())
+    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: sites)
+    seen = {}
+    monkeypatch.setattr(srow, "assemble", assemble_spy(
+        srow.assemble, lambda page, rows, kw: seen.setdefault(page.page_id, (rows, kw))))
+    jev = _jev()
+    jev.answers[sf.SOURCE_TYPE] = "vendor"
+    fetch = FakeFetch({REPORT_URL: REPORT})
+    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler") as exc:
+        _run(run_dir, bound, instrument, providers, inst, fv.FollowLeg(fetch), jev)
+    rid = url_hash(REPORT_URL)
+    assert fetch.calls == [REPORT_URL] and set(providers.typings) == {rid}  # s1 has injected rows: not asked
+    asked = [state.get("page_url") for state, qids in jev.calls if sf.SOURCE_TYPE in qids]
+    assert asked and set(asked) == {REPORT_URL}
+    rows, kw = seen[rid]
+    assert (kw["followed"], kw["hop"]) == (True, 1)
+    typing, codes = kw["source_typing"], kw["source_type_codes"]
+    assert typing is providers.typings[rid] and typing.typed_by == "classifier" and codes
+    (sr,) = [sr for sr, rec in codes if rec.chunk_id == typing.outcome.part_id]
+    assert sr.original_value == "vendor" and sr.support_status == "downgraded_no_quote"
+    assert sf.SOURCE_TYPE not in rows.refused and rows.source[sf.SOURCE_TYPE].value == sr.value == "unknown"
+    assert all(pair in rows.source_codes for pair in codes)
+    assert sf.SOURCE_TYPE not in exc.value.missing
 
 
 REVIEW_STATE, PAGE_VERDICT = "core.page_review_state", "core.page_verdict"
