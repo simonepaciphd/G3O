@@ -49,7 +49,11 @@ The seams:
   re-ask of such a held request (ruling 104 b), the page's activity-level state is
   archived just before that call
   (:func:`~g3o.run.presweep.stage_perpage_v27.archive_activity_state`), and a fresh ``PASS1_FILE`` naming it is
-  written (review H-1, :func:`~g3o.run.presweep.stage_perpage_v27.record_pass1_reask`). A key whose re-ask was
+  written (review H-1, :func:`~g3o.run.presweep.stage_perpage_v27.record_pass1_reask`). PI ruling 121 b: for the
+  page request (not the activity-only one) ``page.json`` is archived too, before the page's rounds
+  (:meth:`ExtractorPerPageProviders.prepare_pass1_reask`), so ``page_support`` makes the re-ask and checks the page
+  support on the new quotes; its first call carries the 105 b check too when a record names the request and
+  ``page.json`` is absent (that re-ask's state, or a crash after it). A key whose re-ask was
   used up (PI ruling 114 b) with no response since is refused by the journal
   (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`) and held as not journaled under the
   stage of its kind, for pass 1, the activity-only request and pass 2 alike. PI ruling 87 c: when a halving in an extra round
@@ -164,6 +168,7 @@ from g3o.run.presweep.stage_perpage_v27 import (
     Pass2RequestNotJournaled,
     PerPageProviders,
     archive_activity_state,
+    archive_page_request_state,
     page_state_dir,
     read_pass1_requests,
     record_pass1_reask,
@@ -310,6 +315,9 @@ class _Adapter:
         #: page id -> the journaled pass-1 request whose activity spans ``activity_input`` used (C4 a): the
         #: page request, or the activity-only request (PI ruling 87 c)
         self._span_pass1: dict[str, dict[str, Any] | None] = {}
+        #: (page id, hold stage) whose PI-released re-ask had its state archived and its record written in this
+        #: process (PI rulings 113 b / 121 b; :meth:`_archive_for_reask`): never archived twice before that call
+        self._reask_prepared: set[tuple[str, str]] = set()
         self._pair_quotes: dict[str, dict[tuple[Any, ...], Any]] = {}  # page id -> pair quotes
         #: page id -> the parsed T-032 pass-2 page request (None: the plan needed no request); its field
         #: tasks hold the open reported_* lists (PI ruling 73.1 b)
@@ -478,6 +486,14 @@ class _Adapter:
         first = codes == full.codes and not extra_round_started(result)
         if first:  # PI ruling 95 a: the residual source_type quote tasks ride in the first request
             p1 = self._with_source_type(p1)
+            if (page.page_id not in self._page_request and not (page_state_dir(self.run_dir, page) / "page.json").exists()
+                    and read_pass1_requests(self.run_dir, page) is not None):
+                # PI ruling 121 b with 105 b: no page.json, yet an earlier process made this request (a released re-ask
+                # archived page.json and wrote this record; the C4 archive moves both): replayed, never sent live
+                # unless the journal holds it or the release still authorises it
+                first_plan = request_v27.select_requests(p1)
+                if first_plan.needs_request:
+                    self._require_journaled(page, self.bound.pass1_job(p1, first_plan), PASS1_NOT_JOURNALED)
         plan, ext, request = self._pass1(p1, extra_round=not first)
         if first and page.page_id not in self._page_request:
             self._page_request[page.page_id], self._page_pass1[page.page_id] = ext, request
@@ -487,13 +503,44 @@ class _Adapter:
         sources = PageSources.from_page(p1)
         return [self._check(r, quotes.get((r.item_id, r.chunk_id)), sources) for r in records]
 
+    def _first_request(self, page: PageInput) -> tuple[Any, Any]:
+        """The page's first pass-1 request rebuilt from its stored T-021 result: ``(base, p1)``, ``base`` its T-021
+        pass-1 codes and ``p1`` those with the residual ``source_type`` quote tasks (PI ruling 95 a)."""
+        first = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(
+            self.run_dir, page.institution_id, page.url)))
+        base = to_pass1_page(first, page)
+        return base, self._with_source_type(base)
+
+    def prepare_pass1_reask(self, page: PageInput) -> bool:
+        """PI ruling 121 b: called by the per-page stage before the page's ``page.json`` is loaded (and after its
+        residual ``source_type`` answers are set). When the page's first pass-1 request, rebuilt from T-021 as
+        :meth:`activity_input` rebuilds it on a resume (PI ruling 105 b: an earlier process made it), is about to be
+        sent as the one live re-ask a PI release authorised (the journal's ``reask_live``), ``page.json`` and the
+        activity-level state are archived and a fresh ``pass1_requests.json`` names the request
+        (:meth:`_archive_for_reask`). The page's rounds then start again from the stored T-021 result, so
+        ``page_support`` makes the re-ask itself and checks the page-level support (with X35, journaled like every
+        X35 call) on the new response's quotes: the row's snippet and its provenance name one response. Returns
+        whether it archived. An activity-only re-ask is not prepared here (page.json stays, 113 b)."""
+        pid = page.page_id
+        reask_live = getattr(self.extract_fn, "reask_live", None)
+        if reask_live is None or pid in self._page_request or (pid, PASS1_NOT_JOURNALED) in self._reask_prepared:
+            return False
+        base, p1 = self._first_request(page)
+        if not base.codes and read_pass1_requests(self.run_dir, page) is None:  # no earlier process made it
+            return False
+        plan = request_v27.select_requests(p1)
+        if not plan.needs_request:
+            return False
+        job = self.bound.pass1_job(p1, plan)
+        if not reask_live(job):
+            return False
+        self._archive_for_reask(page, job, PASS1_NOT_JOURNALED)
+        return True
+
     def activity_input(self, page: PageInput, page_round: PageRoundResult) -> ActivityPageInput | None:
         pid = page.page_id
         if pid not in self._page_request:  # resume: rebuild the page request from T-021
-            first = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(
-                self.run_dir, page.institution_id, page.url)))
-            base = to_pass1_page(first, page)
-            p1 = self._with_source_type(base)
+            base, p1 = self._first_request(page)
             if base.codes or read_pass1_requests(self.run_dir, page) is not None:  # PI ruling 105 b: a resume
                 plan = request_v27.select_requests(p1)
                 if plan.needs_request:
@@ -569,7 +616,10 @@ class _Adapter:
         Review H-1: right after the archive (which moved ``pass1_requests.json``, the only trigger of this check
         for an activity-only request or a page with no pass-1 codes), a fresh record naming ``job`` is written
         (:func:`~g3o.run.presweep.stage_perpage_v27.record_pass1_reask`) before the call, so a re-ask that dies
-        or fails is held by the next run's check; the journal refuses it as well (:meth:`_parsed`)."""
+        or fails is held by the next run's check; the journal refuses it as well (:meth:`_parsed`).
+        PI ruling 121 b: for a pass-1 page request ``page.json`` is archived too, and the stage does it before the
+        page's rounds (:meth:`prepare_pass1_reask`); a re-ask prepared that way is not archived again here
+        (:meth:`_archive_for_reask`)."""
         peek = getattr(self.extract_fn, "peek", None)
         if peek is None or _job_key(job) in self._responses:  # unjournaled, or answered in this process
             return
@@ -577,11 +627,26 @@ class _Adapter:
         if not recorded:
             raise Pass1RequestNotJournaled(page.page_id, job.custom_id, key, stage)
         reask_live = getattr(self.extract_fn, "reask_live", None)
-        if reask_live is not None and reask_live(job):  # PI ruling 113 b: before the authorised live call
-            previous = read_pass1_requests(self.run_dir, page)  # read before the archive moves it
+        if reask_live is not None and reask_live(job) and (page.page_id, stage) not in self._reask_prepared:
+            self._archive_for_reask(page, job, stage)  # PI rulings 113 b / 121 b: before the authorised live call
+
+    def _archive_for_reask(self, page: PageInput, job: ExtractorJob, stage: str) -> None:
+        """PI rulings 113 b / 121 b, before the one live re-ask of ``job`` a PI release authorised: archive the page's
+        state (a pass-1 page request, :data:`PASS1_NOT_JOURNALED`: ``page.json`` too,
+        :func:`~g3o.run.presweep.stage_perpage_v27.archive_page_request_state`; an activity-only request: the
+        activity-level state only, :func:`~g3o.run.presweep.stage_perpage_v27.archive_activity_state`), then write a
+        fresh ``pass1_requests.json`` naming ``job`` (review H-1,
+        :func:`~g3o.run.presweep.stage_perpage_v27.record_pass1_reask`). Done once per page and stage in this process:
+        the stage prepares a pass-1 re-ask before the page's rounds (:meth:`prepare_pass1_reask`), and the 105 b
+        checks that meet the same release later in the run (``page_support``, :meth:`activity_input`) skip it."""
+        previous = read_pass1_requests(self.run_dir, page)  # read before the archive moves it
+        if stage == PASS1_NOT_JOURNALED:
+            archive_page_request_state(self.run_dir, page)
+        else:
             archive_activity_state(self.run_dir, page)
-            # review H-1: name the request about to be sent, so the next run's 105 b check still sees it
-            record_pass1_reask(self.run_dir, page, previous, stage, job.custom_id)
+        # review H-1: name the request about to be sent, so the next run's 105 b check still sees it
+        record_pass1_reask(self.run_dir, page, previous, stage, job.custom_id)
+        self._reask_prepared.add((page.page_id, stage))
 
     def activity_extraction(self, page_id: str) -> Pass1Extraction | None:
         """The page's activity-only pass-1 request (PI ruling 87 c) when :meth:`activity_input` made one
@@ -793,6 +858,10 @@ class ExtractorPerPageProviders(PerPageProviders):
     def set_source_typing(self, page_id: str, typing: sf.SourceTyping) -> None:
         """The page's residual ``source_type`` answers (:meth:`_Adapter.set_source_typing`, PI ruling 95 a)."""
         self.adapter.set_source_typing(page_id, typing)
+
+    def prepare_pass1_reask(self, page: PageInput) -> bool:
+        """Archive ahead of a released pass-1 page request re-ask (:meth:`_Adapter.prepare_pass1_reask`, PI 121 b)."""
+        return self.adapter.prepare_pass1_reask(page)
 
     def source_type_codes(self, page_id: str) -> tuple[tuple[SupportResult, CoderRecord], ...] | None:
         """The checked residual ``source_type`` answers (:meth:`_Adapter.source_type_codes`, PI ruling 95 a)."""
