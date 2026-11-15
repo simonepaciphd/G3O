@@ -457,8 +457,11 @@ def test_followed_residual_page_is_asked_at_coding_time_and_reaches_its_row_112a
     sites = osv.RunOfficialSites("fixture: 2_official_site.json", {INST: "council-elsewhere.gov.au"}, frozenset())
     monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: sites)
     seen = {}
-    monkeypatch.setattr(srow, "assemble", assemble_spy(
-        srow.assemble, lambda page, rows, kw: seen.setdefault(page.page_id, (rows, kw))))
+
+    def record(page, rows, kw):  # records the assembler's rows; returns None so they are not replaced
+        seen.setdefault(page.page_id, (rows, kw))
+
+    monkeypatch.setattr(srow, "assemble", assemble_spy(srow.assemble, record))
     jev = _jev()
     jev.answers[sf.SOURCE_TYPE] = "vendor"
     fetch = FakeFetch({REPORT_URL: REPORT})

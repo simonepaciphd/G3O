@@ -1694,9 +1694,15 @@ def test_c4_archive_at_the_stage_keeps_the_residual_answers_and_the_rejection_co
     the page's first pass-1 request is rebuilt with the same custom_id and params (the same journal key), and
     the 34 b rejection count of that key is kept (1, not reset by a changed key)."""
     from g3o.common import source_fields as sf
+    from g3o.run.presweep import official_site_v27 as osv
 
     run_dir, bound, instrument, world, insts = _world(tmp_path)
-    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
+    # b1 belongs to INST-0000002: its site is declared too (another host than b1's), so b1 is not official
+    # and is left to the residual question (an undeclared institution is refused: no question is asked)
+    sites = osv.RunOfficialSites("fixture: 2_official_site.json", {"INST-0000001": "council-one.gov.au",
+                                                                   "INST-0000002": "council-two.gov.au"},
+                                 frozenset())
+    monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: sites)
     inst_id, page = "INST-0000002", "b1"
     b = next(i for i in insts if i.institution_id == inst_id)
     spec = next(s for s in b.pages if s.page.page_id == page)
