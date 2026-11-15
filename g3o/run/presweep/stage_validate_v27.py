@@ -373,10 +373,20 @@ PI_RELEASED = "pi_released"
 #: archived, ruling 47.2 a). Never replayed or accounted: ``response`` is ``{}``. Review H-1: while no response
 #: to the key is recorded after it (and no new release authorises the key), the journal refuses a live call of
 #: that key (:class:`ReaskSpentUnanswered`).
+#: PI ruling 120 c (2026-11-14): also written before the live jev call a release authorised (a residual
+#: ``source_type`` deciding part whose response has a request id but no answer, replayed every run); its ``n``
+#: is the jev slot re-asked, and from it on the response recorded in that slot before is no longer replayed
+#: (it is still counted in :meth:`RequestJournal.usage`, :data:`JEV_SUPERSEDED`). The response the re-ask gets
+#: is journaled in the same slot (``jev``) and replayed afterwards.
 REASK_SPENT = "reask_spent"
+#: PI ruling 120 c: a ``jev`` response displaced by a released jev re-ask (its :data:`REASK_SPENT` entry). In
+#: memory only (never written): kept for :meth:`RequestJournal.usage`, so the billed response is still counted.
+JEV_SUPERSEDED = "jev_superseded"
 #: the journal entry kinds that record a live extractor call; they also consume a 104 b re-ask authorisation
 #: (journals written before PI ruling 114 b have no :data:`REASK_SPENT` entry)
 _LIVE_EXTRACT_KINDS = frozenset({"extract", "extract_failed"})
+#: the replayed kinds a re-ask authorisation can concern (PI rulings 104 b / 120 c)
+_REASK_KINDS = ("extract", "jev")
 
 
 class ExtractRejectCapReached(Exception):  # noqa: N818 - named after the ruling's event, like ExtractorResponseFailed
@@ -405,13 +415,18 @@ class ReaskSpentUnanswered(Exception):  # noqa: N818 - names the hold, as Extrac
     provider-level 105 b check (it was archived by the 113 b re-ask). Not a stage stop: the provider adapter
     turns it into the 98 b / 105 b not-journaled hold of the request's kind (``held.json`` names the
     ``request_key``), which a NEW ``pi_release.json`` (other bytes, ruling 47.2 a) releases for one more re-ask
-    (PI ruling 104 b). ``key`` is the journal's request key, ``custom_id`` the request's id."""
+    (PI ruling 104 b). ``key`` is the journal's request key, ``custom_id`` the request's id.
 
-    def __init__(self, key: str, custom_id: Any) -> None:
-        super().__init__(f"extractor request {key} ({custom_id!r}): its PI-released re-ask was used up (a "
+    PI ruling 120 c: also raised (``kind`` ``"jev"``, ``custom_id`` None) by the journaled jev call of a released
+    residual ``source_type`` part whose re-ask was used up with no response recorded since (it raised, timed out
+    or came back with no request id); the page coder records it as that part's failed request, so the stage
+    holds the institution again (``source_type_residual_part_failed``, naming the ``request_key``)."""
+
+    def __init__(self, key: str, custom_id: Any, kind: str = "extractor") -> None:
+        super().__init__(f"{kind} request {key} ({custom_id!r}): its PI-released re-ask was used up (a "
                          f"{REASK_SPENT} entry) and no response to it is recorded; no live call without a new "
                          "release (PI rulings 104 b / 114 b)")
-        self.key, self.custom_id = key, custom_id
+        self.key, self.custom_id, self.kind = key, custom_id, kind
 
 
 def _tokens(usage: Mapping[str, Any] | None, name: str) -> int:
@@ -496,8 +511,7 @@ class RequestJournal:
             if entry["kind"] == PI_RELEASED:
                 self._apply_release(entry["response"])
             elif entry["kind"] == REASK_SPENT:  # PI ruling 114 b: used up before its call
-                self._reask.discard(entry["key"])
-                self._spent.add(entry["key"])
+                self._mark_spent(entry["key"], entry.get("n", 0))
             elif entry["kind"] in ACCOUNTING_KINDS:
                 self._accounting.append(entry)
                 if entry["kind"] == JEV_UNIDENTIFIED:
@@ -558,30 +572,43 @@ class RequestJournal:
         self._reask.update(release.get("reask_keys") or ())  # ruling 104 b (absent in older entries)
 
     def reask_authorised(self, key: str) -> bool:
-        """PI ruling 104 b: a recorded PI release named ``key`` (a 98 b / 105 b hold) for one live re-ask, and
-        since then neither a :data:`REASK_SPENT` entry (PI ruling 114 b) nor a live extractor call of ``key``
-        (``extract`` / ``extract_failed``) has been journaled."""
+        """PI ruling 104 b: a recorded PI release named ``key`` (a 98 b / 105 b hold; PI ruling 120 c: the jev
+        request of a 110 b residual-part hold) for one live re-ask, and since then neither a :data:`REASK_SPENT`
+        entry (PI ruling 114 b) nor a live extractor call of ``key`` (``extract`` / ``extract_failed``) has been
+        journaled."""
         return key in self._reask
 
-    def _spend_reask(self, key: str) -> None:
+    def _spend_reask(self, key: str, n: int = 0) -> None:
         """PI ruling 114 b: append (fsynced) the :data:`REASK_SPENT` entry of ``key`` before its live call.
-        An ``OSError`` writing it propagates before any call, leaving the authorisation unspent."""
-        self._write({"kind": REASK_SPENT, "key": key, "n": 0, "response": {}, "elapsed_ms": 0})
+        An ``OSError`` writing it propagates before any call, leaving the authorisation unspent. ``n``: the slot
+        re-asked (PI ruling 120 c, a jev re-ask; 0 for an extractor re-ask, whose slot holds no response)."""
+        self._write({"kind": REASK_SPENT, "key": key, "n": n, "response": {}, "elapsed_ms": 0})
         self._elapsed.append(0)
+        self._mark_spent(key, n)
+
+    def _mark_spent(self, key: str, n: int) -> None:
+        """A :data:`REASK_SPENT` entry of ``key`` (slot ``n``), written now or loaded: the authorisation is used
+        up, and (PI ruling 120 c) a ``jev`` response recorded in that slot before it is no longer replayed; it is
+        kept as :data:`JEV_SUPERSEDED` for the usage totals. An extractor key has no ``jev`` slot (the keys hash
+        different requests), so nothing is displaced for it."""
         self._reask.discard(key)
         self._spent.add(key)
+        displaced = self._recorded.pop(("jev", key, n), None)
+        if displaced is not None:
+            self._accounting.append({"kind": JEV_SUPERSEDED, "key": key, "n": n, "response": displaced})
 
-    def reask_spent_unanswered(self, key: str, n: int | None = None) -> bool:
+    def reask_spent_unanswered(self, key: str, n: int | None = None, kind: str | None = None) -> bool:
         """PI ruling 114 b (review H-1): ``key``'s PI-released re-ask was used up (a :data:`REASK_SPENT` entry),
-        no unused authorisation is left, and no response to replay is recorded for its next ``extract`` slot
-        (``n``; default: the next one this process would use). Then a live call of ``key`` is refused
-        (:class:`ReaskSpentUnanswered`): after the marker, a crash while sending, a timeout, an
-        ``extract_failed`` result or an ``extract_rejected`` response all leave the key here, on this run and
-        on every later load, until a new release (other bytes) authorises one more re-ask."""
+        no unused authorisation is left, and no response to replay is recorded for its next slot (``n``;
+        default: the next one this process would use) of ``kind`` (``"extract"`` or, PI ruling 120 c, ``"jev"``;
+        None: either). Then a live call of ``key`` is refused (:class:`ReaskSpentUnanswered`): after the marker,
+        a crash while sending, a timeout, an ``extract_failed`` result or an ``extract_rejected`` response (a
+        jev call that raised or came back with no request id) all leave the key here, on this run and on every
+        later load, until a new release (other bytes) authorises one more re-ask."""
         if key not in self._spent or self.reask_authorised(key):
             return False
-        slot = ("extract", key, self._seen.get(("extract", key), 0) if n is None else n)
-        return slot not in self._recorded
+        kinds = _REASK_KINDS if kind is None else (kind,)
+        return not any((k, key, self._seen.get((k, key), 0) if n is None else n) in self._recorded for k in kinds)
 
     def extract_key(self, request: Mapping[str, Any], prompt: Mapping[str, Any]) -> str:
         """The journal key of an extractor request (``custom_id``, ``params``) under ``prompt``."""
@@ -616,17 +643,40 @@ class RequestJournal:
         def reask(state: dict[str, Any], questions: dict[str, dict[str, Any]]) -> JevResult:
             return self._ask(ask_fn, state, questions, final_unidentified=True)
 
+        def request_key(state: dict[str, Any], questions: dict[str, dict[str, Any]]) -> str:
+            """PI ruling 120 c: the journal key of this jev request (what ``held.json`` names in
+            ``request_key`` and a ``pi_release.json`` key names). Uses no slot."""
+            return self._key({"state": state, "questions": questions})
+
+        def spent_unanswered(key: str) -> bool:
+            """PI ruling 120 c: after this process asked jev request ``key``, whether its released re-ask was used
+            up with no response recorded in the slot last asked (:meth:`reask_spent_unanswered`)."""
+            return self.reask_spent_unanswered(key, max(self._seen.get(("jev", key), 1) - 1, 0), kind="jev")
+
         wrapped.reask = reask  # type: ignore[attr-defined]
+        wrapped.request_key = request_key  # type: ignore[attr-defined]
+        wrapped.spent_unanswered = spent_unanswered  # type: ignore[attr-defined]
         return wrapped
 
     def _ask(self, ask_fn: AskFn, state: dict[str, Any], questions: dict[str, dict[str, Any]], *,
              final_unidentified: bool) -> JevResult:
+        """One journaled jev call. PI ruling 120 c: while a PI release authorises a live re-ask of the request's
+        key (:meth:`reask_authorised`; the jev request of a residual ``source_type`` deciding part held with a
+        request id but no answer), the recorded response is NOT replayed: the :data:`REASK_SPENT` entry is
+        written first (it uses the authorisation up and displaces that response, PI ruling 114 b), then the
+        call is made live and its response journaled in the same slot, replayed afterwards. A key whose re-ask
+        was used up with no response recorded since is refused (:class:`ReaskSpentUnanswered`, no call)."""
         request = {"state": state, "questions": questions}
         slot = self._slot("jev", request)
-        if slot in self._recorded:
+        authorised = self.reask_authorised(slot[1])
+        if slot in self._recorded and not authorised:
             self.replayed += 1
             return _jev_from_json(self._recorded[slot])
-        if final_unidentified:
+        if authorised:  # PI rulings 120 c / 114 b: used up BEFORE the call; never replayed instead
+            self._spend_reask(slot[1], slot[2])
+        elif self.reask_spent_unanswered(slot[1], slot[2], kind="jev"):  # never an unauthorised re-ask
+            raise ReaskSpentUnanswered(slot[1], None, kind="jev")
+        elif final_unidentified:
             # ruling 75 a: this exact re-ask was billed and came back without a request id; that is
             # its final failure, so the recorded response is read again instead of a new call
             seen = (JEV_UNIDENTIFIED, slot[1])
@@ -660,7 +710,7 @@ class RequestJournal:
                 raise ExtractRejectCapReached(slot[1], self.rejections(slot[1]), job.custom_id)
             if self.reask_authorised(slot[1]):  # PI ruling 114 b: the re-ask is used up BEFORE the call
                 self._spend_reask(slot[1])
-            elif self.reask_spent_unanswered(slot[1], slot[2]):  # review H-1: never an unauthorised re-ask
+            elif self.reask_spent_unanswered(slot[1], slot[2], kind="extract"):  # review H-1: never unauthorised
                 raise ReaskSpentUnanswered(slot[1], job.custom_id)
             start = time.monotonic()
             result = extract_fn(job)  # an exception is not recorded: asked again on resume
@@ -805,7 +855,9 @@ class RequestJournal:
         def accounted(kind: str) -> list[dict[str, Any]]:
             return [e["response"] for e in self._accounting if e["kind"] == kind]
 
-        jev, unidentified, incomplete = recorded("jev"), accounted("jev_unidentified"), accounted("jev_incomplete")
+        # PI ruling 120 c: a jev response a released re-ask displaced was billed too: still counted
+        jev = [*recorded("jev"), *accounted(JEV_SUPERSEDED)]
+        unidentified, incomplete = accounted("jev_unidentified"), accounted("jev_incomplete")
         extract = [*recorded("extract"), *accounted("extract_failed"), *accounted(EXTRACT_REJECTED)]
         return {"jev_responses": len(jev), "jev_unidentified": len(unidentified), "jev_incomplete": len(incomplete),
                 "quote_responses": len(recorded("quote")),

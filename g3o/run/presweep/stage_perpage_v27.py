@@ -42,7 +42,10 @@ Rules carried here, not decided here:
   pass-1 request and loaded on a resume (:data:`SOURCE_TYPE_FILE`), never asked again, also after a C4
   archive (review M-1). PI ruling 110 b: answers whose deciding part failed with no answer are not saved;
   the institution is held before that request (:data:`RESIDUAL_PART_FAILED`) and the question is asked
-  again on the next run (answered parts replayed from the journal).
+  again on the next run (answered parts replayed from the journal). PI ruling 120 c: a deciding part whose
+  response has a request id but no answer is replayed every run (this stage keeps such responses), so the hold
+  names that part's jev ``request_key``; a ``pi_release.json`` naming it authorises one live re-ask (the
+  journal's ``reask_spent`` marker first, the new response journaled and replayed afterwards).
   PI rulings 104 b / 113 b: a ``pi_release.json`` key naming one of these held requests
   (:data:`REASK_RELEASABLE`) authorises one live re-ask; for a pass-1 or activity-only request the page's
   activity-level state (:data:`ACTIVITY_STATE_FILES` and the T-023 activity artifact) is archived first
@@ -493,14 +496,22 @@ class ResidualPartFailed(Exception):  # noqa: N818 - names the hold, as Pass2Req
     request is built, so that request (and its 105 b journal check) is only ever built on answers that are
     final; the page is held as pending (:data:`RESIDUAL_PART_FAILED`). Not a stage stop."""
 
-    def __init__(self, page_id: str, part_id: str, cause: str | None) -> None:
+    def __init__(self, page_id: str, part_id: str, cause: str | None, request_key: str | None = None, *,
+                 spent: bool = False) -> None:
+        release = "" if request_key is None else (
+            f"; a response with a request id but no answer ({jpc.ANSWER_MISSING}) is replayed from the journal on "
+            f"every run instead: naming its request key {request_key} in {PI_RELEASE_FILE} authorises one live "
+            "re-ask (PI ruling 120 c)")
         super().__init__(f"page {page_id}: the residual source_type question's deciding part {part_id!r} failed "
-                         f"with no answer ({cause}); held, asked again on the next run (PI ruling 110 b)")
+                         f"with no answer ({cause}); held, asked again on the next run (PI ruling 110 b)"
+                         f"{release}{_SPENT_NOTE if spent else ''}")
         self.page_id, self.part_id, self.cause = page_id, part_id, cause
+        #: PI ruling 120 c: the journal key of the deciding part's jev request (None when it cannot be named)
+        self.request_key, self.spent = request_key, spent
 
     def hold(self) -> dict[str, Any]:
         return {"page_id": self.page_id, "stage": RESIDUAL_PART_FAILED, "items": [sf.SOURCE_TYPE],
-                "part_id": self.part_id, "cause": self.cause, "error": str(self)}
+                "part_id": self.part_id, "cause": self.cause, "request_key": self.request_key, "error": str(self)}
 
 
 class RowValueRefused(ConsolidationError):
@@ -1442,17 +1453,45 @@ def _residual_source_type(run_dir: Path, spec: PageSpec, ask: Any, page_config: 
     saved = load_source_typing(path, t021.chunks)
     if saved is not None:  # PI ruling 105 b: a resume reads the answers it asked, never asks again
         return saved
+    asked: list[tuple[dict[str, Any], dict[str, Any]]] = []
+
+    def recording(state: dict[str, Any], questions: dict[str, Any]) -> Any:
+        asked.append((state, questions))  # PI ruling 120 c: names the deciding part's request in a hold
+        return ask(state, questions)
     try:
-        typing = sf.code_source_type(page, ask, page_config, layout=t021.chunks)
+        typing = sf.code_source_type(page, recording, page_config, layout=t021.chunks)
     except jpc.LayoutPartOverLimit as exc:  # review M2: never halved; the page's own data (PI ruling 97 b)
         raise RowValueRefused(page.page_id, {sf.SOURCE_TYPE: f"{RESIDUAL_OVER_LIMIT}: {exc}"}) from exc
     if typing.typed_by != "classifier":
         return None
     failed_part = srow.residual_deciding_part_failed(typing)
     if failed_part is not None:  # PI ruling 110 b: not saved, so the next run asks again; held before T-022
-        raise ResidualPartFailed(page.page_id, failed_part, typing.outcome.cause)
+        key = _residual_part_key(ask, asked, typing.result.chunks, failed_part)
+        spent_fn = getattr(ask, "spent_unanswered", None)
+        raise ResidualPartFailed(page.page_id, failed_part, typing.outcome.cause, key,
+                                 spent=key is not None and spent_fn is not None and spent_fn(key))
     save_source_typing(path, typing)
     return typing
+
+
+def _residual_part_key(ask: Any, asked: Sequence[tuple[Mapping[str, Any], Mapping[str, Any]]],
+                       chunks: Sequence[Any], part_id: str) -> str | None:
+    """PI ruling 120 c: the journal key of the residual ``source_type`` request sent for part ``part_id``.
+
+    The residual set has one question in one round, so each of the page's T-021 parts (``chunks``, the given
+    layout, never halved: review M2) gets exactly one request; it is the one ``asked`` whose state is that
+    part (``page_part`` ``"<index> of <n>"`` and its ``page_text``). The key is the journaled ``ask``'s
+    (:meth:`~g3o.run.presweep.stage_validate_v27.RequestJournal.ask`, ``request_key``): the same request on
+    every run (the same T-021 parts, setup and question), so a release names it stably. None when ``ask`` is not
+    journaled (no ``request_key``) or no single request matches."""
+    key_of = getattr(ask, "request_key", None)
+    index = next((i for i, c in enumerate(chunks, start=1) if c.chunk_id == part_id), None)
+    if key_of is None or index is None:
+        return None
+    text, part = chunks[index - 1].text, f"{index} of {len(chunks)}"
+    keys = {key_of(state, questions) for state, questions in asked
+            if state.get("page_part") == part and state.get("page_text") == text}
+    return next(iter(keys)) if len(keys) == 1 else None
 
 
 def followed_archive_address(page: Any) -> bool:
@@ -2041,9 +2080,13 @@ def parse_pi_release(raw: bytes) -> dict[str, Any]:
 
 #: PI ruling 104 b: the hold stages whose ``request_key`` a ``pi_release.json`` key may name for one live
 #: re-ask; PI ruling 113 b adds the 105 b pass-1 and activity-only holds (their page's activity-level state is
-#: archived before that call, :func:`archive_activity_state`). PI ruling 103 b: a 97 b page-data hold
-#: (:data:`ROW_VALUE_REFUSED`) is never releasable this way.
-REASK_RELEASABLE = frozenset({PASS2_NOT_JOURNALED, PASS1_NOT_JOURNALED, ACTIVITY_ONLY_NOT_JOURNALED})
+#: archived before that call, :func:`archive_activity_state`). PI ruling 120 c adds the 110 b residual-part hold
+#: (:data:`RESIDUAL_PART_FAILED`): its ``request_key`` is the deciding part's jev request, and the journaled jev
+#: call makes that one re-ask live instead of replaying the response that has no answer. Only a key a hold of
+#: these stages names in ``held.json`` is releasable (or, PI ruling 122 b, one already released and spent with no
+#: answer). PI ruling 103 b: a 97 b page-data hold (:data:`ROW_VALUE_REFUSED`) is never releasable this way.
+REASK_RELEASABLE = frozenset({PASS2_NOT_JOURNALED, PASS1_NOT_JOURNALED, ACTIVITY_ONLY_NOT_JOURNALED,
+                              RESIDUAL_PART_FAILED})
 
 
 def _reaskable_keys(inst_dir: Path) -> frozenset[str]:
@@ -2063,7 +2106,8 @@ def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any]
     """Consume ``<inst>/pi_release.json`` if present (ruling 34 b / 41 a); a hold dict when it cannot be.
 
     PI ruling 104 b: a key the release names may also be the ``request_key`` of a 98 b hold, or (PI ruling
-    113 b) of a 105 b pass-1 / activity-only hold (:data:`REASK_RELEASABLE`), in the last run's ``held.json``;
+    113 b) of a 105 b pass-1 / activity-only hold, or (PI ruling 120 c) the jev ``request_key`` of a 110 b
+    residual-part hold (:data:`REASK_RELEASABLE`), in the last run's ``held.json``;
     it is recorded in the release's ``reask_keys`` and authorises ONE live re-ask of that request
     (:meth:`~g3o.run.presweep.stage_validate_v27.RequestJournal.reask_authorised`), used up by the
     ``reask_spent`` journal entry written just before that call (PI ruling 114 b: a failure before or while
