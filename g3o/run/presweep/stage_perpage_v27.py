@@ -336,17 +336,36 @@ class FollowWiringError(ValueError):
     hops, a followed page id was already coded, or the stored follow state is unusable (review M3: not
     UTF-8 JSON, another format, release, back-fill flag or rules, a missing key or a malformed field).
     It stops the stage (:data:`STAGE_STOPS`); any other ``ValueError`` of the follow leg (e.g. a fetched
-    page whose URL is not the URL tried) holds its institution (:data:`FOLLOW_FAILED`)."""
+    page whose URL is not the URL tried) holds its institution (:data:`FOLLOW_FAILED`), except a malformed
+    page checkpoint of a followed page (:class:`MalformedCheckpoint`, PI ruling 118 b), which stops it too."""
+
+
+class MalformedCheckpoint(ValueError):
+    """A per-page checkpoint in the page dir that cannot be used (PI ruling 118 b): ``page.json`` /
+    ``activity.json`` (:meth:`Checkpoint.load`), ``pairs.json``, :data:`SOURCE_TYPE_FILE`
+    (:func:`load_source_typing`), :data:`PASS1_FILE` (:func:`read_pass1_requests`,
+    :func:`_record_pass1_requests`) or the archive marker :data:`PAGE_ARCHIVE_PENDING`: bytes that are not
+    UTF-8 JSON, another format or kind, or content that does not decode (or was asked on other parts).
+
+    It stops the stage (:data:`STAGE_STOPS`) on a searched and on a followed page alike: the follow leg's
+    per-institution ``ValueError`` handler (:data:`FOLLOW_FAILED`) never turns it into a hold. Its message
+    keeps the convention ``unsupported per-page checkpoint: <path>`` for another format or kind."""
+
+
+class MalformedCheckpointJSON(MalformedCheckpoint, json.JSONDecodeError):
+    """A per-page checkpoint whose bytes are not JSON (PI ruling 118 b): still a ``json.JSONDecodeError``, as
+    the page checkpoints' convention has it, and a :class:`MalformedCheckpoint` (a stage stop)."""
 
 
 #: Review L5: an error of the T-025 follow leg that is institution data, not wiring: per-institution hold.
 FOLLOW_FAILED = "follow_failed"
 #: Errors that stop the whole stage; every other producer error holds its institution only.
 #: Both ``MissingUpstreamError`` classes subclass ``ValueError``; they are listed here so the
-#: per-institution ``ValueError`` handlers never swallow a wiring gap (RC-D-033 C2 a).
+#: per-institution ``ValueError`` handlers never swallow a wiring gap (RC-D-033 C2 a). So does
+#: :class:`MalformedCheckpoint` (PI ruling 118 b: a malformed page checkpoint, searched or followed page).
 STAGE_STOPS = (JevAccountError, stage_page_code.StageStopped, SupportGateError, Stage6QuoteNotApproved,
                BudgetExceededError, UnpricedModelError, MissingUpstreamError, SourceFieldsMissingUpstreamError,
-               FollowWiringError)
+               FollowWiringError, MalformedCheckpoint)
 
 
 class ExtractorResponseFailed(Exception):
@@ -502,6 +521,33 @@ def _atomic_write(path: Path, text: str) -> None:
     replace_with_retry(tmp, path)
 
 
+def _read_checkpoint(path: Path, kind: str) -> dict[str, Any]:
+    """The per-page checkpoint document at ``path`` of ``kind`` (PI ruling 118 b). Bytes that are not JSON raise
+    :class:`MalformedCheckpointJSON` (a ``json.JSONDecodeError``), bytes that are not UTF-8, a document that is
+    not an object or of another format or kind :class:`MalformedCheckpoint`; an ``OSError`` propagates."""
+    raw = path.read_bytes()
+    try:
+        doc = json.loads(raw.decode("utf-8"))
+    except json.JSONDecodeError as exc:
+        raise MalformedCheckpointJSON(f"malformed per-page checkpoint {path}: {exc.msg}", exc.doc, exc.pos) from exc
+    except UnicodeDecodeError as exc:
+        raise MalformedCheckpoint(f"malformed per-page checkpoint {path}: not UTF-8 ({exc})") from exc
+    if not isinstance(doc, dict) or doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != kind:
+        raise MalformedCheckpoint(f"unsupported per-page checkpoint: {path}")
+    return doc
+
+
+def _decode_checkpoint(path: Path, decode: Callable[[], Any]) -> Any:
+    """``decode()`` of a checkpoint read from ``path``; content that does not decode is a
+    :class:`MalformedCheckpoint` (PI ruling 118 b)."""
+    try:
+        return decode()
+    except MalformedCheckpoint:
+        raise
+    except (KeyError, TypeError, ValueError) as exc:
+        raise MalformedCheckpoint(f"malformed per-page checkpoint {path}: {type(exc).__name__}: {exc}") from exc
+
+
 class Checkpoint:
     """One round helper's durable state: its result and the support checked so far."""
 
@@ -516,13 +562,13 @@ class Checkpoint:
         self.writes += 1
 
     def load(self) -> tuple[Any, tuple[SupportResult, ...]] | None:
+        """The saved result and support, or None; a malformed file raises :class:`MalformedCheckpoint`."""
         if not self.path.exists():
             return None
-        doc = json.loads(self.path.read_bytes().decode("utf-8"))
-        if doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != self.kind:
-            raise ValueError(f"unsupported per-page checkpoint: {self.path}")
+        doc = _read_checkpoint(self.path, self.kind)
         cls = PageCodeResult if self.kind == "page" else PageActivityResult
-        return cls.from_dict(doc["result"]), tuple(support_from_dict(s) for s in doc["support"])
+        return _decode_checkpoint(self.path, lambda: (cls.from_dict(doc["result"]),
+                                                      tuple(support_from_dict(s) for s in doc["support"])))
 
 
 # ---------------------------------------------------------------------------
@@ -1137,8 +1183,8 @@ def _archive_page_state(run_dir: Path, page: PageInput, files: Sequence[str] = P
         return path.relative_to(inst_dir).as_posix()
 
     def state_moves(names: Sequence[str]) -> list[tuple[Path, Path]]:
-        if not set(names) <= set(PAGE_STATE_FILES):
-            raise ValueError(f"unsupported per-page checkpoint: page-state archive of {list(names)}")
+        if isinstance(names, str) or not all(isinstance(n, str) and n in PAGE_STATE_FILES for n in names):
+            raise MalformedCheckpoint(f"unsupported per-page checkpoint: page-state archive of {names!r} ({marker})")
         found = [(pdir / name, Path(name)) for name in names]
         found += [(p, Path(ACTIVITY_DIR) / p.name) for p in (gz_path(art), plain_path(art))]
         return [(src, rel) for src, rel in found if src.exists()]
@@ -1149,11 +1195,12 @@ def _archive_page_state(run_dir: Path, page: PageInput, files: Sequence[str] = P
     moves: list[tuple[Path, Path]] = []
     try:
         if marker.exists():  # an earlier archive of this page was left incomplete: finish that one
-            doc = json.loads(marker.read_bytes().decode("utf-8"))
-            if doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != "archive_pending":
-                raise ValueError(f"unsupported per-page checkpoint: {marker}")
-            dest = root / doc["archive"]
-            files = tuple(doc.get("files", PAGE_STATE_FILES))
+            doc = _read_checkpoint(marker, "archive_pending")
+            name, files = doc.get("archive"), doc.get("files", PAGE_STATE_FILES)
+            if not isinstance(name, str) or not re.fullmatch(r"[0-9]{3,}", name) or not isinstance(files, list | tuple):
+                raise MalformedCheckpoint(f"unsupported per-page checkpoint: {marker}")
+            dest = root / name
+            files = tuple(files)
             moves = state_moves(files)
         else:
             moves = state_moves(files)
@@ -1329,28 +1376,32 @@ def load_source_typing(path: Path, layout: Sequence[Any]) -> Any:
     """The residual ``source_type`` answers saved at ``path`` (:func:`save_source_typing`), rebuilt with
     :func:`~g3o.common.source_fields.classifier_source_typing` (equal to the typing that was saved), or None
     when there is no such file. A file of another format, or asked on parts other than ``layout`` (the page's
-    T-021 parts), is refused (``ValueError``)."""
+    T-021 parts), is refused (:class:`MalformedCheckpoint`, a ``ValueError`` and a stage stop: PI ruling
+    118 b)."""
     if not path.exists():
         return None
-    doc = json.loads(path.read_bytes().decode("utf-8"))
-    if doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != "source_type":
-        raise ValueError(f"unsupported per-page checkpoint: {path}")
-    typing = sf.classifier_source_typing(PageCodeResult.from_dict(doc["result"]))
+    doc = _read_checkpoint(path, "source_type")
+    typing = _decode_checkpoint(path, lambda: sf.classifier_source_typing(PageCodeResult.from_dict(doc["result"])))
     if [c.chunk_id for c in typing.result.chunks] != [c.chunk_id for c in layout]:
-        raise ValueError(f"per-page checkpoint {path} was asked on parts other than the page's T-021 parts")
+        raise MalformedCheckpoint(f"per-page checkpoint {path} was asked on parts other than the page's T-021 parts")
     return typing
 
 
 def _record_pass1_requests(pdir: Path, extraction: Any, activity_extraction: Any) -> bool:
     """PI ruling 105 b: record the pass-1 requests built for the page (:data:`PASS1_FILE`): the T-022 page
     request's ``custom_id`` and the 87 c activity-only request's (None when not built). Written only when it
-    changes; returns whether it was written."""
+    changes; returns whether it was written.
+
+    PI ruling 118 b: an existing malformed record is never silently overwritten: it raises
+    :class:`MalformedCheckpoint` (a stage stop), as :func:`read_pass1_requests` does."""
     path = pdir / PASS1_FILE
     text = canonical_json({"format": CHECKPOINT_FORMAT, "kind": "pass1_requests",
                            "page_request": getattr(extraction, "custom_id", None),
                            "activity_only": getattr(activity_extraction, "custom_id", None)})
-    if path.exists() and path.read_bytes().decode("utf-8") == text:
-        return False
+    if path.exists():
+        _read_checkpoint(path, "pass1_requests")  # refuses a malformed record (PI ruling 118 b)
+        if path.read_bytes().decode("utf-8") == text:
+            return False
     _atomic_write(path, text)
     return True
 
@@ -1358,17 +1409,14 @@ def _record_pass1_requests(pdir: Path, extraction: Any, activity_extraction: Any
 def read_pass1_requests(run_dir: Path, page: Any) -> dict[str, Any] | None:
     """The page's :data:`PASS1_FILE` record (:func:`_record_pass1_requests`), or None when no process wrote it.
 
-    A record of another kind or format raises ``ValueError`` and bytes that are not JSON raise
-    ``json.JSONDecodeError``, as :meth:`Checkpoint.load` does for page.json / activity.json: neither is caught
-    on the searched-page path, so the stage stops (the page checkpoints' convention). The same holds for
-    :func:`load_source_typing`."""
+    A record of another kind or format raises :class:`MalformedCheckpoint` (a ``ValueError``) and bytes that
+    are not JSON raise :class:`MalformedCheckpointJSON` (a ``json.JSONDecodeError`` too), as
+    :meth:`Checkpoint.load` does for page.json / activity.json. Both are stage stops (:data:`STAGE_STOPS`), on a
+    searched and on a followed page (PI ruling 118 b). The same holds for :func:`load_source_typing`."""
     path = page_state_dir(run_dir, page) / PASS1_FILE
     if not path.exists():
         return None
-    doc = json.loads(path.read_bytes().decode("utf-8"))
-    if doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != "pass1_requests":
-        raise ValueError(f"unsupported per-page checkpoint: {path}")
-    return doc
+    return _read_checkpoint(path, "pass1_requests")
 
 
 def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPageProviders,
@@ -1465,10 +1513,9 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
     if result_now.pairs:
         pair_path = pdir / PAIRS_FILE
         if pair_path.exists():
-            doc = json.loads(pair_path.read_bytes().decode("utf-8"))
-            if doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != "pairs":
-                raise ValueError(f"unsupported per-page checkpoint: {pair_path}")
-            st.pair_support = tuple(support_from_dict(s) for s in doc["support"])
+            doc = _read_checkpoint(pair_path, "pairs")  # PI ruling 118 b: malformed: a stage stop
+            st.pair_support = _decode_checkpoint(pair_path,
+                                                 lambda: tuple(support_from_dict(s) for s in doc["support"]))
         else:
             st.pair_support = tuple(providers.pair_support(inp, result_now))
             _atomic_write(pair_path, canonical_json({"format": CHECKPOINT_FORMAT, "kind": "pairs",
@@ -1664,7 +1711,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                                             page_config=page_config, activity_config=activity_config,
                                             metrics=metrics, cost_check_callback=cost_check_callback,
                                             official_sites=official_sites)
-                except STAGE_STOPS:
+                except STAGE_STOPS:  # PI ruling 118 b: a malformed page checkpoint of a followed page too
                     raise
                 except ValueError as exc:  # institution data: this institution is held
                     # Review L4: no OSError here. As on the searched-page path, an OSError holds only
@@ -1996,7 +2043,7 @@ __all__ = [
     "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS",
     "ROW_VALUE_REFUSED", "RowValueRefused", "quote_stage_as_of", "PASS2_NOT_JOURNALED", "Pass2RequestNotJournaled", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "FOLLOW_FAILED", "FollowWiringError", "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
-    "ACTIVITY_STATE_FILES", "archive_activity_state",
+    "ACTIVITY_STATE_FILES", "archive_activity_state", "MalformedCheckpoint", "MalformedCheckpointJSON",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]

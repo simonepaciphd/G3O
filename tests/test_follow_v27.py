@@ -747,6 +747,43 @@ def test_follow_wiring_error_stops_the_stage_l5(tmp_path):
     assert pp.FollowWiringError in pp.STAGE_STOPS
 
 
+@pytest.mark.parametrize("kind", ["searched", "followed"])
+@pytest.mark.parametrize("name", ["page.json", pp.PASS1_FILE])
+@pytest.mark.parametrize("damage", ["other_kind", "not_json"])
+def test_malformed_page_checkpoint_stops_the_stage_on_both_page_kinds_118b(tmp_path, kind, name, damage):
+    """PI ruling 118 b: a malformed page checkpoint (here page.json, or pass1_requests.json, which
+    ``_record_pass1_requests`` no longer overwrites) stops the stage on a FOLLOWED page exactly as on a
+    searched page: a ``MalformedCheckpoint`` (bytes that are not JSON: also a ``json.JSONDecodeError``), never a
+    follow_failed hold. The file is left as it is and no held.json is written."""
+    run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
+    ready, _ = _run(run_dir, bound, instrument, providers, inst,
+                    WorldLeg(FakeFetch({REPORT_URL: REPORT}), world=world), _jev())
+    assert [i.institution_id for i in ready] == [INST]
+    page = (inst.pages[0].page if kind == "searched"
+            else SimpleNamespace(institution_id=INST, url=REPORT_URL))
+    path = pp.page_state_dir(run_dir, page) / name
+    raw = (b"{not json" if damage == "not_json"
+           else json.dumps({"format": pp.CHECKPOINT_FORMAT, "kind": "other-kind"}).encode("utf-8"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(raw)
+    with pytest.raises(pp.MalformedCheckpoint) as exc:
+        _run(run_dir, bound, instrument, providers, inst, WorldLeg(FakeFetch({REPORT_URL: REPORT}), world=world),
+             _jev())
+    assert isinstance(exc.value, json.JSONDecodeError) == (damage == "not_json")
+    if damage == "other_kind":
+        assert "unsupported per-page checkpoint" in str(exc.value)
+    assert str(path) in str(exc.value) and path.read_bytes() == raw  # never overwritten
+    assert not (institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE).exists()
+
+
+def test_malformed_checkpoint_is_a_stage_stop_other_follow_errors_still_hold_118b():
+    """PI ruling 118 b: the checkpoint errors are told apart by type; any other ValueError of the follow leg
+    keeps its per-institution hold (test_follow_data_error_holds_the_institution_l5)."""
+    assert issubclass(pp.MalformedCheckpoint, pp.STAGE_STOPS) and issubclass(pp.MalformedCheckpoint, ValueError)
+    assert issubclass(pp.MalformedCheckpointJSON, (pp.MalformedCheckpoint, json.JSONDecodeError))
+    assert not issubclass(ValueError, pp.STAGE_STOPS) and not issubclass(json.JSONDecodeError, pp.STAGE_STOPS)
+
+
 # ---------------------------------------------------------------------------
 # Dispatch seam and entry refusal
 # ---------------------------------------------------------------------------

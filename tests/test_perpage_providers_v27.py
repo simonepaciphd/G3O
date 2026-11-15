@@ -1827,6 +1827,26 @@ def test_malformed_105b_page_state_is_refused_like_the_page_checkpoints(tmp_path
             load()
 
 
+@pytest.mark.parametrize("raw", [b"{not json", b"\xff\xfe", b"[1, 2]",
+                                 json.dumps({"format": pp.CHECKPOINT_FORMAT, "kind": "page"}).encode("utf-8")])
+def test_record_pass1_requests_refuses_a_malformed_record_118b(tmp_path, raw):
+    """PI ruling 118 b: ``_record_pass1_requests`` no longer overwrites a malformed pass1_requests.json silently:
+    it raises ``MalformedCheckpoint`` (a stage stop) and leaves the file as it is. A valid record that changes
+    is still rewritten."""
+    pdir = tmp_path / "page"
+    pdir.mkdir()
+    path = pdir / pp.PASS1_FILE
+    path.write_bytes(raw)
+    with pytest.raises(pp.MalformedCheckpoint):
+        pp._record_pass1_requests(pdir, SimpleNamespace(custom_id="c-1"), None)
+    assert path.read_bytes() == raw
+    path.unlink()
+    assert pp._record_pass1_requests(pdir, SimpleNamespace(custom_id="c-1"), None)
+    assert not pp._record_pass1_requests(pdir, SimpleNamespace(custom_id="c-1"), None)  # unchanged: not written
+    assert pp._record_pass1_requests(pdir, SimpleNamespace(custom_id="c-1"), SimpleNamespace(custom_id="c-2"))
+    assert json.loads(path.read_text(encoding="utf-8"))["activity_only"] == "c-2"
+
+
 @pytest.mark.parametrize("damage", [{"kind": "page"}, {"format": "another-format"}])
 def test_malformed_source_type_file_stops_the_stage_like_pairs_json(tmp_path, monkeypatch, damage):
     """As a pairs.json of another kind or format (test_e2e_perpage_v27), a saved residual source_type file of
