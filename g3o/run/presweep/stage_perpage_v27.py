@@ -1340,7 +1340,11 @@ def record_pass1_reask(run_dir: Path, page: Any, previous: Mapping[str, Any] | N
     named and holds it instead of sending it live; the journal refuses that call as well
     (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`). Once ``activity_input`` returns, the
     stage rewrites the record from the requests actually built. Any other ``stage`` is a wiring error
-    (``TypeError``, the stage stops)."""
+    (``TypeError``, the stage stops).
+
+    PI ruling 123 a (accepted, left as is): a crash after this write and before the journal's ``reask_spent``
+    marker leaves the release unspent, so the next run archives again; the only file left to move is this fresh
+    record, which then lands alone in a second archive folder (``archive/<NNN+1>/pass1_requests.json``)."""
     if stage not in _PASS1_SLOTS:
         raise TypeError(f"page {page.page_id}: no pass-1 request record for hold stage {stage!r} (wiring error)")
     doc = {name: (previous or {}).get(name) for name in _PASS1_SLOTS.values()}
