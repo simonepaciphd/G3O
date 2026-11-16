@@ -1258,7 +1258,7 @@ def test_v27_launch_follows_a_link_through_stage6_in_mix_mode_with_x35(tmp_path:
             assert other_state["followed"] == 0
 
     # Mix mode (PI ruling 134): first-round page requests were batched, each answered once; nothing
-    # batched was also sent live (no double spend); follow-ups and Stage 6 were live.
+    # batched was also sent live (no double spend); any later request would be live.
     usage = summary[orch.V27_USAGE_KEY]
     batched, batched_users = extractor["batched"], _v27_page_requests(extractor["batched_params"])
     live_users = _v27_page_requests(extractor["params"])
@@ -1276,7 +1276,11 @@ def test_v27_launch_follows_a_link_through_stage6_in_mix_mode_with_x35(tmp_path:
     x35 = extractor["x35"]
     assert x35 and {p["model"] for p in x35} == {SETTINGS.x35_model}
     assert sum(usage[span].get("x35_calls", 0) for span in usage) == len(x35)
-    assert {p["model"] for p in extractor["params"] if p not in x35} == {SETTINGS.extractor_model}
+    # Every extractor request, live or batched, is on the pinned extractor model. In this world every
+    # extractor request is a first-round page request, so all were batched and the live calls are X35
+    # only (build ab73f90b: the live non-X35 set was empty).
+    live_models = {p["model"] for p in extractor["params"] if p not in x35}
+    assert live_models | {p["model"] for p in extractor["batched_params"]} == {SETTINGS.extractor_model}
     cost = json.loads((run_dir / "_cost_report.json").read_text(encoding="utf-8"))[orch.V27_COST_KEY]
     assert cost
     for span in cost.values():  # Q158 a: X35 is priced, never reported as pending
