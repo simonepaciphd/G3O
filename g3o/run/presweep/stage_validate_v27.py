@@ -763,21 +763,39 @@ class RequestJournal:
         return wrapped
 
     def _entail(self, entail_fn: Any, prompt: Mapping[str, Any]) -> Any:
+        # An X35 client that reports its response's own usage (``entail_with_usage``, e.g.
+        # ``v27_entry.LazyX35``; PI ruling 139 a) has it journaled per request, on the ``x35``
+        # entry or, for a billed response with no usable answer, on the ``x35_failed`` one
+        # (the exception's ``usage``), so :meth:`x35_usages` can price each call. A plain
+        # ``entail_fn`` (a fake) journals no usage, exactly as before.
+        with_usage = getattr(entail_fn, "entail_with_usage", None)
+
         def wrapped(question: str, text: str) -> Entailment:
             request = {"question": question, "text": text}
             slot = self._slot("x35", request, prompt)
             if slot in self._recorded:
                 self.replayed += 1
-                return Entailment(**self._recorded[slot])
+                recorded = self._recorded[slot]
+                return Entailment(recorded["value"], recorded["probability"])
             start = time.monotonic()
+            usage: dict[str, Any] | None = None
             try:
-                answer = entail_fn(question, text)
+                if callable(with_usage):
+                    answer, usage = with_usage(question, text)
+                else:
+                    answer = entail_fn(question, text)
             except Exception as exc:
-                self._append(self._slot("x35_failed", request, prompt), {"error": f"{type(exc).__name__}: {exc}"},
-                             _elapsed_ms(start))
+                failed: dict[str, Any] = {"error": f"{type(exc).__name__}: {exc}"}
+                exc_usage = getattr(exc, "usage", None)
+                if isinstance(exc_usage, dict):
+                    failed["usage"] = exc_usage
+                self._append(self._slot("x35_failed", request, prompt), failed, _elapsed_ms(start))
                 raise
             self.live += 1
-            self._append(slot, asdict(answer), _elapsed_ms(start))
+            response = asdict(answer)
+            if usage is not None:
+                response["usage"] = usage
+            self._append(slot, response, _elapsed_ms(start))
             return answer
         return wrapped
 
@@ -862,13 +880,30 @@ class RequestJournal:
                     out.append(usage)
         return out
 
+    def x35_usages(self) -> list[dict[str, Any] | None]:
+        """Each journaled X35 response's own ``usage`` (``None`` where it has none), for the calls
+        ``usage()["x35_calls"] + usage()["x35_failed"]`` count, in that order: answered calls, then
+        failed ones. Priced per request by :func:`g3o.common.cost_monitor.price_x35_requests` once
+        X35 pricing is ruled (Q158; ``cost_monitor.X35_PRICING_RULED``).
+
+        ``None`` is an answer from a client that reports no usage (a fake, or an entry written
+        before usage was journaled) or a failed call with no billed response (e.g. an exception
+        raised before any response came back); it is never guessed. As for the extractor, a call
+        that died without a response (PI ruling 131.1 b) and a torn last line (131.2 a) apply.
+        """
+        out: list[dict[str, Any] | None] = [
+            response.get("usage") for (kind, _, _), response in self._recorded.items() if kind == "x35"
+        ]
+        out.extend(entry["response"].get("usage") for entry in self._accounting if entry["kind"] == "x35_failed")
+        return out
+
     def usage(self) -> dict[str, int]:
         """Totals of every journaled call (this and earlier, interrupted runs).
 
         ``input_tokens`` / ``output_tokens`` are jev tokens (complete, unidentified
         and incomplete responses); ``extractor_*`` are the quote step's extractor
         calls (successful, failed and rejected results); ``x35_calls`` / ``x35_failed``
-        count X35 calls (their client reports no tokens here); ``request_ms`` is
+        count X35 calls (their tokens are per request, :meth:`x35_usages`); ``request_ms`` is
         the summed call time. A quote step without seams is counted only as
         ``quote_responses``.
 

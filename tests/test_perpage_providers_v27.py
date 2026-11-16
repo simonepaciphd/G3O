@@ -258,7 +258,8 @@ def test_unbound_or_other_instrument_providers_are_refused_by_the_stage(tmp_path
 
 
 def test_entailment_refuses_with_no_approved_binding(tmp_path):
-    """The only non-fake X35 entry is ``run_entailment``: it still refuses, and that stops the stage."""
+    """While the X35 probability source is unruled the entry is ``run_entailment``: it still refuses,
+    and that stops the stage."""
     run_dir, bound, instrument, world, insts = _world(tmp_path)
     providers = _providers(run_dir, bound, instrument, FakeExtractor(world), support_check.run_entailment)
     with pytest.raises(SupportGateError):

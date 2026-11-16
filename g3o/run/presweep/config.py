@@ -83,11 +83,14 @@ def refuse_v27_budget_settings(config: Any) -> None:
     """Refuse v2.7-stage budget figures on a v2.7 config (PI ruling 1 a, 2026-11-11).
 
     The cost monitor prices the jev and extractor parts of a v2.7 stage
-    (:func:`g3o.common.cost_monitor.price_v27_usage`; rulings 130 a, 58 a); the X35
-    part stays unpriced until the X35 binding is decided (ruling 59 b,
-    :data:`g3o.common.cost_monitor.V27_UNPRICED_PARTS`), so no v2.7 stage has a
-    complete price, and v2.7 stages stay outside the budget (ruling 60 a): none can
-    carry a budget figure or a within-stage check. ``budget_usd``, ``projection_safety_factor``,
+    (:func:`g3o.common.cost_monitor.price_v27_usage`; rulings 130 a, 58 a); X35 is
+    bound (ruling 139 a) but its part stays unpriced while it is in
+    :data:`g3o.common.cost_monitor.V27_UNPRICED_PARTS` (``X35_PRICING_RULED`` False:
+    Q158), so no v2.7 stage has a complete price, and v2.7 stages stay outside the
+    budget (ruling 60 a): none can carry a budget figure or a within-stage check. The
+    refusal's reason is read from ``V27_UNPRICED_PARTS`` at call time; with it empty
+    the refusal still stands on the remaining ground (no within-stage budget check is
+    wired for a v2.7 stage), which is not lifted here. ``budget_usd``, ``projection_safety_factor``,
     ``preflight_estimate_usd`` and ``cost_monitor_dry_run`` stay valid: they act
     on Stages 1-4, which a v2.7 run executes and which are priced (the preflight
     prices only those stages on a v2.7 run). ``preflight_stage_estimates`` is
@@ -103,12 +106,22 @@ def refuse_v27_budget_settings(config: Any) -> None:
         return
     found = sorted(set(config.preflight_stage_estimates or {}) - set(V27_PRICED_STAGES))
     if found:
+        from g3o.common import cost_monitor
+
+        unpriced = cost_monitor.V27_UNPRICED_PARTS  # read at call time (X35_PRICING_RULED: Q158)
+        if unpriced:
+            ground = (
+                f"unpriced v2.7 parts ({'; '.join(f'{k}: {v}' for k, v in sorted(unpriced.items()))}; "
+                "g3o.common.cost_monitor.V27_UNPRICED_PARTS), so no v2.7 stage has a complete price "
+                "under the RC-D-021 cost_monitor hunks, and v2.7 stages stay outside the budget "
+                "(PI ruling 60 a)"
+            )
+        else:
+            ground = ("every v2.7 part is priced, but no within-stage budget check is wired for a "
+                      "v2.7 stage, so v2.7 stages stay outside the budget (PI ruling 60 a)")
         raise ValueError(
             f"pipeline_version='v2.7' refuses preflight_stage_estimates for {', '.join(found)}: "
-            "v2.7 stage budgets stay refused: X35 calls are unpriced until the X35 binding is "
-            "decided (PI ruling 59 b; g3o.common.cost_monitor.V27_UNPRICED_PARTS), so no v2.7 stage "
-            "has a complete price under the RC-D-021 cost_monitor hunks, and v2.7 stages stay "
-            "outside the budget (PI ruling 60 a); only Stages 1-4 can carry a budget figure "
+            f"v2.7 stage budgets stay refused: {ground}; only Stages 1-4 can carry a budget figure "
             f"({', '.join(V27_PRICED_STAGES)})"
         )
 

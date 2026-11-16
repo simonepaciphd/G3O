@@ -908,16 +908,21 @@ class CostMonitor:
 # v2.7 stage pricing (RC-D-021 procedural: the cost_monitor hunks; PI ruling 1 a)
 # ---------------------------------------------------------------------------
 
+#: UNRULED (Q158; recommendation a: price X35 at the ``x35_model`` rate row's standard
+#: rates for live calls, batch rates if ever batched, per request from journaled usage).
+#: While False the X35 part stays in :data:`V27_UNPRICED_PARTS`. Ruling it is this one line.
+X35_PRICING_RULED = False  # Q158
+#: The reason the X35 part is unpriced while :data:`X35_PRICING_RULED` is False.
+X35_PRICING_PENDING = (
+    "X35 is bound (PI ruling 139 a: claude-haiku-5-5 behind the pinned x35_model) and its "
+    "per-request usage is journaled, but its pricing awaits Q158: not priced"
+)
+
 #: Parts of a v2.7 stage's usage this module does not price, with the reason. While
 #: such a part has calls, the stage's total stays ``None``, and
 #: :func:`g3o.run.presweep.config.refuse_v27_budget_settings` keeps refusing v2.7-stage
-#: budget figures (PI rulings 1 a and 60 a, 2026-11-11).
-V27_UNPRICED_PARTS: dict[str, str] = {
-    "x35": (
-        "X35 stays unpriced until the X35 binding is decided (PI ruling 59 b): no X35 model "
-        "or rate in signed text, and the X35 client reports no tokens to the journal"
-    ),
-}
+#: budget figures while this is non-empty (PI rulings 1 a and 60 a, 2026-11-11).
+V27_UNPRICED_PARTS: dict[str, str] = {} if X35_PRICING_RULED else {"x35": X35_PRICING_PENDING}
 
 #: The ``usage`` keys an extractor response must carry to be priced per request
 #: (ruling 58 a: cache tokens included). ``None`` values count as 0, as the SDK
@@ -1009,12 +1014,37 @@ def price_extractor_requests(
     return out
 
 
+#: Reason given when some X35 responses carry no usable per-request usage.
+X35_USAGE_MISSING = (
+    "X35 call(s) without per-request usage (a client that reports none, or a failed call "
+    "with no billed response): not priced, not guessed"
+)
+
+
+def price_x35_requests(usages: list[dict[str, Any] | None], *, model: str) -> dict[str, Any]:
+    """Price X35 calls one request at a time (Q158 recommendation a; applied only once ruled).
+
+    Each element is one journaled X35 response's own ``usage``
+    (:meth:`RequestJournal.x35_usages`). X35 calls are live (one synchronous
+    ``messages.create`` per question), so each is priced at the ``model`` rate row's
+    STANDARD rates with the long-prompt tier per request, by the same arithmetic as
+    :func:`price_extractor_requests`. A call without usage is counted in
+    ``unpriced_calls`` and makes ``usd`` ``None``.
+    """
+    out = price_extractor_requests(usages, model=model)
+    if out.get("reason") == EXTRACTOR_USAGE_MISSING:
+        out["reason"] = X35_USAGE_MISSING
+    return out
+
+
 def price_v27_usage(
     usage: dict[str, Any] | None,
     *,
     jev_model: str,
     extractor_model: str | None = None,
     extractor_usages: list[dict[str, Any] | None] | None = None,
+    x35_model: str | None = None,
+    x35_usages: list[dict[str, Any] | None] | None = None,
 ) -> dict[str, Any] | None:
     """Price one v2.7 stage's journal usage as far as the PI rulings allow.
 
@@ -1024,8 +1054,10 @@ def price_v27_usage(
     is synchronous; RS-031 names jev-1.13.0). The extractor part is priced per request
     from ``extractor_usages`` (:func:`price_extractor_requests`; rulings 130 a, 58 a:
     live calls at standard rates, the long-prompt tier per request); given totals
-    only, it is unpriced. The X35 part is unpriced (:data:`V27_UNPRICED_PARTS`,
-    ruling 59 b).
+    only, it is unpriced. The X35 part is unpriced while it is in
+    :data:`V27_UNPRICED_PARTS` (:data:`X35_PRICING_RULED` False: Q158); once ruled it is
+    priced per request from ``x35_usages`` on ``x35_model`` (:func:`price_x35_requests`),
+    and given totals only it stays unpriced.
 
     The figures cover journaled calls only: a call sent that died without a response
     (e.g. a read timeout) is neither journaled nor priced (PI ruling 131.1 b), and a
@@ -1059,6 +1091,14 @@ def price_v27_usage(
             "output_tokens": n("extractor_output_tokens"), "usd": None,
             "reason": "journal totals only: the extractor is priced per request (ruling 58 a)",
         }
+    x35_calls = n("x35_calls") + n("x35_failed")
+    if "x35" in V27_UNPRICED_PARTS:  # Q158 unruled (X35_PRICING_RULED)
+        x35: dict[str, Any] = {"calls": x35_calls, "usd": None, "reason": V27_UNPRICED_PARTS["x35"]}
+    elif x35_usages is not None and x35_model is not None:
+        x35 = price_x35_requests(x35_usages, model=x35_model)
+    else:
+        x35 = {"calls": x35_calls, "usd": None,
+               "reason": "journal totals only: X35 is priced per request (Q158 a)"}
     parts: dict[str, dict[str, Any]] = {
         "jev": {
             "model": jev_model, "calls": jev_calls, "input_tokens": jev_in,
@@ -1066,10 +1106,7 @@ def price_v27_usage(
             **({} if row is not None else {"reason": f"no rate row for {jev_model!r}"}),
         },
         "extractor": extractor,
-        "x35": {
-            "calls": n("x35_calls") + n("x35_failed"), "usd": None,
-            "reason": V27_UNPRICED_PARTS["x35"],
-        },
+        "x35": x35,
     }
     if n("quote_responses") and not (parts["extractor"]["calls"] or parts["x35"]["calls"]):
         # A Stage 6 quote step without seams journals only its answers: its extractor
@@ -1082,8 +1119,10 @@ def price_v27_usage(
         name for name, part in parts.items()
         if part["usd"] is None and (part["calls"] or part.get("input_tokens") or part.get("output_tokens"))
     ]
-    # Unrounded parts: jev from jev_usd, the extractor from its own (rounded) figure.
-    total = None if blocking else (jev_usd or 0.0) + (parts["extractor"]["usd"] or 0.0)
+    # Unrounded parts: jev from jev_usd, the extractor and X35 from their own (rounded) figures.
+    total = None if blocking else (
+        (jev_usd or 0.0) + (parts["extractor"]["usd"] or 0.0) + (parts["x35"]["usd"] or 0.0)
+    )
     return {
         "priced": not blocking,
         "unpriced_parts": blocking,
@@ -1098,6 +1137,9 @@ __all__ = [
     "EXTRACTOR_UNBILLED_FAILED_RESULTS",
     "EXTRACTOR_USAGE_KEYS",
     "V27_UNPRICED_PARTS",
+    "X35_PRICING_PENDING",
+    "X35_PRICING_RULED",
+    "X35_USAGE_MISSING",
     "BudgetExceededError",
     "CostMonitor",
     "ProjectedBudgetExceededError",
@@ -1105,4 +1147,5 @@ __all__ = [
     "UnpricedModelError",
     "price_extractor_requests",
     "price_v27_usage",
+    "price_x35_requests",
 ]

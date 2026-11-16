@@ -309,7 +309,9 @@ class V27Dispatch:
       T-032 pass 2, the Stage 6 quote step).
     - ``entail_fn(question, text) -> Entailment``: the X35 call. Its only non-fake
       entry, :func:`g3o.common.support_check.run_entailment`, still refuses, so it
-      is refused on entry, before any work (no approved X35 binding exists); any
+      is refused on entry, before any work (X35 is bound, PI ruling 139 a, but its
+      probability source and instrument wording await the PI; the real client,
+      ``v27_entry.LazyX35``, is returned only once those are ruled); any
       other callable that refuses stops the stage at its first X35 check
       (``SupportGateError``).
     - ``perpage_inputs(run_dir, sample, scraped, bound, instrument)``: the
@@ -348,7 +350,8 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
     checks it refuses (T-030 QA4 M2):
 
     - ``entail_fn`` being :func:`g3o.common.support_check.run_entailment`, which
-      refuses every real X35 call (no approved X35 binding exists yet);
+      refuses every real X35 call (X35 is bound, PI ruling 139 a, but its probability
+      source and instrument wording await the PI: ``x35_client.X35_PROBABILITY_SOURCE``);
     - every check that needs no run directory: the codebook SHA, matcher pin and
       estimator checks of ``bind_runtime`` (through its non-writing half,
       ``instrument_binding.check_runtime``), the P-1/P-2 prompt pins and the
@@ -387,13 +390,14 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
         raise ValueError("v2.7 dispatch: settings must be an explicit RuntimeSettings")
     from g3o.common import support_check
 
-    # Lift together with the TODO in support_check.run_entailment, once an approved X35
-    # binding replaces its refusal.
+    # Kept: the X35 client is bound (PI ruling 139 a), but v27_entry.x35_entail_fn returns
+    # run_entailment while x35_client.X35_PROBABILITY_SOURCE is None (probability source and
+    # instrument wording pending PI). Lift together with the TODO in support_check.run_entailment.
     if v27.entail_fn is support_check.run_entailment:
         raise ValueError(
             "v2.7 dispatch: entail_fn is support_check.run_entailment, which refuses every real "
-            "X35 call: no approved X35 binding exists (T-030/T-035), so the run is refused before "
-            "any work"
+            "X35 call: the X35 client is bound (PI ruling 139 a) but its probability source and "
+            "instrument wording await PI approval, so the run is refused before any work"
         )
     from g3o.run.presweep.instrument_binding import check_runtime
     from g3o.run.presweep.perpage_providers_v27 import check_binding
@@ -436,7 +440,8 @@ def _v27_journal_usage(run_dir: Path) -> dict[str, dict[str, Any]]:
 
     Per stage: ``totals`` (the summed :meth:`RequestJournal.usage`), ``usages`` (each
     extractor response's own ``usage``, :meth:`RequestJournal.extractor_usages`, priced
-    per request; ruling 58 a) and ``failed`` (journals that could not be read, with the
+    per request; ruling 58 a), ``x35_usages`` (each X35 call's own ``usage``,
+    :meth:`RequestJournal.x35_usages`; priced only once Q158 is ruled) and ``failed`` (journals that could not be read, with the
     error). Covers every journaled call of every institution, this and earlier sessions.
     A stage with no journal file on disk is left out.
 
@@ -453,6 +458,7 @@ def _v27_journal_usage(run_dir: Path) -> dict[str, dict[str, Any]]:
                                          (V27_STAGE6_SPAN, svv.WORK_DIR, svv.JOURNAL)):
         totals: dict[str, int] = {}
         usages: list[dict[str, Any] | None] = []
+        x35_usages: list[dict[str, Any] | None] = []
         failed: list[dict[str, str]] = []
         n_inst = 0
         for inst_dir in iter_institution_dirs(run_dir):
@@ -463,6 +469,7 @@ def _v27_journal_usage(run_dir: Path) -> dict[str, dict[str, Any]]:
                 journal = svv.RequestJournal(path, read_only=True)
                 inst_totals = journal.usage()
                 inst_usages = journal.extractor_usages()
+                inst_x35 = journal.x35_usages()
             except Exception as exc:  # recorded: this stage's figure is then unpriced
                 rel = path.relative_to(run_dir).as_posix()
                 # run-relative in the report: the absolute local path is left out
@@ -472,14 +479,15 @@ def _v27_journal_usage(run_dir: Path) -> dict[str, dict[str, Any]]:
             for key, value in inst_totals.items():
                 totals[key] = totals.get(key, 0) + int(value)
             usages.extend(inst_usages)
+            x35_usages.extend(inst_x35)
         if n_inst or failed:
             out[span] = {"totals": {"n_institutions": n_inst, **dict(sorted(totals.items()))},
-                         "usages": usages, "failed": failed}
+                         "usages": usages, "x35_usages": x35_usages, "failed": failed}
     return out
 
 
 def _v27_cost_block(run_dir: Path, summary: dict[str, Any], jev_model: str,
-                    extractor_model: str) -> dict[str, Any]:
+                    extractor_model: str, x35_model: str | None = None) -> dict[str, Any]:
     """The cost report's :data:`V27_COST_KEY` block.
 
     Each stage is priced from its journals on disk (every journaled call of the run,
@@ -502,7 +510,8 @@ def _v27_cost_block(run_dir: Path, summary: dict[str, Any], jev_model: str,
     block: dict[str, Any] = {}
     for span, read in _v27_journal_usage(run_dir).items():
         priced = price_v27_usage(read["totals"], jev_model=jev_model, extractor_model=extractor_model,
-                                 extractor_usages=read["usages"])
+                                 extractor_usages=read["usages"], x35_model=x35_model,
+                                 x35_usages=read["x35_usages"])
         entry = {"source": "journals_on_disk", "returned_this_session": span in returned,
                  "usage": read["totals"], **priced}
         if read["failed"]:
@@ -575,8 +584,8 @@ def run_v27_dispatch(
     stage (``SupportGateError``, ``MissingUpstreamError`` in the per-page stage
     and in the Stage 6 executor, ``JevAccountError``, ...) propagate unchanged.
     Within-stage budget checks are not wired here (no ``cost_check_callback``): the
-    cost monitor prices the jev and extractor parts of a v2.7 stage but not X35 (ruling
-    59 b, ``cost_monitor.V27_UNPRICED_PARTS``), so a v2.7 run's ``budget_usd``
+    cost monitor prices the jev and extractor parts of a v2.7 stage but not X35 (bound,
+    ruling 139 a; pricing awaits Q158, ``cost_monitor.V27_UNPRICED_PARTS``), so a v2.7 run's ``budget_usd``
     covers Stages 1-4 only (PI ruling 1 a, 2026-11-11) and the config refuses
     preflight estimates for any other stage. The priced parts are reported under
     :data:`V27_COST_KEY` in the cost report, outside ``total_usd``.
@@ -696,7 +705,7 @@ def run_presweep(
     the resolved credentials (:func:`g3o.run.presweep.v27_entry.build_v27_dispatch`,
     PI ruling 132 a); an unset ``v27_runtime`` or a missing jev / extractor key is
     refused here. Either way :func:`_require_v27_dispatch` then runs its entry
-    refusals (the refusing X35 entry, ruling 59 b; the default per-page builder
+    refusals (the refusing X35 entry while its probability source is unruled; the default per-page builder
     while producers are missing, ruling 36 a; the binding checks), all before any
     planning or spend. An injected ``v27`` whose settings differ from a set
     ``config.v27_runtime`` is refused. ``v27`` is refused on a v2.5 run.
@@ -716,8 +725,8 @@ def run_presweep(
         if config.budget_usd is not None:
             logger.warning(
                 "pipeline_version='v2.7': budget_usd $%.4f is enforced on Stages 1-4 only; "
-                "the v2.7 per-page stage and v2.7 Stage 6 stay outside it (ruling 60 a; X35 is "
-                "unpriced, 59 b): their usage and priced parts are reported under %s and %s, "
+                "the v2.7 per-page stage and v2.7 Stage 6 stay outside it (ruling 60 a; X35 "
+                "pricing awaits Q158): their usage and priced parts are reported under %s and %s, "
                 "outside total_usd", config.budget_usd, V27_USAGE_KEY, V27_COST_KEY,
             )
     elif v27 is not None:
@@ -1370,7 +1379,7 @@ def run_presweep(
                     try:
                         cost_report[V27_COST_KEY] = _v27_cost_block(
                             plan.run_dir, summary, v27.settings.jev_model,
-                            v27.settings.extractor_model)
+                            v27.settings.extractor_model, v27.settings.x35_model)
                     except Exception:
                         logger.exception("v2.7 stage pricing failed for %s (non-fatal)", plan.run_dir)
                         cost_report[V27_COST_KEY] = None

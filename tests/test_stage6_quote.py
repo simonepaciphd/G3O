@@ -210,7 +210,7 @@ def test_x35_gate_error_is_not_swallowed():
     from g3o.common.support_check import run_entailment
 
     pages, obs, recs, quotes = two_pages()
-    with pytest.raises(Exception, match="X35 entailment call not wired"):
+    with pytest.raises(Exception, match="X35 entailment call gated"):
         run(pages, obs, recs, quotes, FakeJev(SAME), quote_fn(entail=lambda q, t: run_entailment()))
 
 
