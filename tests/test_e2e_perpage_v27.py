@@ -235,7 +235,7 @@ class World:
                        # refuses the disagreement (A8 review L6).
                        "core.unit_credit": "no"})
             sv = {k: v for k, v in _values("sources").items()
-                  if k in pp.SOURCE_ITEMS and (FIELDS[k]["coder"] != "classifier" or k == "core.source_type")}
+                  if k in pp.SOURCE_ROW_ITEMS and (FIELDS[k]["coder"] != "classifier" or k == "core.source_type")}
             sv.update({"core.source_url": page.url, "core.source_title": f"Page {pid}",
                        "core.content_contact_emails": list(page.input.email_links or ()),
                        # not_asked beside a missing publication date, as T-015 writes it
@@ -252,7 +252,7 @@ class World:
             a_vals[aid], s_vals[aid], codes[aid] = av, sv, c
         if not page.activities:  # RC-D-030 Y2 a: the page-level source row's upstream values and codes
             sv = {k: v for k, v in _values("sources").items()
-                  if k in pp.SOURCE_ITEMS and (FIELDS[k]["coder"] != "classifier" or k == "core.source_type")}
+                  if k in pp.SOURCE_ROW_ITEMS and (FIELDS[k]["coder"] != "classifier" or k == "core.source_type")}
             sv.update({"core.source_url": page.url, "core.source_title": f"Page {pid}",
                        "core.content_contact_emails": [], "core.source_publication_date": "not_documented",
                        "core.date_upper_bound": "not_asked"})

@@ -1150,6 +1150,10 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                 stage6_only = sorted(set(given) & set(srow.STAGE6_ACTIVITY_ITEMS))
                 if stage6_only:  # PI ruling 94 a: one producer per item, and it is Stage 6
                     raise ValueError(f"per-page activity values name Stage-6-only items (ruling 94 a): {stage6_only}")
+            else:
+                stage6_only = sorted(set(given) & set(srow.STAGE6_SOURCE_ITEMS))
+                if stage6_only:  # PI ruling 140 (review O2 M3): Stage 6 is the only producer of these
+                    raise ValueError(f"per-page source values name Stage-6-only items (ruling 140): {stage6_only}")
             row.values.update({**given, **produced})
             missing = sorted(table - set(row.values))
             if missing:
