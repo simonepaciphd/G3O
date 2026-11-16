@@ -35,8 +35,9 @@ def job(url: str, *, suffix: str = "") -> ExtractorJob:
 
 class FakeBatchClient:
     def __init__(self, *, statuses=("in_progress", "ended"), outcome=None, crash_after_create=False,
-                 crash_on_poll=0, crash_after_results=None) -> None:
+                 crash_on_poll=0, crash_after_results=None, drop=()) -> None:
         self.created: list[list[str]] = []
+        self.drop = set(drop)  # custom ids the results stream leaves out (a short stream)
         self.statuses = list(statuses)
         self.polls = 0
         self.outcome = outcome or {}  # custom_id -> "succeeded" | "errored" | "expired" | "canceled"
@@ -65,6 +66,8 @@ class FakeBatchClient:
             if self.crash_after_results is not None and i == self.crash_after_results:
                 self.crash_after_results = None
                 raise Crash("died mid-collection")
+            if cid in self.drop:
+                continue
             kind = self.outcome.get(cid, "succeeded")
             if kind == "succeeded":
                 yield ExtractorResult(cid, True, json.dumps({"answer": cid}), None, usage=dict(USAGE))
@@ -333,6 +336,87 @@ def test_a_torn_last_batch_journal_line_is_dropped(tmp_path):
         stream.write(b'{"kind": "submit_int')
     ex2 = extractor(tmp_path, FakeBatchClient())
     assert ex2.store.unacknowledged() == [] and ex2.batch_owns(j)
+
+
+def test_a_torn_tail_is_dropped_durably_so_later_appends_reload(tmp_path):
+    """Review H1: the torn tail is removed from the file (not closed off with a newline), so an append
+    after it never leaves a corrupt line mid-file; every acknowledged entry survives the reloads."""
+    a, b = job("https://a.example/1"), job("https://a.example/2")
+    client = FakeBatchClient()
+    ex = extractor(tmp_path, client)
+    _, call = journaled(tmp_path, ex)
+    with pytest.raises(pb.BatchDeferred):
+        call(a)
+    path = pb.batch_journal_path(tmp_path)
+    acknowledged = path.read_bytes()
+    with path.open("ab") as stream:
+        stream.write(b'{"kind": "submit_int')
+    ex2 = extractor(tmp_path, client)  # load: the torn tail is dropped from the file itself
+    assert path.read_bytes() == acknowledged
+    _, call = journaled(tmp_path, ex2)
+    with pytest.raises(pb.BatchDeferred):
+        call(b)  # an append after the repaired tail
+    assert ex2.submit() == ["msgbatch_1"]
+    ex3 = extractor(tmp_path, client)  # reload: no "corrupt batch journal line"
+    assert ex3.store.in_flight() == [(1, "msgbatch_1")]
+    assert sorted(cid for cid, _ in ex3.store.intents[1]) == sorted([a.custom_id, b.custom_id])
+    ex3.settle()
+    _, call = journaled(tmp_path, ex3)
+    assert call(a).batch_id == call(b).batch_id == "msgbatch_1"
+
+
+def test_a_short_results_stream_is_not_marked_collected(tmp_path):
+    """Review L7: an ended batch missing a submitted result stops before ``collected``; the next run reads
+    the batch again and nothing is resubmitted (no double spend)."""
+    a, b = job("https://a.example/1"), job("https://a.example/2")
+    client = FakeBatchClient(drop={b.custom_id})
+    ex = extractor(tmp_path, client)
+    _, call = journaled(tmp_path, ex)
+    for j in (a, b):
+        with pytest.raises(pb.BatchDeferred):
+            call(j)
+    ex.submit()
+    with pytest.raises(pb.BatchResultsIncomplete) as info:
+        ex.settle()
+    assert info.value.custom_ids == [b.custom_id] and "msgbatch_1" not in ex.store.collected
+    client.drop.clear()
+    ex2 = extractor(tmp_path, client)
+    assert ex2.batch_owns(b)  # still in flight: deferred again, never sent live
+    ex2.settle()
+    assert "msgbatch_1" in ex2.store.collected and len(client.created) == 1 and client.result_reads == 2
+    _, call = journaled(tmp_path, ex2)
+    assert call(a).batch_id == call(b).batch_id == "msgbatch_1"
+
+
+def test_a_request_over_the_byte_guard_is_sent_live(tmp_path):
+    """Review M3: never queued (so submit never refuses it), sent live in the same wave as before."""
+    live = LiveFn()
+    ex = extractor(tmp_path, FakeBatchClient(), pb.ALL_BATCH, live=live)
+    _, call = journaled(tmp_path, ex)
+    big = ExtractorJob(job("https://a.example/1").custom_id,
+                       {"model": "claude-haiku-5-5", "messages": [{"role": "user", "content": "x" * 2_600_000}]})
+    assert pb.too_big_for_batch(big)
+    assert call(big).success and live.calls == [big.custom_id]
+    assert ex.pending() == 0 and not ex.batch_owns(big) and ex.submit() == []
+
+
+def test_batch_owns_ends_once_the_stored_result_is_journaled(tmp_path):
+    """Review M5: after the request journal consumed the stored result, neither ``batch_owns`` nor ``peek``
+    vouches for the request any more, so the 98 b / 105 b guards cannot let a second (live) call through."""
+    j = job("https://a.example/1")
+    client = FakeBatchClient(outcome={j.custom_id: "errored"})
+    ex = extractor(tmp_path, client)
+    _, call = journaled(tmp_path, ex)
+    with pytest.raises(pb.BatchDeferred):
+        call(j)
+    ex.submit()
+    assert ex.batch_owns(j)  # in flight
+    ex.settle()
+    _, call = journaled(tmp_path, ex)
+    assert not ex.batch_owns(j) and call.peek(j)[1] is True  # an unused stored result: answered from the store
+    assert not call(j).success  # consumed (journaled extract_failed)
+    _, call = journaled(tmp_path, extractor(tmp_path, client))  # the next run
+    assert call.peek(j)[1] is False
 
 
 def test_peek_accepts_a_request_the_batch_journal_owns(tmp_path):

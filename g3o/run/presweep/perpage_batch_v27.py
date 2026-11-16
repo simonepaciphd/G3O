@@ -23,7 +23,10 @@ resumes every held institution from its checkpoints; the request journal
 (:class:`~g3o.run.presweep.stage_validate_v27.RequestJournal`) takes the stored result in place of
 a live call and journals it exactly as it journals a live response (``extract`` /
 ``extract_failed``), with the result's ``batch_id``, so it is replayed on every later resume and
-priced at batch rates (130 a). The waves end when a wave queues nothing.
+priced at batch rates (130 a). The waves end when a wave queues nothing, or after
+:data:`DEFAULT_MAX_WAVES` waves (the institutions still waiting stay held and resume on the next run).
+A deferred page does not stop the other pages of its institution in that wave. A request over the
+per-request byte guard is never batched: it is sent live (:func:`too_big_for_batch`).
 
 Durability (a crash at any point neither double-spends nor loses a result). The run-level batch
 journal ``<run>/perpage_v27_batches/batches.jsonl`` is append-only and fsynced:
@@ -38,7 +41,8 @@ journal ``<run>/perpage_v27_batches/batches.jsonl`` is append-only and fsynced:
    operator records the outcome (:func:`record_submit_outcome`: the batch id found in the console,
    or that none was created).
 3. ``result`` (``batch_id``, ``custom_id``, request hash, the result): one fsynced line per result,
-   read from the ended batch. ``collected`` (``batch_id``): after the last one. A crash mid-poll
+   read from the ended batch. ``collected`` (``batch_id``): after the last one, only once every
+   request submitted in that batch has a result (:class:`BatchResultsIncomplete` otherwise). A crash mid-poll
    polls the same batch id again; a crash mid-collection reads the results again (free) and stores
    only those not stored yet.
 4. A stored result is consumed when the request journal journals it (its ``batch_id`` on the
@@ -89,6 +93,13 @@ DEFAULT_MAX_WAVES = 50
 _FIRST_ROUND = re.compile(r"^x27s?-[0-9a-f]{48}$")
 
 
+def too_big_for_batch(job: Any) -> bool:
+    """Whether ``job`` is over the per-request byte guard of ``split_for_batches`` (it is sent live instead)."""
+    from g3o.extract.anthropic_client import split_for_batches
+
+    return bool(split_for_batches([job])[1])
+
+
 def is_first_round(custom_id: str) -> bool:
     """Whether ``custom_id`` is a page's first-round pass-1 or pass-2 page request (mix batches these)."""
     return bool(_FIRST_ROUND.match(custom_id))
@@ -130,6 +141,17 @@ class BatchSubmitUnacknowledged(RuntimeError):
                          "with record_submit_outcome(run_dir, seq, batch_id) (batch_id None if none was "
                          "created); nothing is resubmitted until then")
         self.seq, self.custom_ids = seq, custom_ids
+
+
+class BatchResultsIncomplete(RuntimeError):
+    """An ended batch returned no result for some submitted request. A stage stop: the batch is not marked
+    collected (the results stored are kept), so the next run reads its results again (free); nothing is
+    resubmitted."""
+
+    def __init__(self, batch_id: str, custom_ids: list[str]) -> None:
+        super().__init__(f"Message Batch {batch_id} ended without a result for {len(custom_ids)} submitted "
+                         f"request(s) (first: {custom_ids[:3]}); not marked collected, read again on the next run")
+        self.batch_id, self.custom_ids = batch_id, custom_ids
 
 
 class BatchClientMissing(RuntimeError):
@@ -177,6 +199,7 @@ class _Store:
             return store
         raw = path.read_bytes()
         lines = raw.split(b"\n")
+        keep: list[bytes] = []
         for n, line in enumerate(lines):
             if not line.strip():
                 continue
@@ -186,12 +209,14 @@ class _Store:
                 if n == len(lines) - 1:
                     break  # torn final record: dropped (never acknowledged, so never relied on)
                 raise ValueError(f"corrupt batch journal line {n + 1}: {path}") from None
+            keep.append(line)
             store.apply(entry)
         if raw and not raw.endswith(b"\n"):
-            with path.open("ab") as stream:  # terminate a torn tail before the next append
-                stream.write(b"\n")
-                stream.flush()
-                os.fsync(stream.fileno())
+            # unterminated or torn tail: the file is rewritten without it (atomically, as
+            # RequestJournal._load does) before the next append, so it never ends up mid-file
+            from g3o.persist.stage6_adapters import write_atomic
+
+            write_atomic(path, b"".join(line + b"\n" for line in keep))
         return store
 
     def apply(self, entry: Mapping[str, Any]) -> None:
@@ -271,17 +296,21 @@ class BatchExtractor:
         return [ExtractorResult(**r) for r in self.store.results.get(request_hash(job), [])]
 
     def batch_owns(self, job: Any) -> bool:
-        """Whether ``job`` is known to the batch journal as not sent live: queued, in flight, or answered.
-        The PI ruling 98 b / 105 b guards accept it (it was never sent live)."""
+        """Whether ``job`` waits for a batch and was never sent live: queued or in flight. The PI ruling
+        98 b / 105 b guards accept it. A stored result counts only while the request journal has not
+        journaled it, which the journal checks itself (its ``peek``): a result already consumed never
+        lets the request go live a second time."""
         key = request_hash(job)
-        return key in self.store.queued or key in self.store.in_flight_keys() or key in self.store.results
+        return key in self.store.queued or key in self.store.in_flight_keys()
 
     def __call__(self, job: Any) -> Any:
         """Called by the request journal only when it holds no unconsumed stored result for ``job``."""
         key = request_hash(job)
         if key in self.store.in_flight_keys():
             raise BatchDeferred(job.custom_id, key, "in flight")
-        if not self.batchable(job):
+        if not self.batchable(job) or too_big_for_batch(job):
+            # a request over the per-request byte guard is never cut: it is sent live, as before. It is
+            # never queued, so the 98 b / 105 b guards treat it as any live call.
             return self.live_fn(job)
         if key in self._sent:  # sent once by this invocation and answered: asked again on the next run
             raise BatchDeferred(job.custom_id, key, "sent this run; asked again on the next run")
@@ -326,6 +355,10 @@ class BatchExtractor:
             self.store.append({"kind": "result", "batch_id": batch_id, "custom_id": result.custom_id, "key": key,
                                "result": asdict(replace(result, batch_id=batch_id))})
             self.results_collected += 1
+        missing = [cid for cid, key in self.store.intents.get(seq, [])
+                   if not self.store.has_result(key, batch_id, cid)]
+        if missing:  # a short results stream: not marked collected, so nothing is asked again (no double spend)
+            raise BatchResultsIncomplete(batch_id, missing)
         self.store.append({"kind": "collected", "batch_id": batch_id})
 
     def submit(self, max_requests: int | None = None) -> list[str]:
@@ -337,7 +370,7 @@ class BatchExtractor:
             return []
         kwargs = {} if max_requests is None else {"max_requests": max_requests}
         groups, refused = split_for_batches(jobs, **kwargs)
-        if refused:  # a request over the per-request byte guard is never cut: sent live as before
+        if refused:  # never queued (__call__ sends such a request live): a wiring error, before any batch
             raise ValueError(f"{len(refused)} extractor request(s) exceed the batch byte guard: "
                              f"{[j.custom_id for j in refused]}")
         ids: list[str] = []
@@ -386,5 +419,6 @@ def has_batch_journal(run_dir: Path) -> bool:
 
 __all__ = ["ALL_BATCH", "BATCH_DIR", "BATCH_JOURNAL", "BATCH_PENDING", "DEFAULT_EXTRACTOR_MODE",
            "DEFAULT_MAX_WAVES", "DEFAULT_POLL_SECONDS", "EXTRACTOR_MODES", "MIX", "NO_BATCH", "BatchClientMissing",
-           "BatchDeferred", "BatchExtractor", "BatchSubmitUnacknowledged", "batch_journal_path", "has_batch_journal",
-           "is_first_round", "record_submit_outcome", "request_hash", "require_mode", "run_waves"]
+           "BatchDeferred", "BatchExtractor", "BatchResultsIncomplete", "BatchSubmitUnacknowledged",
+           "batch_journal_path", "has_batch_journal", "is_first_round", "record_submit_outcome", "request_hash",
+           "require_mode", "run_waves", "too_big_for_batch"]

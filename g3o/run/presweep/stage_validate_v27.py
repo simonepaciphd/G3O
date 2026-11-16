@@ -831,10 +831,12 @@ class RequestJournal:
             (:class:`ReaskSpentUnanswered`), so the two agree: neither lets it go live."""
             key = self._key({"custom_id": job.custom_id, "params": job.params}, prompt)
             recorded = ("extract", key, self._seen.get(("extract", key), 0)) in self._recorded
-            # PI ruling 134: a request the batch journal knows was never sent live (queued, in flight or
-            # answered by a batch) is not a lost live call: it is deferred again or answered from the store
+            # PI ruling 134: a request the batch journal knows was never sent live (queued or in flight) is
+            # not a lost live call: it is deferred again. Nor is one a stored batch result answers that this
+            # journal has not journaled yet; once journaled, that result no longer counts (one use only)
             owns = getattr(extract_fn, "batch_owns", None)
-            return key, recorded or self.reask_authorised(key) or bool(owns is not None and owns(job))
+            return key, (recorded or self.reask_authorised(key) or bool(owns is not None and owns(job))
+                         or self._stored_batch_result(key, job, extract_fn) is not None)
 
         def reask_live(job: Any) -> bool:
             """PI ruling 113 b: whether the next call of ``job`` is the live re-ask a PI release authorised
