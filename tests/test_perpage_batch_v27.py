@@ -8,13 +8,21 @@ mix routing (follow-ups live) and the 130 a pricing basis.
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
+from g3o.common import source_fields as sf
 from g3o.common.cost_monitor import EXTRACTOR_BATCH_KEY, price_extractor_requests
 from g3o.common.pricing import PRICING, anthropic_request_usd
-from g3o.extract.anthropic_client import ExtractorJob, ExtractorResult, make_custom_id
+from g3o.extract.anthropic_client import (
+    AnthropicExtractorClient,
+    ExtractorJob,
+    ExtractorResult,
+    make_custom_id,
+)
 from g3o.run.presweep import perpage_batch_v27 as pb
+from g3o.run.presweep import source_row_v27 as srow
 from g3o.run.presweep.stage_validate_v27 import RequestJournal
 
 PROMPT = {"extractor_model": "claude-haiku-5-5", "x35_model": "claude-haiku-5-5"}
@@ -739,3 +747,73 @@ def test_in_flight_keys_kept_incrementally_equal_the_rebuilt_set(tmp_path):
     assert seen[3] == {"k1", "k2"} and seen[5] == {"k1"} and seen[8] == {"k2"} and seen[-1] == {"k1"}
     reloaded = pb._Store.load(path)
     assert reloaded.in_flight_keys() == reloaded.in_flight_keys_rebuilt() == {"k1"}
+
+
+# --- PI ruling Q178 a: a batched response's request id (D-007) ----------------------------------------
+
+class FakeSdkBatches:
+    """The Anthropic SDK's ``messages.batches`` for :class:`AnthropicExtractorClient` (no network)."""
+
+    def __init__(self, *, no_message_id=()) -> None:
+        self.created: list[list[str]] = []
+        self.no_message_id = set(no_message_id)
+
+    def create(self, requests):
+        self.created.append([r["custom_id"] for r in requests])
+        return SimpleNamespace(id=f"msgbatch_{len(self.created)}")
+
+    def retrieve(self, batch_id):
+        return SimpleNamespace(processing_status="ended")
+
+    def results(self, batch_id):
+        for cid in self.created[int(batch_id.rsplit("_", 1)[1]) - 1]:
+            message = SimpleNamespace(id=None if cid in self.no_message_id else f"msg_{cid[-6:]}",
+                                      model="claude-haiku-5-5", stop_reason="end_turn", stop_details=None,
+                                      usage=dict(USAGE), content=[SimpleNamespace(type="text", text="{}")])
+            yield SimpleNamespace(custom_id=cid, result=SimpleNamespace(type="succeeded", message=message))
+
+
+INSTRUMENT = {"instrument_id": "b" * 64,
+              "payload": {"question_set_version": "qsv-1", "extractor_model_id": "claude-haiku-5-5"}}
+
+
+def _batched_through_the_journal(tmp_path, sdk, j):
+    ex = extractor(tmp_path, AnthropicExtractorClient(SimpleNamespace(batches=sdk, messages=SimpleNamespace(
+        batches=sdk, create=None))))
+    _, call = journaled(tmp_path, ex)
+    with pytest.raises(pb.BatchDeferred):
+        call(j)
+    ex.submit()
+    ex.settle()
+    journal, call = journaled(tmp_path, ex)
+    result = call(j)
+    assert journal.batched == 1 and result.batch_id == "msgbatch_1"
+    return ex, result
+
+
+def test_a_batched_quote_step_record_carries_the_batch_request_id(tmp_path):
+    """The client sets ``batch:<batch_id>/<message_id>``; the batch journal stores it, the request journal
+    journals it and replays it, and the quote-step record carries it (D-007 satisfied)."""
+    j = job("https://a.example/1")
+    sdk = FakeSdkBatches()
+    ex, result = _batched_through_the_journal(tmp_path, sdk, j)
+    want = f"batch:msgbatch_1/msg_{j.custom_id[-6:]}"
+    assert result.request_id == want
+    assert [r["request_id"] for r in ex.store.results[pb.request_hash(j)]] == [want]
+    journal, call = journaled(tmp_path, ex)
+    replayed = call(j)
+    assert replayed.request_id == want and journal.replayed == 1  # the replay keeps it
+    prov = srow.Provenance.of(INSTRUMENT, replayed, rule_coder_version="cv")
+    record = prov.quote_record("core.activity_name", "Copilot Chat", None)
+    assert record.request_id == want and record.actual_response_model == "claude-haiku-5-5"
+
+
+def test_a_batched_result_without_a_message_id_is_still_refused(tmp_path):
+    """PI ruling Q178 a: a request id stays mandatory; a batched response with no message id has none."""
+    j = job("https://a.example/1")
+    sdk = FakeSdkBatches(no_message_id={j.custom_id})
+    _, result = _batched_through_the_journal(tmp_path, sdk, j)
+    assert result.success and result.request_id is None
+    with pytest.raises(sf.MissingUpstreamError, match="D-007"):
+        srow.Provenance.of(INSTRUMENT, result, rule_coder_version="cv").quote_record(
+            "core.activity_name", "Copilot Chat", None)

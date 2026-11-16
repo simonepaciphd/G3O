@@ -648,6 +648,30 @@ def test_batch_submit_and_results_keyed_by_custom_id():
         client.submit_batch([jobs[0], jobs[0]])
 
 
+def test_a_batched_result_carries_the_batch_request_id_and_live_is_unchanged():
+    """PI ruling Q178 a: a batched response's request id is ``batch:<batch_id>/<message_id>``; a failed entry
+    (no message) has none; a live response keeps the API's own request id."""
+    fake = FakeClient()
+    client = AnthropicExtractorClient(fake)
+    res = {r.custom_id: r for r in client.batch_results("msgbatch_1")}
+    assert res["a"].request_id == "batch:msgbatch_1/msg_1" and res["a"].message_id == "msg_1"
+    assert res["b"].request_id is None and res["c"].request_id is None
+    live = client.create(ExtractorJob("x27-a", ac.build_params(system="s", user="u", output_schema={})))
+    assert live.request_id == "req_1"
+
+
+def test_a_batched_result_without_a_message_id_has_no_request_id():
+    """PI ruling Q178 a: the request id stays mandatory; no message id, no request id."""
+    message = _msg("{}")
+    message.id = None
+    fake = FakeClient()
+    fake.batches.results = lambda batch_id: iter([SimpleNamespace(
+        custom_id="a", result=SimpleNamespace(type="succeeded", message=message))])
+    (res,) = list(AnthropicExtractorClient(fake).batch_results("msgbatch_1"))
+    assert res.success and res.message_id is None and res.request_id is None
+    assert ac.batch_request_id("msgbatch_1", "  ") is None and ac.batch_request_id(None, "msg_1") is None
+
+
 def test_custom_id_is_batches_safe():
     cid = make_custom_id("inst::1", "https://example.gov/a?b=c")
     assert len(cid) <= 64 and cid.replace("-", "").replace("_", "").isalnum()

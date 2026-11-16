@@ -53,7 +53,9 @@ journal ``<run>/perpage_v27_batches/batches.jsonl`` is append-only and fsynced:
    operator records the outcome (:func:`record_submit_outcome`: the batch id found in the console,
    or that none was created).
 3. ``result`` (``batch_id``, ``custom_id``, request hash, the result): one fsynced line per result,
-   read from the ended batch. ``collected`` (``batch_id``): after the last one, only once every
+   read from the ended batch. The result keeps its request id, ``batch:<batch_id>/<message_id>`` (PI ruling
+   Q178 a; :func:`~g3o.extract.anthropic_client.batch_request_id`), which the request journal journals and
+   replays like a live one, so a batched page's quote-step records carry it (D-007). ``collected`` (``batch_id``): after the last one, only once every
    request submitted in that batch has a result (:class:`BatchResultsIncomplete` otherwise). A crash mid-poll
    polls the same batch id again; a crash mid-collection reads the results again (free) and stores
    only those not stored yet.

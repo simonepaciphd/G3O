@@ -181,6 +181,20 @@ def result_from_message(custom_id: str, message: Any, *, request_id: str | None 
     return ExtractorResult(success=True, text=text, error=None, **base)
 
 
+def batch_request_id(batch_id: Any, message_id: Any) -> str | None:
+    """The request identifier of a batched response (PI ruling Q178 a, 2026-11-16): ``batch:<batch_id>/<message_id>``.
+
+    The Message Batches API returns no per-request ``request-id`` header; the batch's id plus the response
+    ``message.id`` is the identifier it does return, unique per response. A request id stays mandatory
+    (D-007): with no batch id or no message id there is none, and None is returned (a quote-step record is
+    then refused exactly as for a live response without one)."""
+    if not isinstance(batch_id, str) or not batch_id.strip():
+        return None
+    if not isinstance(message_id, str) or not message_id.strip():
+        return None
+    return f"batch:{batch_id}/{message_id}"
+
+
 def split_for_batches(
     jobs: Iterable[ExtractorJob],
     *,
@@ -243,13 +257,18 @@ class AnthropicExtractorClient:
         return _get(self._client.messages.batches.retrieve(batch_id), "processing_status")
 
     def batch_results(self, batch_id: str) -> Iterator[ExtractorResult]:
-        """Yield one result per request, keyed by custom_id (order is arbitrary)."""
+        """Yield one result per request, keyed by custom_id (order is arbitrary).
+
+        A succeeded result carries the request id :func:`batch_request_id` (PI ruling Q178 a); a message
+        with no id gets none."""
         for entry in self._client.messages.batches.results(batch_id):
             cid = _get(entry, "custom_id")
             res = _get(entry, "result")
             kind = _get(res, "type")
             if kind == "succeeded":
-                yield result_from_message(cid, _get(res, "message"))
+                message = _get(res, "message")
+                yield result_from_message(cid, message,
+                                          request_id=batch_request_id(batch_id, _get(message, "id")))
             elif kind == "errored":
                 err = _get(res, "error")
                 inner = _get(err, "error", err)
@@ -272,6 +291,7 @@ __all__ = [
     "AnthropicExtractorClient",
     "ExtractorJob",
     "ExtractorResult",
+    "batch_request_id",
     "build_params",
     "make_custom_id",
     "params_bytes",
