@@ -41,9 +41,10 @@ def _client(*replies: Any) -> tuple[xc.AnthropicX35Client, FakeSDK]:
     return xc.AnthropicX35Client(sdk, model="claude-haiku-5-5", probability_source="stated"), sdk
 
 
-def test_probability_source_is_ruled_stated_and_wording_still_unapproved():
+def test_probability_source_is_ruled_stated_and_wording_approved():
     assert xc.X35_PROBABILITY_SOURCE == "stated"  # PI ruling Q159 a (2026-11-16)
-    assert xc.X35_INSTRUCTION_APPROVED_SHA256 is None  # Q160 held: the wording gate stays shut
+    assert xc.X35_INSTRUCTION_APPROVED_SHA256 == "6f048d6018bba9cb8ebc9027a45ece29a80b8b9de5ae19173d3f67580900861c"  # PI Q160
+    assert xc.x35_instruction_sha256() == xc.X35_INSTRUCTION_APPROVED_SHA256  # the pin is the wording
     assert xc.X35_PROBABILITY_SOURCES == frozenset({"stated"})
     assert xc.X35_EFFORT == "medium"
     assert isinstance(xc.X35_MAX_TOKENS, int) and xc.X35_MAX_TOKENS > 0
@@ -133,10 +134,16 @@ def _creds(key: str | None = "anthropic-test") -> SimpleNamespace:
     return SimpleNamespace(anthropic_api_key=key)
 
 
-def test_x35_entail_fn_returns_the_refusing_stub_while_the_wording_is_unapproved():
-    """Q159 a sets the probability source; with Q160 unruled the module defaults still refuse X35."""
+def test_x35_entail_fn_module_defaults_open_x35_and_a_changed_wording_shuts_it(monkeypatch):
+    """Q159 a and Q160: the module defaults return the lazy client; a wording off the pin refuses."""
     from g3o.run.presweep import v27_entry
 
+    fn = v27_entry.x35_entail_fn(_settings(), _creds())
+    assert isinstance(fn, v27_entry.LazyX35) and not fn.constructed
+    monkeypatch.setattr(xc, "X35_SYSTEM_DRAFT", xc.X35_SYSTEM_DRAFT + " ")
+    monkeypatch.setattr(xc, "x35_instruction_sha256",
+                        lambda: xc.hashlib.sha256((xc.X35_SYSTEM_DRAFT + "\0" + xc.X35_USER_TEMPLATE_DRAFT)
+                                                  .encode("utf-8")).hexdigest())
     fn = v27_entry.x35_entail_fn(_settings(), _creds())
     assert fn is sc.run_entailment
     with pytest.raises(SupportGateError, match="Q160"):
@@ -184,7 +191,7 @@ def test_wording_hash_is_sha256_of_system_nul_user_template():
     expected = hashlib.sha256((xc.X35_SYSTEM_DRAFT + "\0" + xc.X35_USER_TEMPLATE_DRAFT).encode("utf-8")).hexdigest()
     assert xc.x35_instruction_sha256() == expected and len(expected) == 64
     assert xc.x35_instruction_sha256(xc.X35_SYSTEM_DRAFT + " ") != expected  # any wording change moves the hash
-    assert xc.X35_INSTRUCTION_APPROVED_SHA256 is None  # review O2 M2: no wording is approved yet
+    assert xc.X35_INSTRUCTION_APPROVED_SHA256 == expected  # PI Q160: the approved wording is pinned
 
 
 @pytest.mark.parametrize("source,approved", [

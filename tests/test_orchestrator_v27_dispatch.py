@@ -407,10 +407,10 @@ def test_the_refusing_x35_entry_is_refused_before_the_run_dir_exists(tmp_path, m
     refused on entry, before planning and before any Stage 1-4 spend."""
     _no_planning(monkeypatch)
     v27 = _stub_dispatch(entail_fn=support_check.run_entailment)
-    with pytest.raises(ValueError, match=r"instrument wording awaits PI approval \(Q160\)"):
+    with pytest.raises(ValueError, match=r"not the approved one \(Q160\)"):
         orch.run_presweep(_v27_config(tmp_path), v27=v27)
     assert not (tmp_path / "runs").exists()
-    with pytest.raises(ValueError, match=r"instrument wording awaits PI approval \(Q160\)"):
+    with pytest.raises(ValueError, match=r"not the approved one \(Q160\)"):
         orch.run_v27_dispatch(tmp_path / "x", [], None, v27)
     assert not (tmp_path / "x").exists()
 

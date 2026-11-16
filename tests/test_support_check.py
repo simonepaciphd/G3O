@@ -463,8 +463,8 @@ def test_entailment_question_forms():
 
 
 def test_entailment_call_is_gated():
-    # Q159 a ruled the probability source; the wording (Q160) still gates the call
-    with pytest.raises(SupportGateError, match=r"instrument wording awaits PI approval \(Q160"):
+    # The refusing stub (returned only for a wording off the Q160 pin or no probability source)
+    with pytest.raises(SupportGateError, match=r"not the approved one \(Q160"):
         sc.run_entailment()
 
 

@@ -618,16 +618,16 @@ def entailment_window_for(ev: CodeEvidence, sources: PageSources,
 
 
 def run_entailment(*_: Any, **__: Any) -> Entailment:
-    # TODO(gate: X35 instrument wording, Q160): the X35 client is wired (PI ruling 139 a:
+    # The refusing X35 stub. The X35 client is wired (PI ruling 139 a:
     # g3o.extract.x35_client.AnthropicX35Client on the pinned x35_model; the state is
-    # entailment_window_for(), RC-D-019 E3, the question entailment_question()) and its
-    # probability source is ruled (Q159 a: "stated"). It stays unused while its DRAFT wording is
-    # unapproved (x35_client.X35_INSTRUCTION_APPROVED_SHA256 is None); until the PI approves it,
-    # v27_entry.x35_entail_fn returns this refusing entry.
+    # entailment_window_for(), RC-D-019 E3, the question entailment_question()), its
+    # probability source ruled (Q159 a: "stated") and its wording approved and pinned (Q160).
+    # v27_entry.x35_entail_fn returns this stub only if the wording no longer matches the pin
+    # or the probability source is unset; the orchestrator refuses a dispatch naming it.
     raise SupportGateError(
-        "X35 entailment call gated: the X35 client is bound (PI ruling 139 a) and its probability "
-        "source is ruled (Q159 a: stated), but its instrument wording awaits PI approval "
-        "(Q160: x35_client.X35_INSTRUCTION_APPROVED_SHA256 is None)"
+        "X35 entailment call refused: this is the refusing stub, which v27_entry.x35_entail_fn "
+        "returns only when the X35 wording is not the approved one (Q160: its SHA256 differs from "
+        "x35_client.X35_INSTRUCTION_APPROVED_SHA256) or no probability source is set (Q159 a: stated)"
     )
 
 

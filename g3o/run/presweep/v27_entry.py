@@ -18,12 +18,12 @@ resolved credentials into a :class:`~g3o.run.presweep.orchestrator.V27Dispatch`:
   (sync Messages calls: the per-page stage calls the extractor one job at a time);
 - ``entail_fn``: :func:`x35_entail_fn`. X35 is bound to Claude Haiku 5.5 behind the
   pinned ``settings.x35_model`` (PI ruling 139 a; RC-D-033 C1 a) and its probability
-  source is ruled (Q159 a: ``x35_client.X35_PROBABILITY_SOURCE = "stated"``), but its
-  instrument wording awaits the PI (Q160: ``x35_client.X35_INSTRUCTION_APPROVED_SHA256``
-  is None): until then it returns ``support_check.run_entailment``, which refuses
-  every call, and ``run_presweep`` refuses it on entry, before planning. Once the
-  wording is approved, it returns :class:`LazyX35` (``x35_client.AnthropicX35Client``
-  over the run's Anthropic key);
+  source is ruled (Q159 a: ``x35_client.X35_PROBABILITY_SOURCE = "stated"``) and its
+  instrument wording approved and pinned (Q160:
+  ``x35_client.X35_INSTRUCTION_APPROVED_SHA256``), so it returns :class:`LazyX35`
+  (``x35_client.AnthropicX35Client`` over the run's Anthropic key). Were the wording
+  changed off the pin, it would return ``support_check.run_entailment``, which refuses
+  every call, and ``run_presweep`` would refuse it on entry, before planning;
 - ``perpage_inputs``: :func:`perpage_inputs_builder`, None, the default builder
   (PI ruling D1 a), refused on entry while ``perpage_inputs_v27.MISSING_PRODUCERS``
   is non-empty (PI ruling 36 a);

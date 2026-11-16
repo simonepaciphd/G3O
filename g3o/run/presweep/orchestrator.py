@@ -359,9 +359,9 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
     checks it refuses (T-030 QA4 M2):
 
     - ``entail_fn`` being :func:`g3o.common.support_check.run_entailment`, which
-      refuses every real X35 call (X35 is bound, PI ruling 139 a, and its probability
-      source ruled, Q159 a, but its instrument wording awaits the PI, Q160:
-      ``x35_client.X35_INSTRUCTION_APPROVED_SHA256``);
+      refuses every real X35 call (``v27_entry.x35_entail_fn`` returns it only when the
+      X35 wording no longer matches the approved pin, Q160:
+      ``x35_client.X35_INSTRUCTION_APPROVED_SHA256``, or no probability source is set);
     - every check that needs no run directory: the codebook SHA, matcher pin and
       estimator checks of ``bind_runtime`` (through its non-writing half,
       ``instrument_binding.check_runtime``), the P-1/P-2 prompt pins and the
@@ -408,16 +408,13 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
         raise ValueError("v2.7 dispatch: settings must be an explicit RuntimeSettings")
     from g3o.common import support_check
 
-    # Kept: the X35 client is bound (PI ruling 139 a) and its probability source ruled (Q159 a), but
-    # v27_entry.x35_entail_fn returns run_entailment while the X35 instrument wording is unapproved
-    # (Q160: x35_client.X35_INSTRUCTION_APPROVED_SHA256 is None). Lift together with the TODO in
-    # support_check.run_entailment.
+    # Kept: v27_entry.x35_entail_fn returns run_entailment (the refusing stub) only when the X35
+    # wording no longer matches its approved pin (Q160) or no probability source is set (Q159 a).
     if v27.entail_fn is support_check.run_entailment:
         raise ValueError(
             "v2.7 dispatch: entail_fn is support_check.run_entailment, which refuses every real "
-            "X35 call: the X35 client is bound (PI ruling 139 a) and its probability source ruled "
-            "(Q159 a), but its instrument wording awaits PI approval (Q160), so the run is refused "
-            "before any work"
+            "X35 call: the X35 wording is not the approved one (Q160) or no probability source is "
+            "set (Q159 a), so the run is refused before any work"
         )
     from g3o.run.presweep.instrument_binding import check_runtime
     from g3o.run.presweep.perpage_providers_v27 import check_binding

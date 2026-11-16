@@ -997,7 +997,7 @@ def test_v27_launch_builds_the_real_providers_and_runs_to_stage6_without_the_fol
     # The extractor: the anthropic SDK module.
     extractor: dict[str, list[Any]] = {"clients": [], "max_retries": [], "params": []}
     monkeypatch.setitem(sys.modules, "anthropic", _v27_fake_anthropic_module(extractor))
-    # The X35 client (bound, ruling 139 a, but gated on the Q160 wording hash; the real entry refuses).
+    # The X35 client (bound, ruling 139 a; Q160 approved): a fake entry stands in for it.
     x35_calls: list[Any] = []
     monkeypatch.setattr(v27_entry, "x35_entail_fn",
                         lambda settings, creds: lambda q, text: x35_calls.append((q, text)) or TRUE)
@@ -1065,8 +1065,8 @@ def test_v27_launch_builds_the_real_providers_and_runs_to_stage6_without_the_fol
 
 
 def test_v27_launch_with_the_real_factory_is_refused_at_entry_before_any_spend(tmp_path: Path, monkeypatch):
-    """With no injected mocks the real factory's dispatch is refused at entry (the X35 gate:
-    X35 wording unapproved, Q160; with an X35 client given, ruling 36 a: the default per-page builder), before planning or
+    """With no injected mocks the real factory's dispatch is refused at entry (ruling 36 a: the default
+    per-page builder; and the X35 gate, were the wording off its Q160 pin), before planning or
     any Stage 1-4 call, and no client is constructed. A missing extractor key or an unset
     v27_runtime is refused too."""
     from g3o.persist.stage6_adapters import MissingUpstreamError
@@ -1088,15 +1088,18 @@ def test_v27_launch_with_the_real_factory_is_refused_at_entry_before_any_spend(t
     config = _v27_config(tmp_path)
     run_dir = config.runs_dir / config.run_id
 
-    with pytest.raises(ValueError, match="run_entailment"):  # the X35 gate (Q160 wording unapproved)
+    from g3o.extract import x35_client
+
+    assert pin.MISSING_PRODUCERS
+    with pytest.raises(MissingUpstreamError, match="ruling 36 a"):  # Q160 approved: X35 passes entry
         launch(config, credentials=Credentials(**V27_KEYS))
     assert not run_dir.exists() and calls == []
 
-    assert pin.MISSING_PRODUCERS
-    monkeypatch.setattr(v27_entry, "x35_entail_fn", lambda settings, creds: lambda q, text: TRUE)
-    with pytest.raises(MissingUpstreamError, match="ruling 36 a"):
+    monkeypatch.setattr(x35_client, "X35_INSTRUCTION_APPROVED_SHA256", "0" * 64)  # a wording off the pin
+    with pytest.raises(ValueError, match="run_entailment"):  # the X35 gate comes first
         launch(config, credentials=Credentials(**V27_KEYS))
     assert not run_dir.exists() and calls == []
+    monkeypatch.setattr(v27_entry, "x35_entail_fn", lambda settings, creds: lambda q, text: TRUE)
 
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
@@ -1112,8 +1115,8 @@ def test_v27_launch_with_the_real_factory_is_refused_at_entry_before_any_spend(t
 #
 # ``launch()`` on a v2.7 config with the follow leg on: the real ``FollowLeg``
 # over a fake fetch serving one followed page, X35 through the real
-# ``AnthropicX35Client`` over the fake ``anthropic`` module (its three gate
-# constants monkeypatched for the test only; their shipped defaults stay off),
+# ``AnthropicX35Client`` over the fake ``anthropic`` module (its three gates,
+# Q158 a, Q159 a and Q160, are open in the shipped defaults),
 # and the default extractor mode ``mix`` (PI ruling 134): first-round page
 # requests go through the fake Message Batches API, so the per-page stage runs
 # in waves (``perpage_batch_v27.run_waves``); follow-ups and Stage 6 are live.
@@ -1180,11 +1183,11 @@ def _v27_follow_world(tmp_path: Path, monkeypatch, *, followed_text: str,
     module = _v27_fake_anthropic_module(extractor, pages={V27_FOLLOWED_URL: (followed_text, followed_activities)},
                                         links={quill: [(V27_FOLLOWED_URL, V27_LINK_PASSAGE)]})
     monkeypatch.setitem(sys.modules, "anthropic", module)
-    # X35: Q159 a (probability source "stated") and Q158 a (pricing) are ruled in the module defaults;
-    # the Q160 wording gate is opened for this test only.
+    # X35: Q159 a (probability source "stated"), Q158 a (pricing) and Q160 (wording) are ruled in the
+    # module defaults.
     assert x35_client.X35_PROBABILITY_SOURCE == "stated"
     assert cost_monitor.X35_PRICING_RULED is True and cost_monitor.V27_UNPRICED_PARTS == {}
-    monkeypatch.setattr(x35_client, "X35_INSTRUCTION_APPROVED_SHA256", x35_client.x35_instruction_sha256())
+    assert x35_client.X35_INSTRUCTION_APPROVED_SHA256 == x35_client.x35_instruction_sha256()
     # The follow seam (T-025): the real FollowLeg over a fake fetch serving the followed page.
     fetch = FakeFetch({V27_FOLLOWED_URL: followed_text})
     monkeypatch.setattr(v27_entry, "follow_fetch", lambda config: fetch)
