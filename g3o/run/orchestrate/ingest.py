@@ -330,8 +330,14 @@ def assert_loader_handles_release(run_dir: Path, repo: Path) -> None:
     from g3o.common.contract import CODEBOOK_RELEASE_V27
     from g3o.run.orchestrate.status import MANIFEST_FILENAME, read_json
 
-    manifest = read_json(Path(run_dir) / MANIFEST_FILENAME) or {}
-    declared = (manifest.get("storage_contract") or {}).get("codebook_release")
+    manifest = read_json(Path(run_dir) / MANIFEST_FILENAME)
+    block = manifest.get("storage_contract") if isinstance(manifest, dict) else None
+    if not isinstance(manifest, dict) or not isinstance(block, (dict, type(None))):
+        raise IngestError(
+            f"run {Path(run_dir).name}: {MANIFEST_FILENAME} is unreadable or its storage_contract is not an "
+            f"object, so its codebook release is unknown; refusing rather than risk publishing a 2.7 run (R-056)."
+        )
+    declared = (block or {}).get("codebook_release")
     if declared == CODEBOOK_RELEASE_V27 and not (repo / V27_LOADER_RELPATH).is_file():
         raise IngestError(
             f"run {Path(run_dir).name} declares codebook release {CODEBOOK_RELEASE_V27}, but the g3o-api "

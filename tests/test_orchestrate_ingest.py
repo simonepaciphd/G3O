@@ -386,6 +386,15 @@ def test_a_v27_run_is_refused_by_a_loader_without_the_v27_path(
 
     with pytest.raises(ing.IngestError, match="R-056"):
         ing.ingest_run(runs_dir, run_id, frame_id='mb-TEST', loader_repo=repo)
+    assert not list((runs_dir / run_id).rglob(ing.INGEST_LOG_FILENAME))  # the loader never ran
+
+
+def test_an_unreadable_manifest_is_refused_by_the_release_check(tmp_path: Path, master: Path) -> None:
+    runs_dir, run_id = _completed_run(tmp_path, master)
+    repo = _fake_loader_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
+    (runs_dir / run_id / "manifest.json").write_text("{not json", encoding="utf-8")
+    with pytest.raises(ing.IngestError, match="unreadable"):
+        ing.assert_loader_handles_release(runs_dir / run_id, repo)
 
 
 def test_a_v27_run_passes_the_release_check_with_the_v27_loader(tmp_path: Path, master: Path) -> None:
