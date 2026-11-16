@@ -718,12 +718,23 @@ class _FakeTypeSafeClient:
                                usage=SimpleNamespace(input_tokens=res.input_tokens, output_tokens=res.output_tokens))
 
 
-def _v27_fake_anthropic_module(record: dict[str, list[Any]]) -> Any:
+def _v27_fake_anthropic_module(record: dict[str, list[Any]], *,
+                                pages: dict[str, tuple[str, list[Any]]] | None = None,
+                                links: dict[str, list[tuple[str, str]]] | None = None) -> Any:
     """A stand-in ``anthropic`` module whose ``Anthropic`` client answers the v2.7 extractor requests.
 
     Answered from the request alone (as the real API sees it): pass-1 / pass-2 quote
     tasks get their part's text, pass 1's activity task the fixture's activities, and
     the Stage 6 quote step its first shown quote.
+
+    ``pages`` (url -> (text, activities)) adds pages to :data:`V27_BY_URL` (a followed page).
+    ``links`` (url -> [(link url, passage)]): the stored links pass 1's link task selects on
+    that page. An X35 request (``x35_client`` wording, ``<text>`` first) is answered
+    ``true`` at 0.95 and recorded under ``record["x35"]``. ``messages.batches`` is the
+    Message Batches API: ``create`` records each request's ``custom_id`` under
+    ``record["batched"]`` (and its params under ``record["batched_params"]``), every batch
+    has ended at once, and its results are the same answers (no request id, as a batch
+    result carries none).
     """
     import re
     import types
@@ -731,13 +742,21 @@ def _v27_fake_anthropic_module(record: dict[str, list[Any]]) -> Any:
 
     from g3o.extract.request_v27 import field_name
 
+    by_url = {url: (v[5], v[6]) for url, v in V27_BY_URL.items()}
+    by_url.update(pages or {})
+    for key in ("x35", "batched", "batched_params"):
+        record.setdefault(key, [])
+
     def answer(params: dict[str, Any]) -> dict[str, Any]:
         user = params["messages"][0]["content"]
+        if user.startswith("<text>\n"):  # an X35 request (x35_client.X35_USER_TEMPLATE_DRAFT)
+            record["x35"].append(params)
+            return {"answer": "true", "probability": 0.95}
         if user.startswith("QUOTES:\n"):  # the Stage 6 quote step
             rows = json.loads(user.split("QUOTES:\n", 1)[1].split("\n\nTASK:\n", 1)[0])
             return {"quote_id": rows[0]["quote_id"], "quote": rows[0]["text"]}
         url = re.search(r"^PAGE ADDRESS: (.*)$", user, re.M).group(1)
-        text = V27_BY_URL[url][5]
+        text, activities = by_url[url]
         tasks = json.loads(user.split("\nTASKS:\n", 1)[1])
         quotes = [{"task_id": t["task_id"], "part_id": t["part_id"], "quote": text.strip()}
                   for t in tasks["quote_tasks"]]
@@ -745,10 +764,17 @@ def _v27_fake_anthropic_module(record: dict[str, list[Any]]) -> Any:
             return {"quotes": quotes, "fields": [{"task_id": t["task_id"], "value": None, "part_id": None,
                                                   "supporting_text": None} for t in tasks["field_tasks"]]}
         payload: dict[str, Any] = {"quotes": quotes, "links": [], "activities": [], "publication_date": None}
+        if tasks.get("link_task"):  # the stored links are listed as STORED LINKS (request_v27.build_user_message)
+            part = re.search(r'<part id="([^"]+)">', user).group(1)
+            stored = [json.loads(line) for line in user.split("\nSTORED LINKS:\n", 1)[1].split("\n\nTASKS:\n", 1)[0]
+                      .splitlines() if line.strip()]
+            ids = {ln["address"]: ln["link_id"] for ln in stored}
+            payload["links"] = [{"link_id": ids[target], "part_id": part, "quote": passage}
+                                for target, passage in (links or {}).get(url, []) if target in ids]
         if tasks["activity_task"] is not None:
             part = re.search(r'<part id="([^"]+)">', user).group(1)
             wanted = set(tasks["activity_task"]["fields"])
-            for name, tool, sentence in V27_BY_URL[url][6]:
+            for name, tool, sentence in activities:
                 fields = [{"field": f, "value": v, "part_id": part, "supporting_text": sentence}
                           for f, v in ((field_name("core.activity_name"), name),
                                        (field_name("core.tool_name"), tool)) if f in wanted]
@@ -756,11 +782,33 @@ def _v27_fake_anthropic_module(record: dict[str, list[Any]]) -> Any:
                                               "fields": fields})
         return payload
 
+    batches: dict[str, list[dict[str, Any]]] = {}
+
+    def message(params: dict[str, Any], n: int) -> dict[str, Any]:
+        return {"model": "fake-extractor-response", "id": f"msgb-{n}", "stop_reason": "end_turn",
+                "usage": {"input_tokens": 100, "output_tokens": 10},
+                "content": [{"type": "text", "text": json.dumps(answer(params))}]}
+
+    def batch_create(*, requests):
+        batch_id = f"msgbatch_{len(batches) + 1}"
+        batches[batch_id] = list(requests)
+        record["batched"].extend(r["custom_id"] for r in requests)
+        record["batched_params"].extend(r["params"] for r in requests)
+        return {"id": batch_id}
+
+    def batch_results(batch_id):
+        for n, r in enumerate(batches[batch_id], start=1):
+            yield {"custom_id": r["custom_id"],
+                   "result": {"type": "succeeded", "message": message(r["params"], n)}}
+
     class Anthropic:
         def __init__(self, *, api_key=None, **kw):
             record["clients"].append(api_key)
             record["max_retries"].append(kw.get("max_retries"))
-            self.messages = SimpleNamespace(create=self._create)
+            self.messages = SimpleNamespace(
+                create=self._create,
+                batches=SimpleNamespace(create=batch_create, results=batch_results,
+                                        retrieve=lambda batch_id: {"processing_status": "ended"}))
 
         def _create(self, **params):
             record["params"].append(params)
@@ -781,9 +829,18 @@ class _ExplicitRowValues:
     and the real one-part layout (``<page_id>#p001``). The URL, access date and A3 language of each
     source row are the builder's own values (A3: real lingua)."""
 
-    def __init__(self) -> None:
+    def __init__(self, extra_activities: dict[str, list[Any]] | None = None) -> None:
         self.page_fields: dict[str, Any] = {}
         self.n = 0
+        #: url -> activities of a page outside V27_INSTITUTIONS (a followed page)
+        self.extra_activities = dict(extra_activities or {})
+        self.bound: Any = None
+        self.instrument: Any = None
+        #: url -> the source values injected for that page (by page unit)
+        self.source_values: dict[str, dict[str, Any]] = {}
+
+    def activities(self, url: str) -> list[Any]:
+        return V27_BY_URL[url][6] if url in V27_BY_URL else self.extra_activities[url]
 
     def _code(self, bound, instrument, sources, chunk, aid, item, value, text):
         from g3o.classify.questions.v27 import JEV_QUESTION_SET_VERSION as QSV
@@ -839,7 +896,7 @@ class _ExplicitRowValues:
             return self._code(bound, instrument, sources, chunk, aid, item, value, text)
 
         a_vals, s_vals, codes = {}, {}, {}
-        for n, (name, tool, sentence) in enumerate(V27_BY_URL[page.url][6], start=1):
+        for n, (name, tool, sentence) in enumerate(self.activities(page.url), start=1):
             aid = f"{pid}#a{n:03d}"  # the id the pass-1 parser assigns
             av = {k: v for k, v in _values("activities").items()
                   if k in pp.ACTIVITY_ITEMS and FIELDS[k]["coder"] != "classifier" and k != "core.uncertainty_flags"}
@@ -854,7 +911,7 @@ class _ExplicitRowValues:
                           code(aid, "core.source_publication_date", "not_documented", None),
                           code(aid, "core.source_snippet", sv["core.source_snippet"], None)]
             a_vals[aid], s_vals[aid] = av, sv
-        if not V27_BY_URL[page.url][6]:  # RC-D-030 Y2 a: the page-level source row
+        if not self.activities(page.url):  # RC-D-030 Y2 a: the page-level source row
             sv = source_values()
             s_vals[pp.NO_ACTIVITY] = sv
             codes[pp.NO_ACTIVITY] = [code(None, "core.source_type", sv["core.source_type"], page.text),
@@ -862,11 +919,29 @@ class _ExplicitRowValues:
                                      code(None, "core.source_snippet", sv["core.source_snippet"], None)]
         return a_vals, s_vals, codes
 
+    def followed(self, upstream: Any, page: Any) -> Any:
+        """A followed page's upstream (``FollowLeg.followed_upstream``, its real page fields and hop) with
+        the same declared row values as a searched page's, its discovery path and text source the
+        follow leg's (ruling 61 a, ruling 62 a)."""
+        from dataclasses import replace
+
+        from g3o.common import source_fields as sf
+
+        self.page_fields[page.url] = upstream.page_fields
+        a_vals, s_vals, codes = self._rows(self.bound, self.instrument, page, upstream.page_fields)
+        follow_values = {sf.DISCOVERY: sf.discovery_path(followed=True, hop=upstream.hop).value,
+                         sf.TEXT_SOURCE: upstream.page_fields.text_source.value}
+        for sv in s_vals.values():
+            sv.update({k: v for k, v in follow_values.items() if k in sv})
+        self.source_values[page.url] = s_vals
+        return replace(upstream, activity_values=a_vals, source_values=s_vals, codes=codes)
+
     def __call__(self, run_dir, sample, scraped, bound, instrument):
         from dataclasses import replace
 
         from g3o.run.presweep import perpage_inputs_v27 as pin
 
+        self.bound, self.instrument = bound, instrument
         out = []
         for inst in pin.build_perpage_inputs(run_dir, sample, scraped, bound, instrument):
             specs = []
@@ -932,8 +1007,10 @@ def test_v27_launch_builds_the_real_providers_and_runs_to_stage6_without_the_fol
     # Ruling 132 a: no follow leg in this e2e.
     monkeypatch.setattr(v27_entry, "follow_fetch", lambda config: None)
 
-    receipt = launch(_v27_config(tmp_path), credentials=Credentials(**V27_KEYS), session_id="sess-v27",
-                     invocation="api")
+    # PI ruling 134: this run keeps the all-live extractor path (no_batch); the batched default (mix)
+    # is exercised by the follow-leg e2e below.
+    receipt = launch(_v27_config(tmp_path, v27_extractor_mode="no_batch"), credentials=Credentials(**V27_KEYS),
+                     session_id="sess-v27", invocation="api")
     summary = receipt.summary
     run_dir = Path(summary["run_dir"])
 
@@ -1027,3 +1104,254 @@ def test_v27_launch_with_the_real_factory_is_refused_at_entry_before_any_spend(t
     with pytest.raises(ValueError, match="no default client"):
         launch(_v27_config(tmp_path, v27_runtime=None), credentials=Credentials(**V27_KEYS))
     assert not run_dir.exists() and calls == []
+
+
+# ---------------------------------------------------------------------------
+# v2.7 follow-leg e2e (gate 5, second half; overnight 2026-11-16 O3-3)
+# ---------------------------------------------------------------------------
+#
+# ``launch()`` on a v2.7 config with the follow leg on: the real ``FollowLeg``
+# over a fake fetch serving one followed page, X35 through the real
+# ``AnthropicX35Client`` over the fake ``anthropic`` module (its three gate
+# constants monkeypatched for the test only; their shipped defaults stay off),
+# and the default extractor mode ``mix`` (PI ruling 134): first-round page
+# requests go through the fake Message Batches API, so the per-page stage runs
+# in waves (``perpage_batch_v27.run_waves``); follow-ups and Stage 6 are live.
+#
+# Codebook dependence. Under the signed r15 pin the per-page assembler refuses
+# ``core.developer`` / ``developer_basis`` / ``stage_as_of_basis`` on any page
+# with an activity (``REFUSED_ACTIVITY_ITEMS_R15``: a stage stop), and the
+# default builder is refused at entry (ruling 36 a). So the r15 case follows to a
+# page with NO activity and injects that page's row values as it injects the
+# searched pages' (``_ExplicitRowValues.followed``). The r16 case (the UNSIGNED
+# candidate, ``r16_candidate.R16_CANDIDATE_SHA256``) runs on the default builder
+# and the real assembler, with an activity on the followed page; it is skipped
+# unless the generated codebook pin is the candidate. Assertions that depend on
+# the candidate are marked ``# r16-candidate``.
+
+V27_FOLLOWED_URL = "https://quillfield.example.gov/annual-report"  # the official host: typed by rule, no residual
+V27_FOLLOWED_TEXT = ("The council's annual report lists its services, its staff numbers and its budget for the "
+                     "year. It describes how letters to residents are reviewed by a senior officer before they "
+                     "are sent, and how complaints are answered within ten working days.")
+V27_FOLLOWED_SENTENCE = "Staff in the complaints team now use Copilot to draft first replies."
+#: the quillfield passage the pass-1 link task quotes for its one stored link (jev: page_complete yes)
+V27_LINK_PASSAGE = "Staff review every draft before it is sent"
+
+
+def _v27_follow_world(tmp_path: Path, monkeypatch, *, followed_text: str,
+                      followed_activities: list[Any]) -> dict[str, Any]:
+    """Stages 1-4 stubbed (quillfield's page stores one link, to the followed page), jev, the fake
+    ``anthropic`` module (extractor, Message Batches, X35), the X35 gates opened for this test,
+    and the follow seam: a ``FakeFetch`` serving the followed page."""
+    import sys
+
+    from g3o.classify import jev_page_code as jpc
+    from g3o.common import cost_monitor, jev_client
+    from g3o.extract import x35_client
+    from g3o.run.presweep import v27_entry
+    from tests.test_e2e_perpage_v27 import ANSWERS, RELATIONS, FakeJev
+    from tests.test_follow_v27 import FakeFetch
+
+    seen = _v27_stub_stages_1_to_4_clients(monkeypatch)
+    quill = V27_INSTITUTIONS["quillfield"][3]
+    stub_scrape = ps.stage_scrape.scrape_url
+
+    def scrape(url: str, **kwargs) -> RenderedPage:  # T-014: quillfield's stored links name the followed page
+        page = stub_scrape(url, **kwargs)
+        if url != quill:
+            return page
+        return page.model_copy(update={"links": [{"url": V27_FOLLOWED_URL, "anchor_text": "annual report",
+                                                  "context": V27_LINK_PASSAGE, "source": "html"}]})
+
+    monkeypatch.setattr(ps.stage_scrape, "scrape_url", scrape)
+
+    def verdict(st: dict[str, Any]) -> str:  # "Copilot" confirms an activity, as in the e2e above
+        return "confirms_activity" if "Copilot" in st.get("page_text", "") else "no_genai"
+
+    def complete(st: dict[str, Any]) -> str | None:  # only quillfield's searched page refers onward
+        return "yes" if V27_LINK_PASSAGE in st.get("page_text", "") else None
+
+    jev = FakeJev({**ANSWERS, jpc.VERDICT: verdict, jpc.COMPLETE: complete}, RELATIONS)
+    monkeypatch.setattr(_FakeTypeSafeClient, "instances", [])
+    monkeypatch.setattr(_FakeTypeSafeClient, "answer", jev)
+    monkeypatch.setattr(jev_client.ts, "TypeSafeClient", _FakeTypeSafeClient)
+    # The extractor, the Message Batches API and X35: one fake anthropic SDK module.
+    extractor: dict[str, list[Any]] = {"clients": [], "max_retries": [], "params": []}
+    module = _v27_fake_anthropic_module(extractor, pages={V27_FOLLOWED_URL: (followed_text, followed_activities)},
+                                        links={quill: [(V27_FOLLOWED_URL, V27_LINK_PASSAGE)]})
+    monkeypatch.setitem(sys.modules, "anthropic", module)
+    # The three X35 gates, opened for this test only (Q159 probability source, Q160 wording, Q158 pricing).
+    # V27_UNPRICED_PARTS is derived from X35_PRICING_RULED at import, so it is cleared with it.
+    monkeypatch.setattr(x35_client, "X35_PROBABILITY_SOURCE", "stated")
+    monkeypatch.setattr(x35_client, "X35_INSTRUCTION_APPROVED_SHA256", x35_client.x35_instruction_sha256())
+    monkeypatch.setattr(cost_monitor, "X35_PRICING_RULED", True)
+    monkeypatch.setattr(cost_monitor, "V27_UNPRICED_PARTS", {})
+    # The follow seam (T-025): the real FollowLeg over a fake fetch serving the followed page.
+    fetch = FakeFetch({V27_FOLLOWED_URL: followed_text})
+    monkeypatch.setattr(v27_entry, "follow_fetch", lambda config: fetch)
+    return {"seen": seen, "jev": jev, "extractor": extractor, "fetch": fetch}
+
+
+def _v27_page_requests(params: list[dict[str, Any]]) -> list[str]:
+    """The user messages of the per-page extractor requests (pass 1 / pass 2) among ``params``."""
+    return [p["messages"][0]["content"] for p in params if "\nPAGE ADDRESS: " in p["messages"][0]["content"]]
+
+
+def test_v27_launch_follows_a_link_through_stage6_in_mix_mode_with_x35(tmp_path: Path, monkeypatch):
+    """Gate 5 (second half): the follow leg through Stage 6 on the real entry, every provider faked.
+
+    quillfield's searched page selects its one stored link; the real follow leg fetches it (once),
+    the followed page (no activity: r15) is coded like a searched page and its source row reaches
+    Stage 6, where ``core.confidence`` is produced (PI ruling 140, P12). X35 runs through
+    ``AnthropicX35Client``; the extractor runs in mix mode (first-round page requests batched, the
+    rest live). Holds under r15 and under the r16 candidate (one branch marked ``# r16-candidate``)."""
+    from g3o.codebook.r16_candidate import r16_active
+    from g3o.common import cost_monitor
+    from g3o.common import source_fields as sf
+    from g3o.common.paths import institution_dir
+    from g3o.common.storage import StorageEnvelope
+    from g3o.report.outcomes import compute_institution_report
+    from g3o.run.presweep import follow_v27 as fv
+    from g3o.run.presweep import orchestrator as orch
+    from g3o.run.presweep import perpage_batch_v27 as pb
+    from g3o.run.presweep import source_row_v27 as srow
+    from g3o.run.presweep import stage_perpage_v27 as pp
+    from g3o.run.presweep import v27_entry
+    from tests.test_e2e_perpage_v27 import SETTINGS
+
+    world = _v27_follow_world(tmp_path, monkeypatch, followed_text=V27_FOLLOWED_TEXT, followed_activities=[])
+    extractor, fetch = world["extractor"], world["fetch"]
+    builder = _ExplicitRowValues(extra_activities={V27_FOLLOWED_URL: []})
+    monkeypatch.setattr(v27_entry, "perpage_inputs_builder", lambda config: builder)
+    real_followed = fv.FollowLeg.followed_upstream
+
+    def followed_upstream(self, rendered, page, hop, grouping):  # the real leg's upstream, rows injected
+        return builder.followed(real_followed(self, rendered, page, hop, grouping), page)
+
+    monkeypatch.setattr(fv.FollowLeg, "followed_upstream", followed_upstream)
+
+    # Ruling 140: no standing source-row refusal, so nothing refuses the run at entry for a source item.
+    assert srow.REFUSED_SOURCE_ITEMS == {}
+    if r16_active():  # r16-candidate: no activity item is refused either
+        assert srow.entry_refused_items() == ()
+    else:  # r15: only the three r16 activity items (so ruling 36 a keeps the injected builder)
+        assert set(srow.entry_refused_items()) == set(srow.REFUSED_ACTIVITY_ITEMS_R15)
+
+    config = _v27_config(tmp_path, run_id="v27-follow")
+    assert config.v27_extractor_mode == pb.MIX == pb.DEFAULT_EXTRACTOR_MODE  # PI ruling 134 default
+    receipt = launch(config, credentials=Credentials(**V27_KEYS), session_id="sess-v27-follow", invocation="api")
+    summary = receipt.summary
+    run_dir = Path(summary["run_dir"])
+
+    # The follow leg: the one selected link was fetched once, at hop 1 from quillfield's searched page.
+    assert fetch.calls == [V27_FOLLOWED_URL]
+    quill_dir = institution_dir(run_dir, "INST-0000001")
+    state = json.loads((quill_dir / fv.FOLLOW_DIR / fv.STATE_FILE).read_text(encoding="utf-8"))
+    assert [(r["url"], r["hop"]) for r in state["records"]] == [(V27_FOLLOWED_URL, 1)]
+    assert V27_FOLLOWED_URL in builder.page_fields  # its D1 a page fields were built by the real leg
+    for n in (2, 3):  # nothing else was followed
+        assert not (institution_dir(run_dir, f"INST-{n:07d}") / fv.FOLLOW_DIR / fv.STATE_FILE).exists()
+
+    # Mix mode (PI ruling 134): first-round page requests were batched, each answered once; nothing
+    # batched was also sent live (no double spend); follow-ups and Stage 6 were live.
+    usage = summary[orch.V27_USAGE_KEY]
+    batched, batched_users = extractor["batched"], _v27_page_requests(extractor["batched_params"])
+    live_users = _v27_page_requests(extractor["params"])
+    assert batched and all(pb.is_first_round(cid) for cid in batched)
+    assert len(set(batched)) == len(batched)
+    assert usage[orch.V27_PERPAGE_SPAN]["batched_requests"] == len(batched)
+    assert not set(batched_users) & set(live_users)
+    assert any(f"PAGE ADDRESS: {V27_INSTITUTIONS['quillfield'][3]}\n" in u for u in batched_users)
+    assert extractor["max_retries"] and set(extractor["max_retries"]) == {0}  # PI ruling 135 a
+    lines = pb.batch_journal_path(run_dir).read_text(encoding="utf-8").splitlines()
+    kinds = [json.loads(line)["kind"] for line in lines if line.strip()]
+    assert kinds.count("submitted") == kinds.count("submit_intent") == kinds.count("collected") >= 1
+
+    # X35 through the real AnthropicX35Client on the pinned x35_model, journaled per call.
+    x35 = extractor["x35"]
+    assert x35 and {p["model"] for p in x35} == {SETTINGS.x35_model}
+    assert sum(usage[span].get("x35_calls", 0) for span in usage) == len(x35)
+    assert {p["model"] for p in extractor["params"] if p not in x35} == {SETTINGS.extractor_model}
+    cost = json.loads((run_dir / "_cost_report.json").read_text(encoding="utf-8"))[orch.V27_COST_KEY]
+    assert cost
+    for span in cost.values():  # Q158 opened for the test: X35 no longer reported as pending
+        assert span["parts"]["x35"].get("reason") != cost_monitor.X35_PRICING_PENDING
+
+    # Every institution was ready after the waves and written by Stage 6; nothing held or failed.
+    assert summary["n_institutions"] == 3
+    assert summary["n_perpage_ready"] == 3
+    assert summary["n_perpage_held"] == 0 and summary["n_perpage_failed_pages"] == 0
+    assert summary["n_stage6_written"] == 3
+    assert summary["n_stage6_held"] == summary["n_stage6_failed"] == 0
+
+    # The followed page's source row is in quillfield's Stage 6 storage, with core.confidence
+    # produced by Stage 6 (P12): the per-page row never carries it.
+    envelope = StorageEnvelope.load(quill_dir / "6_storage.json", run_dir / "final" / "instruments",
+                                    artifact_root=run_dir)
+    rows = [r.get("values", {}) for r in envelope.data["sources"].values()]
+    followed = [v for v in rows if v.get(sf.URL) == V27_FOLLOWED_URL]
+    assert len(followed) == 1
+    (row,) = followed
+    assert row[sf.DISCOVERY] == "followed_hop_1"
+    assert row[sf.TEXT_SOURCE] == sf.TEXT_SOURCE_NEW_RUN
+    assert sf.CONFIDENCE not in pp.SOURCE_ROW_ITEMS
+    assert all(sf.CONFIDENCE not in sv for sv in builder.source_values[V27_FOLLOWED_URL].values())
+    assert row.get(sf.CONFIDENCE) is not None
+
+    report = {r["institution_id"]: r for r in compute_institution_report(run_dir)}
+    assert {k: r["final_status"] for k, r in report.items()} == {
+        "INST-0000001": "EVIDENCE_FOUND", "INST-0000002": "NO_EVIDENCE_FOUND",
+        "INST-0000003": "NO_EVIDENCE_FOUND"}
+
+
+def _r16_candidate_active() -> bool:
+    from g3o.codebook.r16_candidate import r16_active
+
+    return r16_active()
+
+
+@pytest.mark.skipif(not _r16_candidate_active(),
+                    reason="r16-candidate: needs the generated codebook pin to equal the UNSIGNED r16 candidate "
+                           "(R16_CANDIDATE_SHA256); under the signed r15 pin the default builder is refused "
+                           "at entry (ruling 36 a) and a followed activity stops the per-page assembler")
+def test_v27_launch_follows_to_an_activity_page_on_the_default_builder_r16_candidate(tmp_path: Path,
+                                                                                     monkeypatch):
+    """r16-candidate (every assertion): the default per-page builder and the real T-015 assembler, no
+    injected row values; the followed page carries an activity (``core.developer`` is a pass-1 field
+    under the candidate). The run is not refused at entry and not stopped: the followed page is fetched,
+    coded and assembled (followed, hop 1), and every institution ends ready or held on its own row data
+    (ruling 97 b). Which of the two is not fixed here: in mix mode a batched pass-1 response carries no
+    request id, which the D-007 provenance of a quote-step record requires (open question Q178)."""
+    from g3o.common.paths import institution_dir
+    from g3o.extract.batch import url_hash
+    from g3o.run.presweep import perpage_inputs_v27 as pin
+    from g3o.run.presweep import source_row_v27 as srow
+    from g3o.run.presweep import stage_perpage_v27 as pp
+    from tests.test_e2e_perpage_v27 import assemble_spy
+
+    assert pin.MISSING_PRODUCERS == ()  # r16-candidate: the default builder is allowed at entry
+    text = V27_FOLLOWED_TEXT + " " + V27_FOLLOWED_SENTENCE
+    world = _v27_follow_world(tmp_path, monkeypatch, followed_text=text,
+                              followed_activities=[("Copilot replies", "Copilot", V27_FOLLOWED_SENTENCE)])
+    assembled: dict[str, dict[str, Any]] = {}
+
+    def record(page, rows, kw):  # records the assembler's keywords; returns None so the rows are kept
+        assembled.setdefault(page.page_id, kw)
+
+    monkeypatch.setattr(srow, "assemble", assemble_spy(srow.assemble, record))
+
+    receipt = launch(_v27_config(tmp_path, run_id="v27-follow-r16"), credentials=Credentials(**V27_KEYS),
+                     session_id="sess-v27-follow-r16", invocation="api")
+    summary = receipt.summary
+    run_dir = Path(summary["run_dir"])
+
+    assert world["fetch"].calls == [V27_FOLLOWED_URL]
+    kw = assembled[url_hash(V27_FOLLOWED_URL)]
+    assert (kw["followed"], kw["hop"]) == (True, 1)
+    assert world["extractor"]["batched"] and world["extractor"]["x35"]
+    assert summary["n_perpage_ready"] + summary["n_perpage_held"] == 3
+    for n in range(1, 4):
+        held = institution_dir(run_dir, f"INST-{n:07d}") / pp.WORK_DIR / pp.HELD_FILE
+        if held.exists():
+            stages = {h["stage"] for h in json.loads(held.read_text(encoding="utf-8"))["held"]}
+            assert stages <= {pp.ROW_VALUE_REFUSED}, stages
