@@ -304,3 +304,12 @@ def test_x35_request_failing_with_a_response_cap_times_is_refused_without_a_call
     reloaded.record_release({"keys": [capped.value.key], "all": False, "released_by": "PI", "date": "2026-11-16",
                              "file_sha256": "f" * 64})
     assert wrap_again(lambda q, t: Entailment("false", 0.95))(QUESTION, WINDOW) == Entailment("false", 0.95)
+
+
+@pytest.mark.parametrize("key", ["", None])
+def test_lazy_x35_refuses_an_empty_key(key):
+    """Review O2 L2: never an SDK client built with ``api_key=""``."""
+    from g3o.run.presweep import v27_entry
+
+    with pytest.raises(ValueError, match="non-empty Anthropic API key"):
+        v27_entry.LazyX35(key, "claude-haiku-5-5", "stated")  # type: ignore[arg-type]

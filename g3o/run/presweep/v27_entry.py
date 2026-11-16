@@ -149,6 +149,8 @@ class LazyX35:
     """
 
     def __init__(self, api_key: str, model: str, probability_source: str) -> None:
+        if not isinstance(api_key, str) or not api_key:  # review O2 L2: never an SDK client with api_key=""
+            raise ValueError("LazyX35 needs a non-empty Anthropic API key (ANTHROPIC_API_KEY)")
         self._api_key, self._model, self._source = api_key, model, probability_source
         self._client: Any = None
         self._lock = threading.Lock()
@@ -242,7 +244,7 @@ def build_v27_dispatch(config: Any, credentials: ResolvedCredentials) -> Any:
     settings = runtime_settings(config)
     missing = [f"{var} ({use})" for var, use, present in (
         (TYPESAFE_ENV_VAR, "jev: the v2.7 per-page stage and v2.7 Stage 6", credentials.has_typesafe),
-        (ANTHROPIC_ENV_VAR, "the v2.7 extractor", credentials.has_anthropic),
+        (ANTHROPIC_ENV_VAR, "the v2.7 extractor and X35", credentials.has_anthropic),
     ) if not present]
     if missing:
         raise ValueError(f"pipeline_version='v2.7' is refused before any work: {', '.join(missing)} is not set "
