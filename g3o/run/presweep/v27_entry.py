@@ -231,7 +231,7 @@ def build_v27_dispatch(config: Any, credentials: ResolvedCredentials) -> Any:
 
     Refuses (``ValueError``) an unset or incomplete ``config.v27_runtime`` and a missing
     jev (TypeSafe) or extractor (Anthropic) key. Constructs no client. The entry
-    refusals of ``orchestrator._require_v27_dispatch`` (59 b, 36 a, the binding
+    refusals of ``orchestrator._require_v27_dispatch`` (the X35 gate, 36 a, the binding
     checks) still run on the result.
     """
     from g3o.run.presweep.orchestrator import V27Dispatch

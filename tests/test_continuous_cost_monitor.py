@@ -1439,9 +1439,45 @@ def test_v27_stage_with_jev_and_extractor_is_priced_and_x35_leaves_it_unpriced()
                                extractor_model="claude-haiku-5-5", extractor_usages=usages)
     assert with_x35["unpriced_parts"] == ["x35"] and with_x35["total_usd"] is None
     assert with_x35["parts"]["extractor"]["usd"] == pytest.approx(ext_usd)  # still reported
-    assert set(V27_UNPRICED_PARTS) == {"x35"} and "59 b" in V27_UNPRICED_PARTS["x35"]
+    assert set(V27_UNPRICED_PARTS) == {"x35"} and "Q158" in V27_UNPRICED_PARTS["x35"]
+    assert "139 a" in V27_UNPRICED_PARTS["x35"]  # X35 is bound; only its pricing is pending
     totals_only = price_v27_usage(_v27_usage(extractor_calls=1), jev_model="jev-1.13.0")
     assert totals_only["unpriced_parts"] == ["extractor"]  # totals cannot be priced (58 a)
+
+
+def test_x35_pricing_is_gated_on_q158_by_default_even_with_per_request_usage():
+    from g3o.common import cost_monitor as cm
+
+    assert cm.X35_PRICING_RULED is False and cm.V27_UNPRICED_PARTS == {"x35": cm.X35_PRICING_PENDING}
+    out = cm.price_v27_usage(_v27_usage(x35_calls=2), jev_model="jev-1.13.0", x35_model="claude-haiku-5-5",
+                             x35_usages=[_ext(1_000, 50), _ext(2_000, 10)])
+    assert out["unpriced_parts"] == ["x35"] and out["total_usd"] is None
+    assert out["parts"]["x35"] == {"calls": 2, "usd": None, "reason": cm.X35_PRICING_PENDING}
+
+
+def test_x35_priced_per_request_at_standard_rates_once_q158_is_ruled(monkeypatch):
+    from g3o.common import cost_monitor as cm
+
+    monkeypatch.setattr(cm, "V27_UNPRICED_PARTS", {})  # what X35_PRICING_RULED = True yields
+    usages = [_ext(1_000, 50), _ext(2_000, 10, read=500)]
+    x35_usd = (1_000 * 0.10 + 50 * 0.50 + 2_000 * 0.10 + 10 * 0.50 + 500 * 0.01) / 1e6  # haiku 5.5 standard
+    out = cm.price_v27_usage(_v27_usage(x35_calls=2), jev_model="jev-1.13.0", x35_model="claude-haiku-5-5",
+                             x35_usages=usages)
+    assert out["priced"] is True and out["unpriced_parts"] == []
+    assert out["parts"]["x35"]["usd"] == pytest.approx(x35_usd) and out["parts"]["x35"]["rates"] == "standard"
+    assert out["parts"]["x35"]["calls"] == 2 and out["parts"]["x35"]["model"] == "claude-haiku-5-5"
+    assert out["total_usd"] == pytest.approx(2.0 * 0.042 + x35_usd)
+    direct = cm.price_x35_requests(usages, model="claude-haiku-5-5")
+    assert direct["usd"] == pytest.approx(x35_usd)
+    # a call without usage is not guessed; totals only stay unpriced; an unknown model has no row
+    missing = cm.price_x35_requests([_ext(1, 1), None], model="claude-haiku-5-5")
+    assert missing["usd"] is None and missing["unpriced_calls"] == 1 and missing["reason"] == cm.X35_USAGE_MISSING
+    totals_only = cm.price_v27_usage(_v27_usage(x35_calls=1), jev_model="jev-1.13.0")
+    assert totals_only["unpriced_parts"] == ["x35"] and "Q158 a" in totals_only["parts"]["x35"]["reason"]
+    assert cm.price_x35_requests([_ext(1, 1)], model="fake-x35")["usd"] is None
+    none_called = cm.price_v27_usage(_v27_usage(), jev_model="jev-1.13.0", x35_model="claude-haiku-5-5",
+                                     x35_usages=[])
+    assert none_called["priced"] is True and none_called["parts"]["x35"]["usd"] == 0.0
 
 
 def test_v27_unknown_jev_model_and_unitemised_quote_step_are_unpriced():
