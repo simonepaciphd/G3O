@@ -2319,7 +2319,7 @@ def _apply_pi_release(inst_dir: Path, journal: RequestJournal) -> dict[str, Any]
         # PI ruling 122 b: a key whose released re-ask was spent with no answer is re-askable too, whatever
         # held.json says (after an extract_failed / rejected re-ask it shows extract_response_failed)
         unrejected = [k for k in release["keys"] or () if journal.rejections(k) == 0 and k not in reaskable
-                      and not journal.reask_spent_unanswered(k)]
+                      and not journal.reask_spent_unanswered(k) and journal.x35_failures(k) == 0]
         if unrejected:
             return _release_hold(PI_RELEASE_MALFORMED, path,
                                  f"refused (ruling 34 b / 41 a / 104 b / 113 b / 122 b): key(s) with no "
