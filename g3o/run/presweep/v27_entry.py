@@ -149,6 +149,8 @@ class LazyX35:
     """
 
     def __init__(self, api_key: str, model: str, probability_source: str) -> None:
+        if not isinstance(api_key, str) or not api_key:  # review O2 L2: never an SDK client with api_key=""
+            raise ValueError("LazyX35 needs a non-empty Anthropic API key (ANTHROPIC_API_KEY)")
         self._api_key, self._model, self._source = api_key, model, probability_source
         self._client: Any = None
         self._lock = threading.Lock()
@@ -179,16 +181,19 @@ class LazyX35:
 def x35_entail_fn(settings: Any, credentials: ResolvedCredentials) -> Callable[..., Any]:
     """The X35 ``entail_fn`` (PI ruling 139 a: Claude Haiku 5.5 behind ``settings.x35_model``).
 
-    While ``x35_client.X35_PROBABILITY_SOURCE`` is None (the probability source and the
-    instrument wording await the PI) it returns ``support_check.run_entailment``, which
-    refuses every call, and ``orchestrator._require_v27_dispatch`` refuses it on entry, so
-    no X35 call is made. Set, it returns :class:`LazyX35` bound to ``settings.x35_model``
-    and the run's Anthropic key (no client is built until the first call).
+    Two gates, both required (review O2 M2): ``x35_client.X35_PROBABILITY_SOURCE`` set
+    (the probability source) AND ``x35_client.x35_instruction_sha256()`` equal to
+    ``x35_client.X35_INSTRUCTION_APPROVED_SHA256`` (the approved instrument wording).
+    While either is open it returns ``support_check.run_entailment``, which refuses every
+    call, and ``orchestrator._require_v27_dispatch`` refuses it on entry, so no X35 call
+    is made. Both passed, it returns :class:`LazyX35` bound to ``settings.x35_model`` and
+    the run's Anthropic key (no client is built until the first call).
     """
     from g3o.extract import x35_client
 
     source = x35_client.X35_PROBABILITY_SOURCE
-    if source is None:
+    approved = x35_client.X35_INSTRUCTION_APPROVED_SHA256
+    if source is None or approved is None or x35_client.x35_instruction_sha256() != approved:
         from g3o.common import support_check
 
         return support_check.run_entailment
@@ -239,7 +244,7 @@ def build_v27_dispatch(config: Any, credentials: ResolvedCredentials) -> Any:
     settings = runtime_settings(config)
     missing = [f"{var} ({use})" for var, use, present in (
         (TYPESAFE_ENV_VAR, "jev: the v2.7 per-page stage and v2.7 Stage 6", credentials.has_typesafe),
-        (ANTHROPIC_ENV_VAR, "the v2.7 extractor", credentials.has_anthropic),
+        (ANTHROPIC_ENV_VAR, "the v2.7 extractor and X35", credentials.has_anthropic),
     ) if not present]
     if missing:
         raise ValueError(f"pipeline_version='v2.7' is refused before any work: {', '.join(missing)} is not set "

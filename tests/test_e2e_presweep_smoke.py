@@ -829,7 +829,7 @@ class _ExplicitRowValues:
 
         def source_values():
             sv = {k: v for k, v in _values("sources").items()
-                  if k in pp.SOURCE_ITEMS and (FIELDS[k]["coder"] != "classifier" or k == "core.source_type")}
+                  if k in pp.SOURCE_ROW_ITEMS and (FIELDS[k]["coder"] != "classifier" or k == "core.source_type")}
             sv.update({k: v for k, v in real.items() if k in sv})
             sv.update({"core.source_title": page.title, "core.content_contact_emails": [],
                        "core.source_publication_date": "not_documented", "core.date_upper_bound": "not_asked"})

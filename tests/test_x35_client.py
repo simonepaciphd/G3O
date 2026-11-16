@@ -141,7 +141,7 @@ def test_x35_entail_fn_returns_the_refusing_stub_while_the_source_is_unruled():
         fn(QUESTION, WINDOW)
 
 
-def test_x35_entail_fn_returns_the_lazy_client_once_the_source_is_stated(monkeypatch):
+def test_x35_entail_fn_returns_the_lazy_client_once_source_and_wording_are_approved(monkeypatch):
     from g3o.run.presweep import v27_entry
 
     built: list[dict[str, Any]] = []
@@ -156,6 +156,7 @@ def test_x35_entail_fn_returns_the_lazy_client_once_the_source_is_stated(monkeyp
     module.Anthropic = Anthropic  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "anthropic", module)
     monkeypatch.setattr(xc, "X35_PROBABILITY_SOURCE", "stated")
+    monkeypatch.setattr(xc, "X35_INSTRUCTION_APPROVED_SHA256", xc.x35_instruction_sha256())  # review O2 M2
 
     fn = v27_entry.x35_entail_fn(_settings("pinned-x35"), _creds())
     assert isinstance(fn, v27_entry.LazyX35) and fn is not sc.run_entailment
@@ -165,6 +166,29 @@ def test_x35_entail_fn_returns_the_lazy_client_once_the_source_is_stated(monkeyp
     assert ent == Entailment("true", 0.9) and usage == USAGE
     assert built == [{"api_key": "anthropic-test", "max_retries": 0}]  # PI ruling 135 a
     assert sdk.params[0]["model"] == "pinned-x35"  # the pinned x35_model (RC-D-033 C1 a)
+
+
+def test_wording_hash_is_sha256_of_system_nul_user_template():
+    import hashlib
+
+    expected = hashlib.sha256((xc.X35_SYSTEM_DRAFT + "\0" + xc.X35_USER_TEMPLATE_DRAFT).encode("utf-8")).hexdigest()
+    assert xc.x35_instruction_sha256() == expected and len(expected) == 64
+    assert xc.x35_instruction_sha256(xc.X35_SYSTEM_DRAFT + " ") != expected  # any wording change moves the hash
+    assert xc.X35_INSTRUCTION_APPROVED_SHA256 is None  # review O2 M2: no wording is approved yet
+
+
+@pytest.mark.parametrize("source,approved", [
+    ("stated", None),  # the probability source alone opens nothing
+    (None, "draft"),  # the approved wording alone opens nothing
+    ("stated", "0" * 64),  # an approved hash of other wording: the DRAFT is not it
+])
+def test_x35_entail_fn_needs_both_gates(monkeypatch, source, approved):
+    from g3o.run.presweep import v27_entry
+
+    monkeypatch.setattr(xc, "X35_PROBABILITY_SOURCE", source)
+    monkeypatch.setattr(xc, "X35_INSTRUCTION_APPROVED_SHA256",
+                        xc.x35_instruction_sha256() if approved == "draft" else approved)
+    assert v27_entry.x35_entail_fn(_settings(), _creds()) is sc.run_entailment
 
 
 def test_journal_records_x35_usage_per_request_and_replays_without_it(tmp_path):
@@ -206,3 +230,86 @@ def test_journal_of_a_plain_entail_fn_records_no_usage(tmp_path):
     entry = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
     assert entry["response"] == {"value": "false", "probability": 0.95}
     assert journal.x35_usages() == [None]
+
+
+def test_journal_marks_a_responseless_x35_failure_and_does_not_price_it(tmp_path):
+    """Review O2 M1 (PI ruling 131.1 b, as for the extractor): an exception raised before any response
+    came back is counted in ``x35_failed`` but marked ``usage_absent: no_response`` and skipped by
+    ``x35_usages``, so it is neither priced nor makes the X35 part unpriced. A billed failure is kept."""
+    from g3o.run.presweep.stage_validate_v27 import RequestJournal
+
+    path = tmp_path / "journal.jsonl"
+    journal = RequestJournal(path)
+    _, wrap_entail = journal.seams({"x35_model": "claude-haiku-5-5"})
+
+    def transport_error(*_a: Any) -> Entailment:
+        raise ConnectionError("simulated connection reset before any response")
+
+    with pytest.raises(ConnectionError):
+        wrap_entail(transport_error)(QUESTION, WINDOW)
+    client, _ = _client(_message({"answer": "true", "probability": 0.9}, stop="refusal"))
+    with pytest.raises(xc.X35ResponseError):
+        wrap_entail(client)(QUESTION, WINDOW + " other")
+    entries = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    assert [e["kind"] for e in entries] == ["x35_failed", "x35_failed"]
+    assert entries[0]["response"]["usage_absent"] == "no_response" and "usage" not in entries[0]["response"]
+    assert "usage_absent" not in entries[1]["response"] and entries[1]["response"]["usage"] == USAGE
+    assert journal.usage()["x35_failed"] == 2  # still counted
+    assert journal.x35_usages() == [USAGE]  # the responseless failure is not priced (never $0, never None)
+    assert RequestJournal(path, read_only=True).x35_usages() == [USAGE]
+
+
+def test_x35_request_failing_with_a_response_cap_times_is_refused_without_a_call(tmp_path):
+    """Review O2 M4: mirrors the extractor's EXTRACT_REJECT_CAP (ruling 34 b / 41 a). After the cap of
+    billed non-answers for one X35 request key, the journal refuses the live call (X35FailCapReached, a
+    RuntimeError, so the stages hold as for the failure itself), also after a reload, until a PI release
+    names the key. Responseless failures (no_response, PI 131.1 b) do not count towards the cap."""
+    from g3o.run.presweep.stage_validate_v27 import (
+        EXTRACT_REJECT_CAP,
+        RequestJournal,
+        X35FailCapReached,
+    )
+
+    calls: list[tuple[str, str]] = []
+
+    def billed_refusal(question: str, text: str) -> Entailment:
+        calls.append((question, text))
+        raise xc.X35ResponseError("X35 response gave no answer (refusal)", usage=dict(USAGE))
+
+    def transport_error(question: str, text: str) -> Entailment:
+        calls.append((question, text))
+        raise ConnectionError("no response")
+
+    path = tmp_path / "journal.jsonl"
+    journal = RequestJournal(path)
+    _, wrap_entail = journal.seams({"x35_model": "fake"})
+    for _ in range(EXTRACT_REJECT_CAP + 1):  # responseless failures never reach the cap
+        with pytest.raises(ConnectionError):
+            wrap_entail(transport_error)(QUESTION, WINDOW)
+    for _ in range(EXTRACT_REJECT_CAP):
+        with pytest.raises(xc.X35ResponseError):
+            wrap_entail(billed_refusal)(QUESTION, WINDOW)
+    assert len(calls) == 2 * EXTRACT_REJECT_CAP + 1
+    with pytest.raises(X35FailCapReached) as capped:
+        wrap_entail(billed_refusal)(QUESTION, WINDOW)
+    assert isinstance(capped.value, RuntimeError) and capped.value.failures == EXTRACT_REJECT_CAP
+    assert len(calls) == 2 * EXTRACT_REJECT_CAP + 1  # no live call was made
+    assert wrap_entail(lambda q, t: Entailment("true", 0.9))(QUESTION, WINDOW + " other") == Entailment("true", 0.9)
+
+    reloaded = RequestJournal(path)  # the cap holds on every later load
+    _, wrap_again = reloaded.seams({"x35_model": "fake"})
+    with pytest.raises(X35FailCapReached):
+        wrap_again(billed_refusal)(QUESTION, WINDOW)
+    assert len(calls) == 2 * EXTRACT_REJECT_CAP + 1
+    reloaded.record_release({"keys": [capped.value.key], "all": False, "released_by": "PI", "date": "2026-11-16",
+                             "file_sha256": "f" * 64})
+    assert wrap_again(lambda q, t: Entailment("false", 0.95))(QUESTION, WINDOW) == Entailment("false", 0.95)
+
+
+@pytest.mark.parametrize("key", ["", None])
+def test_lazy_x35_refuses_an_empty_key(key):
+    """Review O2 L2: never an SDK client built with ``api_key=""``."""
+    from g3o.run.presweep import v27_entry
+
+    with pytest.raises(ValueError, match="non-empty Anthropic API key"):
+        v27_entry.LazyX35(key, "claude-haiku-5-5", "stated")  # type: ignore[arg-type]

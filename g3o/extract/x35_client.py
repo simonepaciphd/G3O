@@ -21,7 +21,11 @@ Two points are NOT ruled yet and are gated here by single constants:
   and takes that number. While the constant is None, ``v27_entry.x35_entail_fn`` keeps
   returning the refusing ``support_check.run_entailment`` and no X35 call can be made.
 - :data:`X35_SYSTEM_DRAFT` / :data:`X35_USER_TEMPLATE_DRAFT`: the instrument wording,
-  DRAFT, not approved (needs PI approval).
+  DRAFT, not approved (needs PI approval). Pinned by SHA256 (review O2 M2, as the
+  Stage 6 quote step pins its approved wording): :data:`X35_INSTRUCTION_APPROVED_SHA256`
+  is None until the PI approves a wording; ``v27_entry.x35_entail_fn`` returns the
+  refusing stub unless the probability source is set AND
+  :func:`x35_instruction_sha256` equals that constant. Ruling one point never opens the other.
 
 Key material: the SDK client is injected (``v27_entry.anthropic_sdk_client``,
 ``max_retries=0``); this module never reads, logs or stores a key. ``anthropic`` is
@@ -30,6 +34,7 @@ never imported here.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from typing import Any
@@ -59,6 +64,17 @@ X35_SYSTEM_DRAFT = (
 #: DRAFT — not approved (needs PI approval). The user message of an X35 request; the
 #: question is inserted exactly as given, the text whole.
 X35_USER_TEMPLATE_DRAFT = "<text>\n{text}\n</text>\n\n{question}"
+
+#: UNRULED (review O2 M2): the SHA256 of the approved X35 wording (:func:`x35_instruction_sha256`).
+#: None: no wording is approved, so ``v27_entry.x35_entail_fn`` keeps returning the refusing stub
+#: even once :data:`X35_PROBABILITY_SOURCE` is set. Approving a wording is pinning its hash here.
+X35_INSTRUCTION_APPROVED_SHA256: str | None = None
+
+
+def x35_instruction_sha256(system: str = X35_SYSTEM_DRAFT, user_template: str = X35_USER_TEMPLATE_DRAFT) -> str:
+    """SHA256 (hex) of the X35 wording: ``system + "\\0" + user_template``, UTF-8 encoded."""
+    return hashlib.sha256((system + "\0" + user_template).encode("utf-8")).hexdigest()
+
 
 #: The structured output of an X35 request (``"stated"`` probability source).
 X35_OUTPUT_SCHEMA: dict[str, Any] = {
@@ -163,6 +179,7 @@ class AnthropicX35Client:
 
 __all__ = [
     "X35_EFFORT",
+    "X35_INSTRUCTION_APPROVED_SHA256",
     "X35_MAX_TOKENS",
     "X35_OUTPUT_SCHEMA",
     "X35_PROBABILITY_SOURCE",
@@ -173,4 +190,5 @@ __all__ = [
     "X35ResponseError",
     "parse_entailment",
     "stated_probability",
+    "x35_instruction_sha256",
 ]
