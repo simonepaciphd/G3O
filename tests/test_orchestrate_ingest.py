@@ -365,6 +365,42 @@ def test_a_checkout_at_the_wrong_commit_is_refused(
         )
 
 
+def _v27_run(tmp_path: Path, master: Path) -> tuple[Path, str]:
+    runs_dir = tmp_path / "runs"
+    run_dir = make_run(
+        runs_dir,
+        manifest={"storage_contract": {"codebook_release": "2.7"}},
+        config={"master_csv": str(master), "dry_run": False},
+        events=[event(1, "run_launched"), event(2, "run_completed", outcome="completed")],
+    )
+    write_final_csvs(run_dir)
+    return runs_dir, run_dir.name
+
+
+def test_a_v27_run_is_refused_by_a_loader_without_the_v27_path(
+    tmp_path: Path, master: Path, monkeypatch
+) -> None:
+    runs_dir, run_id = _v27_run(tmp_path, master)
+    repo = _fake_loader_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
+    monkeypatch.setenv(ing.DSN_ENV_VAR, "postgresql://u:p@host/db")
+
+    with pytest.raises(ing.IngestError, match="R-056"):
+        ing.ingest_run(runs_dir, run_id, frame_id='mb-TEST', loader_repo=repo)
+
+
+def test_a_v27_run_passes_the_release_check_with_the_v27_loader(tmp_path: Path, master: Path) -> None:
+    runs_dir, run_id = _v27_run(tmp_path, master)
+    repo = _fake_loader_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
+    (repo / ing.V27_LOADER_RELPATH).write_text("", encoding="utf-8")
+    ing.assert_loader_handles_release(runs_dir / run_id, repo)
+
+
+def test_a_v25_run_needs_no_v27_loader(tmp_path: Path, master: Path) -> None:
+    runs_dir, run_id = _completed_run(tmp_path, master)
+    repo = _fake_loader_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
+    ing.assert_loader_handles_release(runs_dir / run_id, repo)
+
+
 def test_a_directory_without_the_loader_is_not_a_checkout(tmp_path: Path) -> None:
     with pytest.raises(ing.IngestError, match="not a g3o-api checkout"):
         ing.resolve_loader_repo(tmp_path)
