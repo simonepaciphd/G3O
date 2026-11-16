@@ -70,11 +70,25 @@ def test_every_row_item_is_produced_or_refused_exactly_once():
     assert set(srow.PRODUCED_ACTIVITY_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) == act
     assert not set(srow.PRODUCED_ACTIVITY_ITEMS) & set(srow.REFUSED_ACTIVITY_ITEMS)
     # The same item sets produce_page fills from row values (classifier items come from the coders).
-    assert src == {i for i in pp.SOURCE_ITEMS if FIELDS[i]["coder"] != "classifier" or i == pp.T015_CLASSIFIER}
+    assert src == {i for i in pp.SOURCE_ROW_ITEMS if FIELDS[i]["coder"] != "classifier" or i == pp.T015_CLASSIFIER}
     assert act == {i for i in pp.ACTIVITY_ITEMS if FIELDS[i]["coder"] != "classifier"} - {"core.uncertainty_flags"}
 
 
-STAGE6_ONLY = {"core.stage_as_of", "core.date_upper_bound", "core.vendor_claim_only", "core.cx_display_rollup"}
+def test_source_confidence_leaves_the_per_page_row_ruling_140():
+    """PI ruling 140 (gate 3): Stage 6 is the producer of core.confidence and the per-page assembler stops
+    refusing it: it is neither produced nor refused per page and no longer blocks entry."""
+    assert set(srow.STAGE6_SOURCE_ITEMS) == {sf.CONFIDENCE}
+    assert sf.CONFIDENCE not in srow.REFUSED_SOURCE_ITEMS and sf.CONFIDENCE not in srow.PRODUCED_SOURCE_ITEMS
+    assert sf.CONFIDENCE not in srow.unproduced_items() and sf.CONFIDENCE not in srow.entry_refused_items()
+    assert sf.CONFIDENCE not in srow.source_row_items() and sf.CONFIDENCE not in pp.SOURCE_ROW_ITEMS
+    assert sf.CONFIDENCE in pp.SOURCE_ITEMS  # still a sources-table item, filled by Stage 6
+    assert sf.CONFIDENCE not in pin.VALUES_MISSING
+    rows = srow.assemble(_page(), FIELDS_P1, NOGENAI, {}, followed=False)
+    assert sf.CONFIDENCE not in rows.refused and sf.CONFIDENCE not in rows.stops
+    assert sf.CONFIDENCE not in rows.source
+
+
+STAGE6_ONLY ={"core.stage_as_of", "core.date_upper_bound", "core.vendor_claim_only", "core.cx_display_rollup"}
 
 
 def test_stage6_only_items_leave_the_per_page_rows_ruling_94a():

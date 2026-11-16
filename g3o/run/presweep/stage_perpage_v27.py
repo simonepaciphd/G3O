@@ -286,6 +286,9 @@ FAILED_PAGE_SUPPORT = "not_asked"  # R-045: no support check ran on a page that 
 ACTIVITY_ITEMS = (frozenset(table_fields("activities")) - {"core.n_sources", "core.confidence"} - set(METADATA_ITEMS)
                   - set(srow.STAGE6_ACTIVITY_ITEMS))
 SOURCE_ITEMS = frozenset(table_fields("sources")) - set(METADATA_ITEMS)
+#: The items a per-page source row must carry. PI ruling 140 (gate 3): Stage 6 alone produces
+#: :data:`~g3o.run.presweep.source_row_v27.STAGE6_SOURCE_ITEMS` (``core.confidence``) and fills it there.
+SOURCE_ROW_ITEMS = SOURCE_ITEMS - set(srow.STAGE6_SOURCE_ITEMS)
 PRODUCED_CODERS = frozenset({"classifier"})
 T015_CLASSIFIER = "core.source_type"  # a classifier item T-015 owns: an upstream value and code
 
@@ -1132,7 +1135,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
             produced_a[uf.ITEM] = [uf.STAGE_AMBIGUOUS] if uf.stage_ambiguous(stage_answers[aid]) else []
         produced_s = {**{k: v for k, v in page_values.items() if k in SOURCE_ITEMS},
                       **{k: v for k, v in act_values.items() if k in SOURCE_ITEMS}}
-        units = [(produced_s, up.source_values[aid], SOURCE_ITEMS, s_row)]
+        units = [(produced_s, up.source_values[aid], SOURCE_ROW_ITEMS, s_row)]
         if oid is not None:
             units.insert(0, (produced_a, up.activity_values[aid], ACTIVITY_ITEMS, a_row))
         for produced, given, table, row in units:
