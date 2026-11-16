@@ -28,6 +28,18 @@ priced at batch rates (130 a). The waves end when a wave queues nothing, or afte
 A deferred page does not stop the other pages of its institution in that wave. A request over the
 per-request byte guard is never batched: it is sent live (:func:`too_big_for_batch`).
 
+Bounded chunks. The requests queued in a wave are not all held until its end: once the requests held in
+memory reach :data:`DEFAULT_CHUNK_MAX_BYTES` or :data:`DEFAULT_CHUNK_MAX_REQUESTS` (constructor
+``chunk_max_bytes`` / ``chunk_max_requests``), they are submitted as a batch mid-wave, journaled exactly
+as at the end of a wave, and their bodies are dropped from memory once the ``submit_intent`` is written
+(this process never sends them again). The end of the wave submits the remainder. Both budgets stay well
+below the Message Batches limits (:data:`~g3o.extract.anthropic_client.BATCH_MAX_REQUESTS`,
+:data:`~g3o.extract.anthropic_client.BATCH_MAX_BYTES`). A mid-wave submission that fails is not raised
+into the stage (the stage would take it for an extractor failure): the rest of the wave journals its
+requests as queued without holding their bodies or submitting anything, and :func:`run_waves` raises the
+failure after the stage pass, where an end-of-wave failure is raised; an unacknowledged intent then stops
+the next run (:class:`BatchSubmitUnacknowledged`), as before.
+
 Durability (a crash at any point neither double-spends nor loses a result). The run-level batch
 journal ``<run>/perpage_v27_batches/batches.jsonl`` is append-only and fsynced:
 
@@ -87,6 +99,15 @@ DEFAULT_POLL_SECONDS = 60.0
 #: waves of one invocation before :func:`run_waves` stops (procedural default; each wave sends a
 #: request at most once, so a run needs one wave per sequential batched step of a page, plus one)
 DEFAULT_MAX_WAVES = 50
+#: mid-wave chunk budget: queued request bytes (serialized ``params``, as ``split_for_batches`` counts
+#: them) held in memory before they are submitted as one batch. Procedural default, well below the
+#: Message Batches limit of 256 MB per batch (``BATCH_MAX_BYTES`` keeps 200 MB; Anthropic docs:
+#: https://docs.claude.com/en/docs/build-with-claude/batch-processing): a wave of ~81,000 ~60 KB page
+#: requests becomes ~75 batches of ~1,100 requests instead of one batch held whole in memory.
+DEFAULT_CHUNK_MAX_BYTES = 64 * 1024 * 1024
+#: mid-wave chunk budget: queued requests per batch (procedural default, well below the 100,000
+#: requests per batch of the same docs, ``BATCH_MAX_REQUESTS``)
+DEFAULT_CHUNK_MAX_REQUESTS = 10_000
 
 #: first-round custom ids: the T-022 pass-1 page request (``x27-`` + 48 hex) and the T-032
 #: pass-2 page request (``x27s-`` + 48 hex); follow-ups carry a ``-x`` / ``-a`` suffix (46 a, 49 a, 87 c)
@@ -192,6 +213,10 @@ class _Store:
     #: request hash -> stored results, in collection order (each with its ``batch_id``)
     results: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     _seen_results: set[tuple[str, str]] = field(default_factory=set)  # (batch_id, custom_id)
+    #: keys of every unacknowledged or in-flight submission, kept up to date by :meth:`apply` (review of
+    #: c9f2356, M: rebuilding it on every call was quadratic in the wave once chunks go out mid-wave)
+    _flying: set[str] = field(default_factory=set)
+    _seq_of_batch: dict[str, int] = field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path) -> _Store:
@@ -228,11 +253,17 @@ class _Store:
             self.intents[entry["seq"]] = [list(p) for p in entry["requests"]]
             for _cid, key in entry["requests"]:
                 self.queued.pop(key, None)
+                self._flying.add(key)
         elif kind == "submitted":
             self.submitted[entry["seq"]] = entry["batch_id"]
             if entry["batch_id"] is None:  # none created: its requests may be queued again
                 for cid, key in self.intents.get(entry["seq"], []):
                     self.queued.setdefault(key, cid)
+                    self._flying.discard(key)
+            else:
+                self._seq_of_batch[entry["batch_id"]] = entry["seq"]
+                if entry["batch_id"] in self.collected:  # never in journal order; kept consistent anyway
+                    self._land(entry["batch_id"])
         elif kind == "result":
             pair = (entry["batch_id"], entry["custom_id"])
             if pair not in self._seen_results:
@@ -240,6 +271,14 @@ class _Store:
                 self.results.setdefault(entry["key"], []).append(entry["result"])
         elif kind == "collected":
             self.collected.add(entry["batch_id"])
+            self._land(entry["batch_id"])
+
+    def _land(self, batch_id: str) -> None:
+        """A collected batch's requests are no longer in flight."""
+        seq = self._seq_of_batch.get(batch_id)
+        if seq is not None:
+            for _cid, key in self.intents.get(seq, []):
+                self._flying.discard(key)
 
     def append(self, entry: Mapping[str, Any]) -> None:
         _write_line(self.path, entry)
@@ -253,6 +292,11 @@ class _Store:
                       and bid not in self.collected)
 
     def in_flight_keys(self) -> set[str]:
+        """Keys of every unacknowledged or in-flight (submitted, not collected) submission, kept by
+        :meth:`apply` (O(1) per call); :meth:`in_flight_keys_rebuilt` is the definition it must equal."""
+        return self._flying
+
+    def in_flight_keys_rebuilt(self) -> set[str]:
         flying = {seq for seq, _ in self.in_flight()} | set(self.unacknowledged())
         return {key for seq in flying for _cid, key in self.intents.get(seq, [])}
 
@@ -270,15 +314,34 @@ class BatchExtractor:
     (:class:`~g3o.extract.anthropic_client.AnthropicExtractorClient`)."""
 
     def __init__(self, run_dir: Path, live_fn: Callable[[Any], Any], batch_client: Any, mode: str = MIX, *,
-                 poll_seconds: float = DEFAULT_POLL_SECONDS, sleep: Callable[[float], None] = time.sleep) -> None:
+                 poll_seconds: float = DEFAULT_POLL_SECONDS, sleep: Callable[[float], None] = time.sleep,
+                 chunk_max_bytes: int = DEFAULT_CHUNK_MAX_BYTES,
+                 chunk_max_requests: int = DEFAULT_CHUNK_MAX_REQUESTS) -> None:
+        from g3o.extract.anthropic_client import (
+            BATCH_MAX_BYTES,
+            BATCH_MAX_REQUESTS,
+            DEFAULT_MAX_REQUEST_BYTES,
+        )
+
         self.mode = require_mode(mode)
         if mode != NO_BATCH and batch_client is None:
             raise BatchClientMissing(f"extractor mode {mode!r} needs a batch client (submit, poll, results)")
+        if not DEFAULT_MAX_REQUEST_BYTES <= chunk_max_bytes <= BATCH_MAX_BYTES:
+            raise ValueError(f"chunk_max_bytes must lie between the per-request guard ({DEFAULT_MAX_REQUEST_BYTES})"
+                             f" and the per-batch limit ({BATCH_MAX_BYTES}), got {chunk_max_bytes}")
+        if not 1 <= chunk_max_requests <= BATCH_MAX_REQUESTS:
+            raise ValueError(f"chunk_max_requests must lie between 1 and {BATCH_MAX_REQUESTS}, "
+                             f"got {chunk_max_requests}")
         self.run_dir, self.live_fn, self.batch_client = Path(run_dir), live_fn, batch_client
         self.poll_seconds, self.sleep = poll_seconds, sleep
+        self.chunk_max_bytes, self.chunk_max_requests = chunk_max_bytes, chunk_max_requests
         self.store = _Store.load(batch_journal_path(run_dir))
-        self._jobs: dict[str, Any] = {}  # request hash -> job queued in this process (params kept in memory)
+        self._jobs: dict[str, Any] = {}  # request hash -> job held for the next chunk (params kept in memory)
+        self._jobs_bytes = 0  # serialized params bytes held in ``_jobs`` (the chunk budget)
+        self._wave_cids: dict[str, str] = {}  # custom_id -> request hash queued this wave (no bodies)
         self._sent: set[str] = set()  # request hashes submitted by this process (once per invocation)
+        self._mid_wave_batches = 0  # batches submitted mid-wave since the last end-of-wave submit()
+        self._submit_error: Exception | None = None  # a failed mid-wave submission, raised by run_waves
         self.batches_submitted = 0
         self.results_collected = 0
 
@@ -315,13 +378,37 @@ class BatchExtractor:
             return self.live_fn(job)
         if key in self._sent:  # sent once by this invocation and answered: asked again on the next run
             raise BatchDeferred(job.custom_id, key, "sent this run; asked again on the next run")
-        clash = next((k for k, j in self._jobs.items() if j.custom_id == job.custom_id and k != key), None)
-        if clash is not None:  # one custom_id per batch: the second request waits for the next wave
+        clash = self._wave_cids.get(job.custom_id)
+        if clash is not None and clash != key:  # one custom_id per wave: the second request waits for the next
             raise BatchDeferred(job.custom_id, key, "custom_id already queued in this wave")
+        if key in self._jobs:
+            raise BatchDeferred(job.custom_id, key, "queued")
+        from g3o.extract.anthropic_client import params_bytes
+
+        size = params_bytes(job.params)
+        if self._jobs and self._submit_error is None and (
+                len(self._jobs) >= self.chunk_max_requests or self._jobs_bytes + size > self.chunk_max_bytes):
+            self._flush_chunk()  # the held chunk is full: submitted now, its bodies dropped
         if key not in self.store.queued:
             self.store.append({"kind": "queued", "key": key, "custom_id": job.custom_id})
+        self._wave_cids[job.custom_id] = key
+        if self._submit_error is not None:
+            # a mid-wave submission failed: journaled as queued (known not sent) but neither held nor sent;
+            # run_waves raises the failure after this pass and the next run asks it again
+            raise BatchDeferred(job.custom_id, key, "queued; a submission failed this wave")
         self._jobs[key] = job
+        self._jobs_bytes += size
         raise BatchDeferred(job.custom_id, key, "queued")
+
+    def _flush_chunk(self) -> None:
+        """Submit the held chunk mid-wave. A failure is kept for :func:`run_waves` (never raised into the
+        stage, which would take it for an extractor failure); a process death (BaseException) propagates."""
+        try:
+            self._mid_wave_batches += len(self._submit_queued())
+        except Exception as exc:  # noqa: BLE001 - re-raised by run_waves after the stage pass
+            _log.error("per-page stage: a mid-wave Message Batch submission failed (%s); the rest of the wave "
+                       "is journaled as queued and not sent", exc)
+            self._submit_error = exc
 
     def live_call(self, job: Any) -> Any:
         """A PI-released re-ask: always live (its ``reask_spent`` marker is already journaled)."""
@@ -332,6 +419,16 @@ class BatchExtractor:
     def pending(self) -> int:
         """Requests queued by this process and not yet submitted."""
         return sum(1 for k in self._jobs if k in self.store.queued)
+
+    def queued_this_wave(self) -> bool:
+        """Whether this wave queued anything: requests still held, or chunks already submitted mid-wave."""
+        return bool(self.pending() or self._mid_wave_batches)
+
+    def raise_submit_error(self) -> None:
+        """Raise a failed mid-wave submission (after the stage pass, where an end-of-wave failure is raised)."""
+        if self._submit_error is not None:
+            exc, self._submit_error = self._submit_error, None
+            raise exc
 
     def settle(self) -> None:
         """Before a wave: stop on an unacknowledged submission, then poll and collect every batch in flight."""
@@ -363,14 +460,21 @@ class BatchExtractor:
         self.store.append({"kind": "collected", "batch_id": batch_id})
 
     def submit(self, max_requests: int | None = None) -> list[str]:
-        """Submit the requests queued by this process (intent first, then the batch, then its id)."""
+        """End of a wave: submit the requests still held (intent first, then the batch, then its id)."""
+        try:
+            return self._submit_queued(max_requests)
+        finally:
+            self._wave_cids.clear()
+            self._mid_wave_batches = 0
+
+    def _submit_queued(self, max_requests: int | None = None) -> list[str]:
         from g3o.extract.anthropic_client import split_for_batches
 
         jobs = [j for k, j in self._jobs.items() if k in self.store.queued]
         if not jobs:
             return []
-        kwargs = {} if max_requests is None else {"max_requests": max_requests}
-        groups, refused = split_for_batches(jobs, **kwargs)
+        cap = self.chunk_max_requests if max_requests is None else min(max_requests, self.chunk_max_requests)
+        groups, refused = split_for_batches(jobs, max_requests=cap, max_bytes=self.chunk_max_bytes)
         if refused:  # never queued (__call__ sends such a request live): a wiring error, before any batch
             raise ValueError(f"{len(refused)} extractor request(s) exceed the batch byte guard: "
                              f"{[j.custom_id for j in refused]}")
@@ -379,14 +483,25 @@ class BatchExtractor:
             seq = max([*self.store.intents, 0]) + 1
             pairs = [[j.custom_id, request_hash(j)] for j in group]
             self.store.append({"kind": "submit_intent", "seq": seq, "requests": pairs})
-            batch_id = self.batch_client.submit_batch(list(group))
+            try:
+                batch_id = self.batch_client.submit_batch(list(group))
+            finally:
+                # once the intent is journaled this process never sends these again (an unacknowledged
+                # intent stops the next run): their bodies are dropped from memory, sent or not
+                self._release(pairs)
             self.store.append({"kind": "submitted", "seq": seq, "batch_id": batch_id})
             self._sent.update(key for _cid, key in pairs)
-            for _cid, key in pairs:
-                self._jobs.pop(key, None)
             self.batches_submitted += 1
             ids.append(batch_id)
         return ids
+
+    def _release(self, pairs: list[list[str]]) -> None:
+        from g3o.extract.anthropic_client import params_bytes
+
+        for _cid, key in pairs:
+            job = self._jobs.pop(key, None)
+            if job is not None:
+                self._jobs_bytes -= params_bytes(job.params)
 
 
 def run_waves(extractor: BatchExtractor | None, stage_pass: Callable[[], Any], *,
@@ -406,7 +521,8 @@ def run_waves(extractor: BatchExtractor | None, stage_pass: Callable[[], Any], *
     for _ in range(max_waves):
         extractor.settle()
         out = stage_pass()
-        if not extractor.pending():
+        extractor.raise_submit_error()  # a mid-wave submission failed: the run stops, as at the end of a wave
+        if not extractor.queued_this_wave():
             return out
         extractor.submit()
     _log.warning("per-page stage: wave cap (%d) reached with batched extractor requests pending; their "
@@ -419,7 +535,7 @@ def has_batch_journal(run_dir: Path) -> bool:
 
 
 __all__ = ["ALL_BATCH", "BATCH_DIR", "BATCH_JOURNAL", "BATCH_PENDING", "DEFAULT_EXTRACTOR_MODE",
-           "DEFAULT_MAX_WAVES", "DEFAULT_POLL_SECONDS", "EXTRACTOR_MODES", "MIX", "NO_BATCH", "BatchClientMissing",
+           "DEFAULT_CHUNK_MAX_BYTES", "DEFAULT_CHUNK_MAX_REQUESTS", "DEFAULT_MAX_WAVES", "DEFAULT_POLL_SECONDS", "EXTRACTOR_MODES", "MIX", "NO_BATCH", "BatchClientMissing",
            "BatchDeferred", "BatchExtractor", "BatchResultsIncomplete", "BatchSubmitUnacknowledged",
            "batch_journal_path", "has_batch_journal", "is_first_round", "record_submit_outcome", "request_hash",
            "require_mode", "run_waves", "too_big_for_batch"]
