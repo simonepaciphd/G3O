@@ -428,13 +428,20 @@ def test_unconfirmed_group_is_not_an_activity_row_and_its_relations_are_not_stor
     assert rels and all("o9" not in (r["lhs_observation_id"], r["rhs_observation_id"]) for r in rels)
 
 
+def _source_confidence(monkeypatch, given):
+    """PI Q162 b: Stage 6 is the only producer of a reviewed source row's core.confidence and refuses a
+    pre-filled one, so a test that needs given source grades replaces the producer (``source_confidence_of``,
+    which ``with_source_confidence`` calls) for those rows; the other rows keep the real rule."""
+    real = rt.source_confidence_of
+    monkeypatch.setattr(rt, "source_confidence_of", lambda inst, sid: given[sid] if sid in given else real(inst, sid))
+
+
 @pytest.mark.parametrize("groups, expected", [({"S1": "g1", "S2": "g2"}, "high"), ({"S1": "g1", "S2": "g1"}, "medium")])
-def test_activity_confidence_reads_every_source_claim_of_the_activity(tmp_path, groups, expected):
+def test_activity_confidence_reads_every_source_claim_of_the_activity(tmp_path, monkeypatch, groups, expected):
     # X3 a (ii): two medium claims; independent -> high, one group -> medium (both claims counted)
     run_dir, bound, instrument = e._setup(tmp_path)
     a, _ = e._institutions(run_dir, bound, instrument)
-    for sid in ("S1", "S2"):
-        a.sources[sid]["values"]["core.confidence"] = "medium"
+    _source_confidence(monkeypatch, {"S1": "medium", "S2": "medium"})
     a = replace(a, independence_groups={**a.independence_groups, **groups})
     assert _run(run_dir, bound, instrument, [a], e.FakeQuotes()).written == [A]
     merged = next(x for x in _storage(run_dir)["activities"].values() if x["observation_ids"] == ["o1", "o2"])
@@ -442,14 +449,13 @@ def test_activity_confidence_reads_every_source_claim_of_the_activity(tmp_path, 
 
 
 @pytest.mark.parametrize("same, expected", [(False, "high"), (True, "medium")])
-def test_independence_groups_produced_from_source_rows_when_not_injected(tmp_path, same, expected):
+def test_independence_groups_produced_from_source_rows_when_not_injected(tmp_path, monkeypatch, same, expected):
     # PI A7.1 b / A7.2 a: no injected groups -> produced from syndication group + normalised URL
     run_dir, bound, instrument = e._setup(tmp_path)
     a, _ = e._institutions(run_dir, bound, instrument)
     for sid in a.sources:
         a.sources[sid]["values"]["core.syndication_group"] = f"sg-{sid}"
-    for sid in ("S1", "S2"):
-        a.sources[sid]["values"]["core.confidence"] = "medium"
+    _source_confidence(monkeypatch, {"S1": "medium", "S2": "medium"})
     if same:
         a.sources["S2"]["values"]["core.syndication_group"] = "sg-S1"
     a = replace(a, independence_groups=None)
@@ -470,7 +476,7 @@ def test_independence_groups_refused_when_a_syndication_group_is_missing(tmp_pat
 
 
 @pytest.mark.parametrize("joined, expected", [(False, "high"), (True, "medium")])
-def test_independence_groups_join_through_a_source_the_activity_does_not_cite(tmp_path, joined, expected):
+def test_independence_groups_join_through_a_source_the_activity_does_not_cite(tmp_path, monkeypatch, joined, expected):
     # PI ruling A7 12 a: groups span all of the institution's source rows. The merged activity
     # (o1, o2) cites S1 and S2, which share no key; S3 and S4 (cited by o3 / o4) share the p3 URL.
     # With S3 sharing S1's syndication group and S4 sharing S2's, S1..S4 are one group.
@@ -479,8 +485,7 @@ def test_independence_groups_join_through_a_source_the_activity_does_not_cite(tm
     syn = {"S1": "sg-A", "S2": "sg-B", "S3": "sg-A", "S4": "sg-B"} if joined else         {"S1": "sg-A", "S2": "sg-B", "S3": "sg-C", "S4": "sg-D"}
     for sid, gid in syn.items():
         a.sources[sid]["values"]["core.syndication_group"] = gid
-    for sid in ("S1", "S2"):
-        a.sources[sid]["values"]["core.confidence"] = "medium"
+    _source_confidence(monkeypatch, {"S1": "medium", "S2": "medium"})
     a = replace(a, independence_groups=None)
     groups = rt.independence_groups_of(a)
     assert (groups["S1"] == groups["S2"]) is joined
@@ -493,15 +498,14 @@ def test_independence_groups_join_through_a_source_the_activity_does_not_cite(tm
     assert merged["values"]["core.n_sources"] == 2 and merged["values"]["core.confidence"] == expected
 
 
-def test_injected_independence_groups_win_over_the_producer(tmp_path):
+def test_injected_independence_groups_win_over_the_producer(tmp_path, monkeypatch):
     # PI ruling A7 14: an injected mapping is used as given. The producer would put S1 and S2 in
     # different groups (-> high); the injected mapping joins them (-> medium).
     run_dir, bound, instrument = e._setup(tmp_path)
     a, _ = e._institutions(run_dir, bound, instrument)
     for sid in a.sources:
         a.sources[sid]["values"]["core.syndication_group"] = f"sg-{sid}"
-    for sid in ("S1", "S2"):
-        a.sources[sid]["values"]["core.confidence"] = "medium"
+    _source_confidence(monkeypatch, {"S1": "medium", "S2": "medium"})
     produced = rt.independence_groups_of(replace(a, independence_groups=None))
     assert produced["S1"] != produced["S2"]
     a = replace(a, independence_groups={sid: "g-same" for sid in a.sources})
@@ -531,11 +535,11 @@ def test_independence_groups_refused_when_no_activity_is_published(tmp_path):
 
 
 def test_source_row_without_confidence_gets_it_from_stage6_ruling_140(tmp_path):
-    # PI ruling 140 (gate 3): Stage 6 is the producer of the source row's core.confidence. A source row
-    # without it is no longer malformed: Stage 6 fills it (source_confidence_of) and publishes.
+    # PI ruling 140 (gate 3) / Q162 b: Stage 6 is the only producer of the source row's core.confidence. The
+    # fixture's reviewed rows carry none; Stage 6 fills it (source_confidence_of) and publishes.
     run_dir, bound, instrument = e._setup(tmp_path)
     a, b = e._institutions(run_dir, bound, instrument)
-    del a.sources["S1"]["values"]["core.confidence"]
+    assert all("core.confidence" not in row["values"] for row in a.sources.values())
     expected = rt.source_confidence_of(a, "S1")
     assert expected in {"high", "medium", "low", "unknown"}
     assert A in _run(run_dir, bound, instrument, [a, b], e.FakeQuotes()).written
@@ -568,7 +572,8 @@ def test_stage6_produces_source_confidence_from_page_and_activity_records_ruling
                "observation_ids": ["o1"]},
         "S2": {"values": {"core.source_credibility": "high"}, "item_support": page_level,
                "observation_ids": ["o2"]},
-        "S3": {"values": {"core.source_credibility": "high", "core.confidence": "not_asked"},
+        "S3": {"values": {"core.source_credibility": "high", "core.confidence": "not_asked",
+                          "core.page_review_state": "fetch_failed"},  # an unreviewed follow row (96 a / 102 a)
                "item_support": [], "observation_ids": []},
     }
     fragments = {
@@ -582,11 +587,64 @@ def test_stage6_produces_source_confidence_from_page_and_activity_records_ruling
     assert rt.source_confidence_of(inst, "S2") == "low"  # its own activity's failed check (C7 a)
     filled = rt.with_source_confidence(inst)
     assert {s: r["values"]["core.confidence"] for s, r in filled.sources.items()} == \
-        {"S1": "medium", "S2": "low", "S3": "not_asked"}  # S3: a given value is kept
+        {"S1": "medium", "S2": "low", "S3": "not_asked"}  # S3: the unreviewed row keeps not_asked (Q162 b exception)
     assert "core.confidence" not in inst.sources["S1"]["values"]  # inputs are not mutated
     # A page-level failure lowers every source row of the page.
     sources["S1"]["item_support"] = [_fake_node("core.page_verdict", "confirms_activity", "downgraded_no_quote")]
     assert rt.source_confidence_of(_fake_institution(sources, fragments), "S1") == "low"
+
+
+def test_with_source_confidence_refuses_a_prefilled_reviewed_row_and_keeps_only_not_asked_unreviewed_q162b():
+    """PI ruling Q162 b: Stage 6 always computes a reviewed row's core.confidence and is its only producer,
+    so a value already on a reviewed row is refused (a wiring error, ruling 32 b); the exception is an
+    unreviewed follow row, which keeps the not_asked set by rule (96 a / 102 a) and nothing else."""
+    page_level = [_fake_node("core.page_verdict", "confirms_activity")]
+
+    def inst(s1_values, s3_values):
+        sources = {"S1": {"values": {"core.source_credibility": "medium", **s1_values}, "item_support": page_level,
+                          "observation_ids": []},
+                   "S3": {"values": {"core.source_credibility": "high", "core.page_review_state": "fetch_failed",
+                                     **s3_values}, "item_support": [], "observation_ids": []}}
+        return _fake_institution(sources, {})
+
+    # A clean reviewed row: computed by rules/1 (all checks passed -> the credibility, medium).
+    filled = rt.with_source_confidence(inst({}, {"core.confidence": "not_asked"}))
+    assert {s: r["values"]["core.confidence"] for s, r in filled.sources.items()} == {"S1": "medium", "S3": "not_asked"}
+    for given in ("high", "medium", "not_asked"):  # any pre-filled value on a reviewed row, even the computed one
+        with pytest.raises(rt.UpstreamRowMalformed, match=r"core\.confidence is pre-filled") as info:
+            rt.with_source_confidence(inst({"core.confidence": given}, {"core.confidence": "not_asked"}))
+        assert info.value.field == "core.confidence" and "S1" in info.value.where
+    for s3 in ({"core.confidence": "high"}, {}):  # unreviewed: not_asked only, never computed
+        with pytest.raises(rt.UpstreamRowMalformed, match="not the not_asked set by rule") as info:
+            rt.with_source_confidence(inst({}, s3))
+        assert "S3" in info.value.where
+
+
+def test_reviewed_source_row_with_prefilled_confidence_stops_the_stage_q162b(tmp_path):
+    # PI ruling Q162 b: a pre-filled core.confidence on a reviewed source row reaching Stage 6 is a wiring
+    # error (ruling 32 b): the stage stops, naming the institution and the field; nothing is held or written.
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    a.sources["S1"]["values"]["core.confidence"] = "high"
+    with pytest.raises(rt.UpstreamRowMalformed, match=r"INST-\S+: core\.confidence is pre-filled") as info:
+        _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+    assert info.value.institution_id == A and info.value.field == "core.confidence"
+    assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
+    assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in (A, B))
+
+
+def test_prefilled_confidence_on_a_later_institution_stops_before_any_call_q162b(tmp_path):
+    # Review of 2112589 (M): every row is checked before the first call, so a pre-filled value on B stops
+    # the stage before A is asked or quoted (no spend on A, nothing written).
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    sid = next(s for s, row in b.sources.items() if not rt.unreviewed_source(row))
+    b.sources[sid]["values"]["core.confidence"] = "high"
+    jev, quotes = e.FakeJev(e.RELATIONS, e._pooled_answers()), e.FakeQuotes()
+    with pytest.raises(rt.UpstreamRowMalformed, match=r"core\.confidence is pre-filled") as info:
+        _run(run_dir, bound, instrument, [a, b], quotes, jev=jev)
+    assert info.value.institution_id == B and quotes.calls == 0 and jev.calls == []
+    assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in (A, B))
 
 
 def test_source_row_without_credibility_stops_the_stage(tmp_path):
@@ -595,7 +653,7 @@ def test_source_row_without_credibility_stops_the_stage(tmp_path):
     # naming the institution and the field; nothing is held or written.
     run_dir, bound, instrument = e._setup(tmp_path)
     a, b = e._institutions(run_dir, bound, instrument)
-    del a.sources["S1"]["values"]["core.confidence"]
+    assert "core.confidence" not in a.sources["S1"]["values"]  # Q162 b: reviewed fixture rows carry none
     del a.sources["S1"]["values"]["core.source_credibility"]
     with pytest.raises(rt.UpstreamRowMalformed, match=r"INST-\S+: 'core.source_credibility' is missing") as info:
         _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
