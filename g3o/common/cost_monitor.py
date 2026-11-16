@@ -908,11 +908,13 @@ class CostMonitor:
 # v2.7 stage pricing (RC-D-021 procedural: the cost_monitor hunks; PI ruling 1 a)
 # ---------------------------------------------------------------------------
 
-#: UNRULED (Q158; recommendation a: price X35 at the ``x35_model`` rate row's standard
-#: rates for live calls, batch rates if ever batched, per request from journaled usage).
-#: While False the X35 part stays in :data:`V27_UNPRICED_PARTS`. Ruling it is this one line.
-X35_PRICING_RULED = False  # Q158
-#: The reason the X35 part is unpriced while :data:`X35_PRICING_RULED` is False.
+#: RULED (PI ruling Q158 a, 2026-11-16): X35 calls are priced at the ``x35_model`` rate row
+#: (``claude-haiku-5-5``, PI ruling 139 a) at standard rates for live calls and at batch
+#: rates if they are ever batched (the 130 a rule), each from its own journaled usage (as
+#: 58 a does for the extractor; :func:`price_x35_requests`). With it True the X35 part is
+#: not in :data:`V27_UNPRICED_PARTS`. False would put it back there, unpriced.
+X35_PRICING_RULED = True  # Q158 a
+#: The reason the X35 part would be unpriced were :data:`X35_PRICING_RULED` False.
 X35_PRICING_PENDING = (
     "X35 is bound (PI ruling 139 a: claude-haiku-5-5 behind the pinned x35_model) and its "
     "per-request usage is journaled, but its pricing awaits Q158: not priced"
@@ -1027,14 +1029,17 @@ X35_USAGE_MISSING = (
 
 
 def price_x35_requests(usages: list[dict[str, Any] | None], *, model: str) -> dict[str, Any]:
-    """Price X35 calls one request at a time (Q158 recommendation a; applied only once ruled).
+    """Price X35 calls one request at a time (PI ruling Q158 a).
 
     Each element is one journaled X35 response's own ``usage``
-    (:meth:`RequestJournal.x35_usages`). X35 calls are live (one synchronous
+    (:meth:`RequestJournal.x35_usages`). X35 calls are live today (one synchronous
     ``messages.create`` per question), so each is priced at the ``model`` rate row's
     STANDARD rates with the long-prompt tier per request, by the same arithmetic as
-    :func:`price_extractor_requests`. A call without usage is counted in
-    ``unpriced_calls`` and makes ``usd`` ``None``.
+    :func:`price_extractor_requests`; a usage marked :data:`EXTRACTOR_BATCH_KEY` (none is
+    today: X35 is never batched) would be priced at that row's batch rates (Q158 a, the
+    130 a rule). A call without usage is counted in ``unpriced_calls`` and makes ``usd``
+    ``None``. A call that died with no response is not priced (Q163 c / 131.1 b:
+    :meth:`RequestJournal.x35_usages` skips it).
     """
     out = price_extractor_requests(usages, model=model)
     if out.get("reason") == EXTRACTOR_USAGE_MISSING:
@@ -1059,10 +1064,10 @@ def price_v27_usage(
     is synchronous; RS-031 names jev-1.13.0). The extractor part is priced per request
     from ``extractor_usages`` (:func:`price_extractor_requests`; rulings 130 a, 58 a:
     live calls at standard rates, the long-prompt tier per request); given totals
-    only, it is unpriced. The X35 part is unpriced while it is in
-    :data:`V27_UNPRICED_PARTS` (:data:`X35_PRICING_RULED` False: Q158); once ruled it is
-    priced per request from ``x35_usages`` on ``x35_model`` (:func:`price_x35_requests`),
-    and given totals only it stays unpriced.
+    only, it is unpriced. The X35 part is priced per request from ``x35_usages`` on
+    ``x35_model`` (:func:`price_x35_requests`; PI ruling Q158 a); given totals only it
+    stays unpriced, and it is unpriced outright if it is ever put back in
+    :data:`V27_UNPRICED_PARTS` (:data:`X35_PRICING_RULED` False).
 
     The figures cover journaled calls only: a call sent that died without a response
     (e.g. a read timeout) is neither journaled nor priced (PI ruling 131.1 b), and a
@@ -1097,13 +1102,13 @@ def price_v27_usage(
             "reason": "journal totals only: the extractor is priced per request (ruling 58 a)",
         }
     x35_calls = n("x35_calls") + n("x35_failed")
-    if "x35" in V27_UNPRICED_PARTS:  # Q158 unruled (X35_PRICING_RULED)
+    if "x35" in V27_UNPRICED_PARTS:  # only if X35_PRICING_RULED is False (ruled True: Q158 a)
         x35: dict[str, Any] = {"calls": x35_calls, "usd": None, "reason": V27_UNPRICED_PARTS["x35"]}
     elif x35_usages is not None and x35_model is not None:
         x35 = price_x35_requests(x35_usages, model=x35_model)
     else:
         x35 = {"calls": x35_calls, "usd": None,
-               "reason": "journal totals only: X35 is priced per request (Q158 a)"}
+               "reason": "journal totals only: X35 is priced per request (PI ruling Q158 a)"}
     parts: dict[str, dict[str, Any]] = {
         "jev": {
             "model": jev_model, "calls": jev_calls, "input_tokens": jev_in,

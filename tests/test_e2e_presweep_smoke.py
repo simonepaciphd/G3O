@@ -997,7 +997,7 @@ def test_v27_launch_builds_the_real_providers_and_runs_to_stage6_without_the_fol
     # The extractor: the anthropic SDK module.
     extractor: dict[str, list[Any]] = {"clients": [], "max_retries": [], "params": []}
     monkeypatch.setitem(sys.modules, "anthropic", _v27_fake_anthropic_module(extractor))
-    # The X35 client (bound, ruling 139 a, but gated on X35_PROBABILITY_SOURCE; the real entry refuses).
+    # The X35 client (bound, ruling 139 a, but gated on the Q160 wording hash; the real entry refuses).
     x35_calls: list[Any] = []
     monkeypatch.setattr(v27_entry, "x35_entail_fn",
                         lambda settings, creds: lambda q, text: x35_calls.append((q, text)) or TRUE)
@@ -1066,7 +1066,7 @@ def test_v27_launch_builds_the_real_providers_and_runs_to_stage6_without_the_fol
 
 def test_v27_launch_with_the_real_factory_is_refused_at_entry_before_any_spend(tmp_path: Path, monkeypatch):
     """With no injected mocks the real factory's dispatch is refused at entry (the X35 gate:
-    X35_PROBABILITY_SOURCE unruled; with an X35 client given, ruling 36 a: the default per-page builder), before planning or
+    X35 wording unapproved, Q160; with an X35 client given, ruling 36 a: the default per-page builder), before planning or
     any Stage 1-4 call, and no client is constructed. A missing extractor key or an unset
     v27_runtime is refused too."""
     from g3o.persist.stage6_adapters import MissingUpstreamError
@@ -1088,7 +1088,7 @@ def test_v27_launch_with_the_real_factory_is_refused_at_entry_before_any_spend(t
     config = _v27_config(tmp_path)
     run_dir = config.runs_dir / config.run_id
 
-    with pytest.raises(ValueError, match="run_entailment"):  # the X35 gate (probability source unruled)
+    with pytest.raises(ValueError, match="run_entailment"):  # the X35 gate (Q160 wording unapproved)
         launch(config, credentials=Credentials(**V27_KEYS))
     assert not run_dir.exists() and calls == []
 
@@ -1180,12 +1180,11 @@ def _v27_follow_world(tmp_path: Path, monkeypatch, *, followed_text: str,
     module = _v27_fake_anthropic_module(extractor, pages={V27_FOLLOWED_URL: (followed_text, followed_activities)},
                                         links={quill: [(V27_FOLLOWED_URL, V27_LINK_PASSAGE)]})
     monkeypatch.setitem(sys.modules, "anthropic", module)
-    # The three X35 gates, opened for this test only (Q159 probability source, Q160 wording, Q158 pricing).
-    # V27_UNPRICED_PARTS is derived from X35_PRICING_RULED at import, so it is cleared with it.
-    monkeypatch.setattr(x35_client, "X35_PROBABILITY_SOURCE", "stated")
+    # X35: Q159 a (probability source "stated") and Q158 a (pricing) are ruled in the module defaults;
+    # the Q160 wording gate is opened for this test only.
+    assert x35_client.X35_PROBABILITY_SOURCE == "stated"
+    assert cost_monitor.X35_PRICING_RULED is True and cost_monitor.V27_UNPRICED_PARTS == {}
     monkeypatch.setattr(x35_client, "X35_INSTRUCTION_APPROVED_SHA256", x35_client.x35_instruction_sha256())
-    monkeypatch.setattr(cost_monitor, "X35_PRICING_RULED", True)
-    monkeypatch.setattr(cost_monitor, "V27_UNPRICED_PARTS", {})
     # The follow seam (T-025): the real FollowLeg over a fake fetch serving the followed page.
     fetch = FakeFetch({V27_FOLLOWED_URL: followed_text})
     monkeypatch.setattr(v27_entry, "follow_fetch", lambda config: fetch)
@@ -1274,7 +1273,7 @@ def test_v27_launch_follows_a_link_through_stage6_in_mix_mode_with_x35(tmp_path:
     assert {p["model"] for p in extractor["params"] if p not in x35} == {SETTINGS.extractor_model}
     cost = json.loads((run_dir / "_cost_report.json").read_text(encoding="utf-8"))[orch.V27_COST_KEY]
     assert cost
-    for span in cost.values():  # Q158 opened for the test: X35 no longer reported as pending
+    for span in cost.values():  # Q158 a: X35 is priced, never reported as pending
         assert span["parts"]["x35"].get("reason") != cost_monitor.X35_PRICING_PENDING
 
     # Every institution was ready after the waves and written by Stage 6; nothing held or failed.

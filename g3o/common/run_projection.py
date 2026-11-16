@@ -20,7 +20,8 @@ then says the seeds are unavailable and goes on.
 
 Inputs (per institution, USD): Serper, Web Unlocker, TypeSafe (jev: Stages 2/3, the
 per-page stage, Stage 6), OpenAI (none on v2.7), the per-page extractor at STANDARD
-rates, the Stage 6 extractor (quote step; always live) and X35 (unpriced until Q158).
+rates, the Stage 6 extractor (quote step; always live) and X35 (priced per request under
+Q158 a once journaled, but no seed gives its volume, so it is not projected).
 
 How the three modes differ (``perpage_batch_v27`` module docstring):
 
@@ -187,7 +188,7 @@ def seed_per_institution(seeds: Seeds, pages_per_institution: float | None = Non
         "openai_usd": 0.0,
         "extractor_standard_usd": pages * haiku_sync / spike_pages,
         "stage6_extractor_usd": None,  # quote step: no seed
-        "x35_usd": None,  # Q158: unpriced
+        "x35_usd": None,  # no seed for X35 volume (its rate is ruled, Q158 a; never guessed)
         "basis": "seeds (prior wave cost report / its n; spike per-page legs)",
     }
 

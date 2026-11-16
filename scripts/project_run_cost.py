@@ -194,7 +194,7 @@ def render(out: dict[str, Any], seeds: rp.Seeds) -> str:
     unpriced = sorted({k for r in out["rows"] for k in r["unpriced"]})
     if unpriced:
         lines.append(f"unpriced (not in total_known): {', '.join(unpriced)}"
-                     + ("; x35 awaits Q158" if "x35" in unpriced else ""))
+                     + ("; x35: no seed for its volume (rate ruled, Q158 a)" if "x35" in unpriced else ""))
     lines.append(
         f"unlocker: cost-report basis x{out['assumptions']['unlocker_factor']}; the report under-counts "
         f"(prior wave report ${s['wave4_unlocker_usd'].value:,.2f} vs recompute up to "

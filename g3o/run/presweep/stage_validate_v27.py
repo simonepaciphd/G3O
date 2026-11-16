@@ -116,6 +116,7 @@ from g3o.common.source_fields import aggregation_value, confidence_field, defaul
 from g3o.common.storage import METADATA_ITEMS, table_fields, unreviewed_source
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import (
+    X35_NON_ANSWER,
     CodeEvidence,
     Entailment,
     PageSources,
@@ -123,6 +124,7 @@ from g3o.common.support_check import (
     check_code,
 )
 from g3o.extract.anthropic_client import ExtractorResult
+from g3o.extract.x35_client import X35ResponseError
 from g3o.persist.stage6_adapters import (
     EMPTY_COMPANION,
     PROVENANCE_ARTIFACT,
@@ -392,14 +394,20 @@ def _x35_no_response(response: Mapping[str, Any]) -> bool:
 class X35FailCapReached(RuntimeError):
     """Review O2 M4: an X35 request came back without a usable answer :data:`EXTRACT_REJECT_CAP` times.
 
+    PI ruling Q169 b (2026-11-16) made this an inert backstop. An X35 non-answer (an
+    ``X35ResponseError``: a refusal, a ``max_tokens`` stop, unparseable output) is no longer an
+    ``x35_failed`` entry: it is journaled as a replayed ``x35`` answer with no probability
+    (:meth:`RequestJournal._entail`), so a resume replays it and never re-bills it, and it never
+    counts here. What still counts is an ``x35_failed`` entry that carries a response but is not
+    a non-answer: an exception with a ``usage`` attribute other than ``X35ResponseError``, which
+    the production client does not raise, or such an entry in a journal written before Q169 b.
+
     Mirrors :class:`ExtractRejectCapReached` (ruling 34 b / 41 a), with the same cap: after that
-    many ``x35_failed`` entries for one exact X35 request key that carry a response (a refusal,
-    a ``max_tokens`` stop, an unparseable answer; NOT the ``no_response`` ones, which are asked
+    many such entries for one exact X35 request key (NOT the ``no_response`` ones, which are asked
     again), the journaled X35 call raises this *instead of* calling X35, on this run and every
     later load, until a per-page PI release names the key (or releases ``all``); Stage 6 has no
-    release path for it yet (REVIEW-O2-fixes M1; with Q169). A ``RuntimeError``, so the stages hold exactly
-    as they hold the failure it replaces (the per-page stage holds the institution; Stage 6 holds
-    the answer), with no billed call. ``key`` is the journal's request key.
+    release path for it (REVIEW-O2-fixes M1). A ``RuntimeError``, so the stages hold exactly
+    as they hold the failure it replaces, with no billed call. ``key`` is the journal's request key.
     """
 
     def __init__(self, key: str, failures: int) -> None:
@@ -861,8 +869,8 @@ class RequestJournal:
     def _entail(self, entail_fn: Any, prompt: Mapping[str, Any]) -> Any:
         # An X35 client that reports its response's own usage (``entail_with_usage``, e.g.
         # ``v27_entry.LazyX35``; PI ruling 139 a) has it journaled per request, on the ``x35``
-        # entry or, for a billed response with no usable answer, on the ``x35_failed`` one
-        # (the exception's ``usage``), so :meth:`x35_usages` can price each call. A plain
+        # entry (a non-answer's too, Q169 b below) or, for another billed exception, on the
+        # ``x35_failed`` one (the exception's ``usage``), so :meth:`x35_usages` can price each call. A plain
         # ``entail_fn`` (a fake) journals no usage, exactly as before.
         # An exception that carries no ``usage`` attribute at all (a transport error, a
         # timeout, a 429/529 raised before any response, a refusing stub) is still counted
@@ -871,6 +879,12 @@ class RequestJournal:
         # (:meth:`x35_usages` skips it), so it neither guesses a price nor blocks the total.
         # An exception whose ``usage`` attribute is present but not a dict (a response that
         # reported no usage) is not marked: it stays unpriced (``None``), never guessed.
+        # PI ruling Q169 b: an X35 non-answer (``X35ResponseError``: a refusal, a ``max_tokens``
+        # stop, unparseable output) is an answer with no probability. It is journaled as an
+        # ``x35`` entry (replayed on resume, so it is never asked or billed again) with value
+        # ``support_check.X35_NON_ANSWER``, probability ``None``, the error under ``non_answer``
+        # and the billed response's ``usage`` (priced, Q158 a), and returned, not raised: only
+        # that check fails (``entailment_probability_unavailable``) and the institution goes on.
         with_usage = getattr(entail_fn, "entail_with_usage", None)
 
         def wrapped(question: str, text: str) -> Entailment:
@@ -889,6 +903,14 @@ class RequestJournal:
                     answer, usage = with_usage(question, text)
                 else:
                     answer = entail_fn(question, text)
+            except X35ResponseError as exc:  # PI ruling Q169 b: a non-answer, journaled and replayed
+                self.live += 1
+                non_answer = Entailment(X35_NON_ANSWER, None)
+                response = {**asdict(non_answer), "non_answer": f"{type(exc).__name__}: {exc}"}
+                if isinstance(exc.usage, dict):
+                    response["usage"] = exc.usage
+                self._append(slot, response, _elapsed_ms(start))
+                return non_answer
             except Exception as exc:
                 failed: dict[str, Any] = {"error": f"{type(exc).__name__}: {exc}"}
                 exc_usage = getattr(exc, "usage", None)
@@ -1008,8 +1030,9 @@ class RequestJournal:
     def x35_usages(self) -> list[dict[str, Any] | None]:
         """Each journaled X35 response's own ``usage`` (``None`` where it has none), for the calls
         ``usage()["x35_calls"] + usage()["x35_failed"]`` count, in that order: answered calls, then
-        failed ones. Priced per request by :func:`g3o.common.cost_monitor.price_x35_requests` once
-        X35 pricing is ruled (Q158; ``cost_monitor.X35_PRICING_RULED``).
+        failed ones. Priced per request by :func:`g3o.common.cost_monitor.price_x35_requests`
+        (PI ruling Q158 a; ``cost_monitor.X35_PRICING_RULED``). An X35 non-answer (PI ruling
+        Q169 b) is an answered ``x35`` entry carrying its billed usage, so it is priced once.
 
         ``None`` is an answer from a client that reports no usage (a fake, or an entry written
         before usage was journaled), a failed response that reported no usage, or a failed call

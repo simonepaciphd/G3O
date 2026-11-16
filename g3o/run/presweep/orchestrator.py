@@ -359,8 +359,9 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
     checks it refuses (T-030 QA4 M2):
 
     - ``entail_fn`` being :func:`g3o.common.support_check.run_entailment`, which
-      refuses every real X35 call (X35 is bound, PI ruling 139 a, but its probability
-      source and instrument wording await the PI: ``x35_client.X35_PROBABILITY_SOURCE``);
+      refuses every real X35 call (X35 is bound, PI ruling 139 a, and its probability
+      source ruled, Q159 a, but its instrument wording awaits the PI, Q160:
+      ``x35_client.X35_INSTRUCTION_APPROVED_SHA256``);
     - every check that needs no run directory: the codebook SHA, matcher pin and
       estimator checks of ``bind_runtime`` (through its non-writing half,
       ``instrument_binding.check_runtime``), the P-1/P-2 prompt pins and the
@@ -407,14 +408,16 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
         raise ValueError("v2.7 dispatch: settings must be an explicit RuntimeSettings")
     from g3o.common import support_check
 
-    # Kept: the X35 client is bound (PI ruling 139 a), but v27_entry.x35_entail_fn returns
-    # run_entailment while x35_client.X35_PROBABILITY_SOURCE is None (probability source and
-    # instrument wording pending PI). Lift together with the TODO in support_check.run_entailment.
+    # Kept: the X35 client is bound (PI ruling 139 a) and its probability source ruled (Q159 a), but
+    # v27_entry.x35_entail_fn returns run_entailment while the X35 instrument wording is unapproved
+    # (Q160: x35_client.X35_INSTRUCTION_APPROVED_SHA256 is None). Lift together with the TODO in
+    # support_check.run_entailment.
     if v27.entail_fn is support_check.run_entailment:
         raise ValueError(
             "v2.7 dispatch: entail_fn is support_check.run_entailment, which refuses every real "
-            "X35 call: the X35 client is bound (PI ruling 139 a) but its probability source and "
-            "instrument wording await PI approval, so the run is refused before any work"
+            "X35 call: the X35 client is bound (PI ruling 139 a) and its probability source ruled "
+            "(Q159 a), but its instrument wording awaits PI approval (Q160), so the run is refused "
+            "before any work"
         )
     from g3o.run.presweep.instrument_binding import check_runtime
     from g3o.run.presweep.perpage_providers_v27 import check_binding
@@ -458,7 +461,7 @@ def _v27_journal_usage(run_dir: Path) -> dict[str, dict[str, Any]]:
     Per stage: ``totals`` (the summed :meth:`RequestJournal.usage`), ``usages`` (each
     extractor response's own ``usage``, :meth:`RequestJournal.extractor_usages`, priced
     per request; ruling 58 a), ``x35_usages`` (each X35 call's own ``usage``,
-    :meth:`RequestJournal.x35_usages`; priced only once Q158 is ruled) and ``failed`` (journals that could not be read, with the
+    :meth:`RequestJournal.x35_usages`; priced per request, PI ruling Q158 a) and ``failed`` (journals that could not be read, with the
     error). Covers every journaled call of every institution, this and earlier sessions.
     A stage with no journal file on disk is left out.
 
@@ -602,9 +605,9 @@ def run_v27_dispatch(
     finishes, so a Stage 6 stop keeps the per-page figures). Stage stops of either
     stage (``SupportGateError``, ``MissingUpstreamError`` in the per-page stage
     and in the Stage 6 executor, ``JevAccountError``, ...) propagate unchanged.
-    Within-stage budget checks are not wired here (no ``cost_check_callback``): the
-    cost monitor prices the jev and extractor parts of a v2.7 stage but not X35 (bound,
-    ruling 139 a; pricing awaits Q158, ``cost_monitor.V27_UNPRICED_PARTS``), so a v2.7 run's ``budget_usd``
+    Within-stage budget checks are not wired here (no ``cost_check_callback``; PI ruling
+    Q164 a keeps it so although the cost monitor now prices every part of a v2.7 stage:
+    jev, the extractor and X35, Q158 a), so a v2.7 run's ``budget_usd``
     covers Stages 1-4 only (PI ruling 1 a, 2026-11-11) and the config refuses
     preflight estimates for any other stage. The priced parts are reported under
     :data:`V27_COST_KEY` in the cost report, outside ``total_usd``.
@@ -767,8 +770,8 @@ def run_presweep(
         if config.budget_usd is not None:
             logger.warning(
                 "pipeline_version='v2.7': budget_usd $%.4f is enforced on Stages 1-4 only; "
-                "the v2.7 per-page stage and v2.7 Stage 6 stay outside it (ruling 60 a; X35 "
-                "pricing awaits Q158): their usage and priced parts are reported under %s and %s, "
+                "the v2.7 per-page stage and v2.7 Stage 6 stay outside it (rulings 60 a, Q164 a: "
+                "no within-stage check): their usage and priced parts are reported under %s and %s, "
                 "outside total_usd", config.budget_usd, V27_USAGE_KEY, V27_COST_KEY,
             )
     elif v27 is not None:

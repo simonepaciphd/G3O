@@ -109,6 +109,11 @@ QUOTE_MAX_CHARS = 200  # RC-D-017 3: extraction-prompt cap and website display c
 OVER_CAP_FLAG = "quote_over_cap"  # RC-D-017 "2 whole"
 PROBABILITY_UNAVAILABLE = "probability_unavailable"  # RC-D-010
 ENTAILMENT_PROBABILITY_UNAVAILABLE = "entailment_probability_unavailable"  # RC-D-010, X35 answer
+#: PI ruling Q169 b (2026-11-16): the value of an X35 non-answer (a refusal, a ``max_tokens`` stop or
+#: unparseable output). It is an answer with no probability: only that one check fails
+#: (:data:`ENTAILMENT_PROBABILITY_UNAVAILABLE`, ``downgraded_quote_not_stating_value``), and the
+#: institution goes on. ``unknown`` is a missing token of ``core.support_entailment`` (R-045).
+X35_NON_ANSWER = "unknown"
 
 SUPPORTED = "supported"
 NO_QUOTE = "downgraded_no_quote"
@@ -364,7 +369,9 @@ def _needs_quote(ev: CodeEvidence, item: dict[str, Any], rules: SupportRules) ->
 
 
 def _entailment_fails(ent: Entailment, bar: float, flags: list[str]) -> bool:
-    if ent.value not in ("true", "false"):
+    if ent.value == X35_NON_ANSWER and ent.probability is not None:
+        raise ValueError(f"an X35 non-answer ({X35_NON_ANSWER!r}) carries no probability")
+    if ent.value not in ("true", "false", X35_NON_ANSWER):
         raise ValueError(f"X35 answer must be 'true' or 'false', got {ent.value!r}")
     if ent.probability is None:
         flags.append(ENTAILMENT_PROBABILITY_UNAVAILABLE)
@@ -611,14 +618,16 @@ def entailment_window_for(ev: CodeEvidence, sources: PageSources,
 
 
 def run_entailment(*_: Any, **__: Any) -> Entailment:
-    # TODO(gate: X35 probability source + instrument wording): the X35 client is wired (PI ruling
-    # 139 a: g3o.extract.x35_client.AnthropicX35Client on the pinned x35_model; the state is
-    # entailment_window_for(), RC-D-019 E3, the question entailment_question()). It stays unused
-    # while x35_client.X35_PROBABILITY_SOURCE is None and its DRAFT wording is unapproved; until
-    # the PI rules both, v27_entry.x35_entail_fn returns this refusing entry.
+    # TODO(gate: X35 instrument wording, Q160): the X35 client is wired (PI ruling 139 a:
+    # g3o.extract.x35_client.AnthropicX35Client on the pinned x35_model; the state is
+    # entailment_window_for(), RC-D-019 E3, the question entailment_question()) and its
+    # probability source is ruled (Q159 a: "stated"). It stays unused while its DRAFT wording is
+    # unapproved (x35_client.X35_INSTRUCTION_APPROVED_SHA256 is None); until the PI approves it,
+    # v27_entry.x35_entail_fn returns this refusing entry.
     raise SupportGateError(
-        "X35 entailment call gated: the X35 client is bound (PI ruling 139 a) but its probability "
-        "source and instrument wording await PI approval (x35_client.X35_PROBABILITY_SOURCE is None)"
+        "X35 entailment call gated: the X35 client is bound (PI ruling 139 a) and its probability "
+        "source is ruled (Q159 a: stated), but its instrument wording awaits PI approval "
+        "(Q160: x35_client.X35_INSTRUCTION_APPROVED_SHA256 is None)"
     )
 
 

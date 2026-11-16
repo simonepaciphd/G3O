@@ -246,7 +246,7 @@ def _extractor_mode_estimates(n: int, *, unlocker_on: bool, configured_mode: str
                 "Seeds only (prior-wave cost report; spike per-page legs, proxy questions), "
                 "not this run's telemetry. Pages basis: wave-4 v2.5 scrape-out; v2.7 followed "
                 "pages not included, so the total is withheld and the per-page parts are marked. "
-                "The Stage 6 quote step and X35 (Q158) are unpriced; the Unlocker is at the "
+                "The Stage 6 quote step and X35 have no seed and are not projected; the Unlocker is at the "
                 "cost-report basis, which under-counts. Batch-mode wall time is a lower bound: "
                 "the batch round trip is unmeasured at wave scale (up to the API's 24 h) and "
                 "the throughput is v2.5's. queue_MB is a lower bound on the memory a batch "

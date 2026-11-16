@@ -258,7 +258,7 @@ def test_unbound_or_other_instrument_providers_are_refused_by_the_stage(tmp_path
 
 
 def test_entailment_refuses_with_no_approved_binding(tmp_path):
-    """While the X35 probability source is unruled the entry is ``run_entailment``: it still refuses,
+    """While the X35 wording is unapproved (Q160) the entry is ``run_entailment``: it still refuses,
     and that stops the stage."""
     run_dir, bound, instrument, world, insts = _world(tmp_path)
     providers = _providers(run_dir, bound, instrument, FakeExtractor(world), support_check.run_entailment)
@@ -267,6 +267,44 @@ def test_entailment_refuses_with_no_approved_binding(tmp_path):
     assert not any(r["reason"] == pp.HELD_REASON for r in attrition.read_records(run_dir))
     journal = (institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.JOURNAL).read_text(encoding="utf-8")
     assert any(json.loads(line)["kind"] == "x35_failed" for line in journal.splitlines())
+
+
+def test_x35_non_answer_is_journaled_and_does_not_hold_q169b(tmp_path):
+    """PI ruling Q169 b: an X35 non-answer (X35ResponseError with its billed usage) is an answer with no
+    probability: the institutions go on (none held), each call is journaled as a replayed ``x35`` entry
+    with its usage (no ``x35_failed``). The downgrade itself is pinned in test_support_check."""
+    from g3o.extract.x35_client import X35ResponseError
+
+    usage = {"input_tokens": 50, "output_tokens": 5, "cache_read_input_tokens": 0,
+             "cache_creation_input_tokens": 0}
+
+    class NonAnswer:
+        def __init__(self):
+            self.calls = []
+
+        def entail_with_usage(self, question, text):
+            self.calls.append((question, text))
+            raise X35ResponseError("X35 response gave no answer (refusal)", usage=dict(usage))
+
+        def __call__(self, question, text):
+            return self.entail_with_usage(question, text)[0]
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    entail = NonAnswer()
+    ready, metrics = _run(run_dir, bound, instrument, insts,
+                          _providers(run_dir, bound, instrument, FakeExtractor(world), entail),
+                          FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert entail.calls and not metrics.held
+    assert [i.institution_id for i in ready] == ["INST-0000001", "INST-0000002", "INST-0000003"]
+    assert not any(r["reason"] == pp.HELD_REASON for r in attrition.read_records(run_dir))
+    assert sum(u["x35_calls"] for u in metrics.usage.values()) == len(entail.calls)
+    assert sum(u["x35_failed"] for u in metrics.usage.values()) == 0
+    for inst in ("INST-0000001", "INST-0000002", "INST-0000003"):
+        path = institution_dir(run_dir, inst) / pp.WORK_DIR / pp.JOURNAL
+        x35 = [e for e in map(json.loads, path.read_text(encoding="utf-8").splitlines())
+               if e["kind"].startswith("x35")]
+        assert all(e["kind"] == "x35" and e["response"]["value"] == support_check.X35_NON_ANSWER
+                   and e["response"]["probability"] is None and e["response"]["usage"] == usage for e in x35)
 
 
 def test_module_imports_and_builds_without_any_client(tmp_path, monkeypatch):

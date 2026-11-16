@@ -1427,7 +1427,7 @@ def test_v27_failed_extractor_results_without_usage_cost_zero_and_canceled_count
     assert price_extractor_requests([_ext(1, 1)], model="fake-extractor")["usd"] is None  # no rate row
 
 
-def test_v27_stage_with_jev_and_extractor_is_priced_and_x35_leaves_it_unpriced():
+def test_v27_stage_with_jev_and_extractor_is_priced_and_x35_totals_only_leave_it_unpriced():
     from g3o.common.cost_monitor import V27_UNPRICED_PARTS, price_v27_usage
 
     usages = [_ext(1_000, 200)]
@@ -1435,30 +1435,52 @@ def test_v27_stage_with_jev_and_extractor_is_priced_and_x35_leaves_it_unpriced()
     priced = price_v27_usage(_v27_usage(extractor_calls=1), jev_model="jev-1.13.0",
                              extractor_model="claude-haiku-5-5", extractor_usages=usages)
     assert priced["priced"] is True and priced["total_usd"] == pytest.approx(2.0 * 0.042 + ext_usd)
+    # X35 calls given as journal totals only (no per-request usage) cannot be priced (Q158 a, as 58 a)
     with_x35 = price_v27_usage(_v27_usage(extractor_calls=1, x35_failed=1), jev_model="jev-1.13.0",
                                extractor_model="claude-haiku-5-5", extractor_usages=usages)
     assert with_x35["unpriced_parts"] == ["x35"] and with_x35["total_usd"] is None
     assert with_x35["parts"]["extractor"]["usd"] == pytest.approx(ext_usd)  # still reported
-    assert set(V27_UNPRICED_PARTS) == {"x35"} and "Q158" in V27_UNPRICED_PARTS["x35"]
-    assert "139 a" in V27_UNPRICED_PARTS["x35"]  # X35 is bound; only its pricing is pending
+    assert V27_UNPRICED_PARTS == {}  # PI ruling Q158 a: no v2.7 part is unpriced by rule
     totals_only = price_v27_usage(_v27_usage(extractor_calls=1), jev_model="jev-1.13.0")
     assert totals_only["unpriced_parts"] == ["extractor"]  # totals cannot be priced (58 a)
 
 
-def test_x35_pricing_is_gated_on_q158_by_default_even_with_per_request_usage():
+def test_x35_pricing_is_ruled_q158_a_at_import():
+    """PI ruling Q158 a (2026-11-16): X35_PRICING_RULED is True, so V27_UNPRICED_PARTS (computed at
+    import) is empty and a priced X35 part never carries the Q158-pending reason."""
     from g3o.common import cost_monitor as cm
 
-    assert cm.X35_PRICING_RULED is False and cm.V27_UNPRICED_PARTS == {"x35": cm.X35_PRICING_PENDING}
+    assert cm.X35_PRICING_RULED is True and cm.V27_UNPRICED_PARTS == {}
+    out = cm.price_v27_usage(_v27_usage(x35_calls=2), jev_model="jev-1.13.0", x35_model="claude-haiku-5-5",
+                             x35_usages=[_ext(1_000, 50), _ext(2_000, 10)])
+    assert out["unpriced_parts"] == [] and out["total_usd"] is not None
+    assert out["parts"]["x35"].get("reason") != cm.X35_PRICING_PENDING
+
+
+def test_x35_would_be_unpriced_again_were_the_ruling_withdrawn(monkeypatch):
+    from g3o.common import cost_monitor as cm
+
+    monkeypatch.setattr(cm, "V27_UNPRICED_PARTS", {"x35": cm.X35_PRICING_PENDING})
     out = cm.price_v27_usage(_v27_usage(x35_calls=2), jev_model="jev-1.13.0", x35_model="claude-haiku-5-5",
                              x35_usages=[_ext(1_000, 50), _ext(2_000, 10)])
     assert out["unpriced_parts"] == ["x35"] and out["total_usd"] is None
     assert out["parts"]["x35"] == {"calls": 2, "usd": None, "reason": cm.X35_PRICING_PENDING}
 
 
-def test_x35_priced_per_request_at_standard_rates_once_q158_is_ruled(monkeypatch):
+def test_x35_batched_usage_would_be_priced_at_batch_rates():
+    """Q158 a: batch rates if X35 is ever batched (the 130 a rule; the same marker as the extractor)."""
     from g3o.common import cost_monitor as cm
 
-    monkeypatch.setattr(cm, "V27_UNPRICED_PARTS", {})  # what X35_PRICING_RULED = True yields
+    live = cm.price_x35_requests([_ext(1_000, 50)], model="claude-haiku-5-5")
+    batched = cm.price_x35_requests([{**_ext(1_000, 50), cm.EXTRACTOR_BATCH_KEY: True}], model="claude-haiku-5-5")
+    assert live["rates"] == "standard" and batched["rates"] == "batch"
+    assert batched["usd"] == pytest.approx(live["usd"] * 0.5)  # the haiku 5.5 row's batch_discount
+
+
+def test_x35_priced_per_request_at_standard_rates_q158_a():
+    from g3o.common import cost_monitor as cm
+
+    assert cm.V27_UNPRICED_PARTS == {}  # PI ruling Q158 a
     usages = [_ext(1_000, 50), _ext(2_000, 10, read=500)]
     x35_usd = (1_000 * 0.10 + 50 * 0.50 + 2_000 * 0.10 + 10 * 0.50 + 500 * 0.01) / 1e6  # haiku 5.5 standard
     out = cm.price_v27_usage(_v27_usage(x35_calls=2), jev_model="jev-1.13.0", x35_model="claude-haiku-5-5",
