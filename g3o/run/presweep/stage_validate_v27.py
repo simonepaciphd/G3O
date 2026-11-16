@@ -97,7 +97,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from g3o.classify.jev_activity_code import NOT_COVERED
+from g3o.classify.jev_activity_code import NOT_COVERED, PAIR_ITEMS
 from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE
 from g3o.classify.questions.v27 import load_set
 from g3o.common import attrition
@@ -110,7 +110,7 @@ from g3o.common.paths import institution_dir
 from g3o.common.response_v27 import InstitutionIdentityV27
 from g3o.common.run_state import clear_done, mark_done
 from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
-from g3o.common.source_fields import aggregation_value, default_vocab
+from g3o.common.source_fields import aggregation_value, confidence_field, default_vocab
 from g3o.common.storage import METADATA_ITEMS, table_fields, unreviewed_source
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import (
@@ -122,6 +122,7 @@ from g3o.common.support_check import (
 )
 from g3o.extract.anthropic_client import ExtractorResult
 from g3o.persist.stage6_adapters import (
+    EMPTY_COMPANION,
     PROVENANCE_ARTIFACT,
     STORAGE_ARTIFACT,
     VALIDATE_ARTIFACT,
@@ -161,6 +162,8 @@ from g3o.validate.stage6_v27 import (
     observation_pool_order,
     pool_eligible,
     run_stage6,
+    source_claim_confidence,
+    source_claim_records,
     write_stage6_outputs,
 )
 
@@ -198,7 +201,7 @@ class UpstreamRowMalformed(Exception):  # noqa: N818 - names the wiring defect, 
     Raised for an institution row missing one of the master identity columns
     (checked before the executor, so nothing is asked for it) and for a
     ``KeyError`` while building the storage envelope (e.g. a source row without
-    ``core.confidence``). It stops the stage (:data:`WIRING_STOPS`); it is never a
+    ``core.source_credibility``, which Stage 6 reads to produce ``core.confidence``, PI ruling 140). It stops the stage (:data:`WIRING_STOPS`); it is never a
     per-institution hold. ``institution_id`` and ``field`` name what is missing
     (or, with ``problem``, what is malformed, e.g. a language value outside the schema pattern).
     """
@@ -1151,6 +1154,74 @@ def independence_groups_of(inst: Stage6Institution) -> Mapping[str, str]:
         raise MissingUpstreamError(f"{INDEPENDENCE_PRODUCER}; {exc.producer}", exc.missing) from exc
 
 
+#: PI ruling 140 (gate 3, 2026-11-16): Stage 6 is the producer of the source row's ``core.confidence``.
+CONFIDENCE_ITEM = "core.confidence"
+CREDIBILITY_ITEM = "core.source_credibility"
+
+
+def _original_records(nodes: Iterable[Mapping[str, Any]]) -> list[SupportResult]:
+    """The ORIGINAL support records of stored per-page nodes, as ``source_confidence_rule`` reads them.
+
+    A per-page original node names no input support (a downgrade's final node names its original); the
+    within-page relation items (:data:`~g3o.classify.jev_activity_code.PAIR_ITEMS`) concern two activities
+    and are not one claim's records (P12: records of other activities are not associated). The rule reads
+    the item, the original value, the support status, its second reason and the rule name only.
+    """
+    out: list[SupportResult] = []
+    for n in nodes:
+        if n["input_support_ids"] or n["item_id"] in PAIR_ITEMS:
+            continue
+        value = n["value_json"]
+        value = value if isinstance(value, str) else json.dumps(value, sort_keys=True)
+        second, rule = n["support_status_second_reason"], n["support_rule_name"]
+        out.append(SupportResult(
+            item_id=n["item_id"], part=n["item_part"], activity_id=None, chunk_id=n["chunk_id"] or "",
+            original_value=value, value=value, support_status=n["support_status"],
+            support_status_second_reason=None if second == EMPTY_COMPANION else second,
+            support_rule_name=None if rule == EMPTY_COMPANION else rule,
+            supporting_text=n["supporting_text"] or None, quote_chunk_id=None, match=None,
+            chosen_answer_probability=None, entailment=None))
+    return out
+
+
+def source_confidence_of(inst: Stage6Institution, sid: str) -> str:
+    """PI ruling 140 (gate 3): the source row's ``core.confidence``, produced here.
+
+    The claim's records are associated by :func:`g3o.validate.stage6_v27.source_claim_records` (RC-D-025
+    P12): the source row's own nodes (page level) plus the nodes of the observations on this page that
+    belong to the source row's activity; scored by ``source_confidence_rule`` (``items/core.confidence/
+    rules/1``) on the row's ``core.source_credibility``. An unfinished score is refused
+    (``UnfinishedConfidenceError``) and a claim with no records raises ``ValueError`` (P11).
+    """
+    row = inst.sources[sid]
+    page_id = next((p.page_id for p in inst.pages if sid in p.source_ids), None)
+    if page_id is None:
+        raise ConsolidationError(f"source claim {sid} belongs to no reviewed page")
+    oids = list(row["observation_ids"])
+    observation_pages = {r.observation_id: r.page_id for r in inst.records}
+    observation_support = {o: _original_records(inst.observation_inputs[o].row["item_support"]) for o in oids}
+    records = source_claim_records(page_id, oids, _original_records(row["item_support"]), observation_support,
+                                   observation_pages)
+    conf = source_claim_confidence(sid, row["values"][CREDIBILITY_ITEM], records)
+    return str(confidence_field(conf).value)
+
+
+def with_source_confidence(inst: Stage6Institution) -> Stage6Institution:
+    """``inst`` with each source row's ``core.confidence`` filled by :func:`source_confidence_of`.
+
+    A row that already carries a value keeps it as given (the injected seam, as an injected
+    ``independence_groups`` wins, PI A7 14; an unreviewed follow row carries ``not_asked`` by rule,
+    PI rulings 96 a / 102 a)."""
+    sources: dict[str, Mapping[str, Any]] = {}
+    for sid, row in inst.sources.items():
+        if CONFIDENCE_ITEM in row["values"]:
+            sources[sid] = row
+            continue
+        sources[sid] = {**dict(row), "values": {**dict(row["values"]),
+                                                CONFIDENCE_ITEM: source_confidence_of(inst, sid)}}
+    return replace(inst, sources=sources)
+
+
 #: The A8 items the per-page T-015 assembler produces (source_row_v27.unit_credit); A8 review L6.
 PER_PAGE_A8_ITEMS = frozenset({ma.UNIT_CREDIT})
 
@@ -1174,6 +1245,7 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
     """The storage envelope and provenance records of one ready Stage 6 result."""
     if not result.ready:
         raise ConsolidationError("Stage 6 result is not ready; nothing is published")
+    inst = with_source_confidence(inst)  # PI ruling 140 (gate 3): Stage 6 produces source core.confidence
     quotes = {q.support_id: q for q in inst.quotes}
     # Published activities: groups with at least one supported observation on a confirmed page
     # (the pooled-eligibility rule of T-026); other observations keep their relations only.

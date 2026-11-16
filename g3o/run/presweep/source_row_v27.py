@@ -11,7 +11,8 @@ final page and activity values.
 Every source-row and activity-row item that the T-021 / T-023 coders do not
 produce is listed exactly once, either as produced here or in
 :data:`REFUSED_SOURCE_ITEMS` / :data:`REFUSED_ACTIVITY_ITEMS` with the reason it
-is refused (or, PI ruling 94 a, in :data:`STAGE6_ACTIVITY_ITEMS`: Stage 6 only).
+is refused (or, PI ruling 94 a, in :data:`STAGE6_ACTIVITY_ITEMS`, and PI ruling 140, in
+:data:`STAGE6_SOURCE_ITEMS`: Stage 6 only).
 No value is invented: a refused item stays refused until its rule is signed or
 its producer is wired, and while any item is refused the per-page stage stops
 before it would publish a row (``MissingUpstreamError``, RC-D-033 C2 a) and
@@ -229,9 +230,19 @@ QUOTE_STEP_CODER_VERSION = f"g3o.extract.parser_v27/{request_v27.PROMPT_VERSION}
 PASS2_CODER_VERSION = f"g3o.extract.pass2_support/{pass2_support.PROMPT_VERSION}"
 
 #: Source-row items refused here, with the reason (signed source text or the missing producer).
-REFUSED_SOURCE_ITEMS: Mapping[str, str] = {
-    sf.CONFIDENCE: ("reads source_credibility (refused on some pages) and the claim's support records "
-                    "(items/core.confidence/rules/1; association is T-026's, RC-D-025 P12)"),
+#: Empty since PI ruling 140 (gate 3): ``core.confidence`` is Stage 6's (:data:`STAGE6_SOURCE_ITEMS`).
+REFUSED_SOURCE_ITEMS: Mapping[str, str] = {}
+
+#: PI ruling 140 (gate 3, 2026-11-16): "Stage 6 is the producer of ``core.confidence``, and the per-page
+#: assembler stops refusing it". It reads the source row's ``source_credibility`` and the claim's support
+#: records (items/core.confidence/rules/1), associated by T-026 (RC-D-025 P12,
+#: :func:`g3o.validate.stage6_v27.source_claim_records`); Stage 6 fills it
+#: (:func:`g3o.run.presweep.stage_validate_v27.with_source_confidence`). As with ruling 94 a's
+#: :data:`STAGE6_ACTIVITY_ITEMS`, the per-page source row carries no value for it, so it is neither produced
+#: nor refused here and does not block the run's entry.
+STAGE6_SOURCE_ITEMS: Mapping[str, str] = {
+    sf.CONFIDENCE: ("PI ruling 140 (gate 3): produced by Stage 6 only (stage_validate_v27.with_source_confidence; "
+                    "items/core.confidence/rules/1, association RC-D-025 P12)"),
 }
 
 #: Activity-row items refused here, with the reason.
@@ -254,8 +265,9 @@ STAGE6_ACTIVITY_ITEMS: Mapping[str, str] = {
 
 
 def source_row_items() -> frozenset[str]:
-    """Source-row items that are row values (not produced by the coders), as ``produce_page`` reads them."""
-    items = set(table_fields("sources")) - set(METADATA_ITEMS)
+    """Source-row items that are row values (not produced by the coders or, PI ruling 140, Stage 6 alone:
+    :data:`STAGE6_SOURCE_ITEMS`), as ``produce_page`` reads them."""
+    items = set(table_fields("sources")) - set(METADATA_ITEMS) - set(STAGE6_SOURCE_ITEMS)
     return frozenset(i for i in items if FIELDS[i]["coder"] not in CODER_PRODUCED or i == T015_CLASSIFIER)
 
 
@@ -1195,7 +1207,7 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
 __all__ = [
     "ASSEMBLER", "CONDITIONAL_ITEMS", "NEVER_REFUSED_ITEMS", "WIRING_ONLY_ITEMS", "reported_field_value",
     "reported_open", "reported_value", "PRODUCED_ACTIVITY_ITEMS", "PRODUCED_SOURCE_ITEMS", "REFUSED_ACTIVITY_ITEMS",
-    "REFUSED_SOURCE_ITEMS", "STAGE6_ACTIVITY_ITEMS", "WIRING_PRODUCERS", "AssembledRows", "RowValue", "activity_row_items",
+    "REFUSED_SOURCE_ITEMS", "STAGE6_ACTIVITY_ITEMS", "STAGE6_SOURCE_ITEMS", "WIRING_PRODUCERS", "AssembledRows", "RowValue", "activity_row_items",
     "activity_row_values", "assemble",
     "content_contact", "content_contact_emails", "content_safeguard", "content_stated", "genai_verdicts",
     "entry_refused_items", "page_source_values", "residual_deciding_part_failed", "source_row_items", "source_title",

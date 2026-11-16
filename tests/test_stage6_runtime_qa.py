@@ -530,15 +530,76 @@ def test_independence_groups_refused_when_no_activity_is_published(tmp_path):
     assert not _storage(run_dir, B)["activities"]
 
 
-def test_source_row_without_confidence_stops_the_stage(tmp_path):
-    # Ruling 32 b: a malformed upstream row (here a source row without core.confidence) is a wiring
-    # error: the stage stops, naming the institution and the field; nothing is held or written.
+def test_source_row_without_confidence_gets_it_from_stage6_ruling_140(tmp_path):
+    # PI ruling 140 (gate 3): Stage 6 is the producer of the source row's core.confidence. A source row
+    # without it is no longer malformed: Stage 6 fills it (source_confidence_of) and publishes.
     run_dir, bound, instrument = e._setup(tmp_path)
     a, b = e._institutions(run_dir, bound, instrument)
     del a.sources["S1"]["values"]["core.confidence"]
-    with pytest.raises(rt.UpstreamRowMalformed, match=r"INST-\S+: 'core.confidence' is missing") as info:
+    expected = rt.source_confidence_of(a, "S1")
+    assert expected in {"high", "medium", "low", "unknown"}
+    assert A in _run(run_dir, bound, instrument, [a, b], e.FakeQuotes()).written
+    assert _storage(run_dir)["sources"]["S1"]["values"]["core.confidence"] == expected
+    assert "core.confidence" not in a.sources["S1"]["values"]  # the input row is not mutated
+
+
+def _fake_node(item, value, status="supported", *, final_of=None):
+    return {"item_id": item, "item_part": None, "chunk_id": "p1#c1", "value_json": value,
+            "support_status": status, "support_status_second_reason": "not_asked", "support_rule_name": "not_asked",
+            "supporting_text": "" if final_of else "quoted text", "input_support_ids": [final_of] if final_of else []}
+
+
+def _fake_institution(sources, fragments):
+    from types import SimpleNamespace
+    pages = [SimpleNamespace(page_id="p1", source_ids=tuple(sources))]
+    records = [SimpleNamespace(observation_id=o, page_id="p1") for o in fragments]
+    inputs = {o: rt.ObservationInput(o, sid, {"item_support": nodes}) for o, (sid, nodes) in fragments.items()}
+    return rt.Stage6Institution("run", "uid", {"institution_id": "INST-FAKE"}, None, pages, [], records, [], [],
+                                inputs, sources, {}, [])
+
+
+def test_stage6_produces_source_confidence_from_page_and_activity_records_ruling_140():
+    """PI ruling 140 (gate 3) with RC-D-025 P12: the source row's confidence reads its own page-level records
+    and its activity's observation records on the page; another activity's records on the same page, a
+    downgrade's final node and a within-page pair record are not associated."""
+    page_level = [_fake_node("core.page_verdict", "confirms_activity")]
+    sources = {
+        "S1": {"values": {"core.source_credibility": "medium"}, "item_support": page_level,
+               "observation_ids": ["o1"]},
+        "S2": {"values": {"core.source_credibility": "high"}, "item_support": page_level,
+               "observation_ids": ["o2"]},
+        "S3": {"values": {"core.source_credibility": "high", "core.confidence": "not_asked"},
+               "item_support": [], "observation_ids": []},
+    }
+    fragments = {
+        "o1": ("S1", [_fake_node("core.action_type", "deployment"),
+                      _fake_node("core.tool_name", ["Copilot"], final_of="orig-id"),  # a final node: not read
+                      _fake_node("core.activity_segment", "same", "downgraded_no_quote")]),  # pair item: not read
+        "o2": ("S2", [_fake_node("core.action_type", "deployment", "downgraded_no_quote")]),
+    }
+    inst = _fake_institution(sources, fragments)
+    assert rt.source_confidence_of(inst, "S1") == "medium"  # all associated checks passed: the credibility
+    assert rt.source_confidence_of(inst, "S2") == "low"  # its own activity's failed check (C7 a)
+    filled = rt.with_source_confidence(inst)
+    assert {s: r["values"]["core.confidence"] for s, r in filled.sources.items()} == \
+        {"S1": "medium", "S2": "low", "S3": "not_asked"}  # S3: a given value is kept
+    assert "core.confidence" not in inst.sources["S1"]["values"]  # inputs are not mutated
+    # A page-level failure lowers every source row of the page.
+    sources["S1"]["item_support"] = [_fake_node("core.page_verdict", "confirms_activity", "downgraded_no_quote")]
+    assert rt.source_confidence_of(_fake_institution(sources, fragments), "S1") == "low"
+
+
+def test_source_row_without_credibility_stops_the_stage(tmp_path):
+    # Ruling 32 b: a malformed upstream row (here a source row with neither core.confidence nor the
+    # core.source_credibility Stage 6 reads to produce it, ruling 140) is a wiring error: the stage stops,
+    # naming the institution and the field; nothing is held or written.
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    del a.sources["S1"]["values"]["core.confidence"]
+    del a.sources["S1"]["values"]["core.source_credibility"]
+    with pytest.raises(rt.UpstreamRowMalformed, match=r"INST-\S+: 'core.source_credibility' is missing") as info:
         _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
-    assert info.value.institution_id == A and info.value.field == "'core.confidence'"
+    assert info.value.institution_id == A and info.value.field == "'core.source_credibility'"
     assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
     assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in (A, B))
     assert _ledger(run_dir) == []

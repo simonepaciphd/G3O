@@ -203,7 +203,9 @@ def test_unproduced_values_still_refuse(tmp_path):
         pin.require_complete(followed)
     assert f"{I1}/{url_hash(P_META.url)}" in exc.value.missing
     # Ruling 35 a: the row values are left to the T-015 assembler, which names what it still refuses.
-    assert "source-row assembler" in str(exc.value) and "core.confidence" in str(exc.value)
+    assert "source-row assembler" in str(exc.value) and "core.developer" in str(exc.value)
+    # PI ruling 140 (gate 3): core.confidence is Stage 6's and no longer named at entry.
+    assert "core.confidence" not in str(exc.value)
     # PI ruling 97 b: an item refused only on some pages' data (here source_type) holds that institution in
     # the stage; the entry names the unproduced items only.
     assert "core.source_type" not in str(exc.value) and "refuses on some pages" not in str(exc.value)
