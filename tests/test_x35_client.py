@@ -212,13 +212,16 @@ def test_journal_records_x35_usage_per_request_and_replays_without_it(tmp_path):
                                  usage={**USAGE, "output_tokens": 5}))
     entail = wrap_entail(client)
     assert entail(QUESTION, WINDOW) == Entailment("true", 0.9)
-    with pytest.raises(xc.X35ResponseError):
-        entail(QUESTION, WINDOW + " more")
+    # PI ruling Q169 b: the billed refusal is an answer with no probability, returned, not raised
+    assert entail(QUESTION, WINDOW + " more") == Entailment(sc.X35_NON_ANSWER, None)
     assert journal.x35_usages() == [USAGE, {**USAGE, "output_tokens": 5}]
-    assert journal.usage()["x35_calls"] == 1 and journal.usage()["x35_failed"] == 1
+    assert journal.usage()["x35_calls"] == 2 and journal.usage()["x35_failed"] == 0
     entries = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
     assert entries[0]["kind"] == "x35" and entries[0]["response"] == {"value": "true", "probability": 0.9,
                                                                        "usage": USAGE}
+    assert entries[1]["kind"] == "x35" and entries[1]["response"]["value"] == sc.X35_NON_ANSWER
+    assert entries[1]["response"]["probability"] is None and "refusal" in entries[1]["response"]["non_answer"]
+    assert entries[1]["response"]["usage"] == {**USAGE, "output_tokens": 5}
 
     reloaded = RequestJournal(path, read_only=True)
     _, wrap_again = reloaded.seams({"x35_model": "claude-haiku-5-5"})
@@ -227,6 +230,7 @@ def test_journal_records_x35_usage_per_request_and_replays_without_it(tmp_path):
         raise AssertionError("a recorded X35 answer must be replayed")
 
     assert wrap_again(no_call)(QUESTION, WINDOW) == Entailment("true", 0.9)  # usage key not passed on
+    assert wrap_again(no_call)(QUESTION, WINDOW + " more") == Entailment(sc.X35_NON_ANSWER, None)
     assert reloaded.x35_usages() == [USAGE, {**USAGE, "output_tokens": 5}]
 
 
@@ -258,22 +262,45 @@ def test_journal_marks_a_responseless_x35_failure_and_does_not_price_it(tmp_path
     with pytest.raises(ConnectionError):
         wrap_entail(transport_error)(QUESTION, WINDOW)
     client, _ = _client(_message({"answer": "true", "probability": 0.9}, stop="refusal"))
-    with pytest.raises(xc.X35ResponseError):
-        wrap_entail(client)(QUESTION, WINDOW + " other")
+    # PI ruling Q169 b: a billed non-answer is a replayed x35 answer, not a failure
+    assert wrap_entail(client)(QUESTION, WINDOW + " other") == Entailment(sc.X35_NON_ANSWER, None)
     entries = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
-    assert [e["kind"] for e in entries] == ["x35_failed", "x35_failed"]
+    assert [e["kind"] for e in entries] == ["x35_failed", "x35"]
     assert entries[0]["response"]["usage_absent"] == "no_response" and "usage" not in entries[0]["response"]
     assert "usage_absent" not in entries[1]["response"] and entries[1]["response"]["usage"] == USAGE
-    assert journal.usage()["x35_failed"] == 2  # still counted
+    assert journal.usage()["x35_failed"] == 1 and journal.usage()["x35_calls"] == 1  # both still counted
     assert journal.x35_usages() == [USAGE]  # the responseless failure is not priced (never $0, never None)
     assert RequestJournal(path, read_only=True).x35_usages() == [USAGE]
 
 
-def test_x35_request_failing_with_a_response_cap_times_is_refused_without_a_call(tmp_path):
-    """Review O2 M4: mirrors the extractor's EXTRACT_REJECT_CAP (ruling 34 b / 41 a). After the cap of
-    billed non-answers for one X35 request key, the journal refuses the live call (X35FailCapReached, a
-    RuntimeError, so the stages hold as for the failure itself), also after a reload, until a PI release
-    names the key. Responseless failures (no_response, PI 131.1 b) do not count towards the cap."""
+def test_x35_non_answer_is_replayed_on_resume_and_never_rebilled_q169b(tmp_path):
+    """PI ruling Q169 b: a non-answer (refusal, max_tokens stop, unparseable output) is journaled once as
+    an x35 answer with no probability and its billed usage; every later run replays it, with no call."""
+    from g3o.run.presweep.stage_validate_v27 import EXTRACT_REJECT_CAP, RequestJournal
+
+    calls: list[tuple[str, str]] = []
+
+    def non_answer(question: str, text: str) -> Entailment:
+        calls.append((question, text))
+        raise xc.X35ResponseError("X35 output is not JSON: Expecting value", usage=dict(USAGE))
+
+    path = tmp_path / "journal.jsonl"
+    for run in range(EXTRACT_REJECT_CAP + 2):  # more resumes than the old cap allowed
+        journal = RequestJournal(path)
+        _, wrap_entail = journal.seams({"x35_model": "fake"})
+        assert wrap_entail(non_answer)(QUESTION, WINDOW) == Entailment(sc.X35_NON_ANSWER, None)
+        assert (journal.live, journal.replayed) == ((1, 0) if run == 0 else (0, 1))
+        assert journal.x35_usages() == [USAGE]  # billed once, priced once
+    assert len(calls) == 1
+    lines = path.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1 and json.loads(lines[0])["kind"] == "x35"
+
+
+def test_x35_cap_is_an_inert_backstop_for_other_billed_exceptions(tmp_path):
+    """Review O2 M4 cap, kept after PI ruling Q169 b as a backstop: X35 non-answers no longer reach it;
+    only a billed exception that is not an X35ResponseError (the production client raises none) counts.
+    After the cap the journal refuses the live call (X35FailCapReached), also after a reload, until a PI
+    release names the key. Responseless failures (no_response, PI 131.1 b) do not count towards the cap."""
     from g3o.run.presweep.stage_validate_v27 import (
         EXTRACT_REJECT_CAP,
         RequestJournal,
@@ -282,9 +309,14 @@ def test_x35_request_failing_with_a_response_cap_times_is_refused_without_a_call
 
     calls: list[tuple[str, str]] = []
 
+    class BilledOther(RuntimeError):
+        def __init__(self, message: str, usage: dict[str, Any]) -> None:
+            super().__init__(message)
+            self.usage = usage
+
     def billed_refusal(question: str, text: str) -> Entailment:
         calls.append((question, text))
-        raise xc.X35ResponseError("X35 response gave no answer (refusal)", usage=dict(USAGE))
+        raise BilledOther("billed, not a non-answer", usage=dict(USAGE))
 
     def transport_error(question: str, text: str) -> Entailment:
         calls.append((question, text))
@@ -297,7 +329,7 @@ def test_x35_request_failing_with_a_response_cap_times_is_refused_without_a_call
         with pytest.raises(ConnectionError):
             wrap_entail(transport_error)(QUESTION, WINDOW)
     for _ in range(EXTRACT_REJECT_CAP):
-        with pytest.raises(xc.X35ResponseError):
+        with pytest.raises(BilledOther):
             wrap_entail(billed_refusal)(QUESTION, WINDOW)
     assert len(calls) == 2 * EXTRACT_REJECT_CAP + 1
     with pytest.raises(X35FailCapReached) as capped:

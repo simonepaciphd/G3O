@@ -88,8 +88,11 @@ X35_OUTPUT_SCHEMA: dict[str, Any] = {
 class X35ResponseError(RuntimeError):
     """An X35 response that gives no usable answer (refusal, cut, empty or unparseable).
 
-    ``usage`` is the response's own usage (it was billed), so the request journal can
-    keep it on the ``x35_failed`` entry.
+    ``usage`` is the response's own usage (it was billed). PI ruling Q169 b: the request
+    journal (``RequestJournal`` X35 seam) records it as an answer with no probability
+    (``support_check.X35_NON_ANSWER``) on a replayed ``x35`` entry carrying that usage, so
+    only that one check fails and a resume replays it instead of asking (and billing) again.
+    Raised to a caller that calls this client without the journal.
     """
 
     def __init__(self, message: str, *, usage: dict[str, Any] | None = None) -> None:
