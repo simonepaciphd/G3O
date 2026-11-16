@@ -208,6 +208,55 @@ def _mark_v27_preview(preview: dict[str, Any]) -> None:
     )
 
 
+def _extractor_mode_estimates(n: int, *, unlocker_on: bool, configured_mode: str | None,
+                              seeds_path: str | None = None) -> dict[str, Any]:
+    """Estimated cost and wall time of a v2.7 run per extractor mode (PI ruling 134).
+
+    Shown so the operator can choose a mode; never compared with the ceiling and never a
+    reason to stop (the cost gate above is unchanged, and v2.7 stages stay outside it,
+    ruling 1 a). Basis: the private seeds file of :mod:`g3o.common.run_projection`
+    (``seeds_path``, else ``$G3O_PROJECTION_SEEDS``; PI ruling Q177 a) scaled to this run's
+    ``n``; the Unlocker is zero when the run does not use it. No seeds file: the block says
+    the seeds are unavailable. The seed pages basis leaves the total withheld. For a
+    projection from a smoke run's own telemetry use ``scripts/project_run_cost.py``.
+    """
+    try:
+        from g3o.common import run_projection as rp
+
+        try:
+            seeds = rp.load_seeds(seeds_path)
+        except rp.SeedsUnavailable as exc:
+            return {"is_estimate": True, "seeds_available": False, "configured_mode": configured_mode,
+                    "note": f"seeds unavailable ({exc}); no per-mode estimate. Not a gate."}
+        per_inst = rp.seed_per_institution(seeds)
+        if not unlocker_on:
+            per_inst["unlocker_usd"] = 0.0
+        a = rp.ModeAssumptions.from_seeds(seeds)
+        rows = rp.project_all(per_inst, n, a)
+        return {
+            "is_estimate": True,
+            "seeds_available": True,
+            "configured_mode": configured_mode,
+            "default_mode": rp.MIX,
+            "basis": per_inst["basis"],
+            "pages_basis": per_inst["pages_basis"],
+            "rows": rows,
+            "table": rp.format_table(rows, n, rp.table_notes(per_inst, seeds, rows, a)),
+            "note": (
+                "Seeds only (prior-wave cost report; spike per-page legs, proxy questions), "
+                "not this run's telemetry. Pages basis: wave-4 v2.5 scrape-out; v2.7 followed "
+                "pages not included, so the total is withheld and the per-page parts are marked. "
+                "The Stage 6 quote step and X35 (Q158) are unpriced; the Unlocker is at the "
+                "cost-report basis, which under-counts. Batch-mode wall time is a lower bound: "
+                "the batch round trip is unmeasured at wave scale (up to the API's 24 h) and "
+                "the throughput is v2.5's. queue_MB is a lower bound on the memory a batch "
+                "mode's first wave holds. Not a gate."
+            ),
+        }
+    except Exception as exc:  # noqa: BLE001 - an estimate never stops a preflight
+        return {"is_estimate": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
 def _unpriced_cost_preview(
     model: str,
     *,
@@ -338,6 +387,11 @@ def run_preflight(
     if n == 0:
         summary["error"] = "planned sample is empty; nothing to project"
         return summary
+    if config.pipeline_version == PIPELINE_V27:
+        summary["extractor_mode_estimates"] = _extractor_mode_estimates(
+            n, unlocker_on=services["brightdata_unlocker"]["active"],
+            configured_mode=getattr(config, "v27_extractor_mode", None),
+        )
 
     # --- 3. Model verification (opt-in).
     if verify_model_live:
