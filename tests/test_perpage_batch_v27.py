@@ -399,6 +399,75 @@ def test_a_short_results_stream_is_not_marked_collected(tmp_path):
     assert call(a).batch_id == call(b).batch_id == "msgbatch_1"
 
 
+def test_an_abandoned_batch_requeues_only_its_missing_requests(tmp_path):
+    """PI ruling Q175 a: after a short results stream the operator abandons the batch; it counts as collected,
+    the request with no stored result is queued and asked again on the next run, the stored one is kept."""
+    a, b = job("https://a.example/1"), job("https://a.example/2")
+    client = FakeBatchClient(drop={b.custom_id})
+    ex = extractor(tmp_path, client)
+    _, call = journaled(tmp_path, ex)
+    for j in (a, b):
+        with pytest.raises(pb.BatchDeferred):
+            call(j)
+    ex.submit()
+    with pytest.raises(pb.BatchResultsIncomplete, match="record_batch_abandoned"):
+        ex.settle()
+    assert pb.record_batch_abandoned(tmp_path, "msgbatch_1") == [b.custom_id]
+    with pytest.raises(ValueError, match="already collected"):  # explicit, once
+        pb.record_batch_abandoned(tmp_path, "msgbatch_1")
+    with pytest.raises(ValueError, match="not a submitted batch"):
+        pb.record_batch_abandoned(tmp_path, "msgbatch_9")
+    ex2 = extractor(tmp_path, client)
+    store = ex2.store
+    assert "msgbatch_1" in store.collected and store.in_flight() == []
+    assert store.queued == {pb.request_hash(b): b.custom_id}
+    assert store.in_flight_keys() == store.in_flight_keys_rebuilt() == set()
+    assert [r["custom_id"] for r in store.results[pb.request_hash(a)]] == [a.custom_id]
+    assert pb.request_hash(b) not in store.results
+    ex2.settle()  # nothing polled or read again
+    assert client.result_reads == 1
+    _, call = journaled(tmp_path, ex2)
+    assert call(a).batch_id == "msgbatch_1"  # the stored result is kept and journaled
+    assert ex2.batch_owns(b)  # known not answered: deferred again, never treated as a lost live call
+    with pytest.raises(pb.BatchDeferred, match="queued"):
+        call(b)
+    client.drop.clear()
+    assert ex2.submit() == ["msgbatch_2"] and client.created[-1] == [b.custom_id]
+    ex2.settle()
+    _, call = journaled(tmp_path, ex2)
+    assert call(b).batch_id == "msgbatch_2"
+
+
+def test_abandon_keeps_the_in_flight_keys_consistent_and_reloads(tmp_path):
+    """PI ruling Q175 a: ``in_flight_keys`` equals its rebuilt definition at every step, including an
+    abandoned batch with one stored result, a torn tail repaired by the operator step, and a reload."""
+    path = pb.batch_journal_path(tmp_path)
+    store = pb._Store.load(path)
+    steps = [
+        {"kind": "queued", "key": "k1", "custom_id": "c1"},
+        {"kind": "queued", "key": "k2", "custom_id": "c2"},
+        {"kind": "queued", "key": "k3", "custom_id": "c3"},
+        {"kind": "submit_intent", "seq": 1, "requests": [["c1", "k1"], ["c2", "k2"]]},
+        {"kind": "submitted", "seq": 1, "batch_id": "b1"},
+        {"kind": "submit_intent", "seq": 2, "requests": [["c3", "k3"]]},
+        {"kind": "submitted", "seq": 2, "batch_id": "b2"},
+        {"kind": "result", "batch_id": "b1", "custom_id": "c1", "key": "k1",
+         "result": {"custom_id": "c1", "success": True, "text": "{}", "error": None, "batch_id": "b1"}},
+    ]
+    for step in steps:
+        store.append(step)
+        assert store.in_flight_keys() == store.in_flight_keys_rebuilt()
+    assert store.in_flight_keys() == {"k1", "k2", "k3"}
+    with path.open("ab") as stream:
+        stream.write(b'{"kind": "collec')  # a torn tail: the operator step repairs it before appending
+    assert pb.record_batch_abandoned(tmp_path, "b1") == ["c2"]
+    reloaded = pb._Store.load(path)
+    assert reloaded.in_flight_keys() == reloaded.in_flight_keys_rebuilt() == {"k3"}
+    assert reloaded.queued == {"k2": "c2"} and "b1" in reloaded.collected and reloaded.abandoned == {"b1"}
+    assert [r["custom_id"] for r in reloaded.results["k1"]] == ["c1"]
+    assert reloaded.in_flight() == [(2, "b2")]
+
+
 def test_a_request_over_the_byte_guard_is_sent_live(tmp_path):
     """Review M3: never queued (so submit never refuses it), sent live in the same wave as before."""
     live = LiveFn()
