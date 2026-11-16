@@ -69,8 +69,13 @@ X35_USER_TEMPLATE_DRAFT = "<text>\n{text}\n</text>\n\n{question}"
 X35_INSTRUCTION_APPROVED_SHA256: str | None = "6f048d6018bba9cb8ebc9027a45ece29a80b8b9de5ae19173d3f67580900861c"
 
 
-def x35_instruction_sha256(system: str = X35_SYSTEM_DRAFT, user_template: str = X35_USER_TEMPLATE_DRAFT) -> str:
-    """SHA256 (hex) of the X35 wording: ``system + "\\0" + user_template``, UTF-8 encoded."""
+def x35_instruction_sha256(system: str | None = None, user_template: str | None = None) -> str:
+    """SHA256 (hex) of the X35 wording: ``system + "\\0" + user_template``, UTF-8 encoded.
+
+    Omitted parts are read from :data:`X35_SYSTEM_DRAFT` / :data:`X35_USER_TEMPLATE_DRAFT` at call
+    time (not bound at import), so the hash always describes the wording the client sends."""
+    system = X35_SYSTEM_DRAFT if system is None else system
+    user_template = X35_USER_TEMPLATE_DRAFT if user_template is None else user_template
     return hashlib.sha256((system + "\0" + user_template).encode("utf-8")).hexdigest()
 
 
