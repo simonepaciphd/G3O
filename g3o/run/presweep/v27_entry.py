@@ -179,16 +179,19 @@ class LazyX35:
 def x35_entail_fn(settings: Any, credentials: ResolvedCredentials) -> Callable[..., Any]:
     """The X35 ``entail_fn`` (PI ruling 139 a: Claude Haiku 5.5 behind ``settings.x35_model``).
 
-    While ``x35_client.X35_PROBABILITY_SOURCE`` is None (the probability source and the
-    instrument wording await the PI) it returns ``support_check.run_entailment``, which
-    refuses every call, and ``orchestrator._require_v27_dispatch`` refuses it on entry, so
-    no X35 call is made. Set, it returns :class:`LazyX35` bound to ``settings.x35_model``
-    and the run's Anthropic key (no client is built until the first call).
+    Two gates, both required (review O2 M2): ``x35_client.X35_PROBABILITY_SOURCE`` set
+    (the probability source) AND ``x35_client.x35_instruction_sha256()`` equal to
+    ``x35_client.X35_INSTRUCTION_APPROVED_SHA256`` (the approved instrument wording).
+    While either is open it returns ``support_check.run_entailment``, which refuses every
+    call, and ``orchestrator._require_v27_dispatch`` refuses it on entry, so no X35 call
+    is made. Both passed, it returns :class:`LazyX35` bound to ``settings.x35_model`` and
+    the run's Anthropic key (no client is built until the first call).
     """
     from g3o.extract import x35_client
 
     source = x35_client.X35_PROBABILITY_SOURCE
-    if source is None:
+    approved = x35_client.X35_INSTRUCTION_APPROVED_SHA256
+    if source is None or approved is None or x35_client.x35_instruction_sha256() != approved:
         from g3o.common import support_check
 
         return support_check.run_entailment
