@@ -154,6 +154,7 @@ def config_snapshot(
     if config.pipeline_version == PIPELINE_V25 and not config.v27_not_production_ready_opt_in:
         del config_dict["pipeline_version"]
         del config_dict["v27_not_production_ready_opt_in"]
+        config_dict.pop("v27_extractor_mode", None)  # PI ruling 134: a v2.5 snapshot is unchanged
     # v2.7 runtime settings (T-030, PI ruling 132 a): left out while unset, so no
     # earlier snapshot changes; set, the manifest records the settings the run's
     # instrument is bound from (before any 2.7 row).

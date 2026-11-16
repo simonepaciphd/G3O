@@ -246,6 +246,7 @@ from g3o.persist.stage6_adapters import (
 from g3o.run.presweep import source_row_v27 as srow
 from g3o.run.presweep import stage_activity_code, stage_page_code
 from g3o.run.presweep.official_site_v27 import load_run_official_sites
+from g3o.run.presweep.perpage_batch_v27 import BATCH_PENDING, BatchDeferred
 from g3o.run.presweep.stage_validate_v27 import DONE_MARKER as STAGE6_DONE_MARKER
 from g3o.run.presweep.stage_validate_v27 import (
     EXTRACT_REJECT_CAP,
@@ -1861,6 +1862,9 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
         except Pass1RequestNotJournaled as exc:  # PI ruling 105 b: no call was made
             return {"page_id": exc.page_id, "stage": exc.stage, "pass": "pass1",
                     "custom_id": exc.custom_id, "request_key": exc.key, "error": str(exc)}
+        except BatchDeferred as exc:  # PI ruling 134: the request waits for a Message Batch; no call was made
+            return {"page_id": page.page_id, "stage": BATCH_PENDING, "custom_id": exc.custom_id,
+                    "batch_state": exc.state, "error": str(exc)}
         except ExtractorResponseFailed as exc:  # C3 a: this institution is held as pending
             broken = _response_hold(page.page_id, exc)
             if exc.request is not None and hasattr(providers, "journal_prompt"):

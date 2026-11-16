@@ -125,8 +125,9 @@ def test_default_is_v25_and_the_snapshot_is_unchanged(tmp_path):
     v27 = planning.config_snapshot(_v27_config(tmp_path))
     assert v27["pipeline_version"] == PIPELINE_V27 and v27["v27_not_production_ready_opt_in"] is True
     # Apart from the two run-mode keys (and the stop_after v2.7 needs), the snapshots agree.
+    assert "v27_extractor_mode" not in snap and v27["v27_extractor_mode"] == "mix"  # PI ruling 134 (default)
     assert {k: v for k, v in v27.items() if k not in ("pipeline_version", "v27_not_production_ready_opt_in",
-                                                      "stop_after", "run_id", "runs_dir", "master_csv")} == \
+                                                      "v27_extractor_mode", "stop_after", "run_id", "runs_dir", "master_csv")} == \
         {k: v for k, v in snap.items() if k not in ("stop_after", "run_id", "runs_dir", "master_csv")}
 
 

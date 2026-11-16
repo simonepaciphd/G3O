@@ -440,6 +440,10 @@ class PresweepConfig:
     # of the config snapshot, so no earlier manifest or config_hash changes; set,
     # it is recorded in the manifest's config. Refused on a v2.5 run.
     v27_runtime: dict[str, Any] | None = None
+    # PI ruling 134 (default mix, its default note; 143 a): the v2.7 per-page stage's
+    # extractor use of the Message Batches API: "all_batch", "mix" or "no_batch"
+    # (g3o.run.presweep.perpage_batch_v27). Left out of a v2.5 snapshot.
+    v27_extractor_mode: str = "mix"
 
     def __post_init__(self) -> None:
         """Reject a language this run could not actually query (A7, 2026-08-02).
@@ -476,6 +480,9 @@ class PresweepConfig:
                 "v27_not_production_ready_opt_in is set but pipeline_version is "
                 f"{self.pipeline_version!r}; it only opts in to 'v2.7'"
             )
+        if self.v27_extractor_mode not in ("all_batch", "mix", "no_batch"):
+            raise ValueError("v27_extractor_mode must be 'all_batch', 'mix' or 'no_batch' (PI ruling 134), "
+                             f"got {self.v27_extractor_mode!r}")
         if self.v27_runtime is not None:
             if self.pipeline_version != PIPELINE_V27:
                 raise ValueError(

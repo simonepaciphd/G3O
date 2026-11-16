@@ -1,0 +1,379 @@
+"""Per-run extractor batch modes of the v2.7 per-page stage (PI rulings 134, 143 a; priced per 130 a).
+
+Three modes (:data:`EXTRACTOR_MODES`), chosen per run; the default is :data:`MIX` (134 default):
+
+- :data:`ALL_BATCH`: every extractor call of the per-page stage goes through the Anthropic
+  Message Batches API, in waves;
+- :data:`MIX`: the first-round T-022 pass-1 and T-032 pass-2 page requests (their ``custom_id``
+  is the page's first-round one, :func:`is_first_round`) go through Batches; every follow-up
+  (extra rounds, the 87 c activity-only request, pass-2 extra rounds) is live;
+- :data:`NO_BATCH`: every call is live (the code before this module).
+
+A PI-released re-ask (rulings 104 b / 113 b / 114 b) is always live, whatever the mode: its
+``reask_spent`` marker is journaled just before the call, so it cannot wait for a batch.
+The Stage 6 quote step is not part of the per-page stage and stays live.
+
+How a batched call runs (no stage logic changes). The per-page stage is run in *waves*
+(:func:`run_waves`). In a wave, a batchable request with no stored result is *deferred*: it is
+queued (a ``queued`` line in the run's batch journal, fsynced) and :class:`BatchDeferred` is raised
+instead of a call, which holds that institution (:data:`BATCH_PENDING`) exactly like any other
+pending hold; the stage goes on with the next institution. After the wave the queued requests are
+submitted as one or more batches, polled until they end, and their results stored. The next wave
+resumes every held institution from its checkpoints; the request journal
+(:class:`~g3o.run.presweep.stage_validate_v27.RequestJournal`) takes the stored result in place of
+a live call and journals it exactly as it journals a live response (``extract`` /
+``extract_failed``), with the result's ``batch_id``, so it is replayed on every later resume and
+priced at batch rates (130 a). The waves end when a wave queues nothing.
+
+Durability (a crash at any point neither double-spends nor loses a result). The run-level batch
+journal ``<run>/perpage_v27_batches/batches.jsonl`` is append-only and fsynced:
+
+1. ``queued`` (request hash, ``custom_id``): written when a request is deferred. A resumed page whose
+   pass-1 / pass-2 request was recorded (PI rulings 98 b / 105 b) but never sent is therefore known
+   not sent, and is deferred again rather than held as not journaled.
+2. ``submit_intent`` (sequence number, every ``[custom_id, request hash]``): written BEFORE the batch
+   is created. ``submitted`` (sequence number, ``batch_id``): written right after. A crash between the
+   two leaves an intent with no batch id: the batch may exist and be billed, so nothing is ever
+   resubmitted automatically; the next run stops (:class:`BatchSubmitUnacknowledged`) until the
+   operator records the outcome (:func:`record_submit_outcome`: the batch id found in the console,
+   or that none was created).
+3. ``result`` (``batch_id``, ``custom_id``, request hash, the result): one fsynced line per result,
+   read from the ended batch. ``collected`` (``batch_id``): after the last one. A crash mid-poll
+   polls the same batch id again; a crash mid-collection reads the results again (free) and stores
+   only those not stored yet.
+4. A stored result is consumed when the request journal journals it (its ``batch_id`` on the
+   entry): a crash before that leaves the result in the store for the next wave; after it, the
+   per-institution journal replays it. A result already consumed is never journaled twice
+   (the journal checks the ``batch_id`` of its own entries).
+
+Errored, expired and canceled results are stored and journaled like any failed response
+(``extract_failed``; priced $0 when they report no usage, 67 a); the institution is held (C3 a) and
+the request is not resubmitted in the same run (:func:`run_waves` sends each request at most once
+per invocation); the next run asks it again, as for a failed live call.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import time
+from collections.abc import Callable, Mapping
+from dataclasses import asdict, dataclass, field, replace
+from pathlib import Path
+from typing import Any
+
+ALL_BATCH = "all_batch"
+MIX = "mix"
+NO_BATCH = "no_batch"
+#: PI ruling 134: the per-run extractor modes (all batch, mix, no batch)
+EXTRACTOR_MODES = (ALL_BATCH, MIX, NO_BATCH)
+#: PI ruling 134 (default): mix, "for best tradeoff"
+DEFAULT_EXTRACTOR_MODE = MIX
+
+BATCH_DIR = "perpage_v27_batches"
+BATCH_JOURNAL = "batches.jsonl"
+#: the hold stage of an institution whose extractor request waits for a batch
+BATCH_PENDING = "extract_batch_pending"
+#: seconds between two status polls of a batch in flight (procedural default)
+DEFAULT_POLL_SECONDS = 60.0
+#: waves of one invocation before :func:`run_waves` stops (procedural default; each wave sends a
+#: request at most once, so a run needs one wave per sequential batched step of a page, plus one)
+DEFAULT_MAX_WAVES = 50
+
+#: first-round custom ids: the T-022 pass-1 page request (``x27-`` + 48 hex) and the T-032
+#: pass-2 page request (``x27s-`` + 48 hex); follow-ups carry a ``-x`` / ``-a`` suffix (46 a, 49 a, 87 c)
+_FIRST_ROUND = re.compile(r"^x27s?-[0-9a-f]{48}$")
+
+
+def is_first_round(custom_id: str) -> bool:
+    """Whether ``custom_id`` is a page's first-round pass-1 or pass-2 page request (mix batches these)."""
+    return bool(_FIRST_ROUND.match(custom_id))
+
+
+def require_mode(mode: Any) -> str:
+    if mode not in EXTRACTOR_MODES:
+        raise ValueError(f"extractor mode must be one of {EXTRACTOR_MODES} (PI ruling 134), got {mode!r}")
+    return mode
+
+
+def request_hash(job: Any) -> str:
+    """SHA256 of the request (``custom_id`` and ``params``): what a stored result answers."""
+    doc = json.dumps({"custom_id": job.custom_id, "params": job.params}, ensure_ascii=False, sort_keys=True,
+                     separators=(",", ":"))
+    return hashlib.sha256(doc.encode("utf-8")).hexdigest()
+
+
+class BatchDeferred(Exception):  # noqa: N818 - names the hold, as Pass2RequestNotJournaled does
+    """The request waits for a batch (queued now, in flight, or to be sent on the next run).
+
+    Raised by :class:`BatchExtractor` instead of a call. Not a stage stop: the per-page stage holds the
+    institution (:data:`BATCH_PENDING`) and goes on; the next wave (or run) resumes it."""
+
+    def __init__(self, custom_id: str, key: str, state: str) -> None:
+        super().__init__(f"extractor request {custom_id!r} waits for a Message Batch ({state})")
+        self.custom_id, self.key, self.state = custom_id, key, state
+
+
+class BatchSubmitUnacknowledged(RuntimeError):
+    """A ``submit_intent`` has no ``submitted`` line: the batch may exist and be billed.
+
+    A stage stop. Nothing is resubmitted until the operator records the outcome with
+    :func:`record_submit_outcome` (the batch id, or None when no batch was created)."""
+
+    def __init__(self, seq: int, custom_ids: list[str]) -> None:
+        super().__init__(f"Message Batch submission #{seq} ({len(custom_ids)} request(s)) was not acknowledged: "
+                         "it may have been created and billed. Find it in the Anthropic console and record it "
+                         "with record_submit_outcome(run_dir, seq, batch_id) (batch_id None if none was "
+                         "created); nothing is resubmitted until then")
+        self.seq, self.custom_ids = seq, custom_ids
+
+
+class BatchClientMissing(RuntimeError):
+    """A batched mode, or batches in flight, with no batch client to submit or poll them."""
+
+
+def _write_line(path: Path, entry: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(entry, ensure_ascii=False, sort_keys=True)
+    with path.open("ab") as stream:
+        stream.write(line.encode("utf-8") + b"\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def batch_journal_path(run_dir: Path) -> Path:
+    return Path(run_dir) / BATCH_DIR / BATCH_JOURNAL
+
+
+def record_submit_outcome(run_dir: Path, seq: int, batch_id: str | None) -> None:
+    """Operator step after :class:`BatchSubmitUnacknowledged`: the batch of submission ``seq`` is
+    ``batch_id`` (then it is polled and collected), or None: no batch was created (its requests are
+    sent again on the next wave)."""
+    _write_line(batch_journal_path(run_dir), {"kind": "submitted", "seq": seq, "batch_id": batch_id,
+                                              "operator": True})
+
+
+@dataclass
+class _Store:
+    """The batch journal, loaded. A torn last line (an interrupted write) is dropped."""
+
+    path: Path
+    queued: dict[str, str] = field(default_factory=dict)  # request hash -> custom_id (not yet submitted)
+    intents: dict[int, list[list[str]]] = field(default_factory=dict)  # seq -> [[custom_id, hash], ...]
+    submitted: dict[int, str | None] = field(default_factory=dict)  # seq -> batch id (None: none created)
+    collected: set[str] = field(default_factory=set)
+    #: request hash -> stored results, in collection order (each with its ``batch_id``)
+    results: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    _seen_results: set[tuple[str, str]] = field(default_factory=set)  # (batch_id, custom_id)
+
+    @classmethod
+    def load(cls, path: Path) -> _Store:
+        store = cls(path)
+        if not path.exists():
+            return store
+        raw = path.read_bytes()
+        lines = raw.split(b"\n")
+        for n, line in enumerate(lines):
+            if not line.strip():
+                continue
+            try:
+                entry = json.loads(line.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                if n == len(lines) - 1:
+                    break  # torn final record: dropped (never acknowledged, so never relied on)
+                raise ValueError(f"corrupt batch journal line {n + 1}: {path}") from None
+            store.apply(entry)
+        if raw and not raw.endswith(b"\n"):
+            with path.open("ab") as stream:  # terminate a torn tail before the next append
+                stream.write(b"\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+        return store
+
+    def apply(self, entry: Mapping[str, Any]) -> None:
+        kind = entry["kind"]
+        if kind == "queued":
+            self.queued[entry["key"]] = entry["custom_id"]
+        elif kind == "submit_intent":
+            self.intents[entry["seq"]] = [list(p) for p in entry["requests"]]
+            for _cid, key in entry["requests"]:
+                self.queued.pop(key, None)
+        elif kind == "submitted":
+            self.submitted[entry["seq"]] = entry["batch_id"]
+            if entry["batch_id"] is None:  # none created: its requests may be queued again
+                for cid, key in self.intents.get(entry["seq"], []):
+                    self.queued.setdefault(key, cid)
+        elif kind == "result":
+            pair = (entry["batch_id"], entry["custom_id"])
+            if pair not in self._seen_results:
+                self._seen_results.add(pair)
+                self.results.setdefault(entry["key"], []).append(entry["result"])
+        elif kind == "collected":
+            self.collected.add(entry["batch_id"])
+
+    def append(self, entry: Mapping[str, Any]) -> None:
+        _write_line(self.path, entry)
+        self.apply(entry)
+
+    def unacknowledged(self) -> list[int]:
+        return sorted(seq for seq in self.intents if seq not in self.submitted)
+
+    def in_flight(self) -> list[tuple[int, str]]:
+        return sorted((seq, bid) for seq, bid in self.submitted.items() if bid is not None
+                      and bid not in self.collected)
+
+    def in_flight_keys(self) -> set[str]:
+        flying = {seq for seq, _ in self.in_flight()} | set(self.unacknowledged())
+        return {key for seq in flying for _cid, key in self.intents.get(seq, [])}
+
+    def has_result(self, key: str, batch_id: str, custom_id: str) -> bool:
+        return (batch_id, custom_id) in self._seen_results
+
+
+class BatchExtractor:
+    """The per-page stage's ``extract_fn`` in a batch mode; journaled by the request journal.
+
+    ``live_fn(job) -> ExtractorResult`` is the live extractor call (follow-ups in :data:`MIX`, every
+    call in :data:`NO_BATCH`, a PI-released re-ask in every mode: :meth:`live_call`).
+    ``batch_client`` has ``submit_batch(jobs) -> batch_id``, ``batch_status(batch_id) -> str`` and
+    ``batch_results(batch_id) -> Iterable[ExtractorResult]``
+    (:class:`~g3o.extract.anthropic_client.AnthropicExtractorClient`)."""
+
+    def __init__(self, run_dir: Path, live_fn: Callable[[Any], Any], batch_client: Any, mode: str = MIX, *,
+                 poll_seconds: float = DEFAULT_POLL_SECONDS, sleep: Callable[[float], None] = time.sleep) -> None:
+        self.mode = require_mode(mode)
+        if mode != NO_BATCH and batch_client is None:
+            raise BatchClientMissing(f"extractor mode {mode!r} needs a batch client (submit, poll, results)")
+        self.run_dir, self.live_fn, self.batch_client = Path(run_dir), live_fn, batch_client
+        self.poll_seconds, self.sleep = poll_seconds, sleep
+        self.store = _Store.load(batch_journal_path(run_dir))
+        self._jobs: dict[str, Any] = {}  # request hash -> job queued in this process (params kept in memory)
+        self._sent: set[str] = set()  # request hashes submitted by this process (once per invocation)
+        self.batches_submitted = 0
+        self.results_collected = 0
+
+    # --- the extract_fn seam --------------------------------------------------
+
+    def batchable(self, job: Any) -> bool:
+        if self.mode == ALL_BATCH:
+            return True
+        return self.mode == MIX and is_first_round(job.custom_id)
+
+    def batch_results(self, job: Any) -> list[Any]:
+        """Every stored result for ``job`` (an :class:`ExtractorResult` with its ``batch_id``), oldest first;
+        the request journal takes the first it has not journaled yet."""
+        from g3o.extract.anthropic_client import ExtractorResult
+
+        return [ExtractorResult(**r) for r in self.store.results.get(request_hash(job), [])]
+
+    def batch_owns(self, job: Any) -> bool:
+        """Whether ``job`` is known to the batch journal as not sent live: queued, in flight, or answered.
+        The PI ruling 98 b / 105 b guards accept it (it was never sent live)."""
+        key = request_hash(job)
+        return key in self.store.queued or key in self.store.in_flight_keys() or key in self.store.results
+
+    def __call__(self, job: Any) -> Any:
+        """Called by the request journal only when it holds no unconsumed stored result for ``job``."""
+        key = request_hash(job)
+        if key in self.store.in_flight_keys():
+            raise BatchDeferred(job.custom_id, key, "in flight")
+        if not self.batchable(job):
+            return self.live_fn(job)
+        if key in self._sent:  # sent once by this invocation and answered: asked again on the next run
+            raise BatchDeferred(job.custom_id, key, "sent this run; asked again on the next run")
+        clash = next((k for k, j in self._jobs.items() if j.custom_id == job.custom_id and k != key), None)
+        if clash is not None:  # one custom_id per batch: the second request waits for the next wave
+            raise BatchDeferred(job.custom_id, key, "custom_id already queued in this wave")
+        if key not in self.store.queued:
+            self.store.append({"kind": "queued", "key": key, "custom_id": job.custom_id})
+        self._jobs[key] = job
+        raise BatchDeferred(job.custom_id, key, "queued")
+
+    def live_call(self, job: Any) -> Any:
+        """A PI-released re-ask: always live (its ``reask_spent`` marker is already journaled)."""
+        return self.live_fn(job)
+
+    # --- waves ----------------------------------------------------------------
+
+    def pending(self) -> int:
+        """Requests queued by this process and not yet submitted."""
+        return sum(1 for k in self._jobs if k in self.store.queued)
+
+    def settle(self) -> None:
+        """Before a wave: stop on an unacknowledged submission, then poll and collect every batch in flight."""
+        open_seqs = self.store.unacknowledged()
+        if open_seqs:
+            seq = open_seqs[0]
+            raise BatchSubmitUnacknowledged(seq, [cid for cid, _ in self.store.intents[seq]])
+        for seq, batch_id in self.store.in_flight():
+            if self.batch_client is None:
+                raise BatchClientMissing(f"batch {batch_id} (submission #{seq}) is in flight and there is no "
+                                         "batch client to poll it")
+            self._collect(seq, batch_id)
+
+    def _collect(self, seq: int, batch_id: str) -> None:
+        while self.batch_client.batch_status(batch_id) != "ended":
+            self.sleep(self.poll_seconds)
+        keys = {cid: key for cid, key in self.store.intents.get(seq, [])}
+        for result in self.batch_client.batch_results(batch_id):
+            key = keys.get(result.custom_id)
+            if key is None or self.store.has_result(key, batch_id, result.custom_id):
+                continue  # not ours, or stored before a crash
+            self.store.append({"kind": "result", "batch_id": batch_id, "custom_id": result.custom_id, "key": key,
+                               "result": asdict(replace(result, batch_id=batch_id))})
+            self.results_collected += 1
+        self.store.append({"kind": "collected", "batch_id": batch_id})
+
+    def submit(self, max_requests: int | None = None) -> list[str]:
+        """Submit the requests queued by this process (intent first, then the batch, then its id)."""
+        from g3o.extract.anthropic_client import split_for_batches
+
+        jobs = [j for k, j in self._jobs.items() if k in self.store.queued]
+        if not jobs:
+            return []
+        kwargs = {} if max_requests is None else {"max_requests": max_requests}
+        groups, refused = split_for_batches(jobs, **kwargs)
+        if refused:  # a request over the per-request byte guard is never cut: sent live as before
+            raise ValueError(f"{len(refused)} extractor request(s) exceed the batch byte guard: "
+                             f"{[j.custom_id for j in refused]}")
+        ids: list[str] = []
+        for group in groups:
+            seq = max([*self.store.intents, 0]) + 1
+            pairs = [[j.custom_id, request_hash(j)] for j in group]
+            self.store.append({"kind": "submit_intent", "seq": seq, "requests": pairs})
+            batch_id = self.batch_client.submit_batch(list(group))
+            self.store.append({"kind": "submitted", "seq": seq, "batch_id": batch_id})
+            self._sent.update(key for _cid, key in pairs)
+            for _cid, key in pairs:
+                self._jobs.pop(key, None)
+            self.batches_submitted += 1
+            ids.append(batch_id)
+        return ids
+
+
+def run_waves(extractor: BatchExtractor | None, stage_pass: Callable[[], Any], *,
+              max_waves: int = DEFAULT_MAX_WAVES) -> Any:
+    """Run the per-page stage (``stage_pass``) in waves until a wave queues no batched request.
+
+    Each wave: settle the batches in flight (:meth:`BatchExtractor.settle`), run the stage, submit what it
+    queued. Returns the last wave's result. ``extractor`` None: one pass (no batch mode, nothing stored)."""
+    if extractor is None:
+        return stage_pass()
+    for _ in range(max_waves):
+        extractor.settle()
+        out = stage_pass()
+        if not extractor.pending():
+            return out
+        extractor.submit()
+    raise RuntimeError(f"the per-page stage still queued batched extractor requests after {max_waves} waves")
+
+
+def has_batch_journal(run_dir: Path) -> bool:
+    return batch_journal_path(run_dir).exists()
+
+
+__all__ = ["ALL_BATCH", "BATCH_DIR", "BATCH_JOURNAL", "BATCH_PENDING", "DEFAULT_EXTRACTOR_MODE",
+           "DEFAULT_MAX_WAVES", "DEFAULT_POLL_SECONDS", "EXTRACTOR_MODES", "MIX", "NO_BATCH", "BatchClientMissing",
+           "BatchDeferred", "BatchExtractor", "BatchSubmitUnacknowledged", "batch_journal_path", "has_batch_journal",
+           "is_first_round", "record_submit_outcome", "request_hash", "require_mode", "run_waves"]
