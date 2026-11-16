@@ -376,6 +376,15 @@ EXTRACT_REJECTED = "extract_rejected"
 JEV_UNIDENTIFIED = "jev_unidentified"
 ACCOUNTING_KINDS = frozenset({JEV_UNIDENTIFIED, "jev_incomplete", "extract_failed", "x35_failed",
                               EXTRACT_REJECTED})
+#: The marker on an ``x35_failed`` entry whose exception came with no response at all
+#: (``response[X35_USAGE_ABSENT] == X35_NO_RESPONSE``): counted, never priced (PI ruling 131.1 b).
+X35_USAGE_ABSENT = "usage_absent"
+X35_NO_RESPONSE = "no_response"
+
+
+def _x35_no_response(response: Mapping[str, Any]) -> bool:
+    """Whether an ``x35_failed`` entry's response is the PI ruling 131.1 b no-response marker."""
+    return response.get(X35_USAGE_ABSENT) == X35_NO_RESPONSE
 #: Ruling 34 b / 41 a: after this many ``extract_rejected`` entries for one exact extractor request
 #: key (``extract_failed`` entries do not count) the request is a permanent hold: the journal makes
 #: no further live call for it (:class:`ExtractRejectCapReached`) until the PI releases it.
@@ -788,6 +797,13 @@ class RequestJournal:
         # entry or, for a billed response with no usable answer, on the ``x35_failed`` one
         # (the exception's ``usage``), so :meth:`x35_usages` can price each call. A plain
         # ``entail_fn`` (a fake) journals no usage, exactly as before.
+        # An exception that carries no ``usage`` attribute at all (a transport error, a
+        # timeout, a 429/529 raised before any response, a refusing stub) is still counted
+        # as ``x35_failed`` but marked ``usage_absent: "no_response"``: like an extractor call
+        # that died without a response (PI ruling 131.1 b), it is not priced
+        # (:meth:`x35_usages` skips it), so it neither guesses a price nor blocks the total.
+        # An exception whose ``usage`` attribute is present but not a dict (a response that
+        # reported no usage) is not marked: it stays unpriced (``None``), never guessed.
         with_usage = getattr(entail_fn, "entail_with_usage", None)
 
         def wrapped(question: str, text: str) -> Entailment:
@@ -809,6 +825,8 @@ class RequestJournal:
                 exc_usage = getattr(exc, "usage", None)
                 if isinstance(exc_usage, dict):
                     failed["usage"] = exc_usage
+                elif not hasattr(exc, "usage"):  # no response came back (PI ruling 131.1 b)
+                    failed[X35_USAGE_ABSENT] = X35_NO_RESPONSE
                 self._append(self._slot("x35_failed", request, prompt), failed, _elapsed_ms(start))
                 raise
             self.live += 1
@@ -907,14 +925,21 @@ class RequestJournal:
         X35 pricing is ruled (Q158; ``cost_monitor.X35_PRICING_RULED``).
 
         ``None`` is an answer from a client that reports no usage (a fake, or an entry written
-        before usage was journaled) or a failed call with no billed response (e.g. an exception
-        raised before any response came back); it is never guessed. As for the extractor, a call
-        that died without a response (PI ruling 131.1 b) and a torn last line (131.2 a) apply.
+        before usage was journaled), a failed response that reported no usage, or a failed call
+        journaled before the ``usage_absent`` marker existed; it is never guessed.
+
+        PI ruling 131.1 b, as for the extractor: a call that died without a response is not
+        priced. An ``x35_failed`` entry marked ``usage_absent: "no_response"`` (an exception
+        raised before any response came back, e.g. a transport error, a timeout or a 429/529)
+        is skipped here, so it neither gets a price nor makes the X35 part unpriced; it is
+        still counted in ``usage()["x35_failed"]``, so this list can be shorter than that
+        count. Nothing is priced at $0. A torn last line (131.2 a) applies too.
         """
         out: list[dict[str, Any] | None] = [
             response.get("usage") for (kind, _, _), response in self._recorded.items() if kind == "x35"
         ]
-        out.extend(entry["response"].get("usage") for entry in self._accounting if entry["kind"] == "x35_failed")
+        out.extend(entry["response"].get("usage") for entry in self._accounting
+                   if entry["kind"] == "x35_failed" and not _x35_no_response(entry["response"]))
         return out
 
     def usage(self) -> dict[str, int]:

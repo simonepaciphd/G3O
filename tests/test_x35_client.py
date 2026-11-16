@@ -206,3 +206,30 @@ def test_journal_of_a_plain_entail_fn_records_no_usage(tmp_path):
     entry = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
     assert entry["response"] == {"value": "false", "probability": 0.95}
     assert journal.x35_usages() == [None]
+
+
+def test_journal_marks_a_responseless_x35_failure_and_does_not_price_it(tmp_path):
+    """Review O2 M1 (PI ruling 131.1 b, as for the extractor): an exception raised before any response
+    came back is counted in ``x35_failed`` but marked ``usage_absent: no_response`` and skipped by
+    ``x35_usages``, so it is neither priced nor makes the X35 part unpriced. A billed failure is kept."""
+    from g3o.run.presweep.stage_validate_v27 import RequestJournal
+
+    path = tmp_path / "journal.jsonl"
+    journal = RequestJournal(path)
+    _, wrap_entail = journal.seams({"x35_model": "claude-haiku-5-5"})
+
+    def transport_error(*_a: Any) -> Entailment:
+        raise ConnectionError("simulated connection reset before any response")
+
+    with pytest.raises(ConnectionError):
+        wrap_entail(transport_error)(QUESTION, WINDOW)
+    client, _ = _client(_message({"answer": "true", "probability": 0.9}, stop="refusal"))
+    with pytest.raises(xc.X35ResponseError):
+        wrap_entail(client)(QUESTION, WINDOW + " other")
+    entries = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    assert [e["kind"] for e in entries] == ["x35_failed", "x35_failed"]
+    assert entries[0]["response"]["usage_absent"] == "no_response" and "usage" not in entries[0]["response"]
+    assert "usage_absent" not in entries[1]["response"] and entries[1]["response"]["usage"] == USAGE
+    assert journal.usage()["x35_failed"] == 2  # still counted
+    assert journal.x35_usages() == [USAGE]  # the responseless failure is not priced (never $0, never None)
+    assert RequestJournal(path, read_only=True).x35_usages() == [USAGE]
