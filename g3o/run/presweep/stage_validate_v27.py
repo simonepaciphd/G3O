@@ -385,6 +385,25 @@ X35_NO_RESPONSE = "no_response"
 def _x35_no_response(response: Mapping[str, Any]) -> bool:
     """Whether an ``x35_failed`` entry's response is the PI ruling 131.1 b no-response marker."""
     return response.get(X35_USAGE_ABSENT) == X35_NO_RESPONSE
+
+
+class X35FailCapReached(RuntimeError):
+    """Review O2 M4: an X35 request came back without a usable answer :data:`EXTRACT_REJECT_CAP` times.
+
+    Mirrors :class:`ExtractRejectCapReached` (ruling 34 b / 41 a), with the same cap: after that
+    many ``x35_failed`` entries for one exact X35 request key that carry a response (a refusal,
+    a ``max_tokens`` stop, an unparseable answer; NOT the ``no_response`` ones, which are asked
+    again), the journaled X35 call raises this *instead of* calling X35, on this run and every
+    later load, until a PI release names the key. A ``RuntimeError``, so the stages hold exactly
+    as they hold the failure it replaces (the per-page stage holds the institution; Stage 6 holds
+    the answer), with no billed call. ``key`` is the journal's request key.
+    """
+
+    def __init__(self, key: str, failures: int) -> None:
+        super().__init__(f"X35 request {key} came back without a usable answer {failures} times (cap "
+                         f"{EXTRACT_REJECT_CAP}): permanent hold, no further X35 call until the PI releases "
+                         "the key (mirrors ruling 34 b / 41 a)")
+        self.key, self.failures = key, failures
 #: Ruling 34 b / 41 a: after this many ``extract_rejected`` entries for one exact extractor request
 #: key (``extract_failed`` entries do not count) the request is a permanent hold: the journal makes
 #: no further live call for it (:class:`ExtractRejectCapReached`) until the PI releases it.
@@ -508,6 +527,8 @@ class RequestJournal:
         self._seen: dict[tuple[str, str], int] = {}
         #: ruling 34 b / 41 a: request key -> ``extract_rejected`` entries since its last PI release
         self._rejections: dict[str, int] = {}
+        #: review O2 M4: X35 request key -> ``x35_failed`` entries carrying a response since its last PI release
+        self._x35_failures: dict[str, int] = {}
         self._releases: set[str] = set()  # file_sha256 of every PI release applied to this journal
         #: PI ruling 104 b: request keys a PI release authorised for one live re-ask, not yet used
         self._reask: set[str] = set()
@@ -550,6 +571,7 @@ class RequestJournal:
                 if entry["kind"] == EXTRACT_REJECTED:
                     self._recorded.pop(("extract", entry["key"], entry["n"]), None)
                     self._rejections[entry["key"]] = self._rejections.get(entry["key"], 0) + 1
+                self._count_x35_failure(entry["kind"], entry["key"], entry["response"])
             else:
                 self._recorded[(entry["kind"], entry["key"], entry["n"])] = entry["response"]
         if not complete and not self.read_only:  # unterminated or torn tail: repair before the next append
@@ -588,17 +610,30 @@ class RequestJournal:
             if slot[0] == EXTRACT_REJECTED:
                 self._recorded.pop(("extract", slot[1], slot[2]), None)
                 self._rejections[slot[1]] = self._rejections.get(slot[1], 0) + 1
+            self._count_x35_failure(slot[0], slot[1], response)
         else:
             self._recorded[slot] = response
 
     # --- ruling 34 b / 41 a: the rejection cap and its PI release ------------
 
+    def _count_x35_failure(self, kind: str, key: str, response: Mapping[str, Any]) -> None:
+        """Review O2 M4: count an ``x35_failed`` entry that carries a response (not ``no_response``)."""
+        if kind == "x35_failed" and not _x35_no_response(response):
+            self._x35_failures[key] = self._x35_failures.get(key, 0) + 1
+
+    def x35_failures(self, key: str) -> int:
+        """``x35_failed`` entries with a response for X35 request ``key`` since its last PI release (O2 M4)."""
+        return self._x35_failures.get(key, 0)
+
     def _apply_release(self, release: Mapping[str, Any]) -> None:
+        # review O2 M4: a release clears the X35 failure cap of the keys it names, as it clears rejections
         if release.get("all") is True:
             self._rejections.clear()
+            self._x35_failures.clear()
         else:
             for key in release["keys"]:
                 self._rejections.pop(key, None)
+                self._x35_failures.pop(key, None)
         self._releases.add(release["file_sha256"])
         self._reask.update(release.get("reask_keys") or ())  # ruling 104 b (absent in older entries)
 
@@ -813,6 +848,8 @@ class RequestJournal:
                 self.replayed += 1
                 recorded = self._recorded[slot]
                 return Entailment(recorded["value"], recorded["probability"])
+            if self.x35_failures(slot[1]) >= EXTRACT_REJECT_CAP:  # review O2 M4: never called again
+                raise X35FailCapReached(slot[1], self.x35_failures(slot[1]))
             start = time.monotonic()
             usage: dict[str, Any] | None = None
             try:
@@ -1613,5 +1650,5 @@ __all__ = [
     "MERGE_UNION", "MERGE_UNRULED", "merge_refused_r1",
     "Stage6Metrics", "build_envelope", "hold_reasons", "independence_groups_of", "merge_values", "run_stage6_v27",
     "EXTRACT_REJECT_CAP", "IDENTITY_COLUMNS", "PI_RELEASED", "REASK_SPENT", "WIRING_STOPS", "ExtractRejectCapReached",
-    "ReaskSpentUnanswered", "UpstreamRowMalformed", "require_a8_form", "require_identity",
+    "ReaskSpentUnanswered", "UpstreamRowMalformed", "X35FailCapReached", "require_a8_form", "require_identity",
 ]

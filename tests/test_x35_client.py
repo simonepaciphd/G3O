@@ -233,3 +233,50 @@ def test_journal_marks_a_responseless_x35_failure_and_does_not_price_it(tmp_path
     assert journal.usage()["x35_failed"] == 2  # still counted
     assert journal.x35_usages() == [USAGE]  # the responseless failure is not priced (never $0, never None)
     assert RequestJournal(path, read_only=True).x35_usages() == [USAGE]
+
+
+def test_x35_request_failing_with_a_response_cap_times_is_refused_without_a_call(tmp_path):
+    """Review O2 M4: mirrors the extractor's EXTRACT_REJECT_CAP (ruling 34 b / 41 a). After the cap of
+    billed non-answers for one X35 request key, the journal refuses the live call (X35FailCapReached, a
+    RuntimeError, so the stages hold as for the failure itself), also after a reload, until a PI release
+    names the key. Responseless failures (no_response, PI 131.1 b) do not count towards the cap."""
+    from g3o.run.presweep.stage_validate_v27 import (
+        EXTRACT_REJECT_CAP,
+        RequestJournal,
+        X35FailCapReached,
+    )
+
+    calls: list[tuple[str, str]] = []
+
+    def billed_refusal(question: str, text: str) -> Entailment:
+        calls.append((question, text))
+        raise xc.X35ResponseError("X35 response gave no answer (refusal)", usage=dict(USAGE))
+
+    def transport_error(question: str, text: str) -> Entailment:
+        calls.append((question, text))
+        raise ConnectionError("no response")
+
+    path = tmp_path / "journal.jsonl"
+    journal = RequestJournal(path)
+    _, wrap_entail = journal.seams({"x35_model": "fake"})
+    for _ in range(EXTRACT_REJECT_CAP + 1):  # responseless failures never reach the cap
+        with pytest.raises(ConnectionError):
+            wrap_entail(transport_error)(QUESTION, WINDOW)
+    for _ in range(EXTRACT_REJECT_CAP):
+        with pytest.raises(xc.X35ResponseError):
+            wrap_entail(billed_refusal)(QUESTION, WINDOW)
+    assert len(calls) == 2 * EXTRACT_REJECT_CAP + 1
+    with pytest.raises(X35FailCapReached) as capped:
+        wrap_entail(billed_refusal)(QUESTION, WINDOW)
+    assert isinstance(capped.value, RuntimeError) and capped.value.failures == EXTRACT_REJECT_CAP
+    assert len(calls) == 2 * EXTRACT_REJECT_CAP + 1  # no live call was made
+    assert wrap_entail(lambda q, t: Entailment("true", 0.9))(QUESTION, WINDOW + " other") == Entailment("true", 0.9)
+
+    reloaded = RequestJournal(path)  # the cap holds on every later load
+    _, wrap_again = reloaded.seams({"x35_model": "fake"})
+    with pytest.raises(X35FailCapReached):
+        wrap_again(billed_refusal)(QUESTION, WINDOW)
+    assert len(calls) == 2 * EXTRACT_REJECT_CAP + 1
+    reloaded.record_release({"keys": [capped.value.key], "all": False, "released_by": "PI", "date": "2026-11-16",
+                             "file_sha256": "f" * 64})
+    assert wrap_again(lambda q, t: Entailment("false", 0.95))(QUESTION, WINDOW) == Entailment("false", 0.95)
