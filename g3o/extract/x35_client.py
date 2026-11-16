@@ -20,10 +20,10 @@ Two gates, each a single constant; ``v27_entry.x35_entail_fn`` returns the refus
   ``{"answer": "true"|"false", "probability": <0..1>}`` and the 0.8 bar of SPEC R-081 /
   R-040 applies to that stated number; one call per (code, quote).
 - :data:`X35_SYSTEM_DRAFT` / :data:`X35_USER_TEMPLATE_DRAFT`: the instrument wording,
-  DRAFT, not approved (Q160, held for one explicit PI confirmation). Pinned by SHA256
-  (review O2 M2, as the Stage 6 quote step pins its approved wording):
-  :data:`X35_INSTRUCTION_APPROVED_SHA256` is None until the PI approves a wording, so
-  X35 stays refused at entry even with the probability source ruled.
+  APPROVED (PI Q160, 2026-11-16; the names are kept). Pinned by SHA256 (review O2 M2,
+  as the Stage 6 quote step pins its approved wording) in
+  :data:`X35_INSTRUCTION_APPROVED_SHA256`: a changed wording no longer matches the pin,
+  and X35 is refused at entry again until the PI approves the new one.
 
 Key material: the SDK client is injected (``v27_entry.anthropic_sdk_client``,
 ``max_retries=0``); this module never reads, logs or stores a key. ``anthropic`` is
@@ -52,20 +52,21 @@ X35_EFFORT = "medium"
 #: Output budget of one X35 request (non-streaming; includes adaptive thinking).
 X35_MAX_TOKENS = 4_000
 
-#: DRAFT — not approved (needs PI approval). The system text of an X35 request.
+#: APPROVED (PI Q160, 2026-11-16; name kept). The system text of an X35 request.
 X35_SYSTEM_DRAFT = (
     "You check whether a text supports a statement. Read the text, then answer the "
     "question about it. Answer \"true\" if the text supports it and \"false\" if it does "
     "not. Give \"probability\" as your probability, from 0 to 1, that your answer is correct."
 )
-#: DRAFT — not approved (needs PI approval). The user message of an X35 request; the
+#: APPROVED (PI Q160, 2026-11-16; name kept). The user message of an X35 request; the
 #: question is inserted exactly as given, the text whole.
 X35_USER_TEMPLATE_DRAFT = "<text>\n{text}\n</text>\n\n{question}"
 
-#: UNRULED (review O2 M2): the SHA256 of the approved X35 wording (:func:`x35_instruction_sha256`).
-#: None: no wording is approved, so ``v27_entry.x35_entail_fn`` keeps returning the refusing stub
-#: even once :data:`X35_PROBABILITY_SOURCE` is set. Approving a wording is pinning its hash here.
-X35_INSTRUCTION_APPROVED_SHA256: str | None = None
+#: RULED (PI Q160, 2026-11-16: "I accept x35 wordings"): the SHA256 of the approved X35 wording
+#: (:func:`x35_instruction_sha256` of :data:`X35_SYSTEM_DRAFT` / :data:`X35_USER_TEMPLATE_DRAFT`;
+#: review O2 M2). Any change to that wording moves its hash off this pin, and
+#: ``v27_entry.x35_entail_fn`` then returns the refusing stub again until a new wording is approved.
+X35_INSTRUCTION_APPROVED_SHA256: str | None = "6f048d6018bba9cb8ebc9027a45ece29a80b8b9de5ae19173d3f67580900861c"
 
 
 def x35_instruction_sha256(system: str = X35_SYSTEM_DRAFT, user_template: str = X35_USER_TEMPLATE_DRAFT) -> str:
