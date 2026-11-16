@@ -447,8 +447,10 @@ def test_followed_residual_page_is_asked_at_coding_time_and_reaches_its_row_112a
     readable gets the residual source_type question at coding time (before the follow leg's ``finish`` builds
     its page fields), its answers reach the T-015 assembler with the page fields ``finish`` built (the real
     ``FollowLeg``: no injected rows), and its row carries the checked source_type (no first pass-1 request
-    here: checked with no quote, ``unknown``). The stage then stops on what the assembler still refuses (a
-    wiring gap), never on source_type (PI ruling 111 a would stop it for a residual page with no answers)."""
+    here: checked with no quote, ``unknown``). Since PI ruling 140 (gate 3) the assembler has no standing source
+    refusal (``core.confidence`` is Stage 6's), so nothing stops the stage: the institution ends ready or held on
+    its page data (ruling 97 b), never stopped on source_type (PI ruling 111 a would stop it for a residual page
+    with no answers)."""
     from g3o.run.presweep import official_site_v27 as osv
 
     run_dir, bound, instrument, world, inst, base = _follow_world(tmp_path)
@@ -465,8 +467,8 @@ def test_followed_residual_page_is_asked_at_coding_time_and_reaches_its_row_112a
     jev = _jev()
     jev.answers[sf.SOURCE_TYPE] = "vendor"
     fetch = FakeFetch({REPORT_URL: REPORT})
-    with pytest.raises(pp.MissingUpstreamError, match="source-row assembler") as exc:
-        _run(run_dir, bound, instrument, providers, inst, fv.FollowLeg(fetch), jev)
+    _, metrics = _run(run_dir, bound, instrument, providers, inst, fv.FollowLeg(fetch), jev)
+    assert INST in [*metrics.ready, *metrics.held]  # not stopped (ruling 140: no standing source refusal)
     rid = url_hash(REPORT_URL)
     assert fetch.calls == [REPORT_URL] and set(providers.typings) == {rid}  # s1 has injected rows: not asked
     asked = [state.get("page_url") for state, qids in jev.calls if sf.SOURCE_TYPE in qids]
@@ -479,7 +481,7 @@ def test_followed_residual_page_is_asked_at_coding_time_and_reaches_its_row_112a
     assert sr.original_value == "vendor" and sr.support_status == "downgraded_no_quote"
     assert sf.SOURCE_TYPE not in rows.refused and rows.source[sf.SOURCE_TYPE].value == sr.value == "unknown"
     assert all(pair in rows.source_codes for pair in codes)
-    assert sf.SOURCE_TYPE not in exc.value.missing
+    assert not rows.stops  # nothing the assembler refused here stops the stage (rulings 97 b, 140)
 
 
 REVIEW_STATE, PAGE_VERDICT = "core.page_review_state", "core.page_verdict"
@@ -757,14 +759,16 @@ def test_resume_interrupted_while_coding_a_followed_page_l8(tmp_path):
 
 def test_real_followed_page_reaches_the_assembler_l8(tmp_path, monkeypatch):
     """Review L8: the plain follow leg (no WorldLeg override) gives the followed page its D1 a page
-    fields and hop; the T-015 assembler builds its rows and stops the stage on what it still refuses."""
+    fields and hop; the T-015 assembler builds its rows. Since PI ruling 140 (gate 3) it has no standing source
+    refusal, so the unresolved official site (a refusal on the institution's own data) holds the institution
+    (ruling 97 b) instead of stopping the stage."""
     run_dir, bound, instrument, world, inst, providers = _follow_world(tmp_path)
     seen = []
     real = srow.assemble
     monkeypatch.setattr(srow, "assemble", assemble_spy(real, lambda page, rows, kw: seen.append((page.page_id, rows))))
     fetch = FakeFetch({REPORT_URL: REPORT})
-    with pytest.raises(MissingUpstreamError, match="source-row assembler"):
-        _run(run_dir, bound, instrument, providers, inst, fv.FollowLeg(fetch), _jev())
+    ready, metrics = _run(run_dir, bound, instrument, providers, inst, fv.FollowLeg(fetch), _jev())
+    assert ready == [] and metrics.held == [INST]
     assert fetch.calls == [REPORT_URL]
     (pid, rows), = seen  # the searched page carries injected values; only the followed page is assembled
     assert pid == url_hash(REPORT_URL)
@@ -772,6 +776,7 @@ def test_real_followed_page_reaches_the_assembler_l8(tmp_path, monkeypatch):
     assert (built[sf.URL], built[sf.DISCOVERY], built[sf.TEXT_SOURCE]) == (REPORT_URL, "followed_hop_1", "new_run")
     assert built[sf.ACCESS_DATE] == ACCESS and built[sf.TITLE] == "Followed"
     assert sf.OFFICIAL in rows.refused  # no official-site step in this run (PI ruling 70 b)
+    assert sf.OFFICIAL in rows.data_refusals() and not rows.stops  # held, not stopped (rulings 97 b, 140)
 
 
 def test_zero_page_institution_is_not_followed_l5(tmp_path):
