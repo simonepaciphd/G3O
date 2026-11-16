@@ -168,8 +168,8 @@ def test_v27_refuses_a_stage_estimate_outside_stages_1_to_4(tmp_path, stage):
     setting = {"preflight_stage_estimates": {"classify_triage": 1.0, stage: 1.0}}
     with pytest.raises(ValueError, match="v2.7 stage budgets stay refused") as err:
         _v27_config(tmp_path, **setting)
-    assert f"preflight_stage_estimates for {stage}:" in str(err.value) and "RC-D-021" in str(err.value)
-    # Q158 a priced X35; Q164 a keeps the refusal: no within-stage v2.7 budget check exists
+    assert f"preflight_stage_estimates for {stage}:" in str(err.value)
+    # Q158 a priced X35 (V27_UNPRICED_PARTS is empty, so the RC-D-021 unpriced ground is not given); Q164 a keeps the refusal: no within-stage v2.7 budget check exists
     assert "within-stage budget check" in str(err.value) and "Q164 a" in str(err.value)
     assert "Q158" not in str(err.value)
     # The same estimates stay valid on v2.5.
