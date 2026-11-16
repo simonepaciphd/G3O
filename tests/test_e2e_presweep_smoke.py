@@ -1249,7 +1249,13 @@ def test_v27_launch_follows_a_link_through_stage6_in_mix_mode_with_x35(tmp_path:
     assert [(r["url"], r["hop"]) for r in state["records"]] == [(V27_FOLLOWED_URL, 1)]
     assert V27_FOLLOWED_URL in builder.page_fields  # its D1 a page fields were built by the real leg
     for n in (2, 3):  # nothing else was followed
-        assert not (institution_dir(run_dir, f"INST-{n:07d}") / fv.FOLLOW_DIR / fv.STATE_FILE).exists()
+        # The leg saves its state after any round with a coded page (review L4), so the file may exist;
+        # it must hold no follow record and no link left unfollowed (build 7c1483eb).
+        other = institution_dir(run_dir, f"INST-{n:07d}") / fv.FOLLOW_DIR / fv.STATE_FILE
+        if other.exists():
+            other_state = json.loads(other.read_text(encoding="utf-8"))
+            assert other_state["records"] == [] and other_state["not_followed"] == []
+            assert other_state["followed"] == 0
 
     # Mix mode (PI ruling 134): first-round page requests were batched, each answered once; nothing
     # batched was also sent live (no double spend); follow-ups and Stage 6 were live.
