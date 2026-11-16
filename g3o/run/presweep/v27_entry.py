@@ -16,17 +16,20 @@ resolved credentials into a :class:`~g3o.run.presweep.orchestrator.V27Dispatch`:
 - ``extract_fn``: :class:`LazyExtractor`, ``AnthropicExtractorClient.create``
   over an ``anthropic.Anthropic`` client given the run's resolved Anthropic key
   (sync Messages calls: the per-page stage calls the extractor one job at a time);
-- ``entail_fn``: :func:`x35_entail_fn`, which returns
-  ``support_check.run_entailment``, the only X35 entry. It refuses every call (no
-  approved X35 binding exists; PI ruling 59 b), and ``run_presweep`` refuses it on
-  entry, before planning;
+- ``entail_fn``: :func:`x35_entail_fn`. X35 is bound to Claude Haiku 5.5 behind the
+  pinned ``settings.x35_model`` (PI ruling 139 a; RC-D-033 C1 a), but its probability
+  source and instrument wording await the PI (``x35_client.X35_PROBABILITY_SOURCE``
+  is None): until then it returns ``support_check.run_entailment``, which refuses
+  every call, and ``run_presweep`` refuses it on entry, before planning. Set to
+  ``"stated"``, it returns :class:`LazyX35` (``x35_client.AnthropicX35Client`` over
+  the run's Anthropic key);
 - ``perpage_inputs``: :func:`perpage_inputs_builder`, None, the default builder
   (PI ruling D1 a), refused on entry while ``perpage_inputs_v27.MISSING_PRODUCERS``
   is non-empty (PI ruling 36 a);
 - ``follow_fetch``: :func:`follow_fetch`, ``stage_follow.polite_fetch`` over a
   run-scoped robots cache and host throttle configured as Stage 4 is (T-025).
 
-So a real v2.7 run is still refused at entry today (59 b, then 36 a), before any
+So a real v2.7 run is still refused at entry today (the X35 gate, then 36 a), before any
 Stage 1-4 spend; that is intended. The three module-level functions above are
 the provider seams a mocked end-to-end test replaces (the X35 client, the per-page
 builder ruling 36 a requires, the follow leg's fetch); the jev and Anthropic SDK
@@ -138,17 +141,58 @@ class LazyExtractor:
         return f"LazyExtractor(constructed={self.constructed})"
 
 
-def x35_entail_fn(settings: Any, credentials: ResolvedCredentials) -> Callable[..., Any]:
-    """The X35 ``entail_fn``: ``support_check.run_entailment``, the only X35 entry.
+class LazyX35:
+    """The X35 ``entail_fn``: ``AnthropicX35Client`` on ``model``; the SDK client is built on first use.
 
-    It refuses every call (no approved X35 binding exists; PI ruling 59 b), and
-    ``orchestrator._require_v27_dispatch`` refuses it on entry. Lift together with the
-    TODO in ``support_check.run_entailment``.
+    ``entail_with_usage`` is what the request journal calls, so each response's own
+    ``usage`` is journaled per request (``RequestJournal.x35_usages``).
     """
-    del settings, credentials
-    from g3o.common import support_check
 
-    return support_check.run_entailment
+    def __init__(self, api_key: str, model: str, probability_source: str) -> None:
+        self._api_key, self._model, self._source = api_key, model, probability_source
+        self._client: Any = None
+        self._lock = threading.Lock()
+
+    @property
+    def constructed(self) -> bool:
+        return self._client is not None
+
+    def _bound(self) -> Any:
+        with self._lock:
+            if self._client is None:
+                from g3o.extract.x35_client import AnthropicX35Client
+
+                self._client = AnthropicX35Client(anthropic_sdk_client(self._api_key), model=self._model,
+                                                  probability_source=self._source)
+            return self._client
+
+    def entail_with_usage(self, question: str, text: str) -> tuple[Any, dict[str, Any] | None]:
+        return self._bound().entail_with_usage(question, text)
+
+    def __call__(self, question: str, text: str) -> Any:
+        return self.entail_with_usage(question, text)[0]
+
+    def __repr__(self) -> str:  # never render key material
+        return f"LazyX35(model={self._model!r}, constructed={self.constructed})"
+
+
+def x35_entail_fn(settings: Any, credentials: ResolvedCredentials) -> Callable[..., Any]:
+    """The X35 ``entail_fn`` (PI ruling 139 a: Claude Haiku 5.5 behind ``settings.x35_model``).
+
+    While ``x35_client.X35_PROBABILITY_SOURCE`` is None (the probability source and the
+    instrument wording await the PI) it returns ``support_check.run_entailment``, which
+    refuses every call, and ``orchestrator._require_v27_dispatch`` refuses it on entry, so
+    no X35 call is made. Set, it returns :class:`LazyX35` bound to ``settings.x35_model``
+    and the run's Anthropic key (no client is built until the first call).
+    """
+    from g3o.extract import x35_client
+
+    source = x35_client.X35_PROBABILITY_SOURCE
+    if source is None:
+        from g3o.common import support_check
+
+        return support_check.run_entailment
+    return LazyX35(credentials.anthropic_api_key or "", settings.x35_model, source)
 
 
 def perpage_inputs_builder(config: Any) -> Callable[..., Any] | None:
@@ -210,5 +254,5 @@ def build_v27_dispatch(config: Any, credentials: ResolvedCredentials) -> Any:
     )
 
 
-__all__ = ["LazyExtractor", "LazyJevAsk", "anthropic_sdk_client", "build_v27_dispatch", "follow_fetch",
+__all__ = ["LazyExtractor", "LazyJevAsk", "LazyX35", "anthropic_sdk_client", "build_v27_dispatch", "follow_fetch",
            "perpage_inputs_builder", "runtime_settings", "x35_entail_fn"]

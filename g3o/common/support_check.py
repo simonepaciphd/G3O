@@ -65,8 +65,10 @@ Rules applied, each as SPEC v001.20 / codebook r13 states it:
   characters each side are kept (W-05-P3), via :mod:`g3o.extract.years`; the
   classifier chooses (T-023).
 
-The X35 jev call itself is a stub that raises :class:`SupportGateError`
-(binding T-030/T-035).
+The X35 call is bound to Claude Haiku 5.5 behind the pinned ``x35_model`` (PI
+ruling 139 a; client :class:`g3o.extract.x35_client.AnthropicX35Client`), but
+:func:`run_entailment`, the entry used while its probability source and
+instrument wording await the PI, still raises :class:`SupportGateError`.
 
 Re-pin: the codebook is pinned by the single constant ``SIGNED_CODEBOOK_SHA256``.
 The support vocabulary (``status_by_answer``) is read from the codebook, not
@@ -609,10 +611,15 @@ def entailment_window_for(ev: CodeEvidence, sources: PageSources,
 
 
 def run_entailment(*_: Any, **__: Any) -> Entailment:
-    # TODO(gate: X35 call wiring): the state is entailment_window_for() (RC-D-019 E3) and the question
-    # entailment_question(); the jev client binding is T-021/T-023's, the runtime instrument T-030/T-035.
-    # Until then, callers pass Entailment in.
-    raise SupportGateError("X35 entailment call not wired: jev binding T-030/T-035")
+    # TODO(gate: X35 probability source + instrument wording): the X35 client is wired (PI ruling
+    # 139 a: g3o.extract.x35_client.AnthropicX35Client on the pinned x35_model; the state is
+    # entailment_window_for(), RC-D-019 E3, the question entailment_question()). It stays unused
+    # while x35_client.X35_PROBABILITY_SOURCE is None and its DRAFT wording is unapproved; until
+    # the PI rules both, v27_entry.x35_entail_fn returns this refusing entry.
+    raise SupportGateError(
+        "X35 entailment call gated: the X35 client is bound (PI ruling 139 a) but its probability "
+        "source and instrument wording await PI approval (x35_client.X35_PROBABILITY_SOURCE is None)"
+    )
 
 
 # ---------------------------------------------------------------------------

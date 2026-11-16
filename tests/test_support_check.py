@@ -448,7 +448,7 @@ def test_entailment_question_forms():
 
 
 def test_entailment_call_is_gated():
-    with pytest.raises(SupportGateError, match="jev binding"):
+    with pytest.raises(SupportGateError, match="probability source and instrument wording await PI approval"):
         sc.run_entailment()
 
 

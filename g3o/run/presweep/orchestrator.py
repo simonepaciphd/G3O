@@ -309,7 +309,9 @@ class V27Dispatch:
       T-032 pass 2, the Stage 6 quote step).
     - ``entail_fn(question, text) -> Entailment``: the X35 call. Its only non-fake
       entry, :func:`g3o.common.support_check.run_entailment`, still refuses, so it
-      is refused on entry, before any work (no approved X35 binding exists); any
+      is refused on entry, before any work (X35 is bound, PI ruling 139 a, but its
+      probability source and instrument wording await the PI; the real client,
+      ``v27_entry.LazyX35``, is returned only once those are ruled); any
       other callable that refuses stops the stage at its first X35 check
       (``SupportGateError``).
     - ``perpage_inputs(run_dir, sample, scraped, bound, instrument)``: the
@@ -348,7 +350,8 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
     checks it refuses (T-030 QA4 M2):
 
     - ``entail_fn`` being :func:`g3o.common.support_check.run_entailment`, which
-      refuses every real X35 call (no approved X35 binding exists yet);
+      refuses every real X35 call (X35 is bound, PI ruling 139 a, but its probability
+      source and instrument wording await the PI: ``x35_client.X35_PROBABILITY_SOURCE``);
     - every check that needs no run directory: the codebook SHA, matcher pin and
       estimator checks of ``bind_runtime`` (through its non-writing half,
       ``instrument_binding.check_runtime``), the P-1/P-2 prompt pins and the
@@ -387,13 +390,14 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
         raise ValueError("v2.7 dispatch: settings must be an explicit RuntimeSettings")
     from g3o.common import support_check
 
-    # Lift together with the TODO in support_check.run_entailment, once an approved X35
-    # binding replaces its refusal.
+    # Kept: the X35 client is bound (PI ruling 139 a), but v27_entry.x35_entail_fn returns
+    # run_entailment while x35_client.X35_PROBABILITY_SOURCE is None (probability source and
+    # instrument wording pending PI). Lift together with the TODO in support_check.run_entailment.
     if v27.entail_fn is support_check.run_entailment:
         raise ValueError(
             "v2.7 dispatch: entail_fn is support_check.run_entailment, which refuses every real "
-            "X35 call: no approved X35 binding exists (T-030/T-035), so the run is refused before "
-            "any work"
+            "X35 call: the X35 client is bound (PI ruling 139 a) but its probability source and "
+            "instrument wording await PI approval, so the run is refused before any work"
         )
     from g3o.run.presweep.instrument_binding import check_runtime
     from g3o.run.presweep.perpage_providers_v27 import check_binding
