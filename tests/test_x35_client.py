@@ -41,8 +41,9 @@ def _client(*replies: Any) -> tuple[xc.AnthropicX35Client, FakeSDK]:
     return xc.AnthropicX35Client(sdk, model="claude-haiku-5-5", probability_source="stated"), sdk
 
 
-def test_gates_are_unruled_by_default():
-    assert xc.X35_PROBABILITY_SOURCE is None  # new PI question: the probability source
+def test_probability_source_is_ruled_stated_and_wording_still_unapproved():
+    assert xc.X35_PROBABILITY_SOURCE == "stated"  # PI ruling Q159 a (2026-11-16)
+    assert xc.X35_INSTRUCTION_APPROVED_SHA256 is None  # Q160 held: the wording gate stays shut
     assert xc.X35_PROBABILITY_SOURCES == frozenset({"stated"})
     assert xc.X35_EFFORT == "medium"
     assert isinstance(xc.X35_MAX_TOKENS, int) and xc.X35_MAX_TOKENS > 0
@@ -132,13 +133,22 @@ def _creds(key: str | None = "anthropic-test") -> SimpleNamespace:
     return SimpleNamespace(anthropic_api_key=key)
 
 
-def test_x35_entail_fn_returns_the_refusing_stub_while_the_source_is_unruled():
+def test_x35_entail_fn_returns_the_refusing_stub_while_the_wording_is_unapproved():
+    """Q159 a sets the probability source; with Q160 unruled the module defaults still refuse X35."""
     from g3o.run.presweep import v27_entry
 
     fn = v27_entry.x35_entail_fn(_settings(), _creds())
     assert fn is sc.run_entailment
-    with pytest.raises(SupportGateError, match="probability source"):
+    with pytest.raises(SupportGateError, match="Q160"):
         fn(QUESTION, WINDOW)
+
+
+def test_stated_probability_meets_the_r081_bar_exactly_as_jev_would():
+    """Q159 a: the 0.8 bar applies to the stated number, nothing else about it changes."""
+    for ent, fails in ((Entailment("true", 0.8), False), (Entailment("true", 0.79), True),
+                       (Entailment("false", 0.99), True)):
+        flags: list[str] = []
+        assert sc._entailment_fails(ent, 0.8, flags) is fails and flags == []
 
 
 def test_x35_entail_fn_returns_the_lazy_client_once_source_and_wording_are_approved(monkeypatch):

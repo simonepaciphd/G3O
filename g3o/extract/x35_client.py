@@ -12,20 +12,18 @@ the RC-D-019 E3 window, sent whole (never truncated). :meth:`AnthropicX35Client.
 also returns the response's own ``usage``, which the request journal stores per
 request so the call can be priced (``RequestJournal.x35_usages``).
 
-Two points are NOT ruled yet and are gated here by single constants:
+Two gates, each a single constant; ``v27_entry.x35_entail_fn`` returns the refusing
+``support_check.run_entailment`` (no X35 call) unless both are open:
 
-- :data:`X35_PROBABILITY_SOURCE` (None = unruled). Claude returns no token
-  probabilities, but the X35 check compares a chosen-answer probability with the 0.8
-  bar (SPEC R-081, R-040). The one implemented candidate, ``"stated"``, asks the model
-  for ``{"answer": "true"|"false", "probability": <0..1>}`` in its structured output
-  and takes that number. While the constant is None, ``v27_entry.x35_entail_fn`` keeps
-  returning the refusing ``support_check.run_entailment`` and no X35 call can be made.
+- :data:`X35_PROBABILITY_SOURCE`: RULED ``"stated"`` (PI ruling Q159 a, 2026-11-16).
+  Claude returns no token probabilities, so the X35 request's structured output is
+  ``{"answer": "true"|"false", "probability": <0..1>}`` and the 0.8 bar of SPEC R-081 /
+  R-040 applies to that stated number; one call per (code, quote).
 - :data:`X35_SYSTEM_DRAFT` / :data:`X35_USER_TEMPLATE_DRAFT`: the instrument wording,
-  DRAFT, not approved (needs PI approval). Pinned by SHA256 (review O2 M2, as the
-  Stage 6 quote step pins its approved wording): :data:`X35_INSTRUCTION_APPROVED_SHA256`
-  is None until the PI approves a wording; ``v27_entry.x35_entail_fn`` returns the
-  refusing stub unless the probability source is set AND
-  :func:`x35_instruction_sha256` equals that constant. Ruling one point never opens the other.
+  DRAFT, not approved (Q160, held for one explicit PI confirmation). Pinned by SHA256
+  (review O2 M2, as the Stage 6 quote step pins its approved wording):
+  :data:`X35_INSTRUCTION_APPROVED_SHA256` is None until the PI approves a wording, so
+  X35 stays refused at entry even with the probability source ruled.
 
 Key material: the SDK client is injected (``v27_entry.anthropic_sdk_client``,
 ``max_retries=0``); this module never reads, logs or stores a key. ``anthropic`` is
@@ -42,11 +40,10 @@ from typing import Any
 from g3o.common.support_check import Entailment
 from g3o.extract.anthropic_client import build_params, result_from_message
 
-#: UNRULED (new PI question: the X35 probability source). None: no X35 call is wired
-#: (``v27_entry.x35_entail_fn`` returns the refusing ``support_check.run_entailment``).
-#: The one implemented candidate is ``"stated"``: the probability the model states in
-#: its structured output. Ruling it is this one line.
-X35_PROBABILITY_SOURCE: str | None = None
+#: RULED (PI ruling Q159 a, 2026-11-16): ``"stated"``, the probability the model states in
+#: its structured output (:data:`X35_OUTPUT_SCHEMA`); R-081's 0.8 bar applies to it. None
+#: would wire no X35 call (``v27_entry.x35_entail_fn`` returns the refusing stub).
+X35_PROBABILITY_SOURCE: str | None = "stated"
 #: The probability sources this module implements.
 X35_PROBABILITY_SOURCES: frozenset[str] = frozenset({"stated"})
 

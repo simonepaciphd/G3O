@@ -997,7 +997,7 @@ def test_v27_launch_builds_the_real_providers_and_runs_to_stage6_without_the_fol
     # The extractor: the anthropic SDK module.
     extractor: dict[str, list[Any]] = {"clients": [], "max_retries": [], "params": []}
     monkeypatch.setitem(sys.modules, "anthropic", _v27_fake_anthropic_module(extractor))
-    # The X35 client (bound, ruling 139 a, but gated on X35_PROBABILITY_SOURCE; the real entry refuses).
+    # The X35 client (bound, ruling 139 a, but gated on the Q160 wording hash; the real entry refuses).
     x35_calls: list[Any] = []
     monkeypatch.setattr(v27_entry, "x35_entail_fn",
                         lambda settings, creds: lambda q, text: x35_calls.append((q, text)) or TRUE)
@@ -1066,7 +1066,7 @@ def test_v27_launch_builds_the_real_providers_and_runs_to_stage6_without_the_fol
 
 def test_v27_launch_with_the_real_factory_is_refused_at_entry_before_any_spend(tmp_path: Path, monkeypatch):
     """With no injected mocks the real factory's dispatch is refused at entry (the X35 gate:
-    X35_PROBABILITY_SOURCE unruled; with an X35 client given, ruling 36 a: the default per-page builder), before planning or
+    X35 wording unapproved, Q160; with an X35 client given, ruling 36 a: the default per-page builder), before planning or
     any Stage 1-4 call, and no client is constructed. A missing extractor key or an unset
     v27_runtime is refused too."""
     from g3o.persist.stage6_adapters import MissingUpstreamError
@@ -1088,7 +1088,7 @@ def test_v27_launch_with_the_real_factory_is_refused_at_entry_before_any_spend(t
     config = _v27_config(tmp_path)
     run_dir = config.runs_dir / config.run_id
 
-    with pytest.raises(ValueError, match="run_entailment"):  # the X35 gate (probability source unruled)
+    with pytest.raises(ValueError, match="run_entailment"):  # the X35 gate (Q160 wording unapproved)
         launch(config, credentials=Credentials(**V27_KEYS))
     assert not run_dir.exists() and calls == []
 

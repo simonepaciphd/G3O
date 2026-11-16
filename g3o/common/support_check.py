@@ -611,14 +611,16 @@ def entailment_window_for(ev: CodeEvidence, sources: PageSources,
 
 
 def run_entailment(*_: Any, **__: Any) -> Entailment:
-    # TODO(gate: X35 probability source + instrument wording): the X35 client is wired (PI ruling
-    # 139 a: g3o.extract.x35_client.AnthropicX35Client on the pinned x35_model; the state is
-    # entailment_window_for(), RC-D-019 E3, the question entailment_question()). It stays unused
-    # while x35_client.X35_PROBABILITY_SOURCE is None and its DRAFT wording is unapproved; until
-    # the PI rules both, v27_entry.x35_entail_fn returns this refusing entry.
+    # TODO(gate: X35 instrument wording, Q160): the X35 client is wired (PI ruling 139 a:
+    # g3o.extract.x35_client.AnthropicX35Client on the pinned x35_model; the state is
+    # entailment_window_for(), RC-D-019 E3, the question entailment_question()) and its
+    # probability source is ruled (Q159 a: "stated"). It stays unused while its DRAFT wording is
+    # unapproved (x35_client.X35_INSTRUCTION_APPROVED_SHA256 is None); until the PI approves it,
+    # v27_entry.x35_entail_fn returns this refusing entry.
     raise SupportGateError(
-        "X35 entailment call gated: the X35 client is bound (PI ruling 139 a) but its probability "
-        "source and instrument wording await PI approval (x35_client.X35_PROBABILITY_SOURCE is None)"
+        "X35 entailment call gated: the X35 client is bound (PI ruling 139 a) and its probability "
+        "source is ruled (Q159 a: stated), but its instrument wording awaits PI approval "
+        "(Q160: x35_client.X35_INSTRUCTION_APPROVED_SHA256 is None)"
     )
 
 
