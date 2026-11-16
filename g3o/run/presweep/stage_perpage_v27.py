@@ -1837,6 +1837,7 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
                                                 cost_check_callback=cost_check_callback)
     if coded.stopped_early:  # the cost check stopped T-021: uncoded pages are not failures
         raise stage_page_code.StageStopped("page coding stopped by the cost check")
+    deferred: list[dict[str, Any]] = []  # PI ruling 134: pages whose extractor request waits for a batch
     for st in to_code:
         page = st.spec.page
         if not artifact_exists(stage_page_code.artifact_path(run_dir, page.institution_id, page.url)):
@@ -1863,8 +1864,11 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
             return {"page_id": exc.page_id, "stage": exc.stage, "pass": "pass1",
                     "custom_id": exc.custom_id, "request_key": exc.key, "error": str(exc)}
         except BatchDeferred as exc:  # PI ruling 134: the request waits for a Message Batch; no call was made
-            return {"page_id": page.page_id, "stage": BATCH_PENDING, "custom_id": exc.custom_id,
-                    "batch_state": exc.state, "error": str(exc)}
+            # the institution's other pages go on in this wave (their requests join the same batch); the
+            # institution is held below once every page has had its turn
+            deferred.append({"page_id": page.page_id, "custom_id": exc.custom_id, "batch_state": exc.state,
+                             "error": str(exc)})
+            continue
         except ExtractorResponseFailed as exc:  # C3 a: this institution is held as pending
             broken = _response_hold(page.page_id, exc)
             if exc.request is not None and hasattr(providers, "journal_prompt"):
@@ -1882,6 +1886,8 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
                 except PageArchiveIncomplete as aexc:  # ruling 28 a: held, never a crash
                     broken.update(_archive_detail(aexc))
             return broken
+    if deferred and broken is None:  # PI ruling 134: held until the batch answers (the first page names it)
+        return {**deferred[0], "stage": BATCH_PENDING, "deferred_pages": [d["page_id"] for d in deferred]}
     return broken
 
 

@@ -55,6 +55,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import re
 import time
@@ -62,6 +63,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 ALL_BATCH = "all_batch"
 MIX = "mix"
@@ -357,16 +360,24 @@ def run_waves(extractor: BatchExtractor | None, stage_pass: Callable[[], Any], *
     """Run the per-page stage (``stage_pass``) in waves until a wave queues no batched request.
 
     Each wave: settle the batches in flight (:meth:`BatchExtractor.settle`), run the stage, submit what it
-    queued. Returns the last wave's result. ``extractor`` None: one pass (no batch mode, nothing stored)."""
+    queued. Returns the last wave's result. ``extractor`` None: one pass (no batch mode, nothing stored).
+
+    After ``max_waves`` waves the stage ends as after any pass: the institutions still waiting stay held
+    (:data:`BATCH_PENDING`) and the batches submitted last stay in the batch journal, so the next run
+    collects them and resumes those institutions."""
     if extractor is None:
         return stage_pass()
+    if max_waves < 1:
+        raise ValueError(f"max_waves must be at least 1, got {max_waves}")
     for _ in range(max_waves):
         extractor.settle()
         out = stage_pass()
         if not extractor.pending():
             return out
         extractor.submit()
-    raise RuntimeError(f"the per-page stage still queued batched extractor requests after {max_waves} waves")
+    _log.warning("per-page stage: wave cap (%d) reached with batched extractor requests pending; their "
+                 "institutions stay held (%s) and resume on the next run", max_waves, BATCH_PENDING)
+    return out
 
 
 def has_batch_journal(run_dir: Path) -> bool:

@@ -372,6 +372,59 @@ def test_run_waves_until_nothing_is_queued(tmp_path):
     assert client.created == [[a.custom_id], [b.custom_id]]
 
 
+def test_the_wave_cap_ends_the_stage_with_the_institution_held(tmp_path):
+    """Review H2: reaching the cap is not an error; the institution stays held (batch pending), its last
+    batch is in the journal, and the next run collects it and goes on."""
+    a = job("https://a.example/1")
+    b = ExtractorJob("x27s-" + a.custom_id[4:], a.params)
+    client = FakeBatchClient()
+
+    def stage_pass(ex):
+        def run():
+            _, call = journaled(tmp_path, ex)
+            for j in (a, b):
+                try:
+                    call(j)
+                except pb.BatchDeferred:
+                    return pb.BATCH_PENDING
+            return "ready"
+        return run
+
+    ex = extractor(tmp_path, client)
+    assert pb.run_waves(ex, stage_pass(ex), max_waves=1) == pb.BATCH_PENDING  # held, not raised
+    assert client.created == [[a.custom_id]] and ex.store.in_flight() == [(1, "msgbatch_1")]
+    ex2 = extractor(tmp_path, client)  # the next run
+    assert pb.run_waves(ex2, stage_pass(ex2)) == "ready"
+    assert client.created == [[a.custom_id], [b.custom_id]]
+
+
+def test_a_multi_page_institution_queues_every_first_round_request_in_one_wave(tmp_path, monkeypatch):
+    """Review H2: a deferred page does not stop the institution's other pages; it is held (batch pending)
+    once every page had its turn, naming every deferred page."""
+    from types import SimpleNamespace
+
+    from g3o.run.presweep import stage_perpage_v27 as sp
+
+    ex = extractor(tmp_path, FakeBatchClient())
+    _, call = journaled(tmp_path, ex)
+    urls = [f"https://a.example/{n}" for n in range(30)]
+    states = [sp._PageState(SimpleNamespace(page=SimpleNamespace(page_id=f"p{n}", institution_id="inst-1",
+                                                                   url=url)))
+              for n, url in enumerate(urls)]
+    monkeypatch.setattr(sp.stage_page_code, "run_page_code_stage",
+                        lambda *a, **k: SimpleNamespace(stopped_early=False))
+    monkeypatch.setattr(sp, "artifact_exists", lambda path: True)
+    monkeypatch.setattr(sp, "_rounds_for_page", lambda run_dir, st, *a, **k: call(job(st.spec.page.url)))
+    hold = sp._code_states(tmp_path, states, None, ask=None, providers=None, inst_providers=None, journal=None,
+                           page_config=None, activity_config=None, metrics=sp.PerPageMetrics(),
+                           cost_check_callback=None)
+    assert hold["stage"] == pb.BATCH_PENDING and hold["page_id"] == "p0"
+    assert hold["deferred_pages"] == [f"p{n}" for n in range(30)]
+    assert ex.pending() == 30
+    ex.submit()
+    assert ex.batches_submitted == 1
+
+
 def test_run_waves_without_a_batch_extractor_is_one_pass():
     assert pb.run_waves(None, lambda: "once") == "once"
 
