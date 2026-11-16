@@ -482,6 +482,13 @@ def test_followed_residual_page_is_asked_at_coding_time_and_reaches_its_row_112a
     assert sf.SOURCE_TYPE not in rows.refused and rows.source[sf.SOURCE_TYPE].value == sr.value == "unknown"
     assert all(pair in rows.source_codes for pair in codes)
     assert not rows.stops  # nothing the assembler refused here stops the stage (rulings 97 b, 140)
+    if rows.refused:  # held on the page's own data alone (ruling 97 b), not for another producer error
+        assert metrics.held == [INST]
+        hold, = json.loads((institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE)
+                           .read_text(encoding="utf-8"))["held"]
+        assert hold["stage"] == pp.ROW_VALUE_REFUSED and set(hold["items"]) == set(rows.data_refusals())
+    else:
+        assert metrics.ready == [INST]
 
 
 REVIEW_STATE, PAGE_VERDICT = "core.page_review_state", "core.page_verdict"
@@ -777,6 +784,9 @@ def test_real_followed_page_reaches_the_assembler_l8(tmp_path, monkeypatch):
     assert built[sf.ACCESS_DATE] == ACCESS and built[sf.TITLE] == "Followed"
     assert sf.OFFICIAL in rows.refused  # no official-site step in this run (PI ruling 70 b)
     assert sf.OFFICIAL in rows.data_refusals() and not rows.stops  # held, not stopped (rulings 97 b, 140)
+    hold, = json.loads((institution_dir(run_dir, INST) / pp.WORK_DIR / pp.HELD_FILE)
+                       .read_text(encoding="utf-8"))["held"]
+    assert hold["stage"] == pp.ROW_VALUE_REFUSED and sf.OFFICIAL in hold["items"]
 
 
 def test_zero_page_institution_is_not_followed_l5(tmp_path):
