@@ -396,7 +396,8 @@ class X35FailCapReached(RuntimeError):
     many ``x35_failed`` entries for one exact X35 request key that carry a response (a refusal,
     a ``max_tokens`` stop, an unparseable answer; NOT the ``no_response`` ones, which are asked
     again), the journaled X35 call raises this *instead of* calling X35, on this run and every
-    later load, until a PI release names the key. A ``RuntimeError``, so the stages hold exactly
+    later load, until a per-page PI release names the key (or releases ``all``); Stage 6 has no
+    release path for it yet (REVIEW-O2-fixes M1; with Q169). A ``RuntimeError``, so the stages hold exactly
     as they hold the failure it replaces (the per-page stage holds the institution; Stage 6 holds
     the answer), with no billed call. ``key`` is the journal's request key.
     """
