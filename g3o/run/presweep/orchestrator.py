@@ -550,7 +550,9 @@ def _usage_totals(metrics: Any) -> dict[str, int]:
     for per_inst in metrics.usage.values():
         for key, value in per_inst.items():
             totals[key] = totals.get(key, 0) + int(value)
+    batched = getattr(metrics, "batched_requests", 0)  # PI ruling 134: per-page stage only; left out when 0
     return {"n_institutions": len(metrics.usage), "live_requests": metrics.live_requests,
+            **({"batched_requests": batched} if batched else {}),
             "replayed_requests": metrics.replayed_requests, **dict(sorted(totals.items()))}
 
 

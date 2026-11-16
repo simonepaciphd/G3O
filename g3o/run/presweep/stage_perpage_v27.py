@@ -787,6 +787,8 @@ class PerPageMetrics:
     failed_pages: list[str] = field(default_factory=list)
     live_requests: int = 0
     replayed_requests: int = 0
+    #: PI ruling 134: extractor results journaled from a Message Batch in this pass
+    batched_requests: int = 0
     checkpoint_writes: int = 0
     usage: dict[str, dict[str, int]] = field(default_factory=dict)
     #: page id -> why its verdict support was downgraded ``downgraded_no_quote`` (PI ruling 99.1 a / 99.2)
@@ -2029,12 +2031,16 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
         finally:
             metrics.live_requests += journal.live
             metrics.replayed_requests += journal.replayed
+            metrics.batched_requests += journal.batched  # PI ruling 134
             metrics.usage[inst.institution_id] = journal.usage()
         holds = [broken] if broken is not None else [h for st in states for h in st.holds]
         if holds:
             _atomic_write(held_path, canonical_json({"institution_id": inst.institution_id, "held": holds}))
-            attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_REASON,
-                             detail=", ".join(_hold_label(h) for h in holds))
+            # PI ruling 134: waiting for a batch is not attrition (and attrition.record dedups ignoring the
+            # detail, so recording it would hide the institution's real hold reason of a later pass)
+            if not all(h["stage"] == BATCH_PENDING for h in holds):
+                attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_REASON,
+                                 detail=", ".join(_hold_label(h) for h in holds))
             metrics.held.append(inst.institution_id)
             continue
         products: list[PageProduct | ReviewedPage] = []
