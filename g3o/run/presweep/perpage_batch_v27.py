@@ -213,6 +213,10 @@ class _Store:
     #: request hash -> stored results, in collection order (each with its ``batch_id``)
     results: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     _seen_results: set[tuple[str, str]] = field(default_factory=set)  # (batch_id, custom_id)
+    #: keys of every unacknowledged or in-flight submission, kept up to date by :meth:`apply` (review of
+    #: c9f2356, M: rebuilding it on every call was quadratic in the wave once chunks go out mid-wave)
+    _flying: set[str] = field(default_factory=set)
+    _seq_of_batch: dict[str, int] = field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path) -> _Store:
@@ -249,11 +253,17 @@ class _Store:
             self.intents[entry["seq"]] = [list(p) for p in entry["requests"]]
             for _cid, key in entry["requests"]:
                 self.queued.pop(key, None)
+                self._flying.add(key)
         elif kind == "submitted":
             self.submitted[entry["seq"]] = entry["batch_id"]
             if entry["batch_id"] is None:  # none created: its requests may be queued again
                 for cid, key in self.intents.get(entry["seq"], []):
                     self.queued.setdefault(key, cid)
+                    self._flying.discard(key)
+            else:
+                self._seq_of_batch[entry["batch_id"]] = entry["seq"]
+                if entry["batch_id"] in self.collected:  # never in journal order; kept consistent anyway
+                    self._land(entry["batch_id"])
         elif kind == "result":
             pair = (entry["batch_id"], entry["custom_id"])
             if pair not in self._seen_results:
@@ -261,6 +271,14 @@ class _Store:
                 self.results.setdefault(entry["key"], []).append(entry["result"])
         elif kind == "collected":
             self.collected.add(entry["batch_id"])
+            self._land(entry["batch_id"])
+
+    def _land(self, batch_id: str) -> None:
+        """A collected batch's requests are no longer in flight."""
+        seq = self._seq_of_batch.get(batch_id)
+        if seq is not None:
+            for _cid, key in self.intents.get(seq, []):
+                self._flying.discard(key)
 
     def append(self, entry: Mapping[str, Any]) -> None:
         _write_line(self.path, entry)
@@ -274,6 +292,11 @@ class _Store:
                       and bid not in self.collected)
 
     def in_flight_keys(self) -> set[str]:
+        """Keys of every unacknowledged or in-flight (submitted, not collected) submission, kept by
+        :meth:`apply` (O(1) per call); :meth:`in_flight_keys_rebuilt` is the definition it must equal."""
+        return self._flying
+
+    def in_flight_keys_rebuilt(self) -> set[str]:
         flying = {seq for seq, _ in self.in_flight()} | set(self.unacknowledged())
         return {key for seq in flying for _cid, key in self.intents.get(seq, [])}
 

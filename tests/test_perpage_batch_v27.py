@@ -708,3 +708,31 @@ def test_a_request_over_the_byte_guard_is_sent_live_with_chunking(tmp_path):
         call(small)
     assert call(big).success and live.calls == [big.custom_id]
     assert client.created == [] and ex.pending() == 1  # the live call neither flushes nor joins a chunk
+
+
+def test_in_flight_keys_kept_incrementally_equal_the_rebuilt_set(tmp_path):
+    """Review of c9f2356 (M): ``in_flight_keys`` is kept by ``apply`` (O(1) per call) and always equals
+    its definition over intents, acknowledgements and collections, including after a reload."""
+    path = tmp_path / "batches.jsonl"
+    store = pb._Store.load(path)
+    steps = [
+        {"kind": "queued", "key": "k1", "custom_id": "c1"},
+        {"kind": "queued", "key": "k2", "custom_id": "c2"},
+        {"kind": "submit_intent", "seq": 1, "requests": [["c1", "k1"]]},
+        {"kind": "submit_intent", "seq": 2, "requests": [["c2", "k2"]]},
+        {"kind": "submitted", "seq": 1, "batch_id": "b1"},
+        {"kind": "submitted", "seq": 2, "batch_id": None},  # none created: k2 queued again
+        {"kind": "submit_intent", "seq": 3, "requests": [["c2", "k2"]]},
+        {"kind": "submitted", "seq": 3, "batch_id": "b3"},
+        {"kind": "collected", "batch_id": "b1"},
+        {"kind": "submit_intent", "seq": 4, "requests": [["c1", "k1"]]},  # a re-ask after b1
+        {"kind": "collected", "batch_id": "b3"},
+    ]
+    seen = []
+    for step in steps:
+        store.append(step)
+        assert store.in_flight_keys() == store.in_flight_keys_rebuilt()
+        seen.append(set(store.in_flight_keys()))
+    assert seen[3] == {"k1", "k2"} and seen[5] == {"k1"} and seen[8] == {"k2"} and seen[-1] == {"k1"}
+    reloaded = pb._Store.load(path)
+    assert reloaded.in_flight_keys() == reloaded.in_flight_keys_rebuilt() == {"k1"}
