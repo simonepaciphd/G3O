@@ -812,10 +812,13 @@ class RequestJournal:
                 # A batch-mode extract_fn raises ``BatchDeferred`` instead of a call: nothing is recorded.
                 result = call(job)
                 self.live += 1
+            response = asdict(result)
+            if response.get("batch_id") is None:  # a live call: its entry is written as before PI ruling 134
+                response.pop("batch_id", None)
             if result.success:
-                self._append(slot, asdict(result), _elapsed_ms(start))
+                self._append(slot, response, _elapsed_ms(start))
             else:
-                self._append(self._slot("extract_failed", request, prompt), asdict(result), _elapsed_ms(start))
+                self._append(self._slot("extract_failed", request, prompt), response, _elapsed_ms(start))
             return result
 
         def peek(job: Any) -> tuple[str, bool]:
