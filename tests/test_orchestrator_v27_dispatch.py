@@ -234,6 +234,27 @@ def test_resume_across_run_modes_is_refused(tmp_path):
     planning._assert_manifest_matches_on_resume(run_dir, old)  # same mode: no diff from the mode
 
 
+def test_resume_keeps_the_extractor_batch_mode(tmp_path):
+    """PI ruling 134: a resume cannot change the extractor mode; a v2.7 manifest without the key predates
+    the batch modes and reads as no_batch, so the new-run default (mix) is refused on it."""
+    run_dir = tmp_path / "run"
+    state_dir(run_dir).mkdir(parents=True)
+
+    def manifest(**kw):
+        return planning.build_manifest(_v27_config(tmp_path, run_id="run", runs_dir=tmp_path, **kw), [])
+
+    old = manifest()
+    del old["config"]["v27_extractor_mode"]  # written before the batch modes
+    (run_dir / "manifest.json").write_text(json.dumps(old), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="config.v27_extractor_mode: 'no_batch' \\(manifest, absent"):
+        planning._assert_manifest_matches_on_resume(run_dir, manifest())  # the new-run default, mix
+    planning._assert_manifest_matches_on_resume(run_dir, manifest(v27_extractor_mode="no_batch"))
+    (run_dir / "manifest.json").write_text(json.dumps(manifest()), encoding="utf-8")  # a mix run
+    with pytest.raises(RuntimeError, match="config.v27_extractor_mode: 'mix' \\(manifest\\) != 'all_batch'"):
+        planning._assert_manifest_matches_on_resume(run_dir, manifest(v27_extractor_mode="all_batch"))
+    planning._assert_manifest_matches_on_resume(run_dir, manifest())
+
+
 # ---------------------------------------------------------------------------
 # Dispatch refusals: no injected calls, no work
 # ---------------------------------------------------------------------------
