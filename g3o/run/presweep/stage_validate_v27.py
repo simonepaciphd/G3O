@@ -1008,8 +1008,8 @@ class RequestJournal:
     def x35_usages(self) -> list[dict[str, Any] | None]:
         """Each journaled X35 response's own ``usage`` (``None`` where it has none), for the calls
         ``usage()["x35_calls"] + usage()["x35_failed"]`` count, in that order: answered calls, then
-        failed ones. Priced per request by :func:`g3o.common.cost_monitor.price_x35_requests` once
-        X35 pricing is ruled (Q158; ``cost_monitor.X35_PRICING_RULED``).
+        failed ones. Priced per request by :func:`g3o.common.cost_monitor.price_x35_requests`
+        (PI ruling Q158 a; ``cost_monitor.X35_PRICING_RULED``).
 
         ``None`` is an answer from a client that reports no usage (a fake, or an entry written
         before usage was journaled), a failed response that reported no usage, or a failed call

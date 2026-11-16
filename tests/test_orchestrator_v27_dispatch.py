@@ -169,21 +169,35 @@ def test_v27_refuses_a_stage_estimate_outside_stages_1_to_4(tmp_path, stage):
     with pytest.raises(ValueError, match="v2.7 stage budgets stay refused") as err:
         _v27_config(tmp_path, **setting)
     assert f"preflight_stage_estimates for {stage}:" in str(err.value) and "RC-D-021" in str(err.value)
-    assert "Q158" in str(err.value) and "139 a" in str(err.value)  # X35 bound; its pricing awaits Q158
+    # Q158 a priced X35; Q164 a keeps the refusal: no within-stage v2.7 budget check exists
+    assert "within-stage budget check" in str(err.value) and "Q164 a" in str(err.value)
+    assert "Q158" not in str(err.value)
     # The same estimates stay valid on v2.5.
     PresweepConfig(run_id="r", runs_dir=tmp_path, master_csv=tmp_path / "m.csv", **setting)
 
 
 def test_v27_stage_estimate_refusal_reads_the_unpriced_parts_at_call_time(tmp_path, monkeypatch):
-    """The refusal's ground is cost_monitor.V27_UNPRICED_PARTS (X35_PRICING_RULED, Q158). With every
-    part priced it still refuses: no within-stage budget check is wired for a v2.7 stage (60 a)."""
+    """The refusal's ground is read from cost_monitor.V27_UNPRICED_PARTS at call time: an unpriced part,
+    were one put back, is named; with every part priced it still refuses (60 a, Q164 a)."""
     from g3o.common import cost_monitor
 
     setting = {"preflight_stage_estimates": {orch.V27_STAGE6_SPAN: 1.0}}
-    monkeypatch.setattr(cost_monitor, "V27_UNPRICED_PARTS", {})
+    monkeypatch.setattr(cost_monitor, "V27_UNPRICED_PARTS", {"x35": cost_monitor.X35_PRICING_PENDING})
     with pytest.raises(ValueError, match="v2.7 stage budgets stay refused") as err:
         _v27_config(tmp_path, **setting)
-    assert "within-stage budget check" in str(err.value) and "Q158" not in str(err.value)
+    assert "unpriced v2.7 parts" in str(err.value) and "x35" in str(err.value)
+
+
+def test_pricing_x35_does_not_lift_the_v27_stage_budget_refusal(tmp_path):
+    """PI ruling Q164 a (2026-11-16): with X35 priced (Q158 a, the real module state, nothing patched)
+    every v2.7 part is priced, and v2.7 stage budgets stay refused until a within-stage check exists."""
+    from g3o.common import cost_monitor
+
+    assert cost_monitor.X35_PRICING_RULED is True and cost_monitor.V27_UNPRICED_PARTS == {}
+    for stage in (orch.V27_PERPAGE_SPAN, orch.V27_STAGE6_SPAN):
+        with pytest.raises(ValueError, match="v2.7 stage budgets stay refused") as err:
+            _v27_config(tmp_path, preflight_stage_estimates={stage: 1.0})
+        assert "every v2.7 part is priced" in str(err.value) and "within-stage budget check" in str(err.value)
 
 
 def test_run_presweep_rechecks_stage_estimates_set_after_construction(tmp_path):
