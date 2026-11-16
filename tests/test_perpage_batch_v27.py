@@ -8,13 +8,21 @@ mix routing (follow-ups live) and the 130 a pricing basis.
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
+from g3o.common import source_fields as sf
 from g3o.common.cost_monitor import EXTRACTOR_BATCH_KEY, price_extractor_requests
 from g3o.common.pricing import PRICING, anthropic_request_usd
-from g3o.extract.anthropic_client import ExtractorJob, ExtractorResult, make_custom_id
+from g3o.extract.anthropic_client import (
+    AnthropicExtractorClient,
+    ExtractorJob,
+    ExtractorResult,
+    make_custom_id,
+)
 from g3o.run.presweep import perpage_batch_v27 as pb
+from g3o.run.presweep import source_row_v27 as srow
 from g3o.run.presweep.stage_validate_v27 import RequestJournal
 
 PROMPT = {"extractor_model": "claude-haiku-5-5", "x35_model": "claude-haiku-5-5"}
@@ -354,8 +362,11 @@ def test_a_torn_tail_is_dropped_durably_so_later_appends_reload(tmp_path):
     ex2 = extractor(tmp_path, client)  # load: the torn tail is dropped from the file itself
     assert path.read_bytes() == acknowledged
     _, call = journaled(tmp_path, ex2)
-    with pytest.raises(pb.BatchDeferred):
-        call(b)  # an append after the repaired tail
+    # a new process holds a request in memory only when the stage asks it again (``a`` was queued by the
+    # first process, whose body is gone); ``b`` is an append after the repaired tail (build 97f5a28a)
+    for j in (a, b):
+        with pytest.raises(pb.BatchDeferred):
+            call(j)
     assert ex2.submit() == ["msgbatch_1"]
     ex3 = extractor(tmp_path, client)  # reload: no "corrupt batch journal line"
     assert ex3.store.in_flight() == [(1, "msgbatch_1")]
@@ -386,6 +397,79 @@ def test_a_short_results_stream_is_not_marked_collected(tmp_path):
     assert "msgbatch_1" in ex2.store.collected and len(client.created) == 1 and client.result_reads == 2
     _, call = journaled(tmp_path, ex2)
     assert call(a).batch_id == call(b).batch_id == "msgbatch_1"
+
+
+def test_an_abandoned_batch_requeues_only_its_missing_requests(tmp_path):
+    """PI ruling Q175 a: after a short results stream the operator abandons the batch; it counts as collected,
+    the request with no stored result is queued and asked again on the next run, the stored one is kept."""
+    a, b = job("https://a.example/1"), job("https://a.example/2")
+    client = FakeBatchClient(drop={b.custom_id})
+    ex = extractor(tmp_path, client)
+    _, call = journaled(tmp_path, ex)
+    for j in (a, b):
+        with pytest.raises(pb.BatchDeferred):
+            call(j)
+    ex.submit()
+    with pytest.raises(pb.BatchResultsIncomplete, match="record_batch_abandoned"):
+        ex.settle()
+    assert pb.record_batch_abandoned(tmp_path, "msgbatch_1") == [b.custom_id]
+    with pytest.raises(ValueError, match="already collected"):  # explicit, once
+        pb.record_batch_abandoned(tmp_path, "msgbatch_1")
+    with pytest.raises(ValueError, match="not a submitted batch"):
+        pb.record_batch_abandoned(tmp_path, "msgbatch_9")
+    ex2 = extractor(tmp_path, client)
+    store = ex2.store
+    assert "msgbatch_1" in store.collected and store.in_flight() == []
+    assert store.queued == {pb.request_hash(b): b.custom_id}
+    assert store.in_flight_keys() == store.in_flight_keys_rebuilt() == set()
+    assert [r["custom_id"] for r in store.results[pb.request_hash(a)]] == [a.custom_id]
+    assert pb.request_hash(b) not in store.results
+    ex2.settle()  # nothing polled or read again
+    assert client.result_reads == 1
+    _, call = journaled(tmp_path, ex2)
+    assert call(a).batch_id == "msgbatch_1"  # the stored result is kept and journaled
+    assert ex2.batch_owns(b)  # known not answered: deferred again, never treated as a lost live call
+    with pytest.raises(pb.BatchDeferred, match="queued"):
+        call(b)
+    client.drop.clear()
+    assert ex2.submit() == ["msgbatch_2"] and client.created[-1] == [b.custom_id]
+    ex2.settle()
+    _, call = journaled(tmp_path, ex2)
+    assert call(b).batch_id == "msgbatch_2"
+
+
+def test_abandon_keeps_the_in_flight_keys_consistent_and_reloads(tmp_path):
+    """PI ruling Q175 a: ``in_flight_keys`` equals its rebuilt definition at every step, including an
+    abandoned batch with one stored result, a torn tail repaired by the operator step, and a reload."""
+    path = pb.batch_journal_path(tmp_path)
+    store = pb._Store.load(path)
+    steps = [
+        {"kind": "queued", "key": "k1", "custom_id": "c1"},
+        {"kind": "queued", "key": "k2", "custom_id": "c2"},
+        {"kind": "queued", "key": "k3", "custom_id": "c3"},
+        {"kind": "submit_intent", "seq": 1, "requests": [["c1", "k1"], ["c2", "k2"]]},
+        {"kind": "submitted", "seq": 1, "batch_id": "b1"},
+        {"kind": "submit_intent", "seq": 2, "requests": [["c3", "k3"]]},
+        {"kind": "submitted", "seq": 2, "batch_id": "b2"},
+        {"kind": "result", "batch_id": "b1", "custom_id": "c1", "key": "k1",
+         "result": {"custom_id": "c1", "success": True, "text": "{}", "error": None, "batch_id": "b1"}},
+    ]
+    for step in steps:
+        store.append(step)
+        assert store.in_flight_keys() == store.in_flight_keys_rebuilt()
+    assert store.in_flight_keys() == {"k1", "k2", "k3"}
+    with pytest.raises(ValueError, match="still running is never abandoned"):
+        pb.record_batch_abandoned(tmp_path, "b1")  # b1 never ended short: refused (review of 9e0d824, M)
+    store.append({"kind": "incomplete", "batch_id": "b1", "missing": ["c2"]})  # as _collect writes it
+    assert store.in_flight_keys() == store.in_flight_keys_rebuilt()
+    with path.open("ab") as stream:
+        stream.write(b'{"kind": "collec')  # a torn tail: the operator step repairs it before appending
+    assert pb.record_batch_abandoned(tmp_path, "b1") == ["c2"]
+    reloaded = pb._Store.load(path)
+    assert reloaded.in_flight_keys() == reloaded.in_flight_keys_rebuilt() == {"k3"}
+    assert reloaded.queued == {"k2": "c2"} and "b1" in reloaded.collected and reloaded.abandoned == {"b1"}
+    assert [r["custom_id"] for r in reloaded.results["k1"]] == ["c1"]
+    assert reloaded.in_flight() == [(2, "b2")]
 
 
 def test_a_request_over_the_byte_guard_is_sent_live(tmp_path):
@@ -736,3 +820,73 @@ def test_in_flight_keys_kept_incrementally_equal_the_rebuilt_set(tmp_path):
     assert seen[3] == {"k1", "k2"} and seen[5] == {"k1"} and seen[8] == {"k2"} and seen[-1] == {"k1"}
     reloaded = pb._Store.load(path)
     assert reloaded.in_flight_keys() == reloaded.in_flight_keys_rebuilt() == {"k1"}
+
+
+# --- PI ruling Q178 a: a batched response's request id (D-007) ----------------------------------------
+
+class FakeSdkBatches:
+    """The Anthropic SDK's ``messages.batches`` for :class:`AnthropicExtractorClient` (no network)."""
+
+    def __init__(self, *, no_message_id=()) -> None:
+        self.created: list[list[str]] = []
+        self.no_message_id = set(no_message_id)
+
+    def create(self, requests):
+        self.created.append([r["custom_id"] for r in requests])
+        return SimpleNamespace(id=f"msgbatch_{len(self.created)}")
+
+    def retrieve(self, batch_id):
+        return SimpleNamespace(processing_status="ended")
+
+    def results(self, batch_id):
+        for cid in self.created[int(batch_id.rsplit("_", 1)[1]) - 1]:
+            message = SimpleNamespace(id=None if cid in self.no_message_id else f"msg_{cid[-6:]}",
+                                      model="claude-haiku-5-5", stop_reason="end_turn", stop_details=None,
+                                      usage=dict(USAGE), content=[SimpleNamespace(type="text", text="{}")])
+            yield SimpleNamespace(custom_id=cid, result=SimpleNamespace(type="succeeded", message=message))
+
+
+INSTRUMENT = {"instrument_id": "b" * 64,
+              "payload": {"question_set_version": "qsv-1", "extractor_model_id": "claude-haiku-5-5"}}
+
+
+def _batched_through_the_journal(tmp_path, sdk, j):
+    ex = extractor(tmp_path, AnthropicExtractorClient(SimpleNamespace(batches=sdk, messages=SimpleNamespace(
+        batches=sdk, create=None))))
+    _, call = journaled(tmp_path, ex)
+    with pytest.raises(pb.BatchDeferred):
+        call(j)
+    ex.submit()
+    ex.settle()
+    journal, call = journaled(tmp_path, ex)
+    result = call(j)
+    assert journal.batched == 1 and result.batch_id == "msgbatch_1"
+    return ex, result
+
+
+def test_a_batched_quote_step_record_carries_the_batch_request_id(tmp_path):
+    """The client sets ``batch:<batch_id>/<message_id>``; the batch journal stores it, the request journal
+    journals it and replays it, and the quote-step record carries it (D-007 satisfied)."""
+    j = job("https://a.example/1")
+    sdk = FakeSdkBatches()
+    ex, result = _batched_through_the_journal(tmp_path, sdk, j)
+    want = f"batch:msgbatch_1/msg_{j.custom_id[-6:]}"
+    assert result.request_id == want
+    assert [r["request_id"] for r in ex.store.results[pb.request_hash(j)]] == [want]
+    journal, call = journaled(tmp_path, ex)
+    replayed = call(j)
+    assert replayed.request_id == want and journal.replayed == 1  # the replay keeps it
+    prov = srow.Provenance.of(INSTRUMENT, replayed, rule_coder_version="cv")
+    record = prov.quote_record("core.activity_name", "Copilot Chat", None)
+    assert record.request_id == want and record.actual_response_model == "claude-haiku-5-5"
+
+
+def test_a_batched_result_without_a_message_id_is_still_refused(tmp_path):
+    """PI ruling Q178 a: a request id stays mandatory; a batched response with no message id has none."""
+    j = job("https://a.example/1")
+    sdk = FakeSdkBatches(no_message_id={j.custom_id})
+    _, result = _batched_through_the_journal(tmp_path, sdk, j)
+    assert result.success and result.request_id is None
+    with pytest.raises(sf.MissingUpstreamError, match="D-007"):
+        srow.Provenance.of(INSTRUMENT, result, rule_coder_version="cv").quote_record(
+            "core.activity_name", "Copilot Chat", None)

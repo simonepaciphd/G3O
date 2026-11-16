@@ -53,10 +53,15 @@ journal ``<run>/perpage_v27_batches/batches.jsonl`` is append-only and fsynced:
    operator records the outcome (:func:`record_submit_outcome`: the batch id found in the console,
    or that none was created).
 3. ``result`` (``batch_id``, ``custom_id``, request hash, the result): one fsynced line per result,
-   read from the ended batch. ``collected`` (``batch_id``): after the last one, only once every
+   read from the ended batch. The result keeps its request id, ``batch:<batch_id>/<message_id>`` (PI ruling
+   Q178 a; :func:`~g3o.extract.anthropic_client.batch_request_id`), which the request journal journals and
+   replays like a live one, so a batched page's quote-step records carry it (D-007). ``collected`` (``batch_id``): after the last one, only once every
    request submitted in that batch has a result (:class:`BatchResultsIncomplete` otherwise). A crash mid-poll
    polls the same batch id again; a crash mid-collection reads the results again (free) and stores
-   only those not stored yet.
+   only those not stored yet. A batch that will never return the missing results is ended by the operator
+   (PI ruling Q175 a, :func:`record_batch_abandoned`, never called automatically): an ``abandoned`` line
+   counts as ``collected``; its submitted requests with no stored result go back to ``queued`` and are asked
+   (and paid) again on the next run; the results already stored stay.
 4. A stored result is consumed when the request journal journals it (its ``batch_id`` on the
    entry): a crash before that leaves the result in the store for the next wave; after it, the
    per-institution journal replays it. A result already consumed is never journaled twice
@@ -167,11 +172,14 @@ class BatchSubmitUnacknowledged(RuntimeError):
 class BatchResultsIncomplete(RuntimeError):
     """An ended batch returned no result for some submitted request. A stage stop: the batch is not marked
     collected (the results stored are kept), so the next run reads its results again (free); nothing is
-    resubmitted."""
+    resubmitted until the operator abandons the batch (:func:`record_batch_abandoned`, PI ruling Q175 a)."""
 
     def __init__(self, batch_id: str, custom_ids: list[str]) -> None:
         super().__init__(f"Message Batch {batch_id} ended without a result for {len(custom_ids)} submitted "
-                         f"request(s) (first: {custom_ids[:3]}); not marked collected, read again on the next run")
+                         f"request(s) (first: {custom_ids[:3]}); not marked collected, read again on the next run. "
+                         "If the batch will never return them, the operator records it with "
+                         f"record_batch_abandoned(run_dir, {batch_id!r}): the missing requests are queued and "
+                         "asked (and paid) again on the next run; the results stored are kept")
         self.batch_id, self.custom_ids = batch_id, custom_ids
 
 
@@ -201,6 +209,28 @@ def record_submit_outcome(run_dir: Path, seq: int, batch_id: str | None) -> None
                                               "operator": True})
 
 
+def record_batch_abandoned(run_dir: Path, batch_id: str) -> list[str]:
+    """Operator step after :class:`BatchResultsIncomplete` (PI ruling Q175 a; explicit, never called by the
+    stage): batch ``batch_id`` is abandoned. It counts as collected (never polled or read again); its
+    submitted requests with no stored result go back to ``queued`` and are asked again on the next run (a
+    second charge only if Anthropic billed the lost ones); the results already stored stay. Returns the
+    custom ids queued again. Refuses a batch the journal does not hold as submitted, or one already
+    collected or abandoned."""
+    path = batch_journal_path(run_dir)
+    store = _Store.load(path)  # drops a torn tail first, so this line is never merged into it
+    seq = store._seq_of_batch.get(batch_id)
+    if seq is None:
+        raise ValueError(f"batch {batch_id!r} is not a submitted batch of this run's batch journal: {path}")
+    if batch_id in store.collected:
+        raise ValueError(f"batch {batch_id!r} is already collected or abandoned; nothing to abandon")
+    if batch_id not in store.incomplete:
+        raise ValueError(f"batch {batch_id!r} has not ended with a short results stream (no BatchResultsIncomplete "
+                         "recorded): a batch still running is never abandoned. Run only with no run in progress.")
+    missing = store.missing_results(batch_id)
+    _write_line(path, {"kind": "abandoned", "batch_id": batch_id, "operator": True})
+    return [cid for cid, _key in missing]
+
+
 @dataclass
 class _Store:
     """The batch journal, loaded. A torn last line (an interrupted write) is dropped."""
@@ -209,7 +239,11 @@ class _Store:
     queued: dict[str, str] = field(default_factory=dict)  # request hash -> custom_id (not yet submitted)
     intents: dict[int, list[list[str]]] = field(default_factory=dict)  # seq -> [[custom_id, hash], ...]
     submitted: dict[int, str | None] = field(default_factory=dict)  # seq -> batch id (None: none created)
-    collected: set[str] = field(default_factory=set)
+    collected: set[str] = field(default_factory=set)  # collected or abandoned (PI ruling Q175 a)
+    abandoned: set[str] = field(default_factory=set)  # batch ids the operator abandoned (PI ruling Q175 a)
+    #: batch ids that ENDED with a short results stream (:class:`BatchResultsIncomplete` was raised); only
+    #: these may be abandoned, so a batch still running is never abandoned and paid again (review of 9e0d824, M)
+    incomplete: set[str] = field(default_factory=set)
     #: request hash -> stored results, in collection order (each with its ``batch_id``)
     results: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     _seen_results: set[tuple[str, str]] = field(default_factory=set)  # (batch_id, custom_id)
@@ -262,7 +296,9 @@ class _Store:
                     self._flying.discard(key)
             else:
                 self._seq_of_batch[entry["batch_id"]] = entry["seq"]
-                if entry["batch_id"] in self.collected:  # never in journal order; kept consistent anyway
+                if entry["batch_id"] in self.abandoned:  # never in journal order; kept consistent anyway
+                    self._requeue_missing(entry["batch_id"])
+                if entry["batch_id"] in self.collected:
                     self._land(entry["batch_id"])
         elif kind == "result":
             pair = (entry["batch_id"], entry["custom_id"])
@@ -272,6 +308,26 @@ class _Store:
         elif kind == "collected":
             self.collected.add(entry["batch_id"])
             self._land(entry["batch_id"])
+        elif kind == "incomplete":
+            self.incomplete.add(entry["batch_id"])
+        elif kind == "abandoned":  # PI ruling Q175 a: counts as collected; the missing requests queue again
+            self.abandoned.add(entry["batch_id"])
+            self.collected.add(entry["batch_id"])
+            self._requeue_missing(entry["batch_id"])
+            self._land(entry["batch_id"])
+
+    def missing_results(self, batch_id: str) -> list[tuple[str, str]]:
+        """``(custom_id, key)`` of every request submitted in ``batch_id`` with no stored result from it."""
+        seq = self._seq_of_batch.get(batch_id)
+        if seq is None:
+            return []
+        return [(cid, key) for cid, key in self.intents.get(seq, [])
+                if not self.has_result(key, batch_id, cid)]
+
+    def _requeue_missing(self, batch_id: str) -> None:
+        """An abandoned batch's requests with no stored result are queued again (asked on the next run)."""
+        for cid, key in self.missing_results(batch_id):
+            self.queued.setdefault(key, cid)
 
     def _land(self, batch_id: str) -> None:
         """A collected batch's requests are no longer in flight."""
@@ -456,6 +512,8 @@ class BatchExtractor:
         missing = [cid for cid, key in self.store.intents.get(seq, [])
                    if not self.store.has_result(key, batch_id, cid)]
         if missing:  # a short results stream: not marked collected, so nothing is asked again (no double spend)
+            if batch_id not in self.store.incomplete:  # the ended batch may now be abandoned by the operator
+                self.store.append({"kind": "incomplete", "batch_id": batch_id, "missing": missing})
             raise BatchResultsIncomplete(batch_id, missing)
         self.store.append({"kind": "collected", "batch_id": batch_id})
 
@@ -537,5 +595,5 @@ def has_batch_journal(run_dir: Path) -> bool:
 __all__ = ["ALL_BATCH", "BATCH_DIR", "BATCH_JOURNAL", "BATCH_PENDING", "DEFAULT_EXTRACTOR_MODE",
            "DEFAULT_CHUNK_MAX_BYTES", "DEFAULT_CHUNK_MAX_REQUESTS", "DEFAULT_MAX_WAVES", "DEFAULT_POLL_SECONDS", "EXTRACTOR_MODES", "MIX", "NO_BATCH", "BatchClientMissing",
            "BatchDeferred", "BatchExtractor", "BatchResultsIncomplete", "BatchSubmitUnacknowledged",
-           "batch_journal_path", "has_batch_journal", "is_first_round", "record_submit_outcome", "request_hash",
+           "batch_journal_path", "has_batch_journal", "is_first_round", "record_batch_abandoned", "record_submit_outcome", "request_hash",
            "require_mode", "run_waves", "too_big_for_batch"]
