@@ -223,6 +223,9 @@ def record_batch_abandoned(run_dir: Path, batch_id: str) -> list[str]:
         raise ValueError(f"batch {batch_id!r} is not a submitted batch of this run's batch journal: {path}")
     if batch_id in store.collected:
         raise ValueError(f"batch {batch_id!r} is already collected or abandoned; nothing to abandon")
+    if batch_id not in store.incomplete:
+        raise ValueError(f"batch {batch_id!r} has not ended with a short results stream (no BatchResultsIncomplete "
+                         "recorded): a batch still running is never abandoned. Run only with no run in progress.")
     missing = store.missing_results(batch_id)
     _write_line(path, {"kind": "abandoned", "batch_id": batch_id, "operator": True})
     return [cid for cid, _key in missing]
@@ -238,6 +241,9 @@ class _Store:
     submitted: dict[int, str | None] = field(default_factory=dict)  # seq -> batch id (None: none created)
     collected: set[str] = field(default_factory=set)  # collected or abandoned (PI ruling Q175 a)
     abandoned: set[str] = field(default_factory=set)  # batch ids the operator abandoned (PI ruling Q175 a)
+    #: batch ids that ENDED with a short results stream (:class:`BatchResultsIncomplete` was raised); only
+    #: these may be abandoned, so a batch still running is never abandoned and paid again (review of 9e0d824, M)
+    incomplete: set[str] = field(default_factory=set)
     #: request hash -> stored results, in collection order (each with its ``batch_id``)
     results: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     _seen_results: set[tuple[str, str]] = field(default_factory=set)  # (batch_id, custom_id)
@@ -302,6 +308,8 @@ class _Store:
         elif kind == "collected":
             self.collected.add(entry["batch_id"])
             self._land(entry["batch_id"])
+        elif kind == "incomplete":
+            self.incomplete.add(entry["batch_id"])
         elif kind == "abandoned":  # PI ruling Q175 a: counts as collected; the missing requests queue again
             self.abandoned.add(entry["batch_id"])
             self.collected.add(entry["batch_id"])
@@ -504,6 +512,8 @@ class BatchExtractor:
         missing = [cid for cid, key in self.store.intents.get(seq, [])
                    if not self.store.has_result(key, batch_id, cid)]
         if missing:  # a short results stream: not marked collected, so nothing is asked again (no double spend)
+            if batch_id not in self.store.incomplete:  # the ended batch may now be abandoned by the operator
+                self.store.append({"kind": "incomplete", "batch_id": batch_id, "missing": missing})
             raise BatchResultsIncomplete(batch_id, missing)
         self.store.append({"kind": "collected", "batch_id": batch_id})
 

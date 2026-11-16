@@ -458,6 +458,10 @@ def test_abandon_keeps_the_in_flight_keys_consistent_and_reloads(tmp_path):
         store.append(step)
         assert store.in_flight_keys() == store.in_flight_keys_rebuilt()
     assert store.in_flight_keys() == {"k1", "k2", "k3"}
+    with pytest.raises(ValueError, match="still running is never abandoned"):
+        pb.record_batch_abandoned(tmp_path, "b1")  # b1 never ended short: refused (review of 9e0d824, M)
+    store.append({"kind": "incomplete", "batch_id": "b1", "missing": ["c2"]})  # as _collect writes it
+    assert store.in_flight_keys() == store.in_flight_keys_rebuilt()
     with path.open("ab") as stream:
         stream.write(b'{"kind": "collec')  # a torn tail: the operator step repairs it before appending
     assert pb.record_batch_abandoned(tmp_path, "b1") == ["c2"]
