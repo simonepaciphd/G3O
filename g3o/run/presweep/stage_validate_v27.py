@@ -903,8 +903,9 @@ class RequestJournal:
 
     def _stored_batch_result(self, key: str, job: Any, extract_fn: Any) -> ExtractorResult | None:
         """PI ruling 134: the first stored Message Batch result for ``job`` this journal has not journaled yet
-        (the batch-mode ``extract_fn``'s ``batch_results``); None for a live-only ``extract_fn``."""
-        results = getattr(extract_fn, "batch_results", None)
+        (the batch-mode ``extract_fn``'s ``stored_batch_results``); None for a live-only ``extract_fn``. Not
+        ``batch_results``: the live ``LazyExtractor`` has that name for the Batches API call itself."""
+        results = getattr(extract_fn, "stored_batch_results", None)
         if results is None:
             return None
         for result in results(job):

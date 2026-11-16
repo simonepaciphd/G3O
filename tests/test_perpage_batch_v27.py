@@ -303,7 +303,7 @@ def test_crash_mid_collection_stores_each_result_once(tmp_path):
     assert client.result_reads == 2 and len(client.created) == 1
     lines = [json.loads(x) for x in pb.batch_journal_path(tmp_path).read_text(encoding="utf-8").splitlines()]
     assert sorted(e["custom_id"] for e in lines if e["kind"] == "result") == sorted([a.custom_id, b.custom_id])
-    assert len(ex2.batch_results(a)) == 1
+    assert len(ex2.stored_batch_results(a)) == 1
 
 
 def test_crash_after_collection_before_the_journal_saved_it(tmp_path):
@@ -374,3 +374,11 @@ def test_run_waves_until_nothing_is_queued(tmp_path):
 
 def test_run_waves_without_a_batch_extractor_is_one_pass():
     assert pb.run_waves(None, lambda: "once") == "once"
+
+
+def test_the_journal_never_reads_stored_results_from_the_live_client(tmp_path):
+    """Review: the live LazyExtractor's ``batch_results(batch_id)`` is the Batches API call; the journal
+    reads stored results only through ``stored_batch_results``, so a no_batch run never calls it."""
+    from g3o.run.presweep.v27_entry import LazyExtractor
+
+    assert not hasattr(LazyExtractor, "stored_batch_results") and hasattr(pb.BatchExtractor, "stored_batch_results")

@@ -260,7 +260,7 @@ class BatchExtractor:
             return True
         return self.mode == MIX and is_first_round(job.custom_id)
 
-    def batch_results(self, job: Any) -> list[Any]:
+    def stored_batch_results(self, job: Any) -> list[Any]:
         """Every stored result for ``job`` (an :class:`ExtractorResult` with its ``batch_id``), oldest first;
         the request journal takes the first it has not journaled yet."""
         from g3o.extract.anthropic_client import ExtractorResult
