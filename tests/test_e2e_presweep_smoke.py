@@ -824,7 +824,8 @@ class _ExplicitRowValues:
         pid, chunk = page.page_id, f"{page.page_id}#p001"  # a short page is one part (page_chunks.chunk_page)
         sources = PageSources(pid, {chunk: page.text}, jpc.contact_text(page))
         real = {"core.source_url": page_fields.url.value, "core.source_access_date": page_fields.access_date.value,
-                "core.source_language": page_fields.language.value}
+                "core.source_language": page_fields.language.value,
+                "core.syndication_group": page_fields.syndication_group.value}  # A4, read by A7 independence
 
         def source_values():
             sv = {k: v for k, v in _values("sources").items()
