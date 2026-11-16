@@ -354,8 +354,11 @@ def test_a_torn_tail_is_dropped_durably_so_later_appends_reload(tmp_path):
     ex2 = extractor(tmp_path, client)  # load: the torn tail is dropped from the file itself
     assert path.read_bytes() == acknowledged
     _, call = journaled(tmp_path, ex2)
-    with pytest.raises(pb.BatchDeferred):
-        call(b)  # an append after the repaired tail
+    # a new process holds a request in memory only when the stage asks it again (``a`` was queued by the
+    # first process, whose body is gone); ``b`` is an append after the repaired tail (build 97f5a28a)
+    for j in (a, b):
+        with pytest.raises(pb.BatchDeferred):
+            call(j)
     assert ex2.submit() == ["msgbatch_1"]
     ex3 = extractor(tmp_path, client)  # reload: no "corrupt batch journal line"
     assert ex3.store.in_flight() == [(1, "msgbatch_1")]
