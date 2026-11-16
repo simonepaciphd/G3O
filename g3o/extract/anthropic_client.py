@@ -127,6 +127,9 @@ class ExtractorResult:
     request_id: str | None = None
     stop_reason: str | None = None
     usage: dict[str, Any] | None = None
+    #: the Message Batch that answered this request (PI rulings 134 / 130 a: priced at batch rates);
+    #: None for a live call
+    batch_id: str | None = None
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:

@@ -538,8 +538,12 @@ class RequestJournal:
         #: PI ruling 114 b (review H-1): request keys with a :data:`REASK_SPENT` entry. Such a key is never
         #: called live again unless a new release authorises it (:meth:`reask_spent_unanswered`)
         self._spent: set[str] = set()
+        #: PI ruling 134: (request key, batch id) of every extractor result journaled from a Message Batch;
+        #: a stored batch result is journaled once (:meth:`_extract`)
+        self._batch_used: set[tuple[str, str]] = set()
         self.live = 0
         self.replayed = 0
+        self.batched = 0  # PI ruling 134: results journaled from a Message Batch
         if path.exists():
             self._load()
 
@@ -561,6 +565,7 @@ class RequestJournal:
                 raise ValueError(f"corrupt Stage 6 journal line {n + 1}: {self.path}") from None
             keep.append(line)
             self._elapsed.append(int(entry.get("elapsed_ms", 0)))
+            self._mark_batch(entry)
             if entry["kind"] in _LIVE_EXTRACT_KINDS:  # ruling 104 b: a live call uses up its re-ask
                 self._reask.discard(entry["key"])
             if entry["kind"] == PI_RELEASED:
@@ -603,6 +608,7 @@ class RequestJournal:
     def _append(self, slot: tuple[str, str, int], response: dict[str, Any], elapsed_ms: int) -> None:
         entry = {"kind": slot[0], "key": slot[1], "n": slot[2], "response": response, "elapsed_ms": elapsed_ms}
         self._write(entry)
+        self._mark_batch(entry)
         self._elapsed.append(elapsed_ms)
         if slot[0] in _LIVE_EXTRACT_KINDS:  # ruling 104 b: a live call uses up its re-ask
             self._reask.discard(slot[1])
@@ -616,6 +622,13 @@ class RequestJournal:
             self._count_x35_failure(slot[0], slot[1], response)
         else:
             self._recorded[slot] = response
+
+    def _mark_batch(self, entry: Mapping[str, Any]) -> None:
+        """PI ruling 134: an extractor entry carrying a ``batch_id`` consumed that stored batch result."""
+        response = entry.get("response")
+        batch_id = response.get("batch_id") if isinstance(response, dict) else None
+        if entry.get("kind") in (*_LIVE_EXTRACT_KINDS, EXTRACT_REJECTED) and isinstance(batch_id, str):
+            self._batch_used.add((entry["key"], batch_id))
 
     # --- ruling 34 b / 41 a: the rejection cap and its PI release ------------
 
@@ -782,19 +795,30 @@ class RequestJournal:
                 return ExtractorResult(**self._recorded[slot])
             if self.rejections(slot[1]) >= EXTRACT_REJECT_CAP:  # ruling 34 b / 41 a: never called again
                 raise ExtractRejectCapReached(slot[1], self.rejections(slot[1]), job.custom_id)
-            if self.reask_authorised(slot[1]):  # PI ruling 114 b: the re-ask is used up BEFORE the call
-                self._spend_reask(slot[1])
-            elif self.reask_spent_unanswered(slot[1], slot[2], kind="extract"):  # review H-1: never unauthorised
-                raise ReaskSpentUnanswered(slot[1], job.custom_id)
             start = time.monotonic()
-            # An exception is not recorded: asked again on resume. A call sent that died without a
-            # response (e.g. a read timeout) is therefore unjournaled and unpriced (PI ruling 131.1 b).
-            result = extract_fn(job)
-            self.live += 1
-            if result.success:
-                self._append(slot, asdict(result), _elapsed_ms(start))
+            stored = self._stored_batch_result(slot[1], job, extract_fn)
+            if stored is not None:  # PI ruling 134: a Message Batch answered it; journaled as a live response
+                result = stored
+                self.batched += 1
             else:
-                self._append(self._slot("extract_failed", request, prompt), asdict(result), _elapsed_ms(start))
+                call = extract_fn
+                if self.reask_authorised(slot[1]):  # PI ruling 114 b: the re-ask is used up BEFORE the call
+                    self._spend_reask(slot[1])
+                    call = getattr(extract_fn, "live_call", extract_fn)  # PI ruling 134: a re-ask is always live
+                elif self.reask_spent_unanswered(slot[1], slot[2], kind="extract"):  # review H-1: never unauthorised
+                    raise ReaskSpentUnanswered(slot[1], job.custom_id)
+                # An exception is not recorded: asked again on resume. A call sent that died without a
+                # response (e.g. a read timeout) is therefore unjournaled and unpriced (PI ruling 131.1 b).
+                # A batch-mode extract_fn raises ``BatchDeferred`` instead of a call: nothing is recorded.
+                result = call(job)
+                self.live += 1
+            response = asdict(result)
+            if response.get("batch_id") is None:  # a live call: its entry is written as before PI ruling 134
+                response.pop("batch_id", None)
+            if result.success:
+                self._append(slot, response, _elapsed_ms(start))
+            else:
+                self._append(self._slot("extract_failed", request, prompt), response, _elapsed_ms(start))
             return result
 
         def peek(job: Any) -> tuple[str, bool]:
@@ -807,7 +831,12 @@ class RequestJournal:
             (:class:`ReaskSpentUnanswered`), so the two agree: neither lets it go live."""
             key = self._key({"custom_id": job.custom_id, "params": job.params}, prompt)
             recorded = ("extract", key, self._seen.get(("extract", key), 0)) in self._recorded
-            return key, recorded or self.reask_authorised(key)
+            # PI ruling 134: a request the batch journal knows was never sent live (queued or in flight) is
+            # not a lost live call: it is deferred again. Nor is one a stored batch result answers that this
+            # journal has not journaled yet; once journaled, that result no longer counts (one use only)
+            owns = getattr(extract_fn, "batch_owns", None)
+            return key, (recorded or self.reask_authorised(key) or bool(owns is not None and owns(job))
+                         or self._stored_batch_result(key, job, extract_fn) is not None)
 
         def reask_live(job: Any) -> bool:
             """PI ruling 113 b: whether the next call of ``job`` is the live re-ask a PI release authorised
@@ -877,6 +906,18 @@ class RequestJournal:
             return answer
         return wrapped
 
+    def _stored_batch_result(self, key: str, job: Any, extract_fn: Any) -> ExtractorResult | None:
+        """PI ruling 134: the first stored Message Batch result for ``job`` this journal has not journaled yet
+        (the batch-mode ``extract_fn``'s ``stored_batch_results``); None for a live-only ``extract_fn``. Not
+        ``batch_results``: the live ``LazyExtractor`` has that name for the Batches API call itself."""
+        results = getattr(extract_fn, "stored_batch_results", None)
+        if results is None:
+            return None
+        for result in results(job):
+            if result.batch_id is not None and (key, result.batch_id) not in self._batch_used:
+                return result
+        return None
+
     def reject_extract(self, request: Mapping[str, Any], prompt: Mapping[str, Any], error: str) -> bool:
         """Cancel the last recorded extractor response to ``request`` (C3 a, QA4 M3).
 
@@ -939,12 +980,18 @@ class RequestJournal:
         accepted). A torn last journal line is skipped on a read-only load and dropped on repair,
         so at most one billed call can be missing here (PI ruling 131.2 a: accepted).
         """
-        from g3o.common.cost_monitor import EXTRACTOR_FAILED_RESULT_KEY
+        from g3o.common.cost_monitor import EXTRACTOR_BATCH_KEY, EXTRACTOR_FAILED_RESULT_KEY
+
+        def marked(response: Mapping[str, Any], usage: Any) -> Any:
+            # PI rulings 134 / 130 a: a result a Message Batch returned is priced at batch rates
+            if isinstance(usage, dict) and isinstance(response.get("batch_id"), str):
+                return {**usage, EXTRACTOR_BATCH_KEY: True}
+            return usage
 
         out: list[dict[str, Any] | None] = []
         for (kind, _, _), response in self._recorded.items():
             if kind == "extract":
-                out.append(response.get("usage"))
+                out.append(marked(response, response.get("usage")))
         for entry in self._accounting:
             if entry["kind"] in ("extract_failed", EXTRACT_REJECTED):
                 response = entry["response"]
@@ -955,7 +1002,7 @@ class RequestJournal:
                         and isinstance(failed_type, str)):
                     out.append({EXTRACTOR_FAILED_RESULT_KEY: failed_type})
                 else:
-                    out.append(usage)
+                    out.append(marked(response, usage))
         return out
 
     def x35_usages(self) -> list[dict[str, Any] | None]:

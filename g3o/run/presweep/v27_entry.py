@@ -137,6 +137,16 @@ class LazyExtractor:
     def __call__(self, job: Any) -> Any:
         return self._bound().create(job)
 
+    # PI ruling 134: the Message Batches calls of the batched extractor modes (perpage_batch_v27)
+    def submit_batch(self, jobs: list[Any]) -> str:
+        return self._bound().submit_batch(jobs)
+
+    def batch_status(self, batch_id: str) -> str:
+        return self._bound().batch_status(batch_id)
+
+    def batch_results(self, batch_id: str) -> Any:
+        return self._bound().batch_results(batch_id)
+
     def __repr__(self) -> str:  # never render key material
         return f"LazyExtractor(constructed={self.constructed})"
 
@@ -249,10 +259,16 @@ def build_v27_dispatch(config: Any, credentials: ResolvedCredentials) -> Any:
     if missing:
         raise ValueError(f"pipeline_version='v2.7' is refused before any work: {', '.join(missing)} is not set "
                          "(pass it in Credentials or the environment)")
+    from g3o.run.presweep.perpage_batch_v27 import DEFAULT_EXTRACTOR_MODE
+
+    extractor = LazyExtractor(credentials.anthropic_api_key or "")
     return V27Dispatch(
         settings=settings,
         jev_ask_fn=LazyJevAsk(credentials, settings.jev_model),
-        extract_fn=LazyExtractor(credentials.anthropic_api_key or ""),
+        extract_fn=extractor,
+        # PI ruling 134: the run's extractor mode (default mix); the same lazy client submits the batches
+        extractor_mode=getattr(config, "v27_extractor_mode", DEFAULT_EXTRACTOR_MODE),
+        batch_client=extractor,
         entail_fn=x35_entail_fn(settings, credentials),
         perpage_inputs=perpage_inputs_builder(config),
         follow_fetch=follow_fetch(config),

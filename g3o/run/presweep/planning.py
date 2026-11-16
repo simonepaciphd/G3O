@@ -154,6 +154,7 @@ def config_snapshot(
     if config.pipeline_version == PIPELINE_V25 and not config.v27_not_production_ready_opt_in:
         del config_dict["pipeline_version"]
         del config_dict["v27_not_production_ready_opt_in"]
+        config_dict.pop("v27_extractor_mode", None)  # PI ruling 134: a v2.5 snapshot is unchanged
     # v2.7 runtime settings (T-030, PI ruling 132 a): left out while unset, so no
     # earlier snapshot changes; set, the manifest records the settings the run's
     # instrument is bound from (before any 2.7 row).
@@ -628,6 +629,19 @@ def _assert_manifest_matches_on_resume(
             f"config.v27_runtime: {old_cfg.get('v27_runtime')!r} (manifest) != "
             f"{new_cfg.get('v27_runtime')!r} (this run)"
         )
+    # Extractor batch mode (PI ruling 134): a resume keeps the run's mode. A v2.7
+    # manifest without the key predates the batch modes and ran every extractor
+    # call live, so it reads as ``no_batch`` (a new run's default, ``mix``, would
+    # otherwise start batching mid-run); resume it with ``no_batch``.
+    if old_mode == new_mode == PIPELINE_V27:
+        old_x = old_cfg.get("v27_extractor_mode", "no_batch")
+        new_x = new_cfg.get("v27_extractor_mode", "no_batch")
+        if old_x != new_x:
+            diffs.append(
+                f"config.v27_extractor_mode: {old_x!r} (manifest"
+                f"{'' if 'v27_extractor_mode' in old_cfg else ', absent: predates the batch modes'})"
+                f" != {new_x!r} (this run)"
+            )
     for key in _GUARDED_CONFIG_KEYS:
         if key not in old_cfg and key in _ABSENT_TOLERATED_CONFIG_KEYS:
             if key.startswith("official_sites") and official_sites_active:

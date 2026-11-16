@@ -91,7 +91,8 @@ def test_a_v25_mapping_keeps_the_pre_run_mode_key_set(config: PresweepConfig) ->
     fields existed (as ``planning.config_snapshot`` does); a v2.7 one records both."""
     from dataclasses import fields as dc_fields, replace as dc_replace
 
-    run_mode = {"pipeline_version", "v27_not_production_ready_opt_in"}
+    # PI ruling 134: the v2.7 extractor mode is a run-mode key too (left out of a v2.5 mapping)
+    run_mode = {"pipeline_version", "v27_not_production_ready_opt_in", "v27_extractor_mode"}
     mapping = sub.config_to_mapping(config)
     assert set(mapping) == {f.name for f in dc_fields(PresweepConfig)} - run_mode
     rebuilt = sub.config_from_mapping(json.loads(json.dumps(mapping)))

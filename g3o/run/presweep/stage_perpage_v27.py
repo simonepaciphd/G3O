@@ -246,6 +246,7 @@ from g3o.persist.stage6_adapters import (
 from g3o.run.presweep import source_row_v27 as srow
 from g3o.run.presweep import stage_activity_code, stage_page_code
 from g3o.run.presweep.official_site_v27 import load_run_official_sites
+from g3o.run.presweep.perpage_batch_v27 import BATCH_PENDING, BatchDeferred
 from g3o.run.presweep.stage_validate_v27 import DONE_MARKER as STAGE6_DONE_MARKER
 from g3o.run.presweep.stage_validate_v27 import (
     EXTRACT_REJECT_CAP,
@@ -786,6 +787,8 @@ class PerPageMetrics:
     failed_pages: list[str] = field(default_factory=list)
     live_requests: int = 0
     replayed_requests: int = 0
+    #: PI ruling 134: extractor results journaled from a Message Batch in this pass
+    batched_requests: int = 0
     checkpoint_writes: int = 0
     usage: dict[str, dict[str, int]] = field(default_factory=dict)
     #: page id -> why its verdict support was downgraded ``downgraded_no_quote`` (PI ruling 99.1 a / 99.2)
@@ -1836,6 +1839,7 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
                                                 cost_check_callback=cost_check_callback)
     if coded.stopped_early:  # the cost check stopped T-021: uncoded pages are not failures
         raise stage_page_code.StageStopped("page coding stopped by the cost check")
+    deferred: list[dict[str, Any]] = []  # PI ruling 134: pages whose extractor request waits for a batch
     for st in to_code:
         page = st.spec.page
         if not artifact_exists(stage_page_code.artifact_path(run_dir, page.institution_id, page.url)):
@@ -1861,6 +1865,12 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
         except Pass1RequestNotJournaled as exc:  # PI ruling 105 b: no call was made
             return {"page_id": exc.page_id, "stage": exc.stage, "pass": "pass1",
                     "custom_id": exc.custom_id, "request_key": exc.key, "error": str(exc)}
+        except BatchDeferred as exc:  # PI ruling 134: the request waits for a Message Batch; no call was made
+            # the institution's other pages go on in this wave (their requests join the same batch); the
+            # institution is held below once every page has had its turn
+            deferred.append({"page_id": page.page_id, "custom_id": exc.custom_id, "batch_state": exc.state,
+                             "error": str(exc)})
+            continue
         except ExtractorResponseFailed as exc:  # C3 a: this institution is held as pending
             broken = _response_hold(page.page_id, exc)
             if exc.request is not None and hasattr(providers, "journal_prompt"):
@@ -1878,6 +1888,8 @@ def _code_states(run_dir: Path, to_code: Sequence[_PageState], broken: dict[str,
                 except PageArchiveIncomplete as aexc:  # ruling 28 a: held, never a crash
                     broken.update(_archive_detail(aexc))
             return broken
+    if deferred and broken is None:  # PI ruling 134: held until the batch answers (the first page names it)
+        return {**deferred[0], "stage": BATCH_PENDING, "deferred_pages": [d["page_id"] for d in deferred]}
     return broken
 
 
@@ -2019,12 +2031,16 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
         finally:
             metrics.live_requests += journal.live
             metrics.replayed_requests += journal.replayed
+            metrics.batched_requests += journal.batched  # PI ruling 134
             metrics.usage[inst.institution_id] = journal.usage()
         holds = [broken] if broken is not None else [h for st in states for h in st.holds]
         if holds:
             _atomic_write(held_path, canonical_json({"institution_id": inst.institution_id, "held": holds}))
-            attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_REASON,
-                             detail=", ".join(_hold_label(h) for h in holds))
+            # PI ruling 134: waiting for a batch is not attrition (and attrition.record dedups ignoring the
+            # detail, so recording it would hide the institution's real hold reason of a later pass)
+            if not all(h["stage"] == BATCH_PENDING for h in holds):
+                attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_REASON,
+                                 detail=", ".join(_hold_label(h) for h in holds))
             metrics.held.append(inst.institution_id)
             continue
         products: list[PageProduct | ReviewedPage] = []

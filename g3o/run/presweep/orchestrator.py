@@ -332,6 +332,13 @@ class V27Dispatch:
       links (:class:`g3o.run.presweep.follow_v27.FollowLeg`). Required with the
       default builder (refused at entry otherwise); with an injected builder, None
       follows nothing.
+    - ``extractor_mode`` (PI ruling 134): ``all_batch``, ``mix`` or ``no_batch``
+      (:mod:`g3o.run.presweep.perpage_batch_v27`), the per-page stage's use of the
+      Message Batches API. The production entry copies ``config.v27_extractor_mode``
+      (default ``mix``); an injected dispatch (a test seam) keeps the current live
+      path, ``no_batch``, unless it names a mode.
+    - ``batch_client``: ``submit_batch`` / ``batch_status`` / ``batch_results``
+      (``AnthropicExtractorClient``), required by a batched mode.
     """
 
     settings: Any
@@ -340,6 +347,8 @@ class V27Dispatch:
     entail_fn: Callable[..., Any]
     perpage_inputs: Callable[..., Iterable[Any]] | None = None
     follow_fetch: Callable[[str], Any] | None = None
+    extractor_mode: str = "no_batch"
+    batch_client: Any = None
 
 
 def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
@@ -384,6 +393,14 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
     if v27.follow_fetch is not None and not callable(v27.follow_fetch):
         raise ValueError("v2.7 dispatch: follow_fetch must be a callable (stage_follow.polite_fetch or a fake), "
                          "or None")
+    from g3o.run.presweep.perpage_batch_v27 import NO_BATCH, require_mode
+
+    require_mode(v27.extractor_mode)  # PI ruling 134
+    if v27.extractor_mode != NO_BATCH and not all(
+            callable(getattr(v27.batch_client, name, None)) for name in ("submit_batch", "batch_status",
+                                                                       "batch_results")):
+        raise ValueError(f"v2.7 dispatch: extractor_mode {v27.extractor_mode!r} needs a batch_client with "
+                         "submit_batch, batch_status and batch_results (PI ruling 134)")
     from g3o.run.presweep.instrument_binding import RuntimeSettings
 
     if not isinstance(v27.settings, RuntimeSettings):
@@ -533,7 +550,9 @@ def _usage_totals(metrics: Any) -> dict[str, int]:
     for per_inst in metrics.usage.values():
         for key, value in per_inst.items():
             totals[key] = totals.get(key, 0) + int(value)
+    batched = getattr(metrics, "batched_requests", 0)  # PI ruling 134: per-page stage only; left out when 0
     return {"n_institutions": len(metrics.usage), "live_requests": metrics.live_requests,
+            **({"batched_requests": batched} if batched else {}),
             "replayed_requests": metrics.replayed_requests, **dict(sorted(totals.items()))}
 
 
@@ -604,9 +623,20 @@ def run_v27_dispatch(
     settings = v27.settings
     bound = bind_runtime(run_dir, settings)
     instrument = load_instrument(run_dir / "final" / "instruments", bound.instrument_id)
+    from g3o.run.presweep.perpage_batch_v27 import (
+        NO_BATCH,
+        BatchExtractor,
+        has_batch_journal,
+        run_waves,
+    )
+
+    # PI ruling 134: in a batched mode (or with batches left by an earlier session) the per-page
+    # extractor calls go through the batch journal; Stage 6 keeps the live extract_fn
+    batch = (BatchExtractor(run_dir, v27.extract_fn, v27.batch_client, v27.extractor_mode)
+             if v27.extractor_mode != NO_BATCH or has_batch_journal(run_dir) else None)
     providers = build_perpage_providers(
         bound, instrument, run_dir,
-        extract_fn=v27.extract_fn, entail_fn=v27.entail_fn,
+        extract_fn=v27.extract_fn if batch is None else batch, entail_fn=v27.entail_fn,
         extractor_model=settings.extractor_model, x35_model=settings.x35_model,
     )
     # Only once the providers are built (QA4 M2 c): a run refused above leaves no 2.7
@@ -639,11 +669,23 @@ def run_v27_dispatch(
 
         follow = FollowLeg(v27.follow_fetch)
     span = tel.stage_start(V27_PERPAGE_SPAN, counts_in=n_pages)
-    ready, pm = run_perpage_v27(
-        run_dir, _same_pages(institutions, page_keys), ask_fn=v27.jev_ask_fn, providers=providers,
-        page_config=bound.page_config, activity_config=bound.activity_config,
-        instrument=instrument, follow=follow,
-    )
+    # PI ruling 134: waves until no batched request is queued (one pass when batch is None)
+    waves: list[Any] = []
+
+    def _wave() -> Any:
+        result = run_perpage_v27(
+            run_dir, _same_pages(institutions, page_keys), ask_fn=v27.jev_ask_fn, providers=providers,
+            page_config=bound.page_config, activity_config=bound.activity_config,
+            instrument=instrument, follow=follow,
+        )
+        waves.append(result[1])
+        return result
+
+    ready, pm = run_waves(batch, _wave)
+    # Each wave makes its own calls: live and batched counts are summed over the waves (review M-a). A
+    # later wave replays what an earlier one asked, so ``replayed_requests`` stays the last wave's.
+    pm.live_requests = sum(w.live_requests for w in waves)
+    pm.batched_requests = sum(w.batched_requests for w in waves)
     out["n_perpage_ready"] = len(pm.ready)
     out["n_perpage_held"] = len(pm.held)
     out["n_perpage_failed_pages"] = len(pm.failed_pages)

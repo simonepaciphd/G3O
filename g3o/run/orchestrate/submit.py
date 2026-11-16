@@ -109,6 +109,7 @@ def config_to_mapping(config: PresweepConfig) -> dict[str, Any]:
     if config.pipeline_version == PIPELINE_V25 and not config.v27_not_production_ready_opt_in:
         del out["pipeline_version"]
         del out["v27_not_production_ready_opt_in"]
+        out.pop("v27_extractor_mode", None)  # PI ruling 134: a v2.5 snapshot is unchanged
     return out
 
 

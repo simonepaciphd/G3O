@@ -940,6 +940,9 @@ EXTRACTOR_USAGE_MISSING = (
 #: usage, for a failed extractor result that reports no usage: its result type
 #: (``ExtractorResult.error["type"]``, e.g. ``"errored"``).
 EXTRACTOR_FAILED_RESULT_KEY = "failed_result_type"
+#: Key :meth:`RequestJournal.extractor_usages` adds (True) to the usage of a result a Message
+#: Batch returned (PI rulings 134 / 130 a): priced at the rate row's batch rates, not standard.
+EXTRACTOR_BATCH_KEY = "batch"
 #: Failed Message Batches result types priced at $0 when they report no usage (PI
 #: ruling 67 a). Verified: Anthropic does not bill errored or expired batch requests.
 EXTRACTOR_UNBILLED_FAILED_RESULTS: frozenset[str] = frozenset({"errored", "expired"})
@@ -981,6 +984,7 @@ def price_extractor_requests(
     priceable_row = rates is not None and "standard_cache_write_5m_per_1m_usd" in rates
     total = 0.0
     unpriced = unbilled_failed = unbilled_canceled = 0
+    n_batch = n_standard = 0
     tokens = dict.fromkeys(EXTRACTOR_USAGE_KEYS, 0)
     for u in usages:
         failed_type = u.get(EXTRACTOR_FAILED_RESULT_KEY) if isinstance(u, dict) else None
@@ -995,16 +999,17 @@ def price_extractor_requests(
             continue
         for k in EXTRACTOR_USAGE_KEYS:
             tokens[k] += int(u.get(k) or 0)
+        batched = u.get(EXTRACTOR_BATCH_KEY) is True
+        n_batch, n_standard = n_batch + batched, n_standard + (not batched)
         if priceable_row:
-            # PI ruling 130 a: live calls at standard rates. Hook: no production batch
-            # path exists yet (a separate future design); once batch-submitted responses
-            # exist, they are priced at batch rates (batch=True) and must be told apart
-            # from live ones here, with ``rates`` reporting the basis used.
-            total += anthropic_request_usd(u, row, batch=False)
+            # PI ruling 130 a: live calls at standard rates, batched results (PI ruling 134,
+            # marked EXTRACTOR_BATCH_KEY) at the same row's batch rates.
+            total += anthropic_request_usd(u, row, batch=batched)
+    basis = "batch" if n_batch and not n_standard else "standard+batch" if n_batch else "standard"
     out: dict[str, Any] = {
         "model": model, "calls": len(usages), "unpriced_calls": unpriced,
         "unbilled_failed_calls": unbilled_failed, "unbilled_canceled_calls": unbilled_canceled,
-        "rates": "standard", **tokens,
+        "rates": basis, "batch_calls": n_batch, **tokens,
         "usd": _round_usd(total) if priceable_row and not unpriced else None,
     }
     if not priceable_row and usages:
@@ -1132,6 +1137,7 @@ def price_v27_usage(
 
 
 __all__ = [
+    "EXTRACTOR_BATCH_KEY",
     "EXTRACTOR_FAILED_RESULT_KEY",
     "EXTRACTOR_UNBILLED_CANCELED_RESULT",
     "EXTRACTOR_UNBILLED_FAILED_RESULTS",
