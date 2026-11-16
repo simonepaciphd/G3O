@@ -157,6 +157,7 @@ from functools import lru_cache
 from typing import Any
 
 from g3o.classify.jev_activity_code import GATE_RULE
+from g3o.codebook import r16_candidate as r16
 from g3o.common import source_fields as sf
 from g3o.common import support_check as sc
 from g3o.common.jev_record import CoderRecord
@@ -189,12 +190,27 @@ SAFEGUARDS: Mapping[str, str] = {
     "core.content_risk_assessment": "core.has_risk_assessment",
     "core.content_user_notification": "core.has_transparency_notice",
 }
+DEVELOPER, DEVELOPER_BASIS, STAGE_AS_OF_BASIS = "core.developer", "core.developer_basis", "core.stage_as_of_basis"
 #: content_* items derived from extracted activity fields (rules/0; PI ruling 65 a: any extracted value
-#: counts as stated, whatever its T-024 check).
-EXTRACTED_FIELDS: Mapping[str, tuple[str, ...]] = {
+#: counts as stated, whatever its T-024 check), under the signed r15 codebook.
+EXTRACTED_FIELDS_R15: Mapping[str, tuple[str, ...]] = {
     "core.content_tool_or_model": ("core.tool_name", "core.model_name"),
     "core.content_vendor": ("core.contracting_party",),
 }
+
+
+def extracted_fields(r16_on: bool | None = None) -> dict[str, tuple[str, ...]]:
+    """:data:`EXTRACTED_FIELDS_R15`; under the UNSIGNED r16 candidate (A8.1 a, PI ruling 140) the developer is
+    a quote-step field, so ``content_vendor`` also reads an extracted ``core.developer`` ("vendor: model
+    developer, stated or looked up, or contracting party"; A8.2 a: nothing is looked up)."""
+    on = r16.r16_active() if r16_on is None else r16_on
+    out = dict(EXTRACTED_FIELDS_R15)
+    if on:
+        out["core.content_vendor"] = (*out["core.content_vendor"], DEVELOPER)
+    return out
+
+
+EXTRACTED_FIELDS: Mapping[str, tuple[str, ...]] = extracted_fields()
 CONTACT_PARTS = ("core.content_contact_named", "core.content_contact_details")
 RELATIONSHIP = "core.observed_actor_relationship"
 RELATIONSHIP_PART = "relationship"
@@ -245,8 +261,9 @@ STAGE6_SOURCE_ITEMS: Mapping[str, str] = {
                     "items/core.confidence/rules/1, association RC-D-025 P12)"),
 }
 
-#: Activity-row items refused here, with the reason.
-REFUSED_ACTIVITY_ITEMS: Mapping[str, str] = {
+#: Activity-row items refused here under the signed r15 codebook, with the reason
+#: (:data:`REFUSED_ACTIVITY_ITEMS` is the list for the codebook in use, :func:`refused_activity_items`).
+REFUSED_ACTIVITY_ITEMS_R15: Mapping[str, str] = {
     "core.developer": ("PI A8.1 a (page-stated developer as a quote-step item) needs codebook r16 and a "
                        "re-signature; A8.2 a: no lookup table, looked_up never set"),
     "core.developer_basis": "reads developer (refused); PI A8.1 a / A8.2 a",
@@ -258,10 +275,26 @@ REFUSED_ACTIVITY_ITEMS: Mapping[str, str] = {
 #: included). A per-page activity fragment carries no value for them, so they are neither produced nor refused
 #: here, and they do not block the run's entry. (``core.date_upper_bound`` here is the activity-level item;
 #: the source row's ``core.date_upper_bound`` stays this assembler's, :data:`PRODUCED_SOURCE_ITEMS`.)
-STAGE6_ACTIVITY_ITEMS: Mapping[str, str] = {
+#: Under the UNSIGNED r16 candidate (A8.5 a, PI ruling 140) ``core.stage_as_of_basis`` joins them
+#: (:func:`stage6_activity_items`).
+STAGE6_ACTIVITY_ITEMS_R15: Mapping[str, str] = {
     item: "PI ruling 94 a: produced by Stage 6 only (merged_activity_v27, ruling 78 a)"
     for item in ("core.stage_as_of", "core.date_upper_bound", "core.vendor_claim_only", "core.cx_display_rollup")
 }
+
+
+def stage6_activity_items(r16_on: bool | None = None) -> dict[str, str]:
+    """:data:`STAGE6_ACTIVITY_ITEMS_R15`, plus ``core.stage_as_of_basis`` when the codebook in use is the r16
+    candidate (``r16_on`` None: read :func:`g3o.codebook.r16_candidate.r16_active` now)."""
+    on = r16.r16_active() if r16_on is None else r16_on
+    out = dict(STAGE6_ACTIVITY_ITEMS_R15)
+    if on:
+        out[STAGE_AS_OF_BASIS] = ("PI A8.5 a (UNSIGNED r16 candidate, PI ruling 140): produced by Stage 6 only "
+                                  "(merged_activity_v27.stage_as_of_basis)")
+    return out
+
+
+STAGE6_ACTIVITY_ITEMS: Mapping[str, str] = stage6_activity_items()
 
 
 def source_row_items() -> frozenset[str]:
@@ -299,15 +332,43 @@ def pass1_activity_fields() -> tuple[str, ...]:
     return tuple(request_v27.default_rules().activity_fields)
 
 
+def refused_activity_items(r16_on: bool | None = None) -> dict[str, str]:
+    """Activity-row items refused here, with the reason, for the codebook in use (``r16_on`` None: read
+    :func:`g3o.codebook.r16_candidate.r16_active` now). r15: :data:`REFUSED_ACTIVITY_ITEMS_R15`. Under the
+    UNSIGNED r16 candidate (PI ruling 140) none: ``core.developer`` is a pass-1 quote-step field (asked once
+    the codebook in use names it, :func:`pass1_activity_fields`), ``core.developer_basis`` is produced from it
+    (:func:`developer_basis_value`) and ``core.stage_as_of_basis`` is Stage 6's (:func:`stage6_activity_items`).
+    A codebook in use that does not ask the developer keeps both developer items refused."""
+    on = r16.r16_active() if r16_on is None else r16_on
+    if not on:
+        return dict(REFUSED_ACTIVITY_ITEMS_R15)
+    if DEVELOPER in pass1_activity_fields():
+        return {}
+    return {DEVELOPER: "the r16 candidate is active but the codebook in use asks no developer quote task",
+            DEVELOPER_BASIS: "reads developer (refused); PI A8.1 a / A8.2 a"}
+
+
+#: Activity-row items refused here, with the reason, for the codebook in use.
+REFUSED_ACTIVITY_ITEMS: Mapping[str, str] = refused_activity_items()
+
+
+def produced_activity_items(r16_on: bool | None = None) -> tuple[str, ...]:
+    """Activity-row items produced by :func:`activity_row_values` for the codebook in use; under the r16
+    candidate ``core.developer_basis`` too, when the developer is asked."""
+    on = r16.r16_active() if r16_on is None else r16_on
+    basis = (DEVELOPER_BASIS,) if on and DEVELOPER in pass1_activity_fields() else ()
+    return ("core.unit_credit", *pass1_activity_fields(), *REPORTED_GATES, *basis)
+
+
 #: Activity-row items produced by :func:`activity_row_values`.
-PRODUCED_ACTIVITY_ITEMS = ("core.unit_credit", *pass1_activity_fields(), *REPORTED_GATES)
+PRODUCED_ACTIVITY_ITEMS = produced_activity_items()
 #: A part id the coded page no longer has (e.g. after an extra-round halving): every quote read at a part.
 SUPERSEDED = "a quote or value at a part the coded page no longer has (superseded, e.g. after a halving)"
 #: Items produced on some pages and refused on others, with when they refuse (review M2: every refusal point of
 #: this assembler that depends on the page's data). PI ruling 97 b: such a refusal holds that institution (the
 #: per-page stage), unless its cause is a missing wiring input (:data:`WIRING_PRODUCERS`), which stops the stage;
 #: they are no longer in :func:`entry_refused_items`.
-CONDITIONAL_ITEMS: Mapping[str, str] = {
+CONDITIONAL_ITEMS_R15: Mapping[str, str] = {
     sf.TITLE: "refused when RenderedPage.title is empty (the first-heading fallback is unproduced, PI ruling 39 a)",
     sc.CONTACT_ITEM: ("refused when a final content_contact_named / content_contact_details value is absent or is "
                       "neither yes, no nor a signed missing token"),
@@ -339,8 +400,35 @@ CONDITIONAL_ITEMS: Mapping[str, str] = {
 }
 #: Produced items whose only refusal is a missing upstream input that is wiring, never page data: an absent
 #: ``PageSourceFields`` value, a followed page with no hop, or no pass-1 span for a coded activity.
-WIRING_ONLY_ITEMS = frozenset({sf.URL, sf.ACCESS_DATE, sf.LANGUAGE, sf.SYNDICATION, sf.TEXT_SOURCE, sf.DISCOVERY,
-                               "core.content_tool_or_model"})
+WIRING_ONLY_ITEMS_R15 = frozenset({sf.URL, sf.ACCESS_DATE, sf.LANGUAGE, sf.SYNDICATION, sf.TEXT_SOURCE,
+                                   sf.DISCOVERY, "core.content_tool_or_model"})
+
+
+def conditional_items(r16_on: bool | None = None) -> dict[str, str]:
+    """:data:`CONDITIONAL_ITEMS_R15`; under the UNSIGNED r16 candidate (PI ruling 140) ``content_vendor`` no
+    longer refuses on page data (it reads the extracted developer, :func:`extracted_fields`) and
+    ``core.developer_basis`` refuses on some pages (:func:`developer_basis_value`)."""
+    on = r16.r16_active() if r16_on is None else r16_on
+    out = dict(CONDITIONAL_ITEMS_R15)
+    if on and DEVELOPER in pass1_activity_fields():
+        del out["core.content_vendor"]
+        out[DEVELOPER_BASIS] = (f"refused when {DEVELOPER} is refused, and when it is a missing token (the r16 "
+                                "candidate states the basis of a page-stated developer only: a PI question)")
+    return out
+
+
+def wiring_only_items(r16_on: bool | None = None) -> frozenset[str]:
+    """:data:`WIRING_ONLY_ITEMS_R15`; under the r16 candidate ``content_vendor`` too (as content_tool_or_model)."""
+    on = r16.r16_active() if r16_on is None else r16_on
+    if on and DEVELOPER in pass1_activity_fields():
+        return WIRING_ONLY_ITEMS_R15 | {"core.content_vendor"}
+    return WIRING_ONLY_ITEMS_R15
+
+
+#: Items produced on some pages and refused on others, for the codebook in use (:func:`conditional_items`).
+CONDITIONAL_ITEMS: Mapping[str, str] = conditional_items()
+#: Produced items refused only on a missing wiring input, for the codebook in use (:func:`wiring_only_items`).
+WIRING_ONLY_ITEMS = wiring_only_items()
 #: Produced items that never refuse.
 NEVER_REFUSED_ITEMS = frozenset({sf.REVIEW_STATE, *STATED_FIELDS, *SAFEGUARDS})
 
@@ -482,7 +570,7 @@ def content_extracted(item: str, verdict: Any, activities: Sequence[str], spans:
     hits = sorted({f.item_id for aid in activities for f in spans[aid].fields if f.item_id in fields})
     if hits:
         return _row(item, YES, f"items/core.content_contact/rules/0, PI ruling 65 a: extracted {hits}")
-    if item == "core.content_vendor":
+    if item == "core.content_vendor" and DEVELOPER not in fields:
         raise sf.MissingUpstreamError("core.developer (PI A8.1 a needs codebook r16)", [item])
     return _row(item, NO, "items/core.content_contact/rules/0: no activity has an extracted tool or model name")
 
@@ -518,6 +606,26 @@ def unit_credit(activity_values: Mapping[str, Any]) -> RowValue:
     value = YES if part == UNIT_OF_INSTITUTION else NO
     return _row("core.unit_credit", value, f"PI A8.7 a: {RELATIONSHIP}/{RELATIONSHIP_PART} = "
                                            f"{parts[RELATIONSHIP_PART]!r}")
+
+
+def developer_basis_value(developer: Any) -> RowValue:
+    """``core.developer_basis`` from the activity's final ``core.developer`` (UNSIGNED r16 candidate,
+    ``items/core.developer/rules/3``, A8.1 a: a developer stated on the page comes from the quote step and its
+    ``developer_basis`` is ``stated``; A8.2 a: no lookup table, so ``looked_up`` is never set).
+
+    A stated developer (any value but a signed missing token): ``stated``. A missing-token developer: the
+    candidate does not say what its basis is, so :class:`~g3o.common.source_fields.UnruledError` (a PI
+    question; the item is refused on that page and the institution held). Nothing is guessed.
+    """
+    if developer is None:
+        raise sf.MissingUpstreamError(f"final {DEVELOPER}", [DEVELOPER_BASIS])
+    if not isinstance(developer, str):
+        raise ValueError(f"{DEVELOPER} = {developer!r} is not a text value")
+    if stated(DEVELOPER, developer):
+        return _row(DEVELOPER_BASIS, r16.DEVELOPER_BASIS_STATED,
+                    f"items/{DEVELOPER}/rules/3 (r16 candidate, A8.1 a): a page-stated developer")
+    raise sf.UnruledError(DEVELOPER_BASIS, f"basis of a missing-token developer {developer!r} (the r16 candidate "
+                                           "states the basis of a page-stated developer only)")
 
 
 def vendor_claim_only(source_type: str, rule_name: str | None = None) -> RowValue:
@@ -1148,6 +1256,11 @@ def activity_row_values(activities: Mapping[str, Mapping[str, Any]], rows: Assem
         for item in REPORTED_GATES:
             _try_quote(rows, out, codes, item, lambda item=item, aid=aid, values=values: reported_value(
                 item, aid, values, _need(sources, item), _need(provenance, item), pass2))
+        if DEVELOPER_BASIS in PRODUCED_ACTIVITY_ITEMS:  # UNSIGNED r16 candidate (A8.1 a, PI ruling 140)
+            if DEVELOPER in out:
+                _try(rows, out, DEVELOPER_BASIS, lambda out=out: developer_basis_value(out[DEVELOPER].value))
+            else:
+                rows.refuse_reading(DEVELOPER_BASIS, DEVELOPER, f"reads {DEVELOPER} (refused)")
 
 
 def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
@@ -1207,6 +1320,9 @@ def assemble(page: Any, page_fields: Any, page_values: Mapping[str, Any],
 __all__ = [
     "ASSEMBLER", "CONDITIONAL_ITEMS", "NEVER_REFUSED_ITEMS", "WIRING_ONLY_ITEMS", "reported_field_value",
     "reported_open", "reported_value", "PRODUCED_ACTIVITY_ITEMS", "PRODUCED_SOURCE_ITEMS", "REFUSED_ACTIVITY_ITEMS",
+    "CONDITIONAL_ITEMS_R15", "EXTRACTED_FIELDS_R15", "REFUSED_ACTIVITY_ITEMS_R15", "STAGE6_ACTIVITY_ITEMS_R15",
+    "WIRING_ONLY_ITEMS_R15", "conditional_items", "developer_basis_value", "extracted_fields",
+    "produced_activity_items", "refused_activity_items", "stage6_activity_items", "wiring_only_items",
     "REFUSED_SOURCE_ITEMS", "STAGE6_ACTIVITY_ITEMS", "STAGE6_SOURCE_ITEMS", "WIRING_PRODUCERS", "AssembledRows", "RowValue", "activity_row_items",
     "activity_row_values", "assemble",
     "content_contact", "content_contact_emails", "content_safeguard", "content_stated", "genai_verdicts",

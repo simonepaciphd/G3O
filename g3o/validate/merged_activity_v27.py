@@ -56,6 +56,14 @@ Built here:
 - ``core.cx_display_rollup`` (A8.10 a, :func:`cx_display_rollup`): the
   positive of each CX item is defined in :data:`CX_POSITIVE`, approved as
   drafted by PI ruling 77 a.
+- ``core.stage_as_of_basis`` (A8.5 a, UNSIGNED codebook r16 candidate,
+  :mod:`g3o.codebook.r16_candidate`; PI ruling 140: built against the draft):
+  the rule step that fixed the activity's ``stage_as_of``
+  (:func:`stage_as_of_basis`: ``publication`` / ``stated`` / ``access``, the
+  candidate's three codes). Produced only when the codebook in use is the r16
+  candidate (:func:`produced_items`); under r15 it stays refused (Stage 6
+  ``MERGE_REFUSED_R1``). ``stage_as_of`` is always a real date or the
+  institution is held, so the basis never needs a missing token.
 
 Errors. A stored value an A8 rule reads that is absent raises
 :class:`~g3o.persist.stage6_adapters.MissingUpstreamError` (ruling B1 a: the
@@ -72,6 +80,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from g3o.codebook import r16_candidate as r16
 from g3o.common import source_fields as sf
 from g3o.common.storage import table_fields, unreviewed_source, validate_value
 from g3o.common.storage_fields import FIELDS
@@ -82,8 +91,21 @@ UPPER_BOUND = "core.date_upper_bound"
 UNIT_CREDIT = "core.unit_credit"
 VENDOR_CLAIM_ONLY = "core.vendor_claim_only"
 CX_ROLLUP = "core.cx_display_rollup"
-#: The A8 values Stage 6 produces for every published activity (rulings 77 a, 78 a; order not implied).
-PRODUCED = (STAGE_AS_OF, UPPER_BOUND, UNIT_CREDIT, VENDOR_CLAIM_ONLY, CX_ROLLUP)
+#: A8.5 a (UNSIGNED codebook r16 candidate): produced only when :func:`g3o.codebook.r16_candidate.r16_active`.
+STAGE_AS_OF_BASIS = "core.stage_as_of_basis"
+#: The A8 values Stage 6 produces under the signed r15 codebook (rulings 77 a, 78 a; order not implied).
+PRODUCED_R15 = (STAGE_AS_OF, UPPER_BOUND, UNIT_CREDIT, VENDOR_CLAIM_ONLY, CX_ROLLUP)
+
+
+def produced_items(r16_on: bool | None = None) -> tuple[str, ...]:
+    """The A8 values Stage 6 produces: :data:`PRODUCED_R15`, plus ``core.stage_as_of_basis`` when the codebook in
+    use is the r16 candidate (``r16_on`` None: read :func:`g3o.codebook.r16_candidate.r16_active` now)."""
+    on = r16.r16_active() if r16_on is None else r16_on
+    return (*PRODUCED_R15, STAGE_AS_OF_BASIS) if on else PRODUCED_R15
+
+
+#: The A8 values Stage 6 produces for every published activity (rulings 77 a, 78 a), for the codebook in use.
+PRODUCED = produced_items()
 
 PUBLICATION_DATE = "core.source_publication_date"
 ACCESS_DATE = "core.source_access_date"
@@ -102,10 +124,12 @@ PRODUCER = "Stage 6 A8 producer"
 _DATE = re.compile(r"^[0-9]{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12][0-9]|3[01]))?)?$")
 _YEAR = re.compile(r"^[0-9]{4}$")
 
-# Step names (internal: core.stage_as_of_basis stays refused until codebook r16, A8.5 a).
+# Step names: the codes of core.stage_as_of_basis in the r16 candidate (A8.5 a); internal only under r15.
 STEP_PUBLICATION = "publication"
 STEP_STATED = "stated"
 STEP_ACCESS = "access"
+if (STEP_PUBLICATION, STEP_STATED, STEP_ACCESS) != r16.STAGE_AS_OF_BASIS_CODES:  # pragma: no cover - pin drift
+    raise RuntimeError("the stage_as_of step names differ from the r16 candidate's stage_as_of_basis codes")
 
 if RELATIONSHIP_PART not in FIELDS[RELATIONSHIP]["parts"]:  # pragma: no cover - signed codebook drift
     raise RuntimeError(f"{RELATIONSHIP} has no {RELATIONSHIP_PART!r} part")
@@ -308,6 +332,27 @@ def merged_stage_as_of(inst: Any, order: Sequence[str]) -> tuple[str, list[Dated
                 raise _missing_access(inst, k)
     chosen = latest(real or [d for _, d in pairs if d is not None])
     return _signed(STAGE_AS_OF, chosen[0].date), chosen
+
+
+def stage_as_of_basis(chosen: Sequence[DatedObservation]) -> str:
+    """A8.5 a (UNSIGNED r16 candidate): ``core.stage_as_of_basis``, the rule step of the chosen ``stage_as_of``.
+
+    ``chosen`` is what :func:`merged_stage_as_of` returns (the pooled observations carrying the activity's
+    date). One step: its code (``publication`` / ``stated`` / ``access``). Observations carrying the same
+    date by different steps (e.g. a year-only publication date ``2024`` and a stated year ``2024``): the
+    candidate does not say which basis the activity takes, so :class:`UnruledMergeError` (a PI question;
+    the institution is held). Nothing is guessed.
+    """
+    if not chosen:
+        raise MalformedA8Value(STAGE_AS_OF_BASIS, PRODUCER, "no observation carries the stage_as_of date")
+    steps = sorted({d.step for d in chosen})
+    if len(steps) != 1:
+        raise UnruledMergeError(STAGE_AS_OF_BASIS, f"observations dated {chosen[0].date!r} reach it by different "
+                                                   f"steps {steps}")
+    step = steps[0]
+    if step not in r16.STAGE_AS_OF_BASIS_CODES:
+        raise MalformedA8Value(STAGE_AS_OF_BASIS, PRODUCER, f"step {step!r} is not an r16 stage_as_of_basis code")
+    return step
 
 
 def merged_date_upper_bound(inst: Any, chosen: Sequence[DatedObservation]) -> str:
@@ -602,17 +647,22 @@ def check_a8_inputs(inst: Any) -> None:
         _check_observation(inst, oid)
 
 
-def merged_values_a8(inst: Any, order: Sequence[str]) -> dict[str, Any]:
-    """The A8 values (:data:`PRODUCED`) of an activity from its pooled observations in pool order
-    (ruling 78 a: a single-observation activity's pool is that observation)."""
+def merged_values_a8(inst: Any, order: Sequence[str], *, r16_on: bool | None = None) -> dict[str, Any]:
+    """The A8 values (:func:`produced_items`) of an activity from its pooled observations in pool order
+    (ruling 78 a: a single-observation activity's pool is that observation). ``core.stage_as_of_basis`` only
+    when the codebook in use is the r16 candidate (``r16_on`` None: read it now)."""
     date, chosen = merged_stage_as_of(inst, order)
-    return {STAGE_AS_OF: date, UPPER_BOUND: merged_date_upper_bound(inst, chosen),
-            UNIT_CREDIT: merged_unit_credit(inst, order), VENDOR_CLAIM_ONLY: merged_vendor_claim_only(inst, order),
-            CX_ROLLUP: cx_display_rollup(inst, order)}
+    out = {STAGE_AS_OF: date, UPPER_BOUND: merged_date_upper_bound(inst, chosen),
+           UNIT_CREDIT: merged_unit_credit(inst, order), VENDOR_CLAIM_ONLY: merged_vendor_claim_only(inst, order),
+           CX_ROLLUP: cx_display_rollup(inst, order)}
+    if STAGE_AS_OF_BASIS in produced_items(r16_on):
+        out[STAGE_AS_OF_BASIS] = _signed(STAGE_AS_OF_BASIS, stage_as_of_basis(chosen))
+    return out
 
 
 __all__ = [
-    "CX_CODES", "CX_NON_EMPTY", "CX_POSITIVE", "CX_POSITIVE_APPROVED", "CX_YES", "PRODUCED", "YEAR_ITEMS",
+    "CX_CODES", "CX_NON_EMPTY", "CX_POSITIVE", "CX_POSITIVE_APPROVED", "CX_YES", "PRODUCED", "PRODUCED_R15",
+    "STAGE_AS_OF_BASIS", "YEAR_ITEMS", "produced_items", "stage_as_of_basis",
     "DatedObservation", "MalformedA8Value", "UnruledMergeError", "check_a8_inputs", "cx_display_rollup", "is_future_year", "latest",
     "merged_date_upper_bound", "merged_stage_as_of", "merged_unit_credit", "merged_values_a8",
     "merged_vendor_claim_only", "observation_stage_as_of", "observation_unit_credit", "source_type_of",

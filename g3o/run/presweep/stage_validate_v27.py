@@ -65,6 +65,8 @@ Rules carried here, not decided here:
   (:class:`~g3o.persist.stage6_adapters.MissingUpstreamError`): the merged
   values R1 asks to re-derive whose rule awaits codebook r16
   (:data:`MERGE_REFUSED_R1`: developer, developer_basis, stage_as_of_basis;
+  under the UNSIGNED r16 candidate stage_as_of_basis is produced instead,
+  :func:`merge_refused_r1`;
   ``evidence_channel`` is the row metadata
   :data:`EVIDENCE_CHANNEL`, not a row value), the merged values no ruling
   covers (:data:`MERGE_UNRULED`, now empty).
@@ -270,10 +272,25 @@ MERGE_CREDIBLE = ("core.activity_name", "core.contracting_party", "core.observed
 #: (A8.9 a, 88 a, 89 a), cx_display_rollup (A8.10 a, table approved by 77 a). Ruling 78 a: for every
 #: published activity, single-observation ones included.
 MERGE_PRODUCED_A8 = ma.PRODUCED
-#: X1 a R1 items still refused (explicit input): developer/developer_basis (A8.1 a: a developer quote
-#: item, codebook r16 and a re-signature first; A8.2 a: no lookup table), stage_as_of_basis (A8.5 a:
-#: three step codes, codebook r16). evidence_channel is row metadata, not a value.
-MERGE_REFUSED_R1 = ("core.developer", "core.developer_basis", "core.stage_as_of_basis")
+#: X1 a R1 items refused under the signed r15 codebook (explicit input): developer/developer_basis (A8.1 a:
+#: a developer quote item, codebook r16 and a re-signature first; A8.2 a: no lookup table),
+#: stage_as_of_basis (A8.5 a: three step codes, codebook r16). evidence_channel is row metadata, not a value.
+MERGE_REFUSED_R1_R15 = ("core.developer", "core.developer_basis", "core.stage_as_of_basis")
+
+
+def merge_refused_r1(r16_on: bool | None = None) -> tuple[str, ...]:
+    """X1 a R1 items still refused (explicit input) for the codebook in use (``r16_on`` None: read
+    :func:`g3o.codebook.r16_candidate.r16_active` now). Under the UNSIGNED r16 candidate (PI ruling 140:
+    built against the draft) stage_as_of_basis is produced here (:func:`ma.produced_items`); developer and
+    developer_basis stay explicit inputs for a multi-observation activity: the candidate gives no merge rule
+    for them (a PI question)."""
+    produced = set(ma.produced_items(r16_on))
+    return tuple(i for i in MERGE_REFUSED_R1_R15 if i not in produced)
+
+
+MERGE_REFUSED_R1 = merge_refused_r1()
+#: Whether the envelope adds the r16 A8 value (stage_as_of_basis): fixed with the item split above at import.
+_R16_A8 = ma.STAGE_AS_OF_BASIS in MERGE_PRODUCED_A8
 #: Non-pooled activity items no merge rule covers (explicit input). Empty since A6 (2026-11-11).
 MERGE_UNRULED: tuple[str, ...] = ()
 #: Derived here from the row's stored nodes (A6.4 a: union, alphabetical).
@@ -1277,7 +1294,7 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
         aid = final_of[group[0]]
         fragments = [inst.observation_inputs[k].row for k in group]
         if len(group) == 1:  # ruling 78 a: the A8 producers run for a single observation too
-            a8 = ma.merged_values_a8(inst, list(group))
+            a8 = ma.merged_values_a8(inst, list(group), r16_on=_R16_A8)
             _agree_with_fragment(fragments[0]["values"], a8, group[0])
             values = {**fragments[0]["values"], **a8}
         else:
@@ -1294,7 +1311,7 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
             # Pooled answers to items the activities table does not hold (the evaluation items,
             # stored per source claim in D-007) stay in the row's support/coder provenance only.
             order = observation_pool_order(inst.quotes, pooled.observation_ids)
-            values = {**given, **merge_values(inst, order), **ma.merged_values_a8(inst, order),
+            values = {**given, **merge_values(inst, order), **ma.merged_values_a8(inst, order, r16_on=_R16_A8),
                       **{k: v for k, v in pooled_values.items() if k in ACTIVITY_ITEMS}}
         support: dict[str, dict[str, Any]] = {}
         for node in [*(s for f in fragments for s in f["item_support"]), *out.supports.get(aid, [])]:
@@ -1532,7 +1549,8 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 
 __all__ = [
     "ENVELOPE_FAILED", "ENVELOPE_HOLDS", "EXECUTOR_FAILED", "MISSING_UPSTREAM", "HELD_REASON", "STAGE_STOPS", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
-    "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_PRODUCED_A8", "MERGE_REFUSED_R1", "MERGE_UNION", "MERGE_UNRULED",
+    "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_PRODUCED_A8", "MERGE_REFUSED_R1", "MERGE_REFUSED_R1_R15",
+    "MERGE_UNION", "MERGE_UNRULED", "merge_refused_r1",
     "Stage6Metrics", "build_envelope", "hold_reasons", "independence_groups_of", "merge_values", "run_stage6_v27",
     "EXTRACT_REJECT_CAP", "IDENTITY_COLUMNS", "PI_RELEASED", "REASK_SPENT", "WIRING_STOPS", "ExtractRejectCapReached",
     "ReaskSpentUnanswered", "UpstreamRowMalformed", "require_a8_form", "require_identity",
