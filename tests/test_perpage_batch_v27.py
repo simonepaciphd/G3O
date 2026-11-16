@@ -519,3 +519,192 @@ def test_the_journal_never_reads_stored_results_from_the_live_client(tmp_path):
     from g3o.run.presweep.v27_entry import LazyExtractor
 
     assert not hasattr(LazyExtractor, "stored_batch_results") and hasattr(pb.BatchExtractor, "stored_batch_results")
+
+
+# --- bounded chunks (mid-wave submission) ------------------------------------------------
+
+
+def chunked(tmp_path, client, *, max_requests=pb.DEFAULT_CHUNK_MAX_REQUESTS, max_bytes=pb.DEFAULT_CHUNK_MAX_BYTES,
+            mode=pb.MIX, live=None):
+    return pb.BatchExtractor(tmp_path, live or LiveFn(), client, mode, sleep=lambda s: None,
+                             chunk_max_requests=max_requests, chunk_max_bytes=max_bytes)
+
+
+def queue_all(call, jobs):
+    for j in jobs:
+        with pytest.raises(pb.BatchDeferred):
+            call(j)
+
+
+class CrashOnCreate(FakeBatchClient):
+    """Dies right after creating batch number ``n`` (before its id is journaled)."""
+
+    def __init__(self, n, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.n = n
+
+    def submit_batch(self, jobs):
+        batch_id = super().submit_batch(jobs)
+        if len(self.created) == self.n:
+            raise Crash("died after the batch was created, before its id was journaled")
+        return batch_id
+
+
+def test_the_chunk_budgets_stay_below_the_message_batches_limits(tmp_path):
+    from g3o.extract.anthropic_client import BATCH_MAX_BYTES, BATCH_MAX_REQUESTS
+
+    assert pb.DEFAULT_CHUNK_MAX_BYTES < BATCH_MAX_BYTES < 256 * 1024 * 1024
+    assert pb.DEFAULT_CHUNK_MAX_REQUESTS < BATCH_MAX_REQUESTS <= 100_000
+    with pytest.raises(ValueError, match="chunk_max_bytes"):
+        chunked(tmp_path, FakeBatchClient(), max_bytes=BATCH_MAX_BYTES + 1)
+    with pytest.raises(ValueError, match="chunk_max_requests"):
+        chunked(tmp_path, FakeBatchClient(), max_requests=BATCH_MAX_REQUESTS + 1)
+
+
+def test_a_large_wave_is_submitted_mid_wave_in_chunks_under_the_request_cap(tmp_path):
+    client = FakeBatchClient()
+    ex = chunked(tmp_path, client, max_requests=3)
+    _, call = journaled(tmp_path, ex)
+    jobs = [job(f"https://a.example/{n}") for n in range(10)]
+    for j in jobs:
+        with pytest.raises(pb.BatchDeferred):
+            call(j)
+        assert ex.pending() <= 3  # never more than one chunk held
+    assert [len(b) for b in client.created] == [3, 3, 3]  # submitted mid-wave, before the end of the wave
+    assert ex.queued_this_wave()
+    ex.submit()  # the end of the wave: the remainder
+    assert [len(b) for b in client.created] == [3, 3, 3, 1]
+    assert sum(client.created, []) == [j.custom_id for j in jobs]  # each request in exactly one batch
+    ex.settle()
+    _, call = journaled(tmp_path, ex)
+    assert [call(j).batch_id for j in jobs] == ["msgbatch_1"] * 3 + ["msgbatch_2"] * 3 + ["msgbatch_3"] * 3 + [
+        "msgbatch_4"]
+
+
+def test_a_large_wave_is_submitted_in_chunks_under_the_byte_budget(tmp_path):
+    from g3o.extract.anthropic_client import DEFAULT_MAX_REQUEST_BYTES, params_bytes
+
+    client = FakeBatchClient()
+    sent: list[int] = []
+    original = client.submit_batch
+
+    def submit_batch(group):
+        sent.append(sum(params_bytes(j.params) for j in group))
+        return original(group)
+
+    client.submit_batch = submit_batch
+    ex = chunked(tmp_path, client, max_bytes=DEFAULT_MAX_REQUEST_BYTES)
+    _, call = journaled(tmp_path, ex)
+    jobs = [ExtractorJob(job(f"https://a.example/{n}").custom_id,
+                         {"model": "claude-haiku-5-5", "messages": [{"role": "user", "content": "x" * 1_000_000}]})
+            for n in range(5)]
+    queue_all(call, jobs)
+    ex.submit()
+    assert [len(b) for b in client.created] == [2, 2, 1]
+    assert all(size <= DEFAULT_MAX_REQUEST_BYTES for size in sent)
+
+
+def test_the_queue_holds_no_request_body_once_its_chunk_is_journaled(tmp_path):
+    from g3o.extract.anthropic_client import params_bytes
+
+    client = FakeBatchClient()
+    ex = chunked(tmp_path, client, max_requests=2)
+    _, call = journaled(tmp_path, ex)
+    a, b, c = (job(f"https://a.example/{n}") for n in range(3))
+    queue_all(call, (a, b, c))  # c would pass the cap: a and b are submitted before c is held
+    assert client.created == [[a.custom_id, b.custom_id]]
+    assert list(ex._jobs) == [pb.request_hash(c)]
+    assert ex._jobs_bytes == params_bytes(c.params)
+    lines = [json.loads(x) for x in pb.batch_journal_path(tmp_path).read_text(encoding="utf-8").splitlines()]
+    assert [e["kind"] for e in lines] == ["queued", "queued", "submit_intent", "submitted", "queued"]
+    # a submitted request asked again in this wave is deferred, never queued twice
+    with pytest.raises(pb.BatchDeferred, match="in flight"):
+        call(a)
+    assert ex.pending() == 1
+
+
+def test_a_crash_between_two_mid_wave_submissions_resumes_without_resubmitting(tmp_path):
+    client = FakeBatchClient()
+    ex = chunked(tmp_path, client, max_requests=2)
+    _, call = journaled(tmp_path, ex)
+    jobs = [job(f"https://a.example/{n}") for n in range(4)]
+    queue_all(call, jobs[:3])  # the first chunk (0, 1) is submitted and acknowledged; 2 is held
+    assert client.created == [[jobs[0].custom_id, jobs[1].custom_id]]
+    # the process dies here, before the next chunk is submitted
+    ex2 = chunked(tmp_path, client, max_requests=2)
+    ex2.settle()  # collects the first chunk; nothing resubmitted
+    assert len(client.created) == 1 and "msgbatch_1" in ex2.store.collected
+    assert ex2.batch_owns(jobs[2])  # journaled as queued: known not sent
+    _, call = journaled(tmp_path, ex2)
+    assert call(jobs[0]).batch_id == call(jobs[1]).batch_id == "msgbatch_1"
+    queue_all(call, jobs[2:])
+    ex2.submit()
+    assert client.created[1:] == [[jobs[2].custom_id, jobs[3].custom_id]]
+
+
+def test_an_unacknowledged_mid_wave_submission_stops_for_the_operator(tmp_path):
+    client = CrashOnCreate(2)
+    ex = chunked(tmp_path, client, max_requests=2)
+    _, call = journaled(tmp_path, ex)
+    jobs = [job(f"https://a.example/{n}") for n in range(5)]
+    queue_all(call, jobs[:4])
+    with pytest.raises(Crash):  # the fifth request flushes the second chunk; the process dies after create
+        call(jobs[4])
+    ex2 = chunked(tmp_path, client, max_requests=2)
+    with pytest.raises(pb.BatchSubmitUnacknowledged) as info:
+        ex2.settle()
+    assert info.value.seq == 2 and info.value.custom_ids == [jobs[2].custom_id, jobs[3].custom_id]
+    _, call = journaled(tmp_path, ex2)
+    for j in jobs[:4]:  # in flight or unacknowledged: never queued or sent again
+        with pytest.raises(pb.BatchDeferred, match="in flight"):
+            call(j)
+    pb.record_submit_outcome(tmp_path, 2, "msgbatch_2")
+    ex3 = chunked(tmp_path, client, max_requests=2)
+    ex3.settle()
+    _, call = journaled(tmp_path, ex3)
+    assert [call(j).batch_id for j in jobs[:4]] == ["msgbatch_1"] * 2 + ["msgbatch_2"] * 2
+    assert len(client.created) == 2
+
+
+def test_a_failed_mid_wave_submission_is_raised_by_run_waves_not_into_the_stage(tmp_path):
+    class Refusing(FakeBatchClient):
+        def submit_batch(self, jobs):
+            super().submit_batch(jobs)
+            raise RuntimeError("batch create failed")
+
+    client = Refusing()
+    ex = chunked(tmp_path, client, max_requests=2)
+    jobs = [job(f"https://a.example/{n}") for n in range(5)]
+    deferred: list[str] = []
+
+    def stage_pass():
+        _, call = journaled(tmp_path, ex)
+        for j in jobs:
+            try:
+                call(j)
+            except pb.BatchDeferred as exc:
+                deferred.append(exc.state)
+        return "done"
+
+    with pytest.raises(RuntimeError, match="batch create failed"):
+        pb.run_waves(ex, stage_pass)
+    assert len(deferred) == 5 and len(client.created) == 1  # nothing else sent after the failure
+    assert not ex._jobs and ex.pending() == 0  # no bodies held after the failure
+    ex2 = chunked(tmp_path, client, max_requests=2)
+    with pytest.raises(pb.BatchSubmitUnacknowledged):  # the intent may have been billed: operator first
+        ex2.settle()
+    assert all(ex2.batch_owns(j) for j in jobs)
+
+
+def test_a_request_over_the_byte_guard_is_sent_live_with_chunking(tmp_path):
+    live = LiveFn()
+    client = FakeBatchClient()
+    ex = chunked(tmp_path, client, max_requests=1, mode=pb.ALL_BATCH, live=live)
+    _, call = journaled(tmp_path, ex)
+    small = job("https://a.example/1")
+    big = ExtractorJob(job("https://a.example/2").custom_id,
+                       {"model": "claude-haiku-5-5", "messages": [{"role": "user", "content": "x" * 2_600_000}]})
+    with pytest.raises(pb.BatchDeferred):
+        call(small)
+    assert call(big).success and live.calls == [big.custom_id]
+    assert client.created == [] and ex.pending() == 1  # the live call neither flushes nor joins a chunk
