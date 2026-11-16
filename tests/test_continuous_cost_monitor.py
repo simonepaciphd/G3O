@@ -1471,9 +1471,14 @@ def test_x35_batched_usage_would_be_priced_at_batch_rates():
     """Q158 a: batch rates if X35 is ever batched (the 130 a rule; the same marker as the extractor)."""
     from g3o.common import cost_monitor as cm
 
-    live = cm.price_x35_requests([_ext(1_000, 50)], model="claude-haiku-5-5")
-    batched = cm.price_x35_requests([{**_ext(1_000, 50), cm.EXTRACTOR_BATCH_KEY: True}], model="claude-haiku-5-5")
+    # Sizes large enough that the 6-decimal USD rounding (_round_usd) cannot break the 0.5 ratio
+    # (build 91af110f: 1,000/50 tokens gave $0.000125 vs a rounded $0.000062); still under the
+    # 100,000-token long-prompt threshold, so both are on the up_to_threshold tier.
+    live = cm.price_x35_requests([_ext(80_000, 4_000)], model="claude-haiku-5-5")
+    batched = cm.price_x35_requests([{**_ext(80_000, 4_000), cm.EXTRACTOR_BATCH_KEY: True}],
+                                    model="claude-haiku-5-5")
     assert live["rates"] == "standard" and batched["rates"] == "batch"
+    assert live["usd"] == pytest.approx(80_000 * 0.10 / 1e6 + 4_000 * 0.50 / 1e6)
     assert batched["usd"] == pytest.approx(live["usd"] * 0.5)  # the haiku 5.5 row's batch_discount
 
 
