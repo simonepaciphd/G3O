@@ -14,7 +14,7 @@ from the signed bytes; if the PI amends the candidate, its SHA256 changes and th
 from __future__ import annotations
 
 #: UNSIGNED r16 candidate (RC-D-034 A8.1 a / A8.5 a): built against, not signed. SHA256 of
-#: ``agent-workspace/2026-11-16-overnight/governance/codebook-r16-candidate/codebook.yaml`` (CRLF bytes).
+#: ``agent-workspace/2026-11-16-overnight/governance/codebook-r16-candidate/codebook.yaml`` (LF bytes; the test fixture copy is committed ``-text``).
 R16_CANDIDATE_SHA256 = "0a87cbe65bf6e68350f805ed05f2a20b4f26ebf43f42877b843063800e524916"
 
 #: The three ``core.stage_as_of_basis`` step codes of the candidate (``items/core.stage_as_of_basis/values``,

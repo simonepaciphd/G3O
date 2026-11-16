@@ -199,13 +199,19 @@ EXTRACTED_FIELDS_R15: Mapping[str, tuple[str, ...]] = {
 }
 
 
+def pass1_activity_fields() -> tuple[str, ...]:
+    """The activity quote-step items T-022 pass 1 asks (``request_v27`` rules from the signed codebook)."""
+    return tuple(request_v27.default_rules().activity_fields)
+
+
 def extracted_fields(r16_on: bool | None = None) -> dict[str, tuple[str, ...]]:
     """:data:`EXTRACTED_FIELDS_R15`; under the UNSIGNED r16 candidate (A8.1 a, PI ruling 140) the developer is
     a quote-step field, so ``content_vendor`` also reads an extracted ``core.developer`` ("vendor: model
-    developer, stated or looked up, or contracting party"; A8.2 a: nothing is looked up)."""
+    developer, stated or looked up, or contracting party"; A8.2 a: nothing is looked up). Only when pass 1
+    actually asks the developer (the same gate as :func:`refused_activity_items`; review O2-r16 M1)."""
     on = r16.r16_active() if r16_on is None else r16_on
     out = dict(EXTRACTED_FIELDS_R15)
-    if on:
+    if on and DEVELOPER in pass1_activity_fields():
         out["core.content_vendor"] = (*out["core.content_vendor"], DEVELOPER)
     return out
 
@@ -327,10 +333,6 @@ RESIDUAL_PRODUCER = ("the residual source_type answers and their T-024 checks (P
                      "stage's residual question, PerPageProviders.source_type_codes)")
 
 
-def pass1_activity_fields() -> tuple[str, ...]:
-    """The activity quote-step items T-022 pass 1 asks (``request_v27`` rules from the signed codebook)."""
-    return tuple(request_v27.default_rules().activity_fields)
-
 
 def refused_activity_items(r16_on: bool | None = None) -> dict[str, str]:
     """Activity-row items refused here, with the reason, for the codebook in use (``r16_on`` None: read
@@ -411,6 +413,13 @@ def conditional_items(r16_on: bool | None = None) -> dict[str, str]:
     on = r16.r16_active() if r16_on is None else r16_on
     out = dict(CONDITIONAL_ITEMS_R15)
     if on and DEVELOPER in pass1_activity_fields():
+        # The pass-1 entries of CONDITIONAL_ITEMS_R15 follow the codebook loaded at import; add any pass-1
+        # field asked now (review O2-r16 H2), with the same refusal text.
+        for item in pass1_activity_fields():
+            out.setdefault(item, (
+                "refused when the signed applicability table has no ask/not_asked cell for the activity's gate "
+                f"value (e.g. _NA_), at {SUPERSEDED}, and when a quote-step record has no actual response model "
+                "or request id"))
         del out["core.content_vendor"]
         out[DEVELOPER_BASIS] = (f"refused when {DEVELOPER} is refused, and when it is a missing token (the r16 "
                                 "candidate states the basis of a page-stated developer only: a PI question)")
