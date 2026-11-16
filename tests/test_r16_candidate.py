@@ -62,10 +62,12 @@ def test_patched_active_sha_lifts_the_refusals(monkeypatch):
     assert ma.STAGE_AS_OF_BASIS in ma.produced_items()
     assert rt.merge_refused_r1() == ("core.developer", "core.developer_basis")
     assert "core.stage_as_of_basis" in srow.stage6_activity_items()
-    assert "core.developer" in srow.extracted_fields()["core.content_vendor"]
-    # Per page: without a developer quote task in the codebook in use, both developer items stay refused.
+    # Per page: without a developer quote task in the codebook in use, both developer items stay refused and
+    # content_vendor does not read a developer (review O2-r16 M1: same gate as the refusals).
     assert set(srow.refused_activity_items()) == {"core.developer", "core.developer_basis"}
+    assert "core.developer" not in srow.extracted_fields()["core.content_vendor"]
     _with_developer(monkeypatch)
+    assert "core.developer" in srow.extracted_fields()["core.content_vendor"]
     assert srow.refused_activity_items() == {}
     assert srow.produced_activity_items()[-1] == "core.developer_basis"
     cond = srow.conditional_items()
@@ -134,6 +136,7 @@ def test_developer_basis_refuses_absent_and_non_text_developer():
 def test_content_vendor_reads_an_extracted_developer_under_r16(monkeypatch):
     from types import SimpleNamespace
 
+    _with_developer(monkeypatch)
     monkeypatch.setattr(srow, "EXTRACTED_FIELDS", srow.extracted_fields(True))
     verdict = next(iter(srow.genai_verdicts()))
     span = SimpleNamespace(fields=(SimpleNamespace(item_id="core.developer"),))

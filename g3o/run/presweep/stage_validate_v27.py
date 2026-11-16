@@ -291,6 +291,8 @@ def merge_refused_r1(r16_on: bool | None = None) -> tuple[str, ...]:
 MERGE_REFUSED_R1 = merge_refused_r1()
 #: Whether the envelope adds the r16 A8 value (stage_as_of_basis): fixed with the item split above at import.
 _R16_A8 = ma.STAGE_AS_OF_BASIS in MERGE_PRODUCED_A8
+#: Keyword passed to ``ma.merged_values_a8``: none under r15, so the r15 call is unchanged (review O2-r16 H1).
+_A8_KW: dict[str, bool] = {"r16_on": True} if _R16_A8 else {}
 #: Non-pooled activity items no merge rule covers (explicit input). Empty since A6 (2026-11-11).
 MERGE_UNRULED: tuple[str, ...] = ()
 #: Derived here from the row's stored nodes (A6.4 a: union, alphabetical).
@@ -1329,7 +1331,7 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
         aid = final_of[group[0]]
         fragments = [inst.observation_inputs[k].row for k in group]
         if len(group) == 1:  # ruling 78 a: the A8 producers run for a single observation too
-            a8 = ma.merged_values_a8(inst, list(group), r16_on=_R16_A8)
+            a8 = ma.merged_values_a8(inst, list(group), **_A8_KW)
             _agree_with_fragment(fragments[0]["values"], a8, group[0])
             values = {**fragments[0]["values"], **a8}
         else:
@@ -1346,7 +1348,7 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
             # Pooled answers to items the activities table does not hold (the evaluation items,
             # stored per source claim in D-007) stay in the row's support/coder provenance only.
             order = observation_pool_order(inst.quotes, pooled.observation_ids)
-            values = {**given, **merge_values(inst, order), **ma.merged_values_a8(inst, order, r16_on=_R16_A8),
+            values = {**given, **merge_values(inst, order), **ma.merged_values_a8(inst, order, **_A8_KW),
                       **{k: v for k, v in pooled_values.items() if k in ACTIVITY_ITEMS}}
         support: dict[str, dict[str, Any]] = {}
         for node in [*(s for f in fragments for s in f["item_support"]), *out.supports.get(aid, [])]:
