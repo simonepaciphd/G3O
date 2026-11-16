@@ -1401,21 +1401,31 @@ def with_source_confidence(inst: Stage6Institution) -> Stage6Institution:
     stops); the per-page assembler refuses such a value too (``source_row_v27.STAGE6_SOURCE_ITEMS``).
     The one exception: an unreviewed follow row (:func:`~g3o.common.storage.unreviewed_source`) carries
     ``not_asked`` by rule (PI rulings 96 a / 102 a) and keeps it; any other value there is refused."""
+    require_source_confidence_form(inst)  # also checked for every row before the first call (run_stage6_v27)
     sources: dict[str, Mapping[str, Any]] = {}
+    for sid, row in inst.sources.items():
+        if unreviewed_source(row):
+            sources[sid] = row
+            continue
+        sources[sid] = {**dict(row), "values": {**dict(row["values"]),
+                                                CONFIDENCE_ITEM: source_confidence_of(inst, sid)}}
+    return replace(inst, sources=sources)
+
+
+def require_source_confidence_form(inst: Stage6Institution) -> None:
+    """PI ruling Q162 b: no reviewed source row carries ``core.confidence`` before Stage 6, and an unreviewed
+    follow row carries exactly ``not_asked`` (rulings 96 a / 102 a). Otherwise :class:`UpstreamRowMalformed`
+    (ruling 32 b). :func:`run_stage6_v27` checks every row before the first call (review of 2112589, M), so
+    a wiring error stops the stage before anything is asked."""
     for sid, row in inst.sources.items():
         if unreviewed_source(row):
             given = row["values"].get(CONFIDENCE_ITEM)
             if given != ma.NOT_ASKED:
                 raise UpstreamRowMalformed(inst.institution_id, CONFIDENCE_ITEM, f"unreviewed source row {sid}",
                                            problem=f"is {given!r}, not the not_asked set by rule (PI 96 a / 102 a)")
-            sources[sid] = row
-            continue
-        if CONFIDENCE_ITEM in row["values"]:
+        elif CONFIDENCE_ITEM in row["values"]:
             raise UpstreamRowMalformed(inst.institution_id, CONFIDENCE_ITEM, f"reviewed source row {sid}",
                                        problem="is pre-filled; Stage 6 is its only producer (PI Q162 b, ruling 140)")
-        sources[sid] = {**dict(row), "values": {**dict(row["values"]),
-                                                CONFIDENCE_ITEM: source_confidence_of(inst, sid)}}
-    return replace(inst, sources=sources)
 
 
 #: The A8 items the per-page T-015 assembler produces (source_row_v27.unit_credit); A8 review L6.
@@ -1619,7 +1629,8 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     (every row is checked before the first institution is run, so nothing is asked
     for any institution), and any ``KeyError`` while building the storage
     envelope or writing the artifacts (e.g. a source row without
-    ``core.confidence``), and a stored value an A8 producer reads that is outside
+    ``core.source_credibility``), a source row whose ``core.confidence`` breaks PI Q162 b
+    (:func:`require_source_confidence_form`, checked before the first call), and a stored value an A8 producer reads that is outside
     its signed form (:class:`~g3o.validate.merged_activity_v27.MalformedA8Value`;
     every row's A8 inputs are form-checked before the first call,
     :func:`require_a8_form`; an absent one, or one the signed rule does not
@@ -1650,6 +1661,7 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     for inst in institutions:  # ruling 32 b: a malformed row stops the stage before any call is made
         require_identity(inst)
         require_a8_form(inst)
+        require_source_confidence_form(inst)  # PI Q162 b: Stage 6 is the only producer
     for inst in institutions:
         inst_dir = institution_dir(run_dir, inst.institution_id)
         try:
@@ -1732,5 +1744,5 @@ __all__ = [
     "MERGE_UNION", "MERGE_UNRULED", "merge_refused_r1",
     "Stage6Metrics", "build_envelope", "hold_reasons", "independence_groups_of", "merge_values", "run_stage6_v27",
     "EXTRACT_REJECT_CAP", "IDENTITY_COLUMNS", "PI_RELEASED", "REASK_SPENT", "WIRING_STOPS", "ExtractRejectCapReached",
-    "ReaskSpentUnanswered", "UpstreamRowMalformed", "X35FailCapReached", "require_a8_form", "require_identity",
+    "ReaskSpentUnanswered", "UpstreamRowMalformed", "X35FailCapReached", "require_a8_form", "require_identity", "require_source_confidence_form",
 ]

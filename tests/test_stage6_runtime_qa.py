@@ -633,6 +633,20 @@ def test_reviewed_source_row_with_prefilled_confidence_stops_the_stage_q162b(tmp
     assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in (A, B))
 
 
+def test_prefilled_confidence_on_a_later_institution_stops_before_any_call_q162b(tmp_path):
+    # Review of 2112589 (M): every row is checked before the first call, so a pre-filled value on B stops
+    # the stage before A is asked or quoted (no spend on A, nothing written).
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    sid = next(s for s, row in b.sources.items() if not rt.unreviewed_source(row))
+    b.sources[sid]["values"]["core.confidence"] = "high"
+    jev, quotes = e.FakeJev(e.RELATIONS, e._pooled_answers()), e.FakeQuotes()
+    with pytest.raises(rt.UpstreamRowMalformed, match=r"core\.confidence is pre-filled") as info:
+        _run(run_dir, bound, instrument, [a, b], quotes, jev=jev)
+    assert info.value.institution_id == B and quotes.calls == 0 and jev.calls == []
+    assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in (A, B))
+
+
 def test_source_row_without_credibility_stops_the_stage(tmp_path):
     # Ruling 32 b: a malformed upstream row (here a source row with neither core.confidence nor the
     # core.source_credibility Stage 6 reads to produce it, ruling 140) is a wiring error: the stage stops,
