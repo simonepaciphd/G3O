@@ -747,7 +747,8 @@ def run_presweep(
     the resolved credentials (:func:`g3o.run.presweep.v27_entry.build_v27_dispatch`,
     PI ruling 132 a); an unset ``v27_runtime`` or a missing jev / extractor key is
     refused here. Either way :func:`_require_v27_dispatch` then runs its entry
-    refusals (the refusing X35 entry while its probability source is unruled; the default per-page builder
+    refusals (the refusing X35 entry, returned only for a wording off its Q160 pin or an unset
+    probability source; the default per-page builder
     while producers are missing, ruling 36 a; the binding checks), all before any
     planning or spend. An injected ``v27`` whose settings differ from a set
     ``config.v27_runtime`` is refused. ``v27`` is refused on a v2.5 run.

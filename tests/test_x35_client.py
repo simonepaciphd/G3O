@@ -140,10 +140,8 @@ def test_x35_entail_fn_module_defaults_open_x35_and_a_changed_wording_shuts_it(m
 
     fn = v27_entry.x35_entail_fn(_settings(), _creds())
     assert isinstance(fn, v27_entry.LazyX35) and not fn.constructed
-    monkeypatch.setattr(xc, "X35_SYSTEM_DRAFT", xc.X35_SYSTEM_DRAFT + " ")
-    monkeypatch.setattr(xc, "x35_instruction_sha256",
-                        lambda: xc.hashlib.sha256((xc.X35_SYSTEM_DRAFT + "\0" + xc.X35_USER_TEMPLATE_DRAFT)
-                                                  .encode("utf-8")).hexdigest())
+    monkeypatch.setattr(xc, "X35_SYSTEM_DRAFT", xc.X35_SYSTEM_DRAFT + " ")  # the hash reads it at call time
+    assert xc.x35_instruction_sha256() != xc.X35_INSTRUCTION_APPROVED_SHA256
     fn = v27_entry.x35_entail_fn(_settings(), _creds())
     assert fn is sc.run_entailment
     with pytest.raises(SupportGateError, match="Q160"):
