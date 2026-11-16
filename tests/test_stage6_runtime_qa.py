@@ -932,7 +932,9 @@ def test_x1_merged_row_values_reach_storage(tmp_path):
     storage = json.loads((institution_dir(run_dir, A) / "6_storage.json").read_text(encoding="utf-8"))
     merged = next(x for x in storage["activities"].values() if x["observation_ids"] == ["o1", "o2"])
     order = s6.observation_pool_order(a.quotes, ["o1", "o2"])
-    expect = rt.merge_values(a, order)
+    # PI Q162 b: Stage 6 fills each source row's core.confidence before merging (executor:
+    # with_source_confidence), and merge_values ranks on it; the input rows carry none.
+    expect = rt.merge_values(rt.with_source_confidence(a), order)
     assert {k: merged["values"][k] for k in expect} == expect
     for item in rt.MERGE_UNION:  # each entry keeps its own observation's support node
         for entry in merged["values"][item] if isinstance(merged["values"][item], list) else ():
