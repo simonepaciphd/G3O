@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import csv
 import json
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -133,6 +134,9 @@ class Builder:
         frag = self._row("activities", values, oid, sid, pid, quote)
         tool_node = next(s for s in frag["item_support"] if s["item_id"] == "core.tool_name")
         src_values = _values("sources")
+        # PI Q162 b: Stage 6 is the only producer of the source row's core.confidence (with_source_confidence
+        # refuses a pre-filled value on a reviewed row), so the per-page input row carries none.
+        src_values.pop("core.confidence")
         # date_upper_bound is yes only for an archive_upper_bound date origin, which no producer sets
         # (A8.12 a: no archive lookup): beside the real publication date 2025-01 it is no.
         src_values.update({"core.page_verdict": verdict, "core.source_url": f"https://example.gov/{pid}",
@@ -150,9 +154,14 @@ class Builder:
                                                      {"core.activity_name": name}, True,
                                                      tuple(frag["coder_records"]), tuple(frag["item_support"])))
         self.records.append(s6.ObservationRecord(oid, pid, {**values}, f"https://example.gov/{pid}", (q,)))
-        if not any(p.page_id == pid for p in self.pages):
+        at = next((n for n, p in enumerate(self.pages) if p.page_id == pid), None)
+        if at is None:
             self.pages.append(ReviewedPage(pid, "web_extract", verdict, 0.95, "supported", True, False, False,
                                            (sid,), ({"fake": "coder"},), ({"fake": "support"},)))
+        else:
+            # A reviewed page lists every source row it produced (stage_perpage_v27: one sid per activity),
+            # which source_confidence_of reads to find the claim's page (PI ruling 140, P12).
+            self.pages[at] = replace(self.pages[at], source_ids=(*self.pages[at].source_ids, sid))
         return sid
 
     def within_pair(self, lhs, rhs, relation, pid, quote):

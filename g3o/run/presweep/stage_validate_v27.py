@@ -1394,16 +1394,25 @@ def source_confidence_of(inst: Stage6Institution, sid: str) -> str:
 
 
 def with_source_confidence(inst: Stage6Institution) -> Stage6Institution:
-    """``inst`` with each source row's ``core.confidence`` filled by :func:`source_confidence_of`.
+    """``inst`` with each reviewed source row's ``core.confidence`` filled by :func:`source_confidence_of`.
 
-    A row that already carries a value keeps it as given (the injected seam, as an injected
-    ``independence_groups`` wins, PI A7 14; an unreviewed follow row carries ``not_asked`` by rule,
-    PI rulings 96 a / 102 a)."""
+    PI ruling Q162 b (2026-11-16): Stage 6 is the only producer, so a reviewed row that arrives here
+    already carrying a value is a wiring error (ruling 32 b, :class:`UpstreamRowMalformed`: the stage
+    stops); the per-page assembler refuses such a value too (``source_row_v27.STAGE6_SOURCE_ITEMS``).
+    The one exception: an unreviewed follow row (:func:`~g3o.common.storage.unreviewed_source`) carries
+    ``not_asked`` by rule (PI rulings 96 a / 102 a) and keeps it; any other value there is refused."""
     sources: dict[str, Mapping[str, Any]] = {}
     for sid, row in inst.sources.items():
-        if CONFIDENCE_ITEM in row["values"]:
+        if unreviewed_source(row):
+            given = row["values"].get(CONFIDENCE_ITEM)
+            if given != ma.NOT_ASKED:
+                raise UpstreamRowMalformed(inst.institution_id, CONFIDENCE_ITEM, f"unreviewed source row {sid}",
+                                           problem=f"is {given!r}, not the not_asked set by rule (PI 96 a / 102 a)")
             sources[sid] = row
             continue
+        if CONFIDENCE_ITEM in row["values"]:
+            raise UpstreamRowMalformed(inst.institution_id, CONFIDENCE_ITEM, f"reviewed source row {sid}",
+                                       problem="is pre-filled; Stage 6 is its only producer (PI Q162 b, ruling 140)")
         sources[sid] = {**dict(row), "values": {**dict(row["values"]),
                                                 CONFIDENCE_ITEM: source_confidence_of(inst, sid)}}
     return replace(inst, sources=sources)
@@ -1432,7 +1441,7 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
     """The storage envelope and provenance records of one ready Stage 6 result."""
     if not result.ready:
         raise ConsolidationError("Stage 6 result is not ready; nothing is published")
-    inst = with_source_confidence(inst)  # PI ruling 140 (gate 3): Stage 6 produces source core.confidence
+    inst = with_source_confidence(inst)  # PI ruling 140 / Q162 b: Stage 6 is the only producer of it
     quotes = {q.support_id: q for q in inst.quotes}
     # Published activities: groups with at least one supported observation on a confirmed page
     # (the pooled-eligibility rule of T-026); other observations keep their relations only.
