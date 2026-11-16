@@ -175,6 +175,7 @@ def record_submit_outcome(run_dir: Path, seq: int, batch_id: str | None) -> None
     """Operator step after :class:`BatchSubmitUnacknowledged`: the batch of submission ``seq`` is
     ``batch_id`` (then it is polled and collected), or None: no batch was created (its requests are
     sent again on the next wave)."""
+    _Store.load(batch_journal_path(run_dir))  # drops a torn tail first, so this line is never merged into it
     _write_line(batch_journal_path(run_dir), {"kind": "submitted", "seq": seq, "batch_id": batch_id,
                                               "operator": True})
 

@@ -670,11 +670,22 @@ def run_v27_dispatch(
         follow = FollowLeg(v27.follow_fetch)
     span = tel.stage_start(V27_PERPAGE_SPAN, counts_in=n_pages)
     # PI ruling 134: waves until no batched request is queued (one pass when batch is None)
-    ready, pm = run_waves(batch, lambda: run_perpage_v27(
-        run_dir, _same_pages(institutions, page_keys), ask_fn=v27.jev_ask_fn, providers=providers,
-        page_config=bound.page_config, activity_config=bound.activity_config,
-        instrument=instrument, follow=follow,
-    ))
+    waves: list[Any] = []
+
+    def _wave() -> Any:
+        result = run_perpage_v27(
+            run_dir, _same_pages(institutions, page_keys), ask_fn=v27.jev_ask_fn, providers=providers,
+            page_config=bound.page_config, activity_config=bound.activity_config,
+            instrument=instrument, follow=follow,
+        )
+        waves.append(result[1])
+        return result
+
+    ready, pm = run_waves(batch, _wave)
+    # Each wave makes its own calls: live and batched counts are summed over the waves (review M-a). A
+    # later wave replays what an earlier one asked, so ``replayed_requests`` stays the last wave's.
+    pm.live_requests = sum(w.live_requests for w in waves)
+    pm.batched_requests = sum(w.batched_requests for w in waves)
     out["n_perpage_ready"] = len(pm.ready)
     out["n_perpage_held"] = len(pm.held)
     out["n_perpage_failed_pages"] = len(pm.failed_pages)
