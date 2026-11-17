@@ -4,11 +4,11 @@
     "harness": "claude-code",
     "model": "claude-opus-5-5"
   },
-  "date": "2026-11-10",
+  "date": "2026-11-17",
   "sources": {
-    "SPEC.md": "49256734ba47b771321ae52c30ed34c2038a30fc330f7af577035e3777558463",
+    "SPEC.md": "0a21b38c8755ba76871696505cd75fee9c486298cdb7c97d99634de2eb61e30f",
     "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
-    "PLAN.md": "60d2b8ee04d55ad2901885f841f73846f0327070f0b7631feeb4ce21cb01f705"
+    "PLAN.md": "343ba9896832de39ee347a46f3fe9f8c598e48b4d6f674a737ac0cebf02c0eb6"
   },
   "labels": {
     "T-001": {
@@ -116,8 +116,16 @@
       "plain": "Create synthetic cases for pipeline mechanics and real-page cases for coding rules and verdicts, at least three per check. An agent labels the real-page expectations and jev scores them."
     },
     "T-041": {
-      "label": "Run paid integration checks",
-      "plain": "Run the labelled cases through all processing paths, plus a small back-fill using real observation identifiers. Simone runs the paid command and rules on failures."
+      "label": "Run paid fixture checks (new-run path)",
+      "plain": "Run the labelled cases through the new-run path and record how the X35 support check answers. Simone runs the paid command and rules on failures."
+    },
+    "T-043": {
+      "label": "Run back-fill fixture checks",
+      "plain": "Run the labelled cases through the back-fill and transfer paths, plus a small back-fill using real observation identifiers. Simone runs the paid command and rules on failures."
+    },
+    "T-042": {
+      "label": "Check injected cases for free",
+      "plain": "Run the cases that carry given answers through the rule-based code at no cost, and add the results to the fixture report."
     },
     "T-050": {
       "label": "Agree the publication interface",

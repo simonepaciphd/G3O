@@ -1,0 +1,53 @@
+{
+ "format": "g3o-approved-delta-application-v1",
+ "delta": "RC-D-034..RC-D-041",
+ "approval": "Simone Paci, 2026-11-17 chat: approve deltas, lock, Q208–Q213 as rec (Q208 a, Q209 a, Q210 b, Q211 b, Q212 a, Q213 a)",
+ "recorded_by": "integrator session 20261117-claude-v2-304d807556676abd (Claude Code, claude-opus-5-5), DEC-012 a",
+ "recorded_at": "2026-11-17T16:22:27.723381+00:00",
+ "baseline": "RC-BL-001 retained",
+ "SPEC_version": "v001.30",
+ "RESOURCES_version": "unchanged by RC-D-034..RC-D-041",
+ "preimages": "archive/2026-11-17-before-rcd034-041",
+ "superseded_lock": "archive/records/Delta-Lock-RC-D-030-2026-11-10.json",
+ "artifacts": {
+  "SPEC.md": "0a21b38c8755ba76871696505cd75fee9c486298cdb7c97d99634de2eb61e30f",
+  "PLAN.md": "343ba9896832de39ee347a46f3fe9f8c598e48b4d6f674a737ac0cebf02c0eb6",
+  "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
+  "CHANGELOG.md": "f3d37dfc7a7c844a0bff641e26c6f2b495f97fef6bba05db8c4b603c871ccb81",
+  "Plan-Labels.json": "efc1b65e2d101032bffaf72eff41db9e5ac80c5edcd11fa40777d965c84e2770",
+  "page/Plan-Visual.html": "e0d37b5615395aff9bd07c0b98ac640854b9ca439694d74f1d7790a1f94c8939",
+  "handoffs/D-007-interface-spec.md": "3440db665e5331697b0568f3cab51d54a5a964d74e80a8ac885f8e61ef212969",
+  "handoffs/D-007-field-map.json": "cf3ccf63283c7cd4fa52021a36ec8723c4a6e8223546acc520d7bccee996a478",
+  "deltas/RC-D-034.md": "8debf1b4cea33bc405c60e94a46b63d0d1009bd2e178e7617e3e9603a596f472",
+  "deltas/RC-D-035.md": "ee40aead2be2c876fe014349f7d1dc57406780daf7fb154c16e99fa1a1fbfa90",
+  "deltas/RC-D-036.md": "fe146b3f501153a9f3bdd0d42339a265b42bd980a50ed2b5f19db8c703890ea8",
+  "deltas/RC-D-037.md": "b394fe98c40b320e6da15b5ebd843ff3348002385498342ea8c4bb63e63c80d6",
+  "deltas/RC-D-038.md": "3c814e6431eded80e10adfc87685e641dc171ca890cd673ae80827a63022e5d2",
+  "deltas/RC-D-039.md": "d9bf02ef81fd5f2ef7a98f402dfad07e166faca9a19da80f3ac4fd9ac34bb41d",
+  "deltas/RC-D-040.md": "efb343896a3b2d56ec408c28d74e8c785573dbf027411a5f1da773ef5da1929f",
+  "deltas/RC-D-041.md": "a13ff38b56750ee085c7526cafb8598c1341e4ed0fb72f670bc919bf6122ddff"
+ },
+ "checks": {
+  "plan_viewer": "0 errors; 10 existing untyped warnings (ok)",
+  "signed_codebook": "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a (r16, signed 2026-11-17; record codebook/r16-20261116 41695e7)",
+  "stage6_quote_instruction": "898194903d3a0c733bb4f59d9b420423388afda48eb740e666de578320f04483 (RC-D-029, unchanged)",
+  "x35_model": "claude-haiku-5-5 (RC-D-033 C1 a, RC-D-038 139 a)",
+  "x35_instruction": "6f048d6018bba9cb8ebc9027a45ece29a80b8b9de5ae19173d3f67580900861c (Q160; effort medium, max 4,000 tokens)",
+  "pass1_system_prompt": "393c9b4b17cb8284c311d44f326dc4137f59b0cf92262ef94da14e461d83b375 (Q203 b)",
+  "residual_question_set": "source_type_residual (RC-D-037 95 a); hash 48d84faf184bc15dc68942e50a7f70bd832eb42250709f989dcebbf037650133 from g3o.common.source_fields.residual_set_sha256() on reclass/o1117-r16sign",
+  "d007_field_map": "cf3ccf63283c7cd4fa52021a36ec8723c4a6e8223546acc520d7bccee996a478 (code line 02b8ab3 bytes plus RC-D-034 B2 b)"
+ },
+ "notes": [
+  "T-041b renamed T-043 at apply (mechanical, PLAN.md:54).",
+  "RC-D-038 E17 (a) withdrawn; (b2) applied.",
+  "plan_viewer --check fixes applied with the PLAN edits (format and edge sync, no meaning change): T-054 and T-071 Soft cells keep task ids only (notes stay in the cards); T-042 and T-043 Priority set to 'required' with the reason on a 'Priority reason:' line; T-024 and T-065 Enables add T-043; T-030 Enables adds T-041 (graph rows and cards).",
+  "Labels: T-041 relabelled; T-042 and T-043 labelled (writer pass)."
+ ],
+ "pending": [
+  "Code-line follow-ups (APPLY-PLAN step 9): pass-1 pin commit, field map re-pin, r16sign merge, build 12",
+  "T-041 cost estimate and paid run (PI); g3o_validation#3 notice before it (PI, Q213 a)",
+  "Q182 required-checks write, Q180 frame copy and registration, Q173 live synthetic run (PI)",
+  "Q208 a heads-up to the procurement integrator (text in deltas/RC-D-041.md E15; PI posts or approves posting)",
+  "Owner-run publication of branches; no push/merge/paid calls by agent"
+ ]
+}
