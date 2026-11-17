@@ -92,6 +92,9 @@ include = ["g3o*"]
 # directory holds data, not code, and giving it an ``__init__.py`` purely to
 # satisfy ``packages.find`` would invent a module nobody imports.
 "g3o.common" = ["policies/*.json"]
+# v2.7 jev question sets, read at import time by the v2.7 stages (load_set). Missing from the wheel, the
+# non-editable install failed to import five g3o.run.presweep *_v27 modules (wheel-install, PR #198).
+"g3o.classify.questions.v27" = ["*.json"]
 
 [tool.ruff]
 line-length = 100
