@@ -134,10 +134,24 @@ def test_developer_basis_is_stated_for_a_stated_developer():
     assert (row.item_id, row.value) == ("core.developer_basis", "stated")
 
 
+# PI ruling Q165 a (2026-11-16): a missing-token developer gives the basis the same token (was: unruled, held).
 @pytest.mark.parametrize("token", ["not_documented", "unknown", "not_asked", "_NA_"])
-def test_developer_basis_of_a_missing_token_is_unruled(token):
-    with pytest.raises(sf.UnruledError):
-        srow.developer_basis_value(token)
+def test_developer_basis_of_a_missing_token_takes_the_same_token_q165a(token):
+    row = srow.developer_basis_value(token)
+    assert (row.item_id, row.value) == ("core.developer_basis", token)
+    assert "Q165 a" in row.basis
+
+
+def test_developer_basis_tokens_are_the_developer_tokens_in_the_candidate():
+    """Q165 a relies on every developer missing token being a developer_basis missing token."""
+    items = yaml.safe_load(FIXTURE.read_bytes())["items"]
+    assert set(items["core.developer"]["missing_tokens"]) <= set(items["core.developer_basis"]["missing_tokens"])
+
+
+def test_developer_basis_is_no_longer_conditional_on_a_missing_token_q165a(monkeypatch):
+    _with_developer(monkeypatch)
+    note = srow.conditional_items(True)["core.developer_basis"]
+    assert "missing token" not in note and "refused when core.developer is refused" in note
 
 
 def test_developer_basis_refuses_absent_and_non_text_developer():
