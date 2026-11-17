@@ -11,11 +11,11 @@
  "superseded_lock": "archive/records/Delta-Lock-RC-D-030-2026-11-10.json",
  "artifacts": {
   "SPEC.md": "0a21b38c8755ba76871696505cd75fee9c486298cdb7c97d99634de2eb61e30f",
-  "PLAN.md": "343ba9896832de39ee347a46f3fe9f8c598e48b4d6f674a737ac0cebf02c0eb6",
+  "PLAN.md": "2cf0cbfa65d5d4b9f467fe1f86e3df9ab27261f28767e65b2b2c09e673432934",
   "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
-  "CHANGELOG.md": "f3d37dfc7a7c844a0bff641e26c6f2b495f97fef6bba05db8c4b603c871ccb81",
-  "Plan-Labels.json": "efc1b65e2d101032bffaf72eff41db9e5ac80c5edcd11fa40777d965c84e2770",
-  "page/Plan-Visual.html": "e0d37b5615395aff9bd07c0b98ac640854b9ca439694d74f1d7790a1f94c8939",
+  "CHANGELOG.md": "7270de8960c76da2ae7a06117f923e773bc6612934702e2c0248f01b6de78789",
+  "Plan-Labels.json": "13eb25667f954f70512f203a743987d656e564e8d8ddc9b0e0ff774dbded7f3a",
+  "page/Plan-Visual.html": "868bd3679952244f117a692df3a0c7d4697ed4f8cb999e3a8cc723ebc1e7b1ef",
   "handoffs/D-007-interface-spec.md": "3440db665e5331697b0568f3cab51d54a5a964d74e80a8ac885f8e61ef212969",
   "handoffs/D-007-field-map.json": "cf3ccf63283c7cd4fa52021a36ec8723c4a6e8223546acc520d7bccee996a478",
   "deltas/RC-D-034.md": "8debf1b4cea33bc405c60e94a46b63d0d1009bd2e178e7617e3e9603a596f472",
@@ -41,7 +41,8 @@
   "T-041b renamed T-043 at apply (mechanical, PLAN.md:54).",
   "RC-D-038 E17 (a) withdrawn; (b2) applied.",
   "plan_viewer --check fixes applied with the PLAN edits (format and edge sync, no meaning change): T-054 and T-071 Soft cells keep task ids only (notes stay in the cards); T-042 and T-043 Priority set to 'required' with the reason on a 'Priority reason:' line; T-024 and T-065 Enables add T-043; T-030 Enables adds T-041 (graph rows and cards).",
-  "Labels: T-041 relabelled; T-042 and T-043 labelled (writer pass)."
+  "Labels: T-041 relabelled; T-042 and T-043 labelled (writer pass).",
+  "Mechanical follow-up before push (PI 2026-11-17 chat \"a\"; post-apply review): W5/W10 lanes and T-052 row cells follow the approved owners (RC-D-038 147 a, E17 b2); labels T-055, T-060, T-071 follow Q153 a, 138 a, Q210 b; PLAN, CHANGELOG, labels and page hashes refreshed."
  ],
  "pending": [
   "Code-line follow-ups (APPLY-PLAN step 9): pass-1 pin commit, field map re-pin, r16sign merge, build 12",

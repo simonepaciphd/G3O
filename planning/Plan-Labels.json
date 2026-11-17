@@ -8,7 +8,7 @@
   "sources": {
     "SPEC.md": "0a21b38c8755ba76871696505cd75fee9c486298cdb7c97d99634de2eb61e30f",
     "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
-    "PLAN.md": "343ba9896832de39ee347a46f3fe9f8c598e48b4d6f674a737ac0cebf02c0eb6"
+    "PLAN.md": "2cf0cbfa65d5d4b9f467fe1f86e3df9ab27261f28767e65b2b2c09e673432934"
   },
   "labels": {
     "T-001": {
@@ -149,11 +149,11 @@
     },
     "T-055": {
       "label": "Prepare the live backend",
-      "plain": "Apply the reviewed database changes and deploy ingestion before the new pipeline goes live. Check that old runs still publish and new-format rows remain hidden."
+      "plain": "Apply the reviewed database changes and deploy ingestion so that wave 6 and 7 results can be loaded into the live database. Check that old runs still publish and new-format rows remain hidden."
     },
     "T-060": {
       "label": "Coordinate the procurement update",
-      "plain": "Prepare the shared-codebook changes for the procurement integrator and obtain the required acceptance before deployment. Simone approves the message and the changes to that sibling plan."
+      "plain": "Prepare the shared-codebook changes for the procurement integrator and obtain the required acceptance before release. Simone approves the message and the changes to that sibling plan."
     },
     "T-061": {
       "label": "Notify the validation owner",
@@ -177,7 +177,7 @@
     },
     "T-071": {
       "label": "Deploy the revised pipeline",
-      "plain": "Merge and deploy the reviewed pipeline after wave 5 is published and the required gates pass. Check the deployed version, credentials and available storage."
+      "plain": "Merge and deploy the pipeline after wave 5 is published and the required gates pass; the code review and the procurement update follow afterwards. Check the deployed version, credentials and available storage."
     },
     "T-070": {
       "label": "Freeze the back-fill population",
