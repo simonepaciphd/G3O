@@ -255,7 +255,9 @@ def test_extractor_success_then_x35_failure_is_journaled_and_not_repaid_on_resum
     usage = second.usage[A]
     assert usage["extractor_calls"] == len(ext1.jobs) + len(ext2.jobs)
     assert usage["extractor_input_tokens"] == usage["extractor_output_tokens"] == usage["extractor_calls"]
-    assert usage["x35_calls"] == len(ent2.calls) and usage["x35_failed"] == 1
+    # PI ruling Q163 c: the simulated 503 carries no response (no ``usage``), so it is not journaled:
+    # neither counted in x35_failed nor priced, and the resume asked it again
+    assert usage["x35_calls"] == len(ent2.calls) and usage["x35_failed"] == 0
     lines = [json.loads(x) for x in (institution_dir(run_dir, A) / rt.WORK_DIR / rt.JOURNAL).read_text(
         encoding="utf-8").splitlines()]
     assert lines and all(isinstance(x["elapsed_ms"], int) and x["elapsed_ms"] >= 0 for x in lines)

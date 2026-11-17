@@ -1038,8 +1038,8 @@ def price_x35_requests(usages: list[dict[str, Any] | None], *, model: str) -> di
     :func:`price_extractor_requests`; a usage marked :data:`EXTRACTOR_BATCH_KEY` (none is
     today: X35 is never batched) would be priced at that row's batch rates (Q158 a, the
     130 a rule). A call without usage is counted in ``unpriced_calls`` and makes ``usd``
-    ``None``. A call that died with no response is not priced (Q163 c / 131.1 b:
-    :meth:`RequestJournal.x35_usages` skips it).
+    ``None``. A call that died with no response is not journaled, so neither priced nor
+    counted (PI ruling Q163 c, as the extractor under 131.1 b).
     """
     out = price_extractor_requests(usages, model=model)
     if out.get("reason") == EXTRACTOR_USAGE_MISSING:

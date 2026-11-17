@@ -65,7 +65,8 @@ Rules carried here, not decided here:
   (:class:`~g3o.persist.stage6_adapters.MissingUpstreamError`): the merged
   values R1 asks to re-derive whose rule awaits codebook r16
   (:data:`MERGE_REFUSED_R1`: developer, developer_basis, stage_as_of_basis;
-  under the UNSIGNED r16 candidate stage_as_of_basis is produced instead,
+  under the UNSIGNED r16 candidate none: stage_as_of_basis is produced, developer
+  is an R3 item and developer_basis follows it (PI ruling Q166 a),
   :func:`merge_refused_r1`;
   ``evidence_channel`` is the row metadata
   :data:`EVIDENCE_CHANNEL`, not a row value), the merged values no ruling
@@ -102,6 +103,7 @@ from typing import Any
 from g3o.classify.jev_activity_code import NOT_COVERED, PAIR_ITEMS
 from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE
 from g3o.classify.questions.v27 import load_set
+from g3o.codebook import r16_candidate as r16
 from g3o.common import attrition
 from g3o.common.contract import LANGS_PATTERN
 from g3o.common.independence import independence_groups_for_sources
@@ -266,8 +268,55 @@ ACTIVITY_ITEMS = frozenset(table_fields("activities"))
 
 #: RC-D-030 X1 a R2 / R3 (RC-D-032 B2 a adds the scale number to R3): merged by rule here.
 MERGE_UNION = ("core.tool_name", "core.model_name", "core.reported_outcomes", "core.reported_incidents")
-MERGE_CREDIBLE = ("core.activity_name", "core.contracting_party", "core.observed_actor_name",
-                  "core.deployment_scale_number")
+#: R3 items under the signed r15 codebook.
+MERGE_CREDIBLE_R15 = ("core.activity_name", "core.contracting_party", "core.observed_actor_name",
+                      "core.deployment_scale_number")
+DEVELOPER, DEVELOPER_BASIS = "core.developer", "core.developer_basis"
+
+
+def _developer_merged(r16_on: bool | None) -> bool:
+    """Whether Stage 6 merges the developer itself (PI ruling Q166 a). An explicit ``r16_on`` is taken as
+    given. None: the r16 candidate is active AND pass 1 asks the developer, the same gate the per-page rows
+    use (``source_row_v27.produced_activity_items``), so a codebook that asks no developer quote task keeps
+    both developer items refused here too (an explicit input, which holds that institution) instead of a
+    missing row value stopping the stage (review of 59ab80e, LOW)."""
+    if r16_on is not None:
+        return r16_on
+    if not r16.r16_active():
+        return False
+    from g3o.run.presweep import source_row_v27 as srow  # lazy: the per-page gate, no import cycle
+
+    return DEVELOPER in srow.pass1_activity_fields()
+
+
+def merge_credible(r16_on: bool | None = None) -> tuple[str, ...]:
+    """R3 items for the codebook in use (``r16_on`` None: :func:`_developer_merged`). r15:
+    :data:`MERGE_CREDIBLE_R15`. PI ruling Q166 a (2026-11-16), UNSIGNED r16 candidate only:
+    ``core.developer`` is an R3 credible single-text item too, as ``contracting_party`` is."""
+    return (*MERGE_CREDIBLE_R15, DEVELOPER) if _developer_merged(r16_on) else MERGE_CREDIBLE_R15
+
+
+def merge_basis(r16_on: bool | None = None) -> tuple[str, ...]:
+    """Items merged from the merged developer (PI ruling Q166 a, r16 candidate only): ``core.developer_basis``
+    (:func:`merged_developer_basis`). Empty under r15 (``r16_on`` None: :func:`_developer_merged`)."""
+    return (DEVELOPER_BASIS,) if _developer_merged(r16_on) else ()
+
+
+def merged_developer_basis(developer: Any) -> str:
+    """PI ruling Q166 a: a merged row's ``core.developer_basis`` is ``stated`` when the merged developer is
+    real (:func:`_real`), else, per Q165 a, the developer's own missing token. A merged developer that is
+    neither (e.g. blank text, a non-text value) is refused (``ConsolidationError``: the institution is held)."""
+    if _real(DEVELOPER, developer):
+        return r16.DEVELOPER_BASIS_STATED
+    tokens = FIELDS[DEVELOPER_BASIS]["missing_tokens"]
+    if isinstance(developer, str) and developer in (tokens if isinstance(tokens, list) else ()):
+        return developer
+    raise ConsolidationError(f"merged {DEVELOPER} {developer!r} is neither real nor a {DEVELOPER_BASIS} "
+                             "missing token (PI ruling Q166 a / Q165 a)")
+
+
+MERGE_CREDIBLE = merge_credible()
+MERGE_BASIS = merge_basis()
 #: X1 a R1 items produced here from the pooled observations and their source rows (PI A8 rulings,
 #: 2026-11-11, and 66 a; :mod:`g3o.validate.merged_activity_v27`): stage_as_of (A8.3/A8.4/A8.6 a,
 #: 76 b, 90 c), date_upper_bound (A8.11/A8.12 a), unit_credit (A8.7/A8.8 a), vendor_claim_only
@@ -283,11 +332,12 @@ MERGE_REFUSED_R1_R15 = ("core.developer", "core.developer_basis", "core.stage_as
 def merge_refused_r1(r16_on: bool | None = None) -> tuple[str, ...]:
     """X1 a R1 items still refused (explicit input) for the codebook in use (``r16_on`` None: read
     :func:`g3o.codebook.r16_candidate.r16_active` now). Under the UNSIGNED r16 candidate (PI ruling 140:
-    built against the draft) stage_as_of_basis is produced here (:func:`ma.produced_items`); developer and
-    developer_basis stay explicit inputs for a multi-observation activity: the candidate gives no merge rule
-    for them (a PI question)."""
-    produced = set(ma.produced_items(r16_on))
-    return tuple(i for i in MERGE_REFUSED_R1_R15 if i not in produced)
+    built against the draft) none: stage_as_of_basis is produced here (:func:`ma.produced_items`), and,
+    PI ruling Q166 a, developer is an R3 item (:func:`merge_credible`) and developer_basis follows it
+    (:func:`merge_basis`). Under r15 :data:`MERGE_REFUSED_R1_R15` unchanged."""
+    on = r16.r16_active() if r16_on is None else r16_on
+    merged = {*ma.produced_items(on), *merge_credible(r16_on), *merge_basis(r16_on)}  # same developer gate
+    return tuple(i for i in MERGE_REFUSED_R1_R15 if i not in merged)
 
 
 MERGE_REFUSED_R1 = merge_refused_r1()
@@ -310,9 +360,9 @@ def _non_pooled_items() -> frozenset[str]:
 
 
 if (_non_pooled_items() != (MERGE_INPUT_ITEMS | set(MERGE_UNION) | set(MERGE_CREDIBLE) | set(MERGE_DERIVED)
-                            | set(MERGE_PRODUCED_A8))
+                            | set(MERGE_PRODUCED_A8) | set(MERGE_BASIS))
         or len(MERGE_INPUT_ITEMS) + len(MERGE_UNION) + len(MERGE_CREDIBLE) + len(MERGE_DERIVED)
-        + len(MERGE_PRODUCED_A8) != len(_non_pooled_items())):  # pragma: no cover - overlap or gap
+        + len(MERGE_PRODUCED_A8) + len(MERGE_BASIS) != len(_non_pooled_items())):  # pragma: no cover - overlap or gap
     raise RuntimeError("the merged-activity item split no longer matches the activities table")
 INDEPENDENCE_PRODUCER = "near-duplicate / syndication grouping (P15) for source independence groups"
 
@@ -380,14 +430,16 @@ EXTRACT_REJECTED = "extract_rejected"
 JEV_UNIDENTIFIED = "jev_unidentified"
 ACCOUNTING_KINDS = frozenset({JEV_UNIDENTIFIED, "jev_incomplete", "extract_failed", "x35_failed",
                               EXTRACT_REJECTED})
-#: The marker on an ``x35_failed`` entry whose exception came with no response at all
-#: (``response[X35_USAGE_ABSENT] == X35_NO_RESPONSE``): counted, never priced (PI ruling 131.1 b).
+#: The marker a journal written before PI ruling Q163 c put on an ``x35_failed`` entry whose
+#: exception came with no response at all (``response[X35_USAGE_ABSENT] == X35_NO_RESPONSE``).
+#: Since Q163 c such a call is not journaled (as the extractor under 131.1 b), and an old entry
+#: carrying the marker is treated as absent on load (:meth:`RequestJournal._load`).
 X35_USAGE_ABSENT = "usage_absent"
 X35_NO_RESPONSE = "no_response"
 
 
 def _x35_no_response(response: Mapping[str, Any]) -> bool:
-    """Whether an ``x35_failed`` entry's response is the PI ruling 131.1 b no-response marker."""
+    """Whether an ``x35_failed`` entry's response is the pre-Q163 c no-response marker (131.1 b)."""
     return response.get(X35_USAGE_ABSENT) == X35_NO_RESPONSE
 
 
@@ -403,8 +455,8 @@ class X35FailCapReached(RuntimeError):
     the production client does not raise, or such an entry in a journal written before Q169 b.
 
     Mirrors :class:`ExtractRejectCapReached` (ruling 34 b / 41 a), with the same cap: after that
-    many such entries for one exact X35 request key (NOT the ``no_response`` ones, which are asked
-    again), the journaled X35 call raises this *instead of* calling X35, on this run and every
+    many such entries for one exact X35 request key (a call that died with no response is not
+    journaled, Q163 c, and is asked again), the journaled X35 call raises this *instead of* calling X35, on this run and every
     later load, until a per-page PI release names the key (or releases ``all``); Stage 6 has no
     release path for it (REVIEW-O2-fixes M1). A ``RuntimeError``, so the stages hold exactly
     as they hold the failure it replaces, with no billed call. ``key`` is the journal's request key.
@@ -572,6 +624,11 @@ class RequestJournal:
                     break
                 raise ValueError(f"corrupt Stage 6 journal line {n + 1}: {self.path}") from None
             keep.append(line)
+            if entry.get("kind") == "x35_failed" and _x35_no_response(entry.get("response") or {}):
+                # PI ruling Q163 c: an X35 call that died with no response is not journaled (as the
+                # extractor, 131.1 b). An entry an older journal wrote for one is kept on disk but read
+                # as absent: not counted, not priced, not timed, never towards the O2 M4 cap.
+                continue
             self._elapsed.append(int(entry.get("elapsed_ms", 0)))
             self._mark_batch(entry)
             if entry["kind"] in _LIVE_EXTRACT_KINDS:  # ruling 104 b: a live call uses up its re-ask
@@ -641,8 +698,8 @@ class RequestJournal:
     # --- ruling 34 b / 41 a: the rejection cap and its PI release ------------
 
     def _count_x35_failure(self, kind: str, key: str, response: Mapping[str, Any]) -> None:
-        """Review O2 M4: count an ``x35_failed`` entry that carries a response (not ``no_response``)."""
-        if kind == "x35_failed" and not _x35_no_response(response):
+        """Review O2 M4: count an ``x35_failed`` entry (since Q163 c, only ones carrying a response are written)."""
+        if kind == "x35_failed" and not _x35_no_response(response):  # pre-Q163 c entries are skipped on load
             self._x35_failures[key] = self._x35_failures.get(key, 0) + 1
 
     def x35_failures(self, key: str) -> int:
@@ -872,13 +929,13 @@ class RequestJournal:
         # entry (a non-answer's too, Q169 b below) or, for another billed exception, on the
         # ``x35_failed`` one (the exception's ``usage``), so :meth:`x35_usages` can price each call. A plain
         # ``entail_fn`` (a fake) journals no usage, exactly as before.
-        # An exception that carries no ``usage`` attribute at all (a transport error, a
-        # timeout, a 429/529 raised before any response, a refusing stub) is still counted
-        # as ``x35_failed`` but marked ``usage_absent: "no_response"``: like an extractor call
-        # that died without a response (PI ruling 131.1 b), it is not priced
-        # (:meth:`x35_usages` skips it), so it neither guesses a price nor blocks the total.
+        # PI ruling Q163 c: an exception that carries no ``usage`` attribute at all (a transport
+        # error, a timeout, a 429/529 raised before any response, a refusing stub) is not
+        # journaled, exactly as an extractor call that died without a response (PI ruling
+        # 131.1 b): a resume asks it again, and it is neither counted nor priced. An older
+        # journal's ``usage_absent: "no_response"`` entry is read as absent (:meth:`_load`).
         # An exception whose ``usage`` attribute is present but not a dict (a response that
-        # reported no usage) is not marked: it stays unpriced (``None``), never guessed.
+        # reported no usage) is journaled as ``x35_failed``: it stays unpriced (``None``), never guessed.
         # PI ruling Q169 b: an X35 non-answer (``X35ResponseError``: a refusal, a ``max_tokens``
         # stop, unparseable output) is an answer with no probability. It is journaled as an
         # ``x35`` entry (replayed on resume, so it is never asked or billed again) with value
@@ -912,12 +969,12 @@ class RequestJournal:
                 self._append(slot, response, _elapsed_ms(start))
                 return non_answer
             except Exception as exc:
+                if not hasattr(exc, "usage"):  # no response came back: not journaled (Q163 c / 131.1 b)
+                    raise
                 failed: dict[str, Any] = {"error": f"{type(exc).__name__}: {exc}"}
                 exc_usage = getattr(exc, "usage", None)
                 if isinstance(exc_usage, dict):
                     failed["usage"] = exc_usage
-                elif not hasattr(exc, "usage"):  # no response came back (PI ruling 131.1 b)
-                    failed[X35_USAGE_ABSENT] = X35_NO_RESPONSE
                 self._append(self._slot("x35_failed", request, prompt), failed, _elapsed_ms(start))
                 raise
             self.live += 1
@@ -1038,18 +1095,17 @@ class RequestJournal:
         before usage was journaled), a failed response that reported no usage, or a failed call
         journaled before the ``usage_absent`` marker existed; it is never guessed.
 
-        PI ruling 131.1 b, as for the extractor: a call that died without a response is not
-        priced. An ``x35_failed`` entry marked ``usage_absent: "no_response"`` (an exception
-        raised before any response came back, e.g. a transport error, a timeout or a 429/529)
-        is skipped here, so it neither gets a price nor makes the X35 part unpriced; it is
-        still counted in ``usage()["x35_failed"]``, so this list can be shorter than that
-        count. Nothing is priced at $0. A torn last line (131.2 a) applies too.
+        PI ruling Q163 c (131.1 b, as for the extractor): a call that died without a response
+        (an exception raised before any response came back, e.g. a transport error, a timeout
+        or a 429/529) is not journaled, so it is neither priced nor counted in
+        ``usage()["x35_failed"]``; an older journal's ``usage_absent: "no_response"`` entry is
+        read as absent on load. This list has one element per call ``usage()`` counts. Nothing
+        is priced at $0. A torn last line (131.2 a) applies too.
         """
         out: list[dict[str, Any] | None] = [
             response.get("usage") for (kind, _, _), response in self._recorded.items() if kind == "x35"
         ]
-        out.extend(entry["response"].get("usage") for entry in self._accounting
-                   if entry["kind"] == "x35_failed" and not _x35_no_response(entry["response"]))
+        out.extend(entry["response"].get("usage") for entry in self._accounting if entry["kind"] == "x35_failed")
         return out
 
     def usage(self) -> dict[str, int]:
@@ -1280,8 +1336,14 @@ def _credibility_rank(inst: Stage6Institution, oid: str) -> int:
     return grades.index(value)
 
 
-def merge_values(inst: Stage6Institution, order: Sequence[str]) -> dict[str, Any]:
-    """RC-D-030 X1 a R2 / R3 values of a merged activity from its pooled observations in pool order."""
+def merge_values(inst: Stage6Institution, order: Sequence[str], *, r16_on: bool | None = None) -> dict[str, Any]:
+    """RC-D-030 X1 a R2 / R3 values of a merged activity from its pooled observations in pool order.
+
+    ``r16_on`` None uses the item split fixed at import (:data:`MERGE_CREDIBLE`, :data:`MERGE_BASIS`), so the
+    r15 call is unchanged; True / False picks the r16 candidate / r15 split (PI ruling Q166 a: under r16
+    ``core.developer`` is R3 and ``core.developer_basis`` follows it, :func:`merged_developer_basis`)."""
+    credible = MERGE_CREDIBLE if r16_on is None else merge_credible(r16_on)
+    basis = MERGE_BASIS if r16_on is None else merge_basis(r16_on)
     rows = {k: inst.observation_inputs[k].row["values"] for k in order}
     out: dict[str, Any] = {}
     ranked = sorted(order, key=lambda k: _credibility_rank(inst, k))  # stable: ties keep pool order
@@ -1301,9 +1363,11 @@ def merge_values(inst: Stage6Institution, order: Sequence[str]) -> dict[str, Any
         # No entry anywhere: the observations' (missing) values may still differ, e.g. [] beside
         # not_documented; RC-D-032 B3 a: the highest-credibility observation's value, R3 order.
         out[item] = rows[ranked[0]][item]
-    for item in MERGE_CREDIBLE:  # R3: most credible source, a real value over a missing token
+    for item in credible:  # R3: most credible source, a real value over a missing token
         pick = next((k for k in ranked if _real(item, rows[k][item])), ranked[0])
         out[item] = rows[pick][item]
+    if DEVELOPER_BASIS in basis:  # PI ruling Q166 a (r16 only): from the merged developer
+        out[DEVELOPER_BASIS] = merged_developer_basis(out[DEVELOPER])
     return out
 
 
@@ -1487,9 +1551,11 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
             _agree_with_fragment(fragments[0]["values"], a8, group[0])
             values = {**fragments[0]["values"], **a8}
         else:
-            if inst.merged_values is None or group not in inst.merged_values:
+            has_input = inst.merged_values is not None and group in inst.merged_values
+            if MERGE_INPUT_ITEMS and not has_input:
                 raise MissingUpstreamError(MERGED_VALUES_PRODUCER, [aid])
-            given = dict(inst.merged_values[group])
+            # r16 candidate (Q166 a): no item is an explicit input, so none need be given
+            given = dict(inst.merged_values[group]) if has_input else {}
             if set(given) != MERGE_INPUT_ITEMS:
                 extra, absent = sorted(set(given) - MERGE_INPUT_ITEMS), sorted(MERGE_INPUT_ITEMS - set(given))
                 if extra:
@@ -1740,8 +1806,9 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 
 __all__ = [
     "ENVELOPE_FAILED", "ENVELOPE_HOLDS", "EXECUTOR_FAILED", "MISSING_UPSTREAM", "HELD_REASON", "STAGE_STOPS", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
-    "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_PRODUCED_A8", "MERGE_REFUSED_R1", "MERGE_REFUSED_R1_R15",
-    "MERGE_UNION", "MERGE_UNRULED", "merge_refused_r1",
+    "MERGE_BASIS", "MERGE_CREDIBLE", "MERGE_CREDIBLE_R15", "MERGE_INPUT_ITEMS", "MERGE_PRODUCED_A8", "MERGE_REFUSED_R1", "MERGE_REFUSED_R1_R15",
+    "MERGE_UNION", "MERGE_UNRULED", "merge_basis", "merge_credible", "merge_refused_r1",
+    "merged_developer_basis",
     "Stage6Metrics", "build_envelope", "hold_reasons", "independence_groups_of", "merge_values", "run_stage6_v27",
     "EXTRACT_REJECT_CAP", "IDENTITY_COLUMNS", "PI_RELEASED", "REASK_SPENT", "WIRING_STOPS", "ExtractRejectCapReached",
     "ReaskSpentUnanswered", "UpstreamRowMalformed", "X35FailCapReached", "require_a8_form", "require_identity", "require_source_confidence_form",

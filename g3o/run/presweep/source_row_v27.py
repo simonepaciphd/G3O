@@ -421,8 +421,8 @@ def conditional_items(r16_on: bool | None = None) -> dict[str, str]:
                 f"value (e.g. _NA_), at {SUPERSEDED}, and when a quote-step record has no actual response model "
                 "or request id"))
         del out["core.content_vendor"]
-        out[DEVELOPER_BASIS] = (f"refused when {DEVELOPER} is refused, and when it is a missing token (the r16 "
-                                "candidate states the basis of a page-stated developer only: a PI question)")
+        # PI ruling Q165 a: a missing-token developer gives its basis the same token (no longer refused)
+        out[DEVELOPER_BASIS] = f"refused when {DEVELOPER} is refused"
     return out
 
 
@@ -622,9 +622,11 @@ def developer_basis_value(developer: Any) -> RowValue:
     ``items/core.developer/rules/3``, A8.1 a: a developer stated on the page comes from the quote step and its
     ``developer_basis`` is ``stated``; A8.2 a: no lookup table, so ``looked_up`` is never set).
 
-    A stated developer (any value but a signed missing token): ``stated``. A missing-token developer: the
-    candidate does not say what its basis is, so :class:`~g3o.common.source_fields.UnruledError` (a PI
-    question; the item is refused on that page and the institution held). Nothing is guessed.
+    A stated developer (any value but a signed missing token): ``stated``. PI ruling Q165 a (2026-11-16): a
+    missing-token developer (``not_documented`` / ``unknown`` / ``not_asked`` / ``_NA_``) gives the basis the
+    same missing token (R-045 token conventions unchanged); before Q165 a this refused the basis and held the
+    institution. A developer token that is not also a signed ``developer_basis`` missing token is a wiring
+    error (``ValueError``). Also the Stage 6 merged row's basis (Q166 a), from the merged developer.
     """
     if developer is None:
         raise sf.MissingUpstreamError(f"final {DEVELOPER}", [DEVELOPER_BASIS])
@@ -633,8 +635,10 @@ def developer_basis_value(developer: Any) -> RowValue:
     if stated(DEVELOPER, developer):
         return _row(DEVELOPER_BASIS, r16.DEVELOPER_BASIS_STATED,
                     f"items/{DEVELOPER}/rules/3 (r16 candidate, A8.1 a): a page-stated developer")
-    raise sf.UnruledError(DEVELOPER_BASIS, f"basis of a missing-token developer {developer!r} (the r16 candidate "
-                                           "states the basis of a page-stated developer only)")
+    if developer not in _missing_tokens(DEVELOPER_BASIS):  # pragma: no cover - codebook token drift
+        raise ValueError(f"{DEVELOPER} missing token {developer!r} is not a {DEVELOPER_BASIS} missing token")
+    return _row(DEVELOPER_BASIS, developer,
+                f"PI ruling Q165 a: the basis of a missing-token {DEVELOPER} takes the same token")
 
 
 def vendor_claim_only(source_type: str, rule_name: str | None = None) -> RowValue:
