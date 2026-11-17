@@ -161,6 +161,15 @@ def test_seeds_path_resolution(tmp_path):
         rp.load_seeds(tmp_path / "missing.json")
 
 
+def test_a_relative_seeds_env_without_the_drive_root_is_refused_not_read_from_the_cwd():
+    with pytest.raises(rp.SeedsUnavailable, match=rp.DRIVE_ENV):
+        rp.resolve_seeds_path(None, {rp.SEEDS_ENV: "s.json"})
+    with pytest.raises(rp.SeedsUnavailable, match=rp.DRIVE_ENV):
+        rp.load_seeds(None, {rp.SEEDS_ENV: "s.json", rp.DRIVE_ENV: ""})
+    absolute = Path(__file__).resolve()
+    assert rp.resolve_seeds_path(None, {rp.SEEDS_ENV: str(absolute)}) == absolute
+
+
 def test_seeds_file_missing_a_name_is_refused(tmp_path):
     raw = json.loads(SYNTHETIC_SEEDS.read_text(encoding="utf-8"))
     del raw["seeds"]["envelope_usd"]

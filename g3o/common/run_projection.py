@@ -107,7 +107,12 @@ Seeds = Mapping[str, Seed]
 
 def resolve_seeds_path(explicit: str | os.PathLike[str] | None = None,
                        environ: Mapping[str, str] | None = None) -> Path | None:
-    """``explicit``, else ``$G3O_PROJECTION_SEEDS`` (relative to ``$G3O_DRIVE_ROOT`` when not absolute)."""
+    """``explicit``, else ``$G3O_PROJECTION_SEEDS`` (relative to ``$G3O_DRIVE_ROOT`` when not absolute).
+
+    A relative ``$G3O_PROJECTION_SEEDS`` with no ``$G3O_DRIVE_ROOT`` is refused
+    (:class:`SeedsUnavailable`) rather than read against the working directory: the
+    variable is documented as absolute or relative to ``$G3O_DRIVE_ROOT`` (Q177 a).
+    """
     if explicit is not None:
         return Path(explicit)
     env = os.environ if environ is None else environ
@@ -115,7 +120,10 @@ def resolve_seeds_path(explicit: str | os.PathLike[str] | None = None,
     if not raw:
         return None
     path = Path(raw)
-    if not path.is_absolute() and env.get(DRIVE_ENV):
+    if not path.is_absolute():
+        if not env.get(DRIVE_ENV):
+            raise SeedsUnavailable(f"{SEEDS_ENV}={raw!r} is relative and {DRIVE_ENV} is not set "
+                                   f"(give an absolute path, or set {DRIVE_ENV})")
         path = Path(env[DRIVE_ENV]) / path
     return path
 
