@@ -41,7 +41,7 @@ release:
     r15: |-
       RC-D-026 item 10 a (PI 2026-11-10 chat "9a 10 a"): core.source_credibility credibility_map missing keys gain `not_asked` -> `low` (an unreadable page is never typed, so `source_type` = `not_asked`; treated as missing type); rules/1 map sentence names it; item 9 a needs no codebook change; provenance planning/t010/r15-provenance.json
     r16: |-
-      QUESTIONS-overnight A8.1 a and A8.5 a (PI 2026-11-11 chat "All recs accepted"; overnight rulings PI 2026-11-16 140 "all as rec"): core.developer derived -> quote_step (linkage pipeline -> extractor; a page-stated developer comes from the quote step; A8.2 a: no lookup table in the first run, so `looked_up` is never set); core.stage_as_of_basis takes three step codes (publication / stated / access) in place of the five provenance values (its r2 five-value rule moved to r16_dropped); provenance planning/t010/r16-provenance.json
+      QUESTIONS-overnight A8.1 a and A8.5 a (PI 2026-11-11 chat "All recs accepted"; overnight rulings PI 2026-11-16 140 "all as rec"): core.developer derived -> quote_step (linkage pipeline -> extractor; a page-stated developer comes from the quote step; A8.2 a: no lookup table in the first run, so `looked_up` is never set); core.stage_as_of_basis takes three step codes (publication / stated / access) in place of the five provenance values (its r2 five-value rule moved to r16_dropped); provenance planning/t010/r16-provenance.json; Q167 a (PI 2026-11-16 chat "all as rec for the decisions" (QUESTIONS-overnight Q167 a)): items/core.developer/rules/1 lookup sentence moved to r16_dropped (text_before_r16 kept)
   r4_dropped:
   - card: activity-1 O1
     slot: items/core.observed_actor_relationship/rules/6
@@ -128,6 +128,17 @@ release:
     approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I18 slot 2'
     why: the five provenance values cannot tell a metadata date from the access date (A8.5); stage_as_of_basis takes three step codes
     by: PI 2026-11-11 chat "All recs accepted" (QUESTIONS-overnight A8.5 a); r16
+  - slot: items/core.developer/rules/1
+    kind: superseded
+    kept: items/core.developer/rules/1
+    part: second sentence (the first sentence stays in the rule)
+    text: |-
+      If none is named but tool_name matches a published lookup table (product -> developer, versioned), fill it deterministically and set `vendor_basis` = lookup, otherwise `stated`.
+    origin: r1
+    source: codebook-rulings-round1.json C13.mechanism
+    approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I06 slot 2'
+    why: A8.2 a removed the lookup table for the first run, so the generated pass-1 prompt must not describe one; a page-stated developer has `developer_basis` = stated (items/core.developer/rules/3)
+    by: PI 2026-11-16 chat "all as rec for the decisions" (QUESTIONS-overnight Q167 a); r16
   status_note: release candidate; signed only if the signature record holds this file's sha256
 vocabularies:
   missing:
@@ -6139,10 +6150,12 @@ items:
       origin_before_r4: r2
       r4_fixes: FX12
     - text: |-
-        vendor = the organisation the page names as supplying the GenAI product or service, verbatim. If none is named but tool_name matches a published lookup table (product -> developer, versioned), fill it deterministically and set `vendor_basis` = lookup, otherwise `stated`.
+        vendor = the organisation the page names as supplying the GenAI product or service, verbatim.
       origin: r1
       source: codebook-rulings-round1.json C13.mechanism
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I06 slot 2'
+      text_before_r16: |-
+        vendor = the organisation the page names as supplying the GenAI product or service, verbatim. If none is named but tool_name matches a published lookup table (product -> developer, versioned), fill it deterministically and set `vendor_basis` = lookup, otherwise `stated`.
     - text: |-
         The quote step runs for every activity; skipped items are kept internally and published as "not asked".
       origin: ruling-r3

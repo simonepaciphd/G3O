@@ -14,8 +14,10 @@ from the signed bytes; if the PI amends the candidate, its SHA256 changes and th
 from __future__ import annotations
 
 #: UNSIGNED r16 candidate (RC-D-034 A8.1 a / A8.5 a): built against, not signed. SHA256 of
-#: ``agent-workspace/2026-11-16-overnight/governance/codebook-r16-candidate/codebook.yaml`` (LF bytes; the test fixture copy is committed ``-text``).
-R16_CANDIDATE_SHA256 = "0a87cbe65bf6e68350f805ed05f2a20b4f26ebf43f42877b843063800e524916"
+#: ``agent-workspace/2026-11-16-overnight/governance/codebook-r16-candidate/codebook.yaml`` (CRLF bytes, as r15;
+#: the test fixture copy is committed ``-text``), amended for PI Q167 a (2026-11-16): core.developer rules/1's
+#: lookup sentence moved to ``release.r16_dropped``.
+R16_CANDIDATE_SHA256 = "e049d1a2d96ae786cf1f9adac2a023e2a3b318fdccbcd8541b214b7e67cfac9a"
 
 #: The three ``core.stage_as_of_basis`` step codes of the candidate (``items/core.stage_as_of_basis/values``,
 #: A8.5 a), in candidate order. Equal to the step names of :mod:`g3o.validate.merged_activity_v27`.
