@@ -179,6 +179,36 @@ def test_seeds_file_missing_a_name_is_refused(tmp_path):
         rp.load_seeds(path)
 
 
+@pytest.mark.parametrize(("name", "value", "match"), [
+    ("envelope_usd", float("nan"), "finite"),
+    ("wave4_serper_usd", float("inf"), "finite"),
+    ("wave4_typesafe_usd", -1, "non-negative"),
+    ("wave4_n", 0, "zero"),
+    ("wave4_wall_s", 0, "zero"),
+    ("spike_pages", 0, "zero"),
+])
+def test_a_non_finite_negative_or_zero_divisor_seed_is_refused(tmp_path, name, value, match):
+    raw = json.loads(SYNTHETIC_SEEDS.read_text(encoding="utf-8"))
+    raw["seeds"][name]["value"] = value
+    path = tmp_path / "s.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")  # NaN / Infinity: json.dumps writes them, json.loads reads them
+    with pytest.raises(ValueError, match=match):
+        rp.load_seeds(path)
+
+
+def test_zero_spike_extractor_legs_are_refused_but_a_zero_spend_seed_loads(tmp_path):
+    raw = json.loads(SYNTHETIC_SEEDS.read_text(encoding="utf-8"))
+    raw["seeds"]["wave4_unlocker_usd"]["value"] = 0  # a spend may be zero (no divisor)
+    path = tmp_path / "s.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    assert rp.load_seeds(path)["wave4_unlocker_usd"].value == 0.0
+    for leg in ("spike_h_span_usd", "spike_h_pq_usd", "spike_h_aq_usd"):
+        raw["seeds"][leg]["value"] = 0
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    with pytest.raises(ValueError, match="first-round share"):
+        rp.load_seeds(path)
+
+
 def test_standard_usd_from_tokens_uses_the_up_to_threshold_standard_rates():
     part = {"model": "claude-haiku-5-5", "input_tokens": 1_000_000, "output_tokens": 1_000_000,
             "cache_read_input_tokens": 1_000_000, "cache_creation_input_tokens": 1_000_000}
