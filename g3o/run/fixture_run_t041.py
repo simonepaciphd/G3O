@@ -40,6 +40,7 @@ import importlib.util
 import json
 import math
 import os
+import re
 import statistics
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import datetime, timezone
@@ -587,17 +588,33 @@ NO_READER = {
                     "is keyed by a request hash and a jev entry names no page; follow records carry no position "
                     "relative to journal entries; the activity steps (support check, recombine, extra round, "
                     "finalize) are not journaled as events"),
-    "extractor_calls": ("extractor journal entries carry their custom_id, so calls can be attributed to pages, but "
-                        "which calls count as a page's extractor call (the page request only, or also pass 2, "
-                        "extra-round and activity-only requests) is not settled (open question)"),
 }
+#: PI ruling Q205 a: ``extractor_calls`` counts only each page's own extractor request (RC-D-023 C-1 a,
+#: "its own extractor call"): journal entries whose ``custom_id`` is the page request's,
+#: ``make_custom_id(institution_id, url)`` (``g3o/extract/request_v27.py`` ``build_job``;
+#: ``g3o/extract/anthropic_client.py`` ``make_custom_id``: ``x27-`` + 48 hex). Not counted: pass 2
+#: (``x27s-``, ``g3o/extract/pass2_support.py`` ``build_job``), extra rounds (``-x`` suffix) and
+#: activity-only requests (``-a`` suffix, ``g3o/run/presweep/perpage_providers_v27.py``).
+EXTRACTOR_CALLS_ITEM = "extractor_calls"
+#: The shape of a page request ``custom_id`` (no suffix); one matching no fixture page is counted under
+#: :data:`UNATTRIBUTED`, so it shows in the value instead of being dropped.
+PAGE_REQUEST_ID_RE = re.compile(r"^x27-[0-9a-f]{48}$")
+UNATTRIBUTED = "unattributed"
 TELEMETRY_NOTE = ("run telemetry readers (PI ruling Q194 c): followed_urls = every URL the follow leg tried, any "
                   "outcome, in record order, as the fixture's page key (the URL itself when the fixture has no "
                   "such page), from <inst>/follow/state_v27.json `records`; cap_reached = that file's "
-                  "`cap_reached`; pair:<A>|<B> relations = the stored activity_relations with lhs activity named A "
-                  "and rhs named B, exact names and stored direction, relation scope by item "
-                  "(core.activity_segment within_page, core.activity_relation_cross_page cross_page). A missing "
-                  "follow state or relation is not_located. No reader (not_located): "
+                  "`cap_reached`; extractor_calls (PI ruling Q205 a) = per fixture page key, the number of "
+                  "extractor calls journaled (kinds extract and extract_failed) in <inst>/perpage_v27/journal.jsonl "
+                  "whose custom_id is that page's own page request, make_custom_id(institution_id, url) = "
+                  "`x27-` + 48 hex (g3o/extract/request_v27.py build_job); pass 2 (`x27s-`), extra-round (`-x`) "
+                  "and activity-only (`-a`) requests are not counted, pages with no call are left out, and a page "
+                  "request matching no fixture page is counted under `unattributed`; pair:<A>|<B> relations = the "
+                  "stored activity_relations with lhs activity named A and rhs named B (exact names), or, PI "
+                  "ruling Q206 b, the inverse (g3o/common/storage.py RELATION_INVERSE) of a stored B->A relation; "
+                  "a code with no inverse entry is not read in reverse; when the values disagree, their sorted "
+                  "list is the value (it fails); relation scope by item (core.activity_segment within_page, "
+                  "core.activity_relation_cross_page cross_page). A missing follow state, journal or relation is "
+                  "not_located. No reader (not_located): "
                   + "; ".join(f"{k}: {v}" for k, v in NO_READER.items()))
 
 
@@ -608,22 +625,84 @@ def load_run_telemetry(run_dir: Path) -> dict[str, Any]:
     :func:`g3o.run.presweep.follow_v27.state_payload`), None when the run wrote none. Raises
     ``ValueError`` when the file is not UTF-8 JSON, not of the v2.7 state format, or when more
     than one institution of the run has one (a fixture run has one institution).
+
+    ``extractor_requests`` (PI ruling Q205 a): ``{"institution_id", "calls"}``, where ``calls``
+    counts the extractor calls per ``custom_id`` in the institution's per-page request journal
+    (``perpage_v27/journal.jsonl``; kinds ``extract`` and ``extract_failed``, each one call
+    journaled once: an ``extract_rejected`` entry re-files an already journaled ``extract``
+    response, so it is not a further call). None when no institution has that journal. A torn
+    final line is skipped (PI ruling 131.2 a); a corrupt middle line raises ``ValueError``.
     """
     from g3o.common.paths import iter_institution_dirs
     from g3o.run.presweep import follow_v27 as fv
+    from g3o.run.presweep import stage_perpage_v27 as spv
 
-    states = []
+    states, journals = [], []
     for inst_dir in iter_institution_dirs(Path(run_dir)):
         path = inst_dir / fv.FOLLOW_DIR / fv.STATE_FILE
-        if not path.is_file():
-            continue
-        doc = json.loads(path.read_bytes().decode("utf-8"))
-        if not isinstance(doc, dict) or doc.get("format") != fv.STATE_FORMAT:
-            raise ValueError(f"follow state {fv.FOLLOW_DIR}/{fv.STATE_FILE} is not of format {fv.STATE_FORMAT}")
-        states.append(doc)
+        if path.is_file():
+            doc = json.loads(path.read_bytes().decode("utf-8"))
+            if not isinstance(doc, dict) or doc.get("format") != fv.STATE_FORMAT:
+                raise ValueError(f"follow state {fv.FOLLOW_DIR}/{fv.STATE_FILE} is not of format {fv.STATE_FORMAT}")
+            states.append(doc)
+        journal = inst_dir / spv.WORK_DIR / spv.JOURNAL
+        if journal.is_file():
+            journals.append({"institution_id": inst_dir.name, "calls": _extractor_calls_by_id(journal)})
     if len(states) > 1:
         raise ValueError(f"{len(states)} institutions have a follow state; a fixture run has one")
-    return {"follow_state": states[0] if states else None}
+    if len(journals) > 1:
+        raise ValueError(f"{len(journals)} institutions have a per-page journal; a fixture run has one")
+    return {"follow_state": states[0] if states else None,
+            "extractor_requests": journals[0] if journals else None}
+
+
+#: The journal kinds of an extractor call (``stage_validate_v27._LIVE_EXTRACT_KINDS``).
+_EXTRACTOR_CALL_KINDS = ("extract", "extract_failed")
+
+
+def _extractor_calls_by_id(path: Path) -> dict[str, int]:
+    """Extractor calls per ``custom_id`` in one request journal (:func:`load_run_telemetry`)."""
+    calls: dict[str, int] = {}
+    lines = path.read_bytes().split(b"\n")
+    for n, line in enumerate(lines):
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            if n == len(lines) - 1:  # torn final record
+                break
+            raise ValueError(f"corrupt journal line {n + 1}: {path.parent.name}/{path.name}") from None
+        if not isinstance(entry, dict) or entry.get("kind") not in _EXTRACTOR_CALL_KINDS:
+            continue
+        cid = (entry.get("response") or {}).get("custom_id")
+        if isinstance(cid, str):
+            calls[cid] = calls.get(cid, 0) + 1
+    return calls
+
+
+def locate_extractor_calls(telemetry: Mapping[str, Any] | None,
+                           page_urls: Mapping[str, str]) -> tuple[bool, Any]:
+    """``(found, value)`` of ``extractor_calls`` (PI ruling Q205 a): per fixture page key, the calls
+    of that page's own page request (:data:`EXTRACTOR_CALLS_ITEM`); pages with none are left out; a
+    page request matching no fixture page is counted under :data:`UNATTRIBUTED`."""
+    from g3o.extract.anthropic_client import make_custom_id
+
+    requests = (telemetry or {}).get("extractor_requests")
+    if not isinstance(requests, Mapping) or not isinstance(requests.get("calls"), Mapping):
+        return False, None
+    inst_id, calls = str(requests.get("institution_id")), requests["calls"]
+    out: dict[str, int] = {}
+    attributed = set()
+    for key, url in page_urls.items():
+        cid = make_custom_id(inst_id, url)
+        attributed.add(cid)
+        if calls.get(cid):
+            out[key] = int(calls[cid])
+    other = sum(int(n) for cid, n in calls.items() if cid not in attributed and PAGE_REQUEST_ID_RE.match(cid))
+    if other:
+        out[UNATTRIBUTED] = other
+    return True, out
 
 
 def _page_key(url: str, page_urls: Mapping[str, str]) -> str:
@@ -663,11 +742,15 @@ def locate_pair(storage: Mapping[str, Any], item: str, names: str) -> tuple[bool
     """``(found, value)`` of a ``pair:<A>|<B>`` relation from the stored ``activity_relations``.
 
     A and B are matched to activity rows by exact ``core.activity_name`` (pairs need two
-    activities, so Q202 c leaves them on exact names); the relation is the one stored with
-    its lhs final activity named A and its rhs named B (direction as stored, no inverse read)
-    and the relation scope of ``item`` (:data:`RELATION_SCOPE_OF_ITEM`). Several distinct
-    stored relations for the pair are returned as their sorted list (so the value fails visibly).
+    activities, so Q202 c leaves them on exact names); the relation scope is that of ``item``
+    (:data:`RELATION_SCOPE_OF_ITEM`). The values are the relations stored A->B, together with
+    the inverse (``g3o.common.storage.RELATION_INVERSE``) of each relation stored B->A (PI ruling
+    Q206 b); a B->A code with no inverse entry gives nothing. When these agree there is one
+    value (a stored A->B relation needs no inverse); when they disagree, or several are stored,
+    their sorted list is the value (so it fails visibly).
     """
+    from g3o.common.storage import RELATION_INVERSE
+
     rel_scope = RELATION_SCOPE_OF_ITEM.get(item)
     lhs, sep, rhs = names.partition("|")
     if rel_scope is None or not sep or not lhs or not rhs or "|" in rhs:
@@ -677,17 +760,22 @@ def locate_pair(storage: Mapping[str, Any], item: str, names: str) -> tuple[bool
     right = {aid for aid, row in acts.items() if _row_values(row).get(ACTIVITY_NAME) == rhs}
     if not left or not right:
         return False, None
-    found = sorted({rel.get("relation") for row in acts.values() for rel in (row.get("activity_relations") or ())
-                    if isinstance(rel, Mapping) and rel.get("relation_scope") == rel_scope
-                    and rel.get("lhs_final_activity_id") in left and rel.get("rhs_final_activity_id") in right},
-                   key=str)
+    rels = [rel for row in acts.values() for rel in (row.get("activity_relations") or ())
+            if isinstance(rel, Mapping) and rel.get("relation_scope") == rel_scope]
+    direct = {rel.get("relation") for rel in rels
+              if rel.get("lhs_final_activity_id") in left and rel.get("rhs_final_activity_id") in right}
+    inverse = {RELATION_INVERSE[rel["relation"]] for rel in rels
+               if rel.get("lhs_final_activity_id") in right and rel.get("rhs_final_activity_id") in left
+               and rel.get("relation") in RELATION_INVERSE}
+    found = sorted(direct | inverse, key=str)
     if not found:
         return False, None
     return True, found[0] if len(found) == 1 else found
 
 
 def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
-               page_urls: Mapping[str, str], telemetry: Mapping[str, Any] | None = None) -> tuple[bool, Any]:
+               page_urls: Mapping[str, str], telemetry: Mapping[str, Any] | None = None, *,
+               single_activity: bool = True) -> tuple[bool, Any]:
     """``(found, value)`` of one expected value in a ``6_storage.json`` document or, for run
     telemetry, in the run records (``telemetry``: :func:`load_run_telemetry`).
 
@@ -697,7 +785,9 @@ def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
     ``activity`` -> when the run produced exactly one activity, that activity whatever its
     name; with several, the activity row named so (``core.activity_name``), not located when
     none is or the scope names none (PI ruling Q202 c; the expected name itself is checked as
-    its own value, :func:`expected_values`).
+    its own value, :func:`expected_values`). ``single_activity=False`` (review L2 with PI ruling
+    Q207 b; :func:`single_activity_fallback`) switches the fallback off for a named scope: exact
+    name match only, whatever the number of activities.
     ``pair:<A>|<B>`` -> :func:`locate_pair`. The follow items (:data:`FOLLOW_ITEMS`, institution
     scope) -> :func:`locate_follow` (PI ruling Q194 c). Any other scope or telemetry item
     (:data:`NO_READER` among them) is not located: no reader is defined for it here.
@@ -708,6 +798,8 @@ def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
     kind, _, name = scope.partition(":")
     if item in FOLLOW_ITEMS:
         return locate_follow(item, telemetry, page_urls) if scope == "institution" else (False, None)
+    if item == EXTRACTOR_CALLS_ITEM:
+        return locate_extractor_calls(telemetry, page_urls) if scope == "institution" else (False, None)
     if not storage:
         return False, None
     if kind == "pair":
@@ -721,9 +813,9 @@ def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
             rows = [r for r in (storage.get("sources") or {}).values() if _row_values(r).get(SOURCE_URL) == url]
     elif kind == "activity":
         acts = list((storage.get("activities") or {}).values())
-        if len(acts) == 1:  # PI ruling Q202 c: the only activity, whatever its name
+        if len(acts) == 1 and (single_activity or not name):  # Q202 c: the only activity, whatever its name
             rows = acts
-        elif name:  # several activities: exact name match only (Q202 c)
+        elif name:  # several activities, or the fallback off (Q207 b / review L2): exact name match only
             rows = [r for r in acts if _row_values(r).get(ACTIVITY_NAME) == name]
     for row in rows:
         values = _row_values(row)
@@ -736,20 +828,39 @@ def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
 ACTIVITY_NAME = "core.activity_name"
 NAME_CHECK_RULE = ("PI ruling Q202 c: the activity name an activity:<name> scope expects, checked as its own value "
                    "(with one activity in the run, the other values of that scope are compared against it whatever "
-                   "its name)")
+                   "its name); PI ruling Q207 b: reported, not counted toward the fixture's or its A-IDs' status")
+#: Review L1 (with PI ruling Q207 b): activity scopes whose name is a test handle, not an expected activity
+#: name, so they get no derived name value. Listed by (fixture id, scope): the two the Q207 text names. The
+#: fixture format has no placeholder field (adding one touches the generated fixture set), and no name pattern
+#: separates ``pilot`` from a real activity name, so the list is explicit.
+PLACEHOLDER_ACTIVITY_SCOPES = frozenset({("v27-syn-A021-16", "activity:a0"), ("v27-syn-A021-09", "activity:pilot")})
+
+
+def _activity_scope_names(fixture: Mapping[str, Any]) -> set[str]:
+    return {name for e in fixture.get("expected") or () for kind, _, name in [str(e["scope"]).partition(":")]
+            if kind == "activity" and name}
+
+
+def single_activity_fallback(fixture: Mapping[str, Any]) -> bool:
+    """Whether the Q202 c single-activity fallback applies to the fixture's named activity scopes:
+    not when it names two or more distinct ``activity:<name>`` scopes (review L2, PI ruling Q207 b),
+    or one activity's values could pass against another's."""
+    return len(_activity_scope_names(fixture)) < 2
 
 
 def expected_values(fixture: Mapping[str, Any]) -> list[dict[str, Any]]:
     """The fixture's expected values, then one derived name value per activity name its
     ``activity:<name>`` scopes expect (PI ruling Q202 c), unless the fixture already expects
     ``core.activity_name`` at that scope. A derived value has ``derived`` set to
-    :data:`NAME_CHECK_RULE`; pair scopes add none (they match names exactly)."""
+    :data:`NAME_CHECK_RULE`; pair scopes and the placeholder scopes
+    (:data:`PLACEHOLDER_ACTIVITY_SCOPES`, review L1) add none."""
     out = [dict(e) for e in fixture["expected"]]
     have = {(e["item"], str(e["scope"])) for e in out}
     for e in fixture["expected"]:
         scope = str(e["scope"])
         kind, _, name = scope.partition(":")
-        if kind == "activity" and name and (ACTIVITY_NAME, scope) not in have:
+        if (kind == "activity" and name and (ACTIVITY_NAME, scope) not in have
+                and (fixture.get("fixture_id"), scope) not in PLACEHOLDER_ACTIVITY_SCOPES):
             have.add((ACTIVITY_NAME, scope))
             out.append({"item": ACTIVITY_NAME, "scope": scope, "value": name, "derived": NAME_CHECK_RULE})
     return out
@@ -760,7 +871,9 @@ def compare_fixture(fixture: Mapping[str, Any], got: Callable[[Mapping[str, Any]
     """Per expected value ``pass`` / ``fail`` / ``not_located``, and per A-ID a status.
 
     The values are :func:`expected_values`: the fixture's own, then the derived activity-name
-    values of PI ruling Q202 c (``index`` None, ``derived`` the rule).
+    values of PI ruling Q202 c (``index`` None, ``derived`` the rule). PI ruling Q207 b: a derived
+    value is reported with its own pass / fail but does not count toward the fixture's or its
+    A-IDs' status (``counted`` False on its row).
 
     Fixture status (review M5): ``fail`` when any value failed (or, with
     ``unlocated='fail'``, any was not located); ``pass`` only when EVERY value passed;
@@ -779,9 +892,9 @@ def compare_fixture(fixture: Mapping[str, Any], got: Callable[[Mapping[str, Any]
         row = {"index": k if k < n_own else None, "item": e["item"], "scope": e["scope"], "expected": e["value"],
                "got": value if found else None, "status": status}
         if "derived" in e:
-            row["derived"] = e["derived"]
+            row["derived"], row["counted"] = e["derived"], False
         rows.append(row)
-    statuses = {r["status"] for r in rows}
+    statuses = {r["status"] for r in rows if r.get("counted", True)}
     if FAIL in statuses or (unlocated == FAIL and NOT_LOCATED in statuses):
         overall = FAIL
     elif statuses == {PASS}:
@@ -1076,8 +1189,10 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
                 errors.append(f"run records unreadable: {type(exc).__name__}: {exc}")
         page_urls = {p["page_key"]: p["url"] for p in pages}
         try:  # review L4: a comparison error after the paid run is a fixture result, never raised
-            result = compare_fixture(fixture, lambda e, s=storage, u=page_urls, t=telemetry: locate_got(s, e, u, t),
-                                     unlocated=unlocated)
+            one = single_activity_fallback(fixture)
+            result = compare_fixture(
+                fixture, lambda e, s=storage, u=page_urls, t=telemetry, o=one: locate_got(s, e, u, t, single_activity=o),
+                unlocated=unlocated)
         except Exception as exc:
             errors.append(f"comparison failed: {type(exc).__name__}: {exc}")
             result = _uncompared_result(fixture)
@@ -1294,7 +1409,7 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
                          f"min {x['probability_min']} / median {x['probability_median']} / max {x['probability_max']}")
         for e in r["expected"]:
             lines.append(f"- [{e['status']}] {e['item']} @ {e['scope']}: expected {e['expected']!r}, got {e['got']!r}"
-                         + (" (derived: Q202 c name check)" if e.get("derived") else ""))
+                         + (" (derived: Q202 c name check; not counted, Q207 b)" if e.get("derived") else ""))
     lines += [
         "",
         "## Comparison",
@@ -1317,8 +1432,8 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
 __all__ = [
     "F6C_LINE", "GROUPS", "QUOTE_MATCH_LIMITS", "RunRefused", "a_id_summary", "compare_fixture",
     "estimate", "expected_values", "fixture_fetch", "fixture_group", "fixture_pages", "force_sync", "format_estimate", "interrupted_run",
-    "journal_cost", "journal_x35_calls", "load_fixtures", "load_run_telemetry", "locate_follow", "locate_got",
-    "locate_pair", "materialise", "not_run_result",
-    "plan_fixture", "price_run_root", "report_skeleton", "require_live_gates", "run_live", "searched_page_keys", "select_fixtures", "validate_fixture", "values_equal",
+    "journal_cost", "journal_x35_calls", "load_fixtures", "load_run_telemetry", "locate_extractor_calls",
+    "locate_follow", "locate_got", "locate_pair", "materialise", "not_run_result",
+    "plan_fixture", "price_run_root", "report_skeleton", "require_live_gates", "run_live", "searched_page_keys", "select_fixtures", "single_activity_fallback", "validate_fixture", "values_equal",
     "write_outputs", "x35_summary",
 ]

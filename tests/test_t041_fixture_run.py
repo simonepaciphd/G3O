@@ -396,7 +396,9 @@ def test_q202c_name_is_checked_as_its_own_value():
     assert [e["status"] for e in same["expected"]] == [fr.PASS] * 4 and same["status"] == fr.PASS
     other = run("Ask Kira chatbot")  # the one activity is compared; only the name value fails
     assert [e["status"] for e in other["expected"]] == [fr.PASS, fr.PASS, fr.PASS, fr.FAIL]
-    assert other["status"] == fr.FAIL
+    # PI ruling Q207 b: the derived name value is reported but not counted toward the status
+    assert other["status"] == fr.PASS and other["a_ids"] == {"A-011": fr.PASS}
+    assert other["expected"][3]["counted"] is False and "counted" not in other["expected"][0]
     name_row = other["expected"][3]
     assert name_row["index"] is None and name_row["derived"] == fr.NAME_CHECK_RULE
     assert name_row["got"] == "Ask Kira chatbot"
@@ -698,7 +700,7 @@ def _write_follow_state(run_dir, inst_id, tried, *, cap_reached=False):
 def test_q194c_follow_state_reads_followed_urls_and_cap_reached(tmp_path):
     fixture = _synthetic("v27-syn-A004-05")
     urls = {p["page_key"]: p["url"] for p in fixture["pages"]}
-    assert fr.load_run_telemetry(tmp_path) == {"follow_state": None}
+    assert fr.load_run_telemetry(tmp_path) == {"follow_state": None, "extractor_requests": None}
     _write_follow_state(tmp_path, "INST-SYN-0034", [(urls["p1"], "fetch_failed"),
                                                     ("https://elsewhere.example/x", "fetched")], cap_reached=True)
     telemetry = fr.load_run_telemetry(tmp_path)
@@ -746,9 +748,12 @@ def test_q194c_pair_relations_from_activity_relations():
     seg = "core.activity_segment"
     assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira|Smart Kingsford AI Programme"}, {}) == (
         True, "component_of_program")
-    # direction as stored: the reverse pair is not read as the inverse relation
+    # PI ruling Q206 b: the reverse pair reads the inverse (storage.RELATION_INVERSE) of the stored relation
     assert fr.locate_got(storage, {"item": seg, "scope": "pair:Smart Kingsford AI Programme|Ask Kira"}, {}) == (
-        False, None)
+        True, "has_component")
+    # a code with no inverse entry is not read in reverse
+    reverse_cross = {"item": "core.activity_relation_cross_page", "scope": "pair:Copilot finance pilot|Ask Kira"}
+    assert fr.locate_got(storage, reverse_cross, {}) == (False, None)
     # the relation scope follows the item: a cross-page relation is not a core.activity_segment value
     assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira|Copilot finance pilot"}, {}) == (False, None)
     cross = {"item": "core.activity_relation_cross_page", "scope": "pair:Ask Kira|Copilot finance pilot"}
@@ -767,7 +772,100 @@ def test_q194c_items_without_a_reader_stay_not_located(tmp_path):
     for item in fr.NO_READER:
         for scope in ("institution", "activity:a0"):
             assert fr.locate_got(storage, {"item": item, "scope": scope}, {}, telemetry) == (False, None)
-    assert set(fr.NO_READER) == {"event_order", "extractor_calls"}
+    assert set(fr.NO_READER) == {"event_order"}
+
+
+def test_q206b_stored_direction_and_inverse_agree_or_fail_visibly():
+    from g3o.common.storage import RELATION_INVERSE
+
+    assert RELATION_INVERSE["governs"] == "governed_by"  # the table the reader reuses
+    storage = _activities({"core.activity_name": "Policy"}, {"core.activity_name": "Copilot drafting"})
+    acts, seg = storage["activities"], "core.activity_segment"
+    acts["A1"]["activity_relations"] = [_relation("A1", "A2", "governs")]
+    forward = {"item": seg, "scope": "pair:Policy|Copilot drafting"}
+    reverse = {"item": seg, "scope": "pair:Copilot drafting|Policy"}
+    assert fr.locate_got(storage, forward, {}) == (True, "governs")
+    assert fr.locate_got(storage, reverse, {}) == (True, "governed_by")
+    acts["A2"]["activity_relations"] = [_relation("A2", "A1", "governed_by")]  # both stored and consistent
+    assert fr.locate_got(storage, reverse, {}) == (True, "governed_by")
+    acts["A2"]["activity_relations"] = [_relation("A2", "A1", "distinct_action")]  # stored reverse disagrees
+    assert fr.locate_got(storage, reverse, {}) == (True, ["distinct_action", "governed_by"])
+    assert fr.locate_got(storage, forward, {}) == (True, "governs")  # distinct_action has no inverse entry
+
+
+def _write_perpage_journal(run_dir, inst_id, entries, *, torn=False):
+    from g3o.common.paths import institution_dir
+    from g3o.run.presweep import stage_perpage_v27 as spv
+
+    path = institution_dir(run_dir, inst_id) / spv.WORK_DIR / spv.JOURNAL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [json.dumps({"kind": kind, "key": f"k{n}", "n": 0, "elapsed_ms": 1, "response": {"custom_id": cid}})
+             for n, (kind, cid) in enumerate(entries)]
+    path.write_bytes(("\n".join(lines) + "\n").encode() + (b'{"kind": "extract", "torn' if torn else b""))
+    return path
+
+
+def test_q205a_extractor_calls_count_only_each_pages_own_request(tmp_path):
+    from g3o.extract.anthropic_client import make_custom_id
+    from g3o.run.presweep.perpage_providers_v27 import extra_round_custom_id
+
+    inst = "INST-SYN-0042"
+    urls = {"p0": "https://synthetic.example/p0", "p1": "https://synthetic.example/p1",
+            "p2": "https://synthetic.example/p2"}
+    page_req = {k: make_custom_id(inst, u) for k, u in urls.items()}
+    stray = make_custom_id(inst, "https://elsewhere.example/x")
+    _write_perpage_journal(tmp_path, inst, [
+        ("extract", page_req["p0"]),
+        ("extract", make_custom_id(inst, urls["p0"], prefix="x27s")),  # pass 2: not counted
+        ("extract", extra_round_custom_id(page_req["p0"], [])),  # extra round: not counted
+        ("extract", f"{page_req['p0']}-a0123abcd"),  # activity-only shape: not counted
+        ("extract_failed", page_req["p1"]), ("extract", page_req["p1"]),  # a failed call and its retry: two calls
+        ("extract_rejected", page_req["p1"]),  # re-files the journaled response: no further call
+        ("jev", None), ("x35", None),
+        ("extract", stray),  # a page request matching no fixture page
+    ], torn=True)
+    telemetry = fr.load_run_telemetry(tmp_path)
+    assert telemetry["extractor_requests"]["institution_id"] == inst
+    calls = {"item": "extractor_calls", "scope": "institution", "value": {"p0": 1, "p1": 1}}
+    assert fr.locate_got(None, calls, urls, telemetry) == (True, {"p0": 1, "p1": 2, fr.UNATTRIBUTED: 1})
+    assert fr.locate_got(None, {**calls, "scope": "page:p0"}, urls, telemetry) == (False, None)
+    assert fr.locate_got(None, calls, urls) == (False, None)  # no journal read: behaviour a
+
+    one_each = tmp_path / "one"
+    _write_perpage_journal(one_each, inst, [("extract", page_req["p0"]), ("extract", page_req["p1"])])
+    got = fr.locate_got(None, calls, urls, fr.load_run_telemetry(one_each))
+    assert got == (True, {"p0": 1, "p1": 1}) and fr.values_equal("extractor_calls", calls["value"], got[1])
+
+    corrupt = tmp_path / "corrupt"
+    path = _write_perpage_journal(corrupt, inst, [("extract", page_req["p0"])])
+    path.write_bytes(b"{bad\n" + path.read_bytes())
+    with pytest.raises(ValueError, match="corrupt journal line 1"):
+        fr.load_run_telemetry(corrupt)
+
+
+def test_q207b_l2_two_named_activities_switch_the_fallback_off():
+    two = _fixture([{"item": "core.adoption_stage", "scope": "activity:Chatbot", "value": "pilot"},
+                    {"item": "core.adoption_stage", "scope": "activity:Policy", "value": "in_use"}])
+    one = _fixture([{"item": "core.adoption_stage", "scope": "activity:Chatbot", "value": "pilot"},
+                    {"item": "core.target_users", "scope": "activity:Chatbot", "value": "staff"}])
+    assert fr.single_activity_fallback(two) is False and fr.single_activity_fallback(one) is True
+    storage = _activities({"core.activity_name": "Ask Kira", "core.adoption_stage": "pilot"})
+    named = {"item": "core.adoption_stage", "scope": "activity:Policy"}
+    assert fr.locate_got(storage, named, {}) == (True, "pilot")
+    assert fr.locate_got(storage, named, {}, single_activity=False) == (False, None)
+    exact = _activities({"core.activity_name": "Policy", "core.adoption_stage": "in_use"})
+    assert fr.locate_got(exact, named, {}, single_activity=False) == (True, "in_use")
+    bare = {"item": "core.adoption_stage", "scope": "activity"}  # a bare scope still takes the only activity
+    assert fr.locate_got(storage, bare, {}, single_activity=False) == (True, "pilot")
+
+
+def test_q207b_l1_placeholder_scopes_get_no_derived_name_value():
+    for fixture_id, scope in (("v27-syn-A021-16", "activity:a0"), ("v27-syn-A021-09", "activity:pilot")):
+        fixture = _synthetic(fixture_id)
+        assert any(str(e["scope"]) == scope for e in fixture["expected"])
+        assert not any(e.get("derived") for e in fr.expected_values(fixture))
+    same_scope_elsewhere = _fixture([{"item": "core.adoption_stage", "scope": "activity:pilot", "value": "pilot"}])
+    assert [e.get("derived") for e in fr.expected_values(same_scope_elsewhere)] == [None, fr.NAME_CHECK_RULE]
 
 
 def test_q194c_run_live_reads_telemetry_and_keeps_a_malformed_state_out_of_errors(tmp_path):
