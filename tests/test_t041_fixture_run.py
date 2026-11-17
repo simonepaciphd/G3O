@@ -156,7 +156,8 @@ def test_dry_run_is_the_default_and_makes_no_call(tmp_path, monkeypatch, capsys)
     assert len(plan["plans"]) == 66 and plan["estimate"]["fixtures_runnable"] == 32
     report = out["report"].read_text(encoding="utf-8")
     assert fr.F6C_LINE in report
-    assert fr.existing_live_outputs(tmp_path) == []  # review M2: a dry run never writes live files and all(limit in report for limit in fr.QUOTE_MATCH_LIMITS)
+    assert fr.existing_live_outputs(tmp_path) == []  # review M2: a dry run never writes live files
+    assert fr.QUOTE_MATCH_LIMITS and all(limit in report for limit in fr.QUOTE_MATCH_LIMITS)  # review LOW-1
 
 
 @pytest.mark.parametrize("extra", [[], ["--max-usd", "5"], ["--runtime", "rt.json"], ["--max-usd", "0", "--runtime",
