@@ -338,21 +338,20 @@ def stage_as_of_basis(chosen: Sequence[DatedObservation]) -> str:
     """A8.5 a (UNSIGNED r16 candidate): ``core.stage_as_of_basis``, the rule step of the chosen ``stage_as_of``.
 
     ``chosen`` is what :func:`merged_stage_as_of` returns (the pooled observations carrying the activity's
-    date). One step: its code (``publication`` / ``stated`` / ``access``). Observations carrying the same
-    date by different steps (e.g. a year-only publication date ``2024`` and a stated year ``2024``): the
-    candidate does not say which basis the activity takes, so :class:`UnruledMergeError` (a PI question;
-    the institution is held). Nothing is guessed.
+    date). One step: its code (``publication`` / ``stated`` / ``access``). PI ruling Q168 a (2026-11-16):
+    observations carrying the same date by different steps (e.g. a year-only publication date ``2024`` and a
+    stated year ``2024``) take the first of those steps in the rule order publication, then stated, then
+    access (:data:`r16.STAGE_AS_OF_BASIS_CODES`, the A8.3/A8.4 step order); before Q168 a this held the
+    institution as unruled. A step that is not an r16 code is malformed (:class:`MalformedA8Value`).
     """
     if not chosen:
         raise MalformedA8Value(STAGE_AS_OF_BASIS, PRODUCER, "no observation carries the stage_as_of date")
-    steps = sorted({d.step for d in chosen})
-    if len(steps) != 1:
-        raise UnruledMergeError(STAGE_AS_OF_BASIS, f"observations dated {chosen[0].date!r} reach it by different "
-                                                   f"steps {steps}")
-    step = steps[0]
-    if step not in r16.STAGE_AS_OF_BASIS_CODES:
-        raise MalformedA8Value(STAGE_AS_OF_BASIS, PRODUCER, f"step {step!r} is not an r16 stage_as_of_basis code")
-    return step
+    steps = {d.step for d in chosen}
+    for step in sorted(steps):
+        if step not in r16.STAGE_AS_OF_BASIS_CODES:
+            raise MalformedA8Value(STAGE_AS_OF_BASIS, PRODUCER,
+                                   f"step {step!r} is not an r16 stage_as_of_basis code")
+    return next(code for code in r16.STAGE_AS_OF_BASIS_CODES if code in steps)  # Q168 a: first in rule order
 
 
 def merged_date_upper_bound(inst: Any, chosen: Sequence[DatedObservation]) -> str:

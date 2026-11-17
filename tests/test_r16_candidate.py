@@ -91,9 +91,23 @@ def test_stage_as_of_basis_is_the_chosen_step(step):
     assert ma.stage_as_of_basis([_dated(step), _dated(step, oid="o2")]) == step
 
 
-def test_stage_as_of_basis_with_mixed_steps_is_unruled():
-    with pytest.raises(ma.UnruledMergeError):
-        ma.stage_as_of_basis([_dated(ma.STEP_PUBLICATION, "2024"), _dated(ma.STEP_STATED, "2024", "o2")])
+# PI ruling Q168 a (2026-11-16): mixed steps on one date take the first step in the rule order
+# publication, then stated, then access (was: held as unruled).
+@pytest.mark.parametrize(("steps", "expect"), [
+    ((ma.STEP_PUBLICATION, ma.STEP_STATED), ma.STEP_PUBLICATION),
+    ((ma.STEP_STATED, ma.STEP_PUBLICATION), ma.STEP_PUBLICATION),
+    ((ma.STEP_ACCESS, ma.STEP_STATED), ma.STEP_STATED),
+    ((ma.STEP_ACCESS, ma.STEP_PUBLICATION), ma.STEP_PUBLICATION),
+    ((ma.STEP_ACCESS, ma.STEP_STATED, ma.STEP_PUBLICATION), ma.STEP_PUBLICATION),
+])
+def test_stage_as_of_basis_with_mixed_steps_takes_the_first_in_rule_order_q168a(steps, expect):
+    chosen = [_dated(step, "2024", f"o{n}") for n, step in enumerate(steps)]
+    assert ma.stage_as_of_basis(chosen) == expect
+
+
+def test_stage_as_of_basis_with_mixed_steps_still_refuses_an_unknown_step_q168a():
+    with pytest.raises(ma.MalformedA8Value):
+        ma.stage_as_of_basis([_dated(ma.STEP_PUBLICATION, "2024"), _dated("metadata", "2024", "o2")])
 
 
 def test_stage_as_of_basis_refuses_an_empty_choice_and_an_unknown_step():
