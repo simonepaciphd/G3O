@@ -226,8 +226,9 @@ def test_run_live_with_fakes_compares_records_x35_and_stops_at_the_cap(tmp_path)
         assert live.extractor_mode == NO_BATCH
         (inst_id, pages), = scraped.items()
         assert [p.url for p in pages] == [url]
-        assert live.follow_fetch(url).outcome == "FETCHED"
-        assert live.follow_fetch("https://elsewhere.example/").outcome == "FETCH_FAILED"
+        # the follow leg's own codes (g3o.scrape.follow.OUTCOMES); "FETCHED" was refused as unknown
+        assert live.follow_fetch(url).outcome == "fetched"
+        assert live.follow_fetch("https://elsewhere.example/").outcome == "fetch_failed"
         assert live.entail_fn is x35  # review M4: the X35 client is passed through unwrapped
         journal = svv.RequestJournal(institution_dir(run_dir, inst_id) / svv.WORK_DIR / svv.JOURNAL)
         entail = journal.seams({"x35_model": "m"})[1](live.entail_fn)
@@ -1069,6 +1070,21 @@ def test_materialise_writes_an_official_site_record_the_loader_accepts(tmp_path,
         assert inst_id in sites.no_site
     else:
         assert sites.hosts[inst_id] == "synthetic.example"
+
+
+def test_materialise_records_a_v27_run_so_record_run_pipeline_accepts_it(tmp_path):
+    """Found by the T-041 mocked e2e (scripts/t041_mock_e2e.py): without ``config.pipeline_version`` the real
+    ``run_v27_dispatch`` refused every fixture run directory at ``record_run_pipeline``."""
+    from g3o.run.presweep.config import PIPELINE_V27
+    from g3o.run.presweep.planning import record_run_pipeline
+
+    fixture = _fixture([])
+    fr.materialise(tmp_path, fixture, fr.fixture_pages(fixture), searched_policy=fr.SEARCHED_UNLINKED,
+                   official_policy=fr.OFFICIAL_PAGE_HOST, access_date="2026-11-17")
+    manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["config"] == {"pipeline_version": PIPELINE_V27}
+    assert record_run_pipeline(tmp_path, pipeline_version=PIPELINE_V27, instrument_id="i-1") == {
+        "pipeline_version": PIPELINE_V27, "instrument_id": "i-1"}
 
 
 def test_page_host_warning_is_printed_for_real_fixtures(tmp_path, monkeypatch, capsys):
