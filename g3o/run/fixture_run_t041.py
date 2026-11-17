@@ -607,8 +607,11 @@ TELEMETRY_NOTE = ("run telemetry readers (PI ruling Q194 c): followed_urls = eve
                   "extractor calls journaled (kinds extract and extract_failed) in <inst>/perpage_v27/journal.jsonl "
                   "whose custom_id is that page's own page request, make_custom_id(institution_id, url) = "
                   "`x27-` + 48 hex (g3o/extract/request_v27.py build_job); pass 2 (`x27s-`), extra-round (`-x`) "
-                  "and activity-only (`-a`) requests are not counted, pages with no call are left out, and a page "
-                  "request matching no fixture page is counted under `unattributed`; pair:<A>|<B> relations = the "
+                  "and activity-only (`-a`) requests are not counted, pages with no call are left out; a page "
+                  "request is also attributed through a URL the follow leg tried that is the same page by the "
+                  "same-URL key when exactly one fixture page shares that key (re-review L2), else it is counted "
+                  "under `unattributed`; a call that died without a response is not journaled (PI ruling 131.1 b), "
+                  "so extractor_calls can under-count retries; pair:<A>|<B> relations = the "
                   "stored activity_relations with lhs activity named A and rhs named B (exact names), or, PI "
                   "ruling Q206 b, the inverse (g3o/common/storage.py RELATION_INVERSE) of a stored B->A relation; "
                   "a code with no inverse entry is its own inverse, as storage reads it; when the values disagree, their sorted "
@@ -685,21 +688,36 @@ def locate_extractor_calls(telemetry: Mapping[str, Any] | None,
                            page_urls: Mapping[str, str]) -> tuple[bool, Any]:
     """``(found, value)`` of ``extractor_calls`` (PI ruling Q205 a): per fixture page key, the calls
     of that page's own page request (:data:`EXTRACTOR_CALLS_ITEM`); pages with none are left out; a
-    page request matching no fixture page is counted under :data:`UNATTRIBUTED`."""
+    page request matching no fixture page is counted under :data:`UNATTRIBUTED`.
+
+    The custom_id is a hash of the URL, so the URL forms tried are the fixture page URLs and the
+    URLs the follow leg tried (the follow state's ``records``; a followed page's request is built
+    from that URL). A tried URL that is not a fixture page URL is attributed to the page
+    :func:`_page_key` gives it (same-URL key, exactly one matching page: re-review L2 / review L3);
+    otherwise its calls stay under :data:`UNATTRIBUTED`."""
     from g3o.extract.anthropic_client import make_custom_id
 
     requests = (telemetry or {}).get("extractor_requests")
     if not isinstance(requests, Mapping) or not isinstance(requests.get("calls"), Mapping):
         return False, None
     inst_id, calls = str(requests.get("institution_id")), requests["calls"]
+    key_of_cid = {make_custom_id(inst_id, url): key for key, url in page_urls.items()}
+    state = (telemetry or {}).get("follow_state")
+    records = state.get("records") if isinstance(state, Mapping) else None
+    for rec in records if isinstance(records, list) else ():
+        url = rec.get("url") if isinstance(rec, Mapping) else None
+        if not isinstance(url, str) or not url:
+            continue
+        key = _page_key(url, page_urls)
+        if key in page_urls:
+            key_of_cid.setdefault(make_custom_id(inst_id, url), key)
     out: dict[str, int] = {}
-    attributed = set()
-    for key, url in page_urls.items():
-        cid = make_custom_id(inst_id, url)
-        attributed.add(cid)
-        if calls.get(cid):
-            out[key] = int(calls[cid])
-    other = sum(int(n) for cid, n in calls.items() if cid not in attributed and PAGE_REQUEST_ID_RE.match(cid))
+    other = 0
+    for cid, n in calls.items():
+        if cid in key_of_cid:
+            out[key_of_cid[cid]] = out.get(key_of_cid[cid], 0) + int(n)
+        elif PAGE_REQUEST_ID_RE.match(cid):
+            other += int(n)
     if other:
         out[UNATTRIBUTED] = other
     return True, out
@@ -775,7 +793,7 @@ def locate_pair(storage: Mapping[str, Any], item: str, names: str) -> tuple[bool
 
 def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
                page_urls: Mapping[str, str], telemetry: Mapping[str, Any] | None = None, *,
-               single_activity: bool = True) -> tuple[bool, Any]:
+               single_activity: bool = False) -> tuple[bool, Any]:
     """``(found, value)`` of one expected value in a ``6_storage.json`` document or, for run
     telemetry, in the run records (``telemetry``: :func:`load_run_telemetry`).
 
@@ -787,7 +805,8 @@ def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
     none is or the scope names none (PI ruling Q202 c; the expected name itself is checked as
     its own value, :func:`expected_values`). ``single_activity=False`` (review L2 with PI ruling
     Q207 b; :func:`single_activity_fallback`) switches the fallback off for a named scope: exact
-    name match only, whatever the number of activities.
+    name match only, whatever the number of activities. The default is False (re-review L3, the
+    safe side); a caller that wants the fallback passes ``single_activity=True``.
     ``pair:<A>|<B>`` -> :func:`locate_pair`. The follow items (:data:`FOLLOW_ITEMS`, institution
     scope) -> :func:`locate_follow` (PI ruling Q194 c). Any other scope or telemetry item
     (:data:`NO_READER` among them) is not located: no reader is defined for it here.
@@ -837,14 +856,22 @@ PLACEHOLDER_ACTIVITY_SCOPES = frozenset({("v27-syn-A021-16", "activity:a0"), ("v
 
 
 def _activity_scope_names(fixture: Mapping[str, Any]) -> set[str]:
-    return {name for e in fixture.get("expected") or () for kind, _, name in [str(e["scope"]).partition(":")]
-            if kind == "activity" and name}
+    """The activity names the fixture's scopes name: ``activity:<name>`` and both names of a
+    ``pair:<A>|<B>`` scope (re-review M1)."""
+    names: set[str] = set()
+    for e in fixture.get("expected") or ():
+        kind, _, name = str(e["scope"]).partition(":")
+        if kind == "activity" and name:
+            names.add(name)
+        elif kind == "pair" and name:
+            names.update(n for n in name.split("|") if n)
+    return names
 
 
 def single_activity_fallback(fixture: Mapping[str, Any]) -> bool:
     """Whether the Q202 c single-activity fallback applies to the fixture's named activity scopes:
-    not when it names two or more distinct ``activity:<name>`` scopes (review L2, PI ruling Q207 b),
-    or one activity's values could pass against another's."""
+    not when its scopes name two or more distinct activities, ``pair:<A>|<B>`` names included
+    (review L2, PI ruling Q207 b; re-review M1), or one activity's values could pass against another's."""
     return len(_activity_scope_names(fixture)) < 2
 
 
@@ -1396,7 +1423,10 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
         lines.append(f"| {a} | " + " | ".join(str(counts.get(s, 0)) for s in A_ID_STATUSES) + " |")
     lines += ["", "## Per fixture (expected vs got)"]
     for r in results:
-        lines.append(f"### {r['fixture_id']}: {r['status']}" + (f" ({r.get('reason')})" if r.get("reason") else ""))
+        label = r["status"]
+        if label == PASS and any(e.get("derived") and e.get("status") == FAIL for e in r.get("expected") or ()):
+            label = f"{PASS}; name check failed"  # Q207 b: the uncounted name value failed (status unchanged)
+        lines.append(f"### {r['fixture_id']}: {label}" + (f" ({r.get('reason')})" if r.get("reason") else ""))
         if r.get("error"):
             lines.append(f"- stage stop: {r['error']}")
         if r.get("telemetry_error"):

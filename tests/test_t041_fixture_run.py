@@ -352,7 +352,10 @@ def test_locate_got_by_scope():
     assert fr.locate_got(storage, {"item": "core.page_verdict", "scope": "page:p1"}, urls) == (True, "event_only")
     assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Chatbot"}, urls) == (True, "pilot")
     # PI ruling Q202 c: with exactly one activity in the run, it is compared whatever its name
-    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Other"}, urls) == (True, "pilot")
+    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Other"}, urls,
+                         single_activity=True) == (True, "pilot")
+    # re-review L3: the default is the safe side, exact name match only
+    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Other"}, urls) == (False, None)
     assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity"}, urls) == (True, "pilot")
     # review L1: the page URL must be the source URL field, not any string value of the row
     decoy = {"sources": {"S1": {"values": {"core.source_snippet": "https://x/p0", "core.page_verdict": "no_genai"}}}}
@@ -390,7 +393,7 @@ def test_q202c_name_is_checked_as_its_own_value():
     def run(name):
         storage = {**_activities({"core.activity_name": name, "core.adoption_stage": "pilot",
                                   "core.target_users": "staff"}), "sources": sources}
-        return fr.compare_fixture(fixture, lambda e: fr.locate_got(storage, e, urls))
+        return fr.compare_fixture(fixture, lambda e: fr.locate_got(storage, e, urls, single_activity=True))
 
     same = run("AI chatbot")
     assert [e["status"] for e in same["expected"]] == [fr.PASS] * 4 and same["status"] == fr.PASS
@@ -852,7 +855,8 @@ def test_q207b_l2_two_named_activities_switch_the_fallback_off():
     assert fr.single_activity_fallback(two) is False and fr.single_activity_fallback(one) is True
     storage = _activities({"core.activity_name": "Ask Kira", "core.adoption_stage": "pilot"})
     named = {"item": "core.adoption_stage", "scope": "activity:Policy"}
-    assert fr.locate_got(storage, named, {}) == (True, "pilot")
+    assert fr.locate_got(storage, named, {}, single_activity=True) == (True, "pilot")
+    assert fr.locate_got(storage, named, {}) == (False, None)  # re-review L3: safe default
     assert fr.locate_got(storage, named, {}, single_activity=False) == (False, None)
     exact = _activities({"core.activity_name": "Policy", "core.adoption_stage": "in_use"})
     assert fr.locate_got(exact, named, {}, single_activity=False) == (True, "in_use")
@@ -867,6 +871,47 @@ def test_q207b_l1_placeholder_scopes_get_no_derived_name_value():
         assert not any(e.get("derived") for e in fr.expected_values(fixture))
     same_scope_elsewhere = _fixture([{"item": "core.adoption_stage", "scope": "activity:pilot", "value": "pilot"}])
     assert [e.get("derived") for e in fr.expected_values(same_scope_elsewhere)] == [None, fr.NAME_CHECK_RULE]
+
+
+def test_rereview_m1_pair_names_count_toward_the_l2_safeguard():
+    a003_02 = _synthetic("v27-syn-A003-02")  # GenAI Acceptable Use Policy + Copilot drafting
+    assert {"GenAI Acceptable Use Policy", "Copilot drafting"} <= fr._activity_scope_names(a003_02)
+    assert fr.single_activity_fallback(a003_02) is False
+    one_named = _fixture([{"item": "core.adoption_stage", "scope": "activity:Bot", "value": "pilot"},
+                          {"item": "core.activity_segment", "scope": "pair:Bot|Policy", "value": "governed_by"}])
+    assert fr._activity_scope_names(one_named) == {"Bot", "Policy"} and not fr.single_activity_fallback(one_named)
+    assert fr.single_activity_fallback(_synthetic("v27-syn-A003-04")) is True  # one named activity only
+
+
+def test_rereview_l2_extractor_calls_attributed_through_a_same_url_key_form():
+    from g3o.extract.anthropic_client import make_custom_id
+
+    inst = "INST-SYN-0042"
+    tried = "https://www.synthetic.example/info/"  # the same page as p0 by the same-URL key
+    telemetry = {"extractor_requests": {"institution_id": inst, "calls": {make_custom_id(inst, tried): 1}},
+                 "follow_state": {"records": [{"url": tried}]}}
+    calls = {"item": "extractor_calls", "scope": "institution"}
+    single = {"p0": "https://synthetic.example/info", "p1": "https://synthetic.example/other"}
+    assert fr.locate_got(None, calls, single, telemetry) == (True, {"p0": 1})
+    ambiguous = {"a": "https://synthetic.example/info", "b": "https://synthetic.example/info#top"}
+    assert fr.locate_got(None, calls, ambiguous, telemetry) == (True, {fr.UNATTRIBUTED: 1})
+    no_record = {**telemetry, "follow_state": None}  # the tried URL form is unknown: unattributed
+    assert fr.locate_got(None, calls, single, no_record) == (True, {fr.UNATTRIBUTED: 1})
+
+
+def test_rereview_report_heading_shows_a_failed_uncounted_name_check(tmp_path):
+    fixture = _fixture([{"item": "core.adoption_stage", "scope": "activity:AI chatbot", "value": "pilot"}])
+    storage = _activities({"core.activity_name": "Ask Kira", "core.adoption_stage": "pilot"})
+    result = fr.compare_fixture(fixture, lambda e: fr.locate_got(storage, e, {}, single_activity=True))
+    assert result["status"] == fr.PASS and result["expected"][1]["status"] == fr.FAIL
+    paths = fr.write_outputs(tmp_path, mode="live", plans=[], est={"seed_usd": None}, results=[result],
+                             options={}, spent_usd=0.0, stopped=None)
+    assert "### F-1: pass; name check failed" in paths["report"].read_text(encoding="utf-8")
+    assert json.loads(paths["results"].read_text(encoding="utf-8"))["results"][0]["status"] == fr.PASS
+    assert "### F-1: pass\n" in fr.report_skeleton(
+        mode="live", est={"seed_usd": None}, options={}, spent_usd=0.0, stopped=None,
+        results=[fr.compare_fixture(fixture, lambda e: (True, "pilot") if e["item"] != "core.activity_name"
+                                    else (True, "AI chatbot"))])
 
 
 def test_q194c_run_live_reads_telemetry_and_keeps_a_malformed_state_out_of_errors(tmp_path):
