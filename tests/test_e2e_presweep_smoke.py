@@ -563,8 +563,10 @@ def test_v27_language_id_timing(tmp_path: Path, monkeypatch, capsys):
 # only: Serper (``search_google_detailed``), the fetcher (``scrape_url``), the
 # OpenAI Batch API (Stages 2/3), the TypeSafe SDK client (jev), the ``anthropic``
 # SDK module (extractor), the X35 client seam, and a test-injected per-page
-# builder (ruling 36 a: the default builder is refused at entry while
-# ``MISSING_PRODUCERS`` is non-empty). No stage function is stubbed; the page
+# builder (ruling 36 a refuses the default builder at entry only while
+# ``MISSING_PRODUCERS`` is non-empty; under codebook r16 it is empty, and the
+# test keeps the injected builder for its declared row values, see
+# ``_ExplicitRowValues``). No stage function is stubbed; the page
 # layout is the real one. WITHOUT the follow leg (ruling 132 a: the follow-leg
 # e2e waits for codebook r16 and T-026 P12), so the follow seam returns None.
 
@@ -906,6 +908,7 @@ class _ExplicitRowValues:
             codes[aid] = [code(aid, "core.activity_name", name, sentence), code(aid, "core.tool_name", tool, sentence),
                           code(aid, "core.observed_actor_name", av["core.observed_actor_name"], None),
                           code(aid, "core.contracting_party", av["core.contracting_party"], None),
+                          code(aid, "core.developer", av["core.developer"], None),
                           code(aid, "core.deployment_scale_number", "not_documented", None),
                           code(aid, "core.source_type", sv["core.source_type"], sentence),
                           code(aid, "core.source_publication_date", "not_documented", None),
