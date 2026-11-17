@@ -7,7 +7,8 @@ and the ``T041-REPORT.md`` skeleton, and prints call and token counts with the c
 rate rows. A USD figure is printed only from the projection seeds (``--seeds`` or
 ``$G3O_PROJECTION_SEEDS``, PI Q177 a).
 
-``--live`` is PAID and is run by the PI (red line 4). It also needs ``--max-usd`` and
+``--live`` is PAID and is run by the PI (red line 4). It also needs ``--max-usd`` (a soft
+cap, checked between fixtures: a single fixture can overshoot it by its own cost) and
 ``--runtime FILE`` (a JSON object of every ``RuntimeSettings`` field, as a real v2.7 run's
 ``v27_runtime``), and is refused unless every gate of a real v2.7 run passes. Extractor
 calls are sync (DP-030 / RC-D-001 B).
@@ -42,7 +43,8 @@ DEFAULT_MODELS = {"jev_model": "jev-1.13.0", "extractor_model": "claude-haiku-5-
 def parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--live", action="store_true", help="PAID: make real calls (the PI runs it)")
-    ap.add_argument("--max-usd", type=float, default=None, help="live: stop once journaled spend reaches it")
+    ap.add_argument("--max-usd", type=float, default=None, help="live: USD cap. SOFT: checked between fixtures, so a single fixture can "
+                         "overshoot it by its own cost")
     ap.add_argument("--runtime", type=Path, default=None,
                     help="JSON object of every RuntimeSettings field (required with --live)")
     ap.add_argument("--continue-on-error", action="store_true",

@@ -19,8 +19,9 @@ Two modes:
   ``orchestrator._require_v27_dispatch`` unchanged (codebook / binding pins, the X35
   wording pin and probability source, ruling 36 a on the default per-page builder,
   the credentials). The extractor mode is forced to ``no_batch`` (DP-030 / RC-D-001 B:
-  extractor calls in T-041 are sync). A USD cap (``--max-usd``) is required; the run
-  stops between fixtures once the journaled spend reaches it.
+  extractor calls in T-041 are sync). A USD cap (``--max-usd``) is required. The cap is
+  SOFT: it is checked between fixtures, so the run stops before the next fixture once the
+  journaled spend reaches it, and a single fixture can overshoot it by its own cost.
 
 Each fixture runs in its own run directory, so every journaled call and every X35
 call is attributed to one fixture. Expected vs got is compared per expected value and
@@ -81,6 +82,12 @@ QUOTE_MATCH_LIMITS = (
     "A quote cut inside an unspaced CJK or Thai run is not matched (RC-D-017 1a; PLAN T-041, RC-D-021 R-6 a).",
 )
 #: The T-064 line the T-041 report keeps (PLAN T-064 Verification: DP-064e, no fixtures).
+#: The cap is checked between fixtures only (help text, printed plan and report say so).
+CAP_NOTE = ("the --max-usd cap is soft: it is checked between fixtures, so a single fixture can overshoot "
+            "it by its own cost")
+#: What the up-front seed check covers (printed in the plan).
+SEED_CHECK_NOTE = ("the up-front seed check covers the extractor and jev seed scale only; it excludes X35 and the "
+                   "Stage 6 quote step (no seed for either)")
 F6C_LINE = ("F6 c: calendar years untested. The calendar and fiscal-year conversion of year candidates "
             "(T-064) has no fixture (DP-064e), so this run does not test it.")
 
@@ -422,6 +429,8 @@ def format_estimate(est: Mapping[str, Any]) -> str:
         lines.append(f"  formula: {seed['formula']}")
         lines.extend(f"  {k}: {src}" for k, src in seed["citations"].items())
         lines.append(f"  note: {est['seed_usd_note']}")
+    lines.append(f"cap: {CAP_NOTE}")
+    lines.append(f"seed check: {SEED_CHECK_NOTE}")
     if est["pages_text_unavailable"]:
         lines.append(f"page text unavailable (set {DRIVE_ENV}): {est['pages_text_unavailable']}")
     return "\n".join(lines)
@@ -698,7 +707,8 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, out_dir: P
              continue_on_error: bool = False) -> dict[str, Any]:
     """Run each runnable fixture in its own run directory (PAID). ``dispatch`` must already
     have passed :func:`require_live_gates`. Stops before the next fixture once the
-    journaled spend reaches ``max_usd``, or when a fixture's spend cannot be priced.
+    journaled spend reaches ``max_usd``, or when a fixture's spend cannot be priced. The cap
+    is soft (:data:`CAP_NOTE`): a single fixture can overshoot it by its own cost.
 
     A fixture whose run raised (a stage stop) is recorded as a result. The run then stops
     before the next fixture if that fixture journaled any spend (or its spend cannot be
@@ -806,6 +816,8 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
         "## Cost",
         f"- Estimate: {est_line}",
         "- Actual: " + ("n/a (dry run)" if spent_usd is None else f"${spent_usd:.4f} (request journals)"),
+        f"- Cap: {CAP_NOTE}.",
+        f"- Seed check: {SEED_CHECK_NOTE}.",
         *([f"- {stopped}"] if stopped else []),
         "",
         "## Per A-ID",

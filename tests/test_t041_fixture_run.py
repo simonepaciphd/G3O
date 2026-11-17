@@ -103,6 +103,7 @@ def test_estimate_cites_rate_rows_and_gives_no_usd_without_seeds():
     assert rows["claude-haiku-5-5"]["standard_input_per_1m_usd"] == 0.10
     text = fr.format_estimate(est)
     assert "USD estimate: none" in text and "g3o/common/pricing.py" in text
+    assert fr.CAP_NOTE in text and fr.SEED_CHECK_NOTE in text  # review M1
     unpriced = fr.estimate(plans, jev_model="no-such-model", extractor_model="claude-haiku-5-5",
                            x35_model="claude-haiku-5-5")
     assert unpriced["page_text_input_floor_usd"] is None
@@ -363,6 +364,7 @@ def test_report_skeleton_carries_limits_untested_line_and_per_fixture_rows(tmp_p
     report = paths["report"].read_text(encoding="utf-8")
     assert "curly apostrophe" in report and "CJK or Thai" in report
     assert "calendar years untested" in report
+    assert "overshoot it by its own cost" in report and "excludes X35" in report  # review M1
     assert "| A-011 | 0 | 1 | 0 | 0 |" in report
     assert "expected 'no_genai', got 'confirms_activity'" in report
     assert "$0.1200" in report
