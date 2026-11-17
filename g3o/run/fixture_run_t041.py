@@ -64,6 +64,10 @@ GROUP_PIPELINE = "pipeline"  # synthetic, mode pipeline: page text through jev /
 GROUP_INJECTED = "injected"  # synthetic, mode injected: given answers, deterministic code only
 GROUP_REAL = "real"  # real.json: stored real pages through the new-run path
 GROUPS = (GROUP_PIPELINE, GROUP_INJECTED, GROUP_REAL)
+#: ``institution_search_languages`` written for every fixture institution (PI ruling, fixture languages a,
+#: 2026-11-17): what a default (English-only) run records. No search runs here, so the value is a label;
+#: an empty one is refused by the per-page stage as a malformed identity row (``contract.LANGS_PATTERN``).
+FIXTURE_SEARCH_LANGUAGES = "en"
 #: Fixture kinds never run here (Q184 a: the transfer path moves after T-035).
 EXCLUDED_KINDS = frozenset({"real_transfer"})
 
@@ -1116,7 +1120,7 @@ def materialise(run_dir: Path, fixture: Mapping[str, Any], pages: Sequence[Mappi
         "t041_fixture": fixture["fixture_id"]}, indent=1), encoding="utf-8")
     idir = institution_dir(run_dir, inst_id)
     idir.mkdir(parents=True, exist_ok=True)
-    (idir / INSTITUTION_FILE).write_text(json.dumps({**record, "institution_search_languages": []}, indent=1),
+    (idir / INSTITUTION_FILE).write_text(json.dumps({**record, "institution_search_languages": FIXTURE_SEARCH_LANGUAGES}, indent=1),
                                          encoding="utf-8")
     searched = set(searched_page_keys(pages, searched_policy))
     scraped_pages = [_rendered(p, access_date) for p in pages if p["page_key"] in searched and p["fetch_ok"]]
