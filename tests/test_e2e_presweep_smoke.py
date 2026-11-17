@@ -784,8 +784,9 @@ def _v27_fake_anthropic_module(record: dict[str, list[Any]], *,
 
     batches: dict[str, list[dict[str, Any]]] = {}
 
-    def message(params: dict[str, Any], n: int) -> dict[str, Any]:
-        return {"model": "fake-extractor-response", "id": f"msgb-{n}", "stop_reason": "end_turn",
+    def message(params: dict[str, Any], batch_id: str, n: int) -> dict[str, Any]:
+        # unique across batches (O3-3 review LOW: msgb-<n> repeated in every batch)
+        return {"model": "fake-extractor-response", "id": f"msgb-{batch_id}-{n}", "stop_reason": "end_turn",
                 "usage": {"input_tokens": 100, "output_tokens": 10},
                 "content": [{"type": "text", "text": json.dumps(answer(params))}]}
 
@@ -799,7 +800,7 @@ def _v27_fake_anthropic_module(record: dict[str, list[Any]], *,
     def batch_results(batch_id):
         for n, r in enumerate(batches[batch_id], start=1):
             yield {"custom_id": r["custom_id"],
-                   "result": {"type": "succeeded", "message": message(r["params"], n)}}
+                   "result": {"type": "succeeded", "message": message(r["params"], batch_id, n)}}
 
     class Anthropic:
         def __init__(self, *, api_key=None, **kw):
