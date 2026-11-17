@@ -611,3 +611,12 @@ def test_seeds_file_without_chunk_target_is_a_clean_error(tmp_path, monkeypatch,
     assert not (tmp_path / "out").exists()
     assert fr.missing_seeds({"spike_pages": object()}) == [n for n in fr.T041_SEEDS if n != "spike_pages"]
     assert fr.missing_seeds(None) == []
+
+
+def test_explicit_seeds_path_that_does_not_exist_is_an_error_before_any_write(tmp_path, monkeypatch, capsys):
+    _forbid_live(monkeypatch)  # review LOW-2: only the env-var / default lookup may be silently absent
+    out = tmp_path / "out"
+    rc = _script().main(["--group", "pipeline", "--seeds", str(tmp_path / "nope.json"), "--out-dir", str(out)])
+    assert rc == 2
+    assert capsys.readouterr().err.startswith("error: seeds file unusable")
+    assert not out.exists()

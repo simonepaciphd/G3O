@@ -75,6 +75,8 @@ def parser() -> argparse.ArgumentParser:
 
 
 def _seeds(raw: str | None, drive: Path | None) -> Any:
+    """The projection seeds, or None when none is configured. Only the ``$G3O_PROJECTION_SEEDS`` /
+    default lookup may be absent: an explicit ``--seeds`` that is unavailable raises (review LOW-2)."""
     from g3o.common import run_projection as rp
 
     if raw is not None and not Path(raw).is_absolute() and drive is not None:
@@ -82,6 +84,8 @@ def _seeds(raw: str | None, drive: Path | None) -> Any:
     try:
         return rp.load_seeds(raw)
     except rp.SeedsUnavailable:
+        if raw is not None:
+            raise
         return None
 
 
@@ -113,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
     ft = fr.load_fixture_text_module(FIX)
     try:
         seeds = _seeds(args.seeds, drive)
-    except (ValueError, OSError) as exc:  # review L5: a malformed seeds file is a clean error, not a traceback
+    except (ValueError, OSError, LookupError) as exc:  # review L5 / LOW-2: malformed or missing --seeds, exit 2
         print(f"error: seeds file unusable: {exc}", file=sys.stderr)
         return 2
     if missing := fr.missing_seeds(seeds):
