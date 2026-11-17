@@ -351,8 +351,8 @@ def test_locate_got_by_scope():
     assert fr.locate_got(storage, {"item": "core.has_genai_activity", "scope": "institution"}, urls) == (True, "unclear")
     assert fr.locate_got(storage, {"item": "core.page_verdict", "scope": "page:p1"}, urls) == (True, "event_only")
     assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Chatbot"}, urls) == (True, "pilot")
-    # review L2: a named activity that is absent is not located; only a bare scope takes the only activity
-    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Other"}, urls) == (False, None)
+    # PI ruling Q202 c: with exactly one activity in the run, it is compared whatever its name
+    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Other"}, urls) == (True, "pilot")
     assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity"}, urls) == (True, "pilot")
     # review L1: the page URL must be the source URL field, not any string value of the row
     decoy = {"sources": {"S1": {"values": {"core.source_snippet": "https://x/p0", "core.page_verdict": "no_genai"}}}}
@@ -360,6 +360,54 @@ def test_locate_got_by_scope():
     assert fr.locate_got(storage, {"item": "core.page_verdict", "scope": "page"}, urls) == (False, None)
     assert fr.locate_got(storage, {"item": "x", "scope": "pair:1"}, urls) == (False, None)
     assert fr.locate_got(None, {"item": "x", "scope": "institution"}, urls) == (False, None)
+
+
+def _activities(*rows):
+    return {"summary": {"values": {}}, "sources": {},
+            "activities": {f"A{k}": {"values": values, "activity_relations": []} for k, values in enumerate(rows, 1)}}
+
+
+def test_q202c_several_activities_match_names_exactly():
+    storage = _activities({"core.activity_name": "Chatbot", "core.adoption_stage": "pilot"},
+                          {"core.activity_name": "Copilot", "core.adoption_stage": "in_use"})
+    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Copilot"}, {}) == (True, "in_use")
+    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:chatbot"}, {}) == (False, None)
+    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity"}, {}) == (False, None)
+    assert fr.locate_got(_activities(), {"item": "core.adoption_stage", "scope": "activity:X"}, {}) == (False, None)
+
+
+def test_q202c_name_is_checked_as_its_own_value():
+    fixture = _fixture([{"item": "core.adoption_stage", "scope": "activity:AI chatbot", "value": "pilot"},
+                        {"item": "core.target_users", "scope": "activity:AI chatbot", "value": "staff"},
+                        {"item": "core.page_verdict", "scope": "page:p0", "value": "confirms_activity"}])
+    values = fr.expected_values(fixture)
+    assert len(values) == 4 and values[:3] == fixture["expected"]  # one name value per named activity scope
+    assert values[3] == {"item": "core.activity_name", "scope": "activity:AI chatbot", "value": "AI chatbot",
+                         "derived": fr.NAME_CHECK_RULE}
+    urls = {"p0": "https://synthetic.example/syn-9001/p0"}
+    sources = {"S1": {"values": {"core.source_url": urls["p0"], "core.page_verdict": "confirms_activity"}}}
+
+    def run(name):
+        storage = {**_activities({"core.activity_name": name, "core.adoption_stage": "pilot",
+                                  "core.target_users": "staff"}), "sources": sources}
+        return fr.compare_fixture(fixture, lambda e: fr.locate_got(storage, e, urls))
+
+    same = run("AI chatbot")
+    assert [e["status"] for e in same["expected"]] == [fr.PASS] * 4 and same["status"] == fr.PASS
+    other = run("Ask Kira chatbot")  # the one activity is compared; only the name value fails
+    assert [e["status"] for e in other["expected"]] == [fr.PASS, fr.PASS, fr.PASS, fr.FAIL]
+    assert other["status"] == fr.FAIL
+    name_row = other["expected"][3]
+    assert name_row["index"] is None and name_row["derived"] == fr.NAME_CHECK_RULE
+    assert name_row["got"] == "Ask Kira chatbot"
+
+
+def test_q202c_no_duplicate_name_value_and_none_for_pairs_or_bare_scope():
+    fixture = _fixture([{"item": "core.activity_name", "scope": "activity:Bot", "value": "Bot"},
+                        {"item": "core.adoption_stage", "scope": "activity:Bot", "value": "pilot"},
+                        {"item": "core.adoption_stage", "scope": "activity", "value": "pilot"},
+                        {"item": "core.activity_segment", "scope": "pair:Bot|Policy", "value": "governed_by"}])
+    assert fr.expected_values(fixture) == fixture["expected"]
 
 
 def test_x35_summary_spread_and_agreement():
@@ -620,6 +668,209 @@ def test_x35_summary_from_journals_counts_non_answers_and_failed_calls(tmp_path)
     assert s["n_probability_missing"] == 2 and s["probability_min"] == 0.7
     # the summary counts the same calls the cost report prices (RequestJournal.x35_usages)
     assert len(svv.RequestJournal(path, read_only=True).x35_usages()) == len(calls)
+
+
+# ---------------------------------------------------------------------------
+# Run telemetry readers (PI ruling Q194 c)
+# ---------------------------------------------------------------------------
+
+
+def _write_follow_state(run_dir, inst_id, tried, *, cap_reached=False):
+    """A v2.7 follow state written by the follow leg's own payload function; ``tried`` is
+    ``[(url, outcome), ...]`` in record order."""
+    from g3o.common.paths import institution_dir
+    from g3o.run.presweep import follow_v27 as fv
+    from g3o.scrape import follow as fl
+
+    state = fl.InstitutionFollow(inst_id, "T041-run")
+    state.records = [fl.FollowRecord(institution_id=inst_id, url=url, url_key=url, parent_page_id="P0",
+                                     parent_url="https://synthetic.example/parent", hop=1, link_id=f"L{k}",
+                                     link_quote="", outcome=outcome, fetch_date=None, release_id="T041-run",
+                                     backfill=False, counted=True)
+                     for k, (url, outcome) in enumerate(tried)]
+    state.followed, state.cap_reached = len(state.records), cap_reached
+    path = institution_dir(run_dir, inst_id) / fv.FOLLOW_DIR / fv.STATE_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(fv.state_payload(state)), encoding="utf-8")
+    return path
+
+
+def test_q194c_follow_state_reads_followed_urls_and_cap_reached(tmp_path):
+    fixture = _synthetic("v27-syn-A004-05")
+    urls = {p["page_key"]: p["url"] for p in fixture["pages"]}
+    assert fr.load_run_telemetry(tmp_path) == {"follow_state": None}
+    _write_follow_state(tmp_path, "INST-SYN-0034", [(urls["p1"], "fetch_failed"),
+                                                    ("https://elsewhere.example/x", "fetched")], cap_reached=True)
+    telemetry = fr.load_run_telemetry(tmp_path)
+    followed = {"item": "followed_urls", "scope": "institution", "value": ["p1"]}
+    # every URL tried, any outcome (A004-05: a failed fetch is followed), as page keys; unknown URL kept as is
+    assert fr.locate_got(None, followed, urls, telemetry) == (True, ["p1", "https://elsewhere.example/x"])
+    assert fr.locate_got(None, {"item": "cap_reached", "scope": "institution"}, urls, telemetry) == (True, True)
+    assert fr.locate_got(None, {"item": "cap_reached", "scope": "page:p0"}, urls, telemetry) == (False, None)
+    assert fr.locate_got(None, followed, urls) == (False, None)  # no run records: behaviour a
+    assert fr.locate_got(None, followed, urls, {"follow_state": None}) == (False, None)
+
+    only_p1 = tmp_path / "only"
+    _write_follow_state(only_p1, "INST-SYN-0034", [(urls["p1"], "fetch_failed")])
+    t = fr.load_run_telemetry(only_p1)
+    rows = {e["item"]: e for e in fr.compare_fixture(fixture, lambda e: fr.locate_got(None, e, urls, t))["expected"]}
+    assert rows["followed_urls"]["status"] == fr.PASS and rows["followed_urls"]["got"] == ["p1"]
+
+
+def test_q194c_malformed_follow_state_is_a_value_error(tmp_path):
+    path = _write_follow_state(tmp_path, "INST-SYN-0034", [])
+    path.write_text(json.dumps({"format": "other"}), encoding="utf-8")
+    with pytest.raises(ValueError, match="not of format"):
+        fr.load_run_telemetry(tmp_path)
+    path.write_bytes(b'{"format": ')
+    with pytest.raises(ValueError):
+        fr.load_run_telemetry(tmp_path)
+    _write_follow_state(tmp_path / "two", "INST-SYN-0001", [])
+    _write_follow_state(tmp_path / "two", "INST-SYN-0002", [])
+    with pytest.raises(ValueError, match="2 institutions"):
+        fr.load_run_telemetry(tmp_path / "two")
+
+
+def _relation(lhs, rhs, relation, scope="within_page"):
+    return {"relation_id": f"REL-{lhs}{rhs}{relation}", "lhs_observation_id": f"O-{lhs}", "rhs_observation_id": f"O-{rhs}",
+            "relation": relation, "source_refs": [], "support_ids": [], "lhs_final_activity_id": lhs,
+            "rhs_final_activity_id": rhs, "relation_scope": scope}
+
+
+def test_q194c_pair_relations_from_activity_relations():
+    storage = _activities({"core.activity_name": "Ask Kira"}, {"core.activity_name": "Smart Kingsford AI Programme"},
+                          {"core.activity_name": "Copilot finance pilot"})
+    acts = storage["activities"]
+    acts["A1"]["activity_relations"] = [_relation("A1", "A2", "component_of_program"),
+                                        _relation("A1", "A3", "distinct_action", scope="cross_page")]
+    seg = "core.activity_segment"
+    assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira|Smart Kingsford AI Programme"}, {}) == (
+        True, "component_of_program")
+    # direction as stored: the reverse pair is not read as the inverse relation
+    assert fr.locate_got(storage, {"item": seg, "scope": "pair:Smart Kingsford AI Programme|Ask Kira"}, {}) == (
+        False, None)
+    # the relation scope follows the item: a cross-page relation is not a core.activity_segment value
+    assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira|Copilot finance pilot"}, {}) == (False, None)
+    cross = {"item": "core.activity_relation_cross_page", "scope": "pair:Ask Kira|Copilot finance pilot"}
+    assert fr.locate_got(storage, cross, {}) == (True, "distinct_action")
+    assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira|Nobody"}, {}) == (False, None)
+    assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira"}, {}) == (False, None)
+    acts["A2"]["activity_relations"] = [_relation("A1", "A2", "governs")]  # two stored relations disagree
+    assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira|Smart Kingsford AI Programme"}, {}) == (
+        True, ["component_of_program", "governs"])
+
+
+def test_q194c_items_without_a_reader_stay_not_located(tmp_path):
+    _write_follow_state(tmp_path, "INST-SYN-0034", [("https://synthetic.example/p1", "fetched")])
+    telemetry = fr.load_run_telemetry(tmp_path)
+    storage = _activities({"core.activity_name": "a0"})
+    for item in fr.NO_READER:
+        for scope in ("institution", "activity:a0"):
+            assert fr.locate_got(storage, {"item": item, "scope": scope}, {}, telemetry) == (False, None)
+    assert set(fr.NO_READER) == {"event_order", "extractor_calls"}
+
+
+def test_q194c_run_live_reads_telemetry_and_keeps_a_malformed_state_out_of_errors(tmp_path):
+    from g3o.common.paths import institution_dir
+    from g3o.persist.stage6_adapters import STORAGE_ARTIFACT
+    from g3o.run.presweep.orchestrator import V27Dispatch
+    from g3o.run.presweep.perpage_batch_v27 import NO_BATCH
+
+    fake = lambda *a: None  # noqa: E731
+    dispatch = V27Dispatch(settings=None, jev_ask_fn=fake, extract_fn=fake, entail_fn=fake, extractor_mode=NO_BATCH)
+    url = "https://synthetic.example/syn-9001/p0"
+    expected = [{"item": "followed_urls", "scope": "institution", "value": ["https://synthetic.example/x1"]},
+                {"item": "cap_reached", "scope": "institution", "value": False},
+                {"item": "event_order", "scope": "institution", "value": ["pass1:p0"]}]
+    good, bad = _fixture(expected), _fixture(expected, fixture_id="F-2")
+
+    def run_fn(run_dir, sample, scraped, live):
+        (inst_id, _), = scraped.items()
+        path = _write_follow_state(run_dir, inst_id, [("https://synthetic.example/x1", "fetch_failed")])
+        if run_dir.name == "F-2":
+            path.write_bytes(b"not json")
+        storage = {"summary": {"values": {}}, "sources": {"S1": {"values": {"core.source_url": url}}}, "activities": {}}
+        (institution_dir(run_dir, inst_id) / STORAGE_ARTIFACT).write_text(json.dumps(storage), encoding="utf-8")
+
+    run = fr.run_live([good, bad], dispatch=dispatch, run_root=tmp_path, max_usd=10.0,
+                      page_loader=lambda f: fr.fixture_pages(f), searched_policy=fr.SEARCHED_UNLINKED,
+                      official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17",
+                      run_fn=run_fn, cost_fn=lambda run_dir: 0.1)
+    r1, r2 = run["results"]
+    assert [e["status"] for e in r1["expected"]] == [fr.PASS, fr.PASS, fr.NOT_LOCATED]
+    assert r1["status"] == fr.PARTIAL and r1["error"] is None and "telemetry_error" not in r1
+    assert [e["status"] for e in r2["expected"]] == [fr.NOT_LOCATED] * 3
+    assert r2["error"] is None and r2["telemetry_error"].startswith(("JSONDecodeError", "UnicodeDecodeError"))
+    assert run["stopped"] is None
+    paths = fr.write_outputs(tmp_path / "out", mode="live", plans=[], est={"seed_usd": None}, results=run["results"],
+                             options={}, spent_usd=run["spent_usd"], stopped=None)
+    report = paths["report"].read_text(encoding="utf-8")
+    assert fr.TELEMETRY_NOTE in report and "run records unreadable (telemetry values not located)" in report
+
+
+def _sync_dispatch():
+    from g3o.run.presweep.orchestrator import V27Dispatch
+    from g3o.run.presweep.perpage_batch_v27 import NO_BATCH
+
+    fake = lambda *a: None  # noqa: E731
+    return V27Dispatch(settings=None, jev_ask_fn=fake, extract_fn=fake, entail_fn=fake, extractor_mode=NO_BATCH)
+
+
+def test_review_m1_a_stage_stop_reads_no_telemetry_and_never_passes(tmp_path):
+    from g3o.common.paths import institution_dir
+    from g3o.persist.stage6_adapters import STORAGE_ARTIFACT
+
+    url = "https://synthetic.example/syn-9001/p0"
+    verdict = {"item": "core.page_verdict", "scope": "page:p0", "value": "confirms_activity"}
+    followed = {"item": "followed_urls", "scope": "institution", "value": ["https://synthetic.example/x1"]}
+    with_follow, storage_only = _fixture([verdict, followed]), _fixture([verdict], fixture_id="F-2")
+
+    def run_fn(run_dir, sample, scraped, live):  # a partial follow state and storage, then a stage stop
+        (inst_id, _), = scraped.items()
+        _write_follow_state(run_dir, inst_id, [("https://synthetic.example/x1", "fetch_failed")])
+        storage = {"summary": {"values": {}}, "activities": {},
+                   "sources": {"S1": {"values": {"core.source_url": url, "core.page_verdict": "confirms_activity"}}}}
+        (institution_dir(run_dir, inst_id) / STORAGE_ARTIFACT).write_text(json.dumps(storage), encoding="utf-8")
+        raise RuntimeError("stage 6 refused")
+
+    run = fr.run_live([with_follow, storage_only], dispatch=_sync_dispatch(), run_root=tmp_path, max_usd=10.0,
+                      page_loader=lambda f: fr.fixture_pages(f), searched_policy=fr.SEARCHED_UNLINKED,
+                      official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17",
+                      run_fn=run_fn, cost_fn=lambda run_dir: 0.0)
+    r1, r2 = run["results"]
+    # (a) the follow state left by the stopped run is not read: the telemetry value is not located
+    assert [e["status"] for e in r1["expected"]] == [fr.PASS, fr.NOT_LOCATED] and r1["status"] == fr.PARTIAL
+    assert "stage 6 refused" in r1["error"]
+    # (b) every value passed, but the run stopped: the fixture is partial, never pass
+    assert [e["status"] for e in r2["expected"]] == [fr.PASS] and "stage 6 refused" in r2["error"]
+    assert r2["status"] == fr.PARTIAL and r2["a_ids"] == {"A-011": fr.PARTIAL}
+
+
+def test_review_l4_a_comparison_error_is_a_fixture_error_after_spend(tmp_path, monkeypatch):
+    def broken(*a, **k):
+        raise KeyError("expected")
+
+    monkeypatch.setattr(fr, "compare_fixture", broken)
+    fixture = _fixture([{"item": "core.page_verdict", "scope": "page:p0", "value": "no_genai"}])
+    run = fr.run_live([fixture, _fixture([], fixture_id="F-2")], dispatch=_sync_dispatch(), run_root=tmp_path,
+                      max_usd=10.0, page_loader=lambda f: fr.fixture_pages(f), searched_policy=fr.SEARCHED_UNLINKED,
+                      official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17",
+                      run_fn=lambda *a: None, cost_fn=lambda run_dir: 0.3)
+    r1, r2 = run["results"]
+    assert "comparison failed: KeyError" in r1["error"] and r1["cost_usd"] == 0.3
+    assert r1["status"] == fr.UNRESOLVED and r1["a_ids"] == {"A-011": fr.UNRESOLVED}
+    assert [e["status"] for e in r1["expected"]] == [fr.NOT_LOCATED]
+    assert r2["status"] == fr.NOT_RUN and "with an error" in run["stopped"]
+
+
+def test_review_l3_same_url_key_fallback_needs_a_single_match():
+    pages = {"p0": "https://synthetic.example/info", "p1": "https://synthetic.example/other"}
+    assert fr._page_key("https://synthetic.example/info", pages) == "p0"  # exact
+    assert fr._page_key("https://WWW.synthetic.example/info/#top", pages) == "p0"  # one same-URL-key match
+    ambiguous = {"a": "https://synthetic.example/info/", "b": "https://www.synthetic.example/info"}
+    assert fr._page_key("https://synthetic.example/info#x", ambiguous) == "https://synthetic.example/info#x"
+    assert fr._page_key("https://www.synthetic.example/info", ambiguous) == "b"  # exact still wins
+    assert fr._page_key("https://elsewhere.example/", pages) == "https://elsewhere.example/"
 
 
 # ---------------------------------------------------------------------------
