@@ -84,6 +84,8 @@ UNLOCATED_POLICIES = (UNRESOLVED, FAIL)
 SEARCHED_UNLINKED, SEARCHED_ALL = "unlinked", "all"
 SEARCHED_POLICIES = (SEARCHED_UNLINKED, SEARCHED_ALL)
 #: The official site a fixture run records (``--official-site``). Default: the searched page's host.
+#: ``none`` (or a fixture with no fetched searched page) writes ``{"url": null}``, the explicit
+#: no-site record ``official_site_v27.load_run_official_sites`` reads as no site (review M7).
 OFFICIAL_PAGE_HOST, OFFICIAL_NONE = "page-host", "none"
 OFFICIAL_POLICIES = (OFFICIAL_PAGE_HOST, OFFICIAL_NONE)
 
@@ -94,6 +96,11 @@ QUOTE_MATCH_LIMITS = (
     "A quote cut inside an unspaced CJK or Thai run is not matched (RC-D-017 1a; PLAN T-041, RC-D-021 R-6 a).",
 )
 #: The T-064 line the T-041 report keeps (PLAN T-064 Verification: DP-064e, no fixtures).
+#: Printed in the plan with ``--official-site page-host`` (review M7): the fixtures carry no
+#: institution domain, so whether a real page's host is the institution's site is not checked.
+PAGE_HOST_NOTE = ("--official-site page-host records each fixture's first searched page host as the official "
+                  "site; the fixtures carry no institution domain, so for a real fixture whose page sits on "
+                  "another host (a hosting service, a third party) this is not checked (proposed question P4)")
 #: The cap is checked between fixtures only (help text, printed plan and report say so).
 CAP_NOTE = ("the --max-usd cap is soft: it is checked between fixtures, so a single fixture can overshoot "
             "it by its own cost")
@@ -803,7 +810,10 @@ def materialise(run_dir: Path, fixture: Mapping[str, Any], pages: Sequence[Mappi
     scraped_pages = [_rendered(p, access_date) for p in pages if p["page_key"] in searched and p["fetch_ok"]]
     if official_policy == OFFICIAL_PAGE_HOST and scraped_pages:
         host = urlparse(scraped_pages[0].url).netloc
-        (idir / OFFICIAL_SITE_FILE).write_text(json.dumps({"url": f"https://{host}/"}), encoding="utf-8")
+        site: dict[str, Any] = {"url": f"https://{host}/"}
+    else:  # review M7: the explicit no-site record ``load_run_official_sites`` reads (``url`` null)
+        site = {"url": None}
+    (idir / OFFICIAL_SITE_FILE).write_text(json.dumps(site), encoding="utf-8")
     served = {p["url"]: (_rendered(p, access_date) if p["fetch_ok"] else None) for p in pages}
     return [row], {inst_id: scraped_pages}, served
 

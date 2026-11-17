@@ -69,7 +69,8 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--searched-pages", choices=fr.SEARCHED_POLICIES, default=fr.SEARCHED_UNLINKED,
                     help="which fixture pages are searched pages (default: unlinked; proposed question P4)")
     ap.add_argument("--official-site", choices=fr.OFFICIAL_POLICIES, default=fr.OFFICIAL_PAGE_HOST,
-                    help="official site recorded for a fixture run (default: page-host; proposed question P4)")
+                    help="official site recorded for a fixture run: page-host (the first searched page's host) or "
+                         "none (an explicit no-site record); default page-host (proposed question P4)")
     return ap
 
 
@@ -120,6 +121,8 @@ def main(argv: list[str] | None = None) -> int:
                "searched_pages": args.searched_pages, "official_site": args.official_site,
                "extractor_mode": "no_batch", "seeds": bool(seeds), "continue_on_error": args.continue_on_error}
     print(fr.format_estimate(est))
+    if args.official_site == fr.OFFICIAL_PAGE_HOST and any(fr.fixture_group(f) == fr.GROUP_REAL for f in fixtures):
+        print(f"warning: {fr.PAGE_HOST_NOTE}")
 
     if not args.live:
         results = [fr.not_run_result(f, "dry run") for f in fixtures]

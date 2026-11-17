@@ -555,3 +555,32 @@ def test_values_equal_by_schema_type_and_lists_as_multisets():
     assert fr.item_value_type("followed_urls") == (None, False)
     assert fr.values_equal("followed_urls", ["b", "a"], ["a", "b"])  # unknown order: multiset
     assert not fr.values_equal("followed_urls", 1, "1")  # no schema: no type conversion
+
+
+# ---------------------------------------------------------------------------
+# Official site record (review M7)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("policy", [fr.OFFICIAL_NONE, fr.OFFICIAL_PAGE_HOST])
+def test_materialise_writes_an_official_site_record_the_loader_accepts(tmp_path, policy):
+    from g3o.run.presweep.official_site_v27 import load_run_official_sites
+
+    fixture = _fixture([])
+    _, scraped, _ = fr.materialise(tmp_path, fixture, fr.fixture_pages(fixture), searched_policy=fr.SEARCHED_UNLINKED,
+                                   official_policy=policy, access_date="2026-11-17")
+    (inst_id,) = scraped
+    sites = load_run_official_sites(tmp_path)
+    assert inst_id not in sites.unresolved
+    if policy == fr.OFFICIAL_NONE:
+        assert inst_id in sites.no_site
+    else:
+        assert sites.hosts[inst_id] == "synthetic.example"
+
+
+def test_page_host_warning_is_printed_for_real_fixtures(tmp_path, monkeypatch, capsys):
+    _forbid_live(monkeypatch)
+    assert _script().main(["--group", "real", "--out-dir", str(tmp_path)]) == 0
+    assert fr.PAGE_HOST_NOTE in capsys.readouterr().out
+    assert _script().main(["--group", "pipeline", "--out-dir", str(tmp_path)]) == 0
+    assert fr.PAGE_HOST_NOTE not in capsys.readouterr().out
