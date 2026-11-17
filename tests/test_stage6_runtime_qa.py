@@ -108,11 +108,15 @@ def test_unfinished_pooled_question_is_held_under_its_own_reason(tmp_path):
 def test_envelope_error_for_one_institution_does_not_stop_later_institutions(tmp_path):
     run_dir, bound, instrument = e._setup(tmp_path)
     a, b = e._institutions(run_dir, bound, instrument)
-    metrics = _run(run_dir, bound, instrument, [replace(a, merged_values=None), b], e.FakeQuotes())
+    # Codebook r16 (PI ruling Q166 a): no merged item is an explicit input, so an absent merged-values map is
+    # no longer an error; a map naming an item merged by rule still is (the envelope refuses it).
+    group = next(iter(a.merged_values))
+    bad = replace(a, merged_values={group: {"core.activity_name": "Copilot"}})
+    metrics = _run(run_dir, bound, instrument, [bad, b], e.FakeQuotes())
     assert metrics.failed == [A] and metrics.written == [B]
     assert not (institution_dir(run_dir, A) / "6_storage.json").exists()
     held = _held(run_dir)
-    assert held["reasons"] == [rt.ENVELOPE_FAILED] and "MissingUpstreamError" in held["error"]
+    assert held["reasons"] == [rt.ENVELOPE_FAILED] and "merged by rule or pooled" in held["error"]
     assert _ledger(run_dir) == [rt.ENVELOPE_FAILED]
 
 
@@ -837,7 +841,8 @@ def _row(**over):
     base = {"core.tool_name": [], "core.model_name": "not_documented", "core.reported_outcomes": [],
             "core.reported_incidents": "not_asked", "core.activity_name": "not_documented",
             "core.contracting_party": "not_documented", "core.observed_actor_name": "not_documented",
-            "core.deployment_scale_number": "not_documented"}
+            "core.deployment_scale_number": "not_documented",
+            "core.developer": "not_documented"}  # codebook r16 (PI ruling Q166 a): developer is an R3 item
     return {**base, **over}
 
 

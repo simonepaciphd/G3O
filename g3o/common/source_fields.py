@@ -1,7 +1,7 @@
 """Source-level field coder (T-015; RC-D-002 H Q3, N25, O2; RC-D-023 B-Q3 a).
 
-One producer per source-level item of the signed codebook (r15, sha256
-``ca1bf616…fc73d3a``, PI-signed 2026-11-10, ``planning/t010/signoff-record.md``): every item whose ``level`` includes ``source``. Values,
+One producer per source-level item of the signed codebook (r16, sha256
+``381e41f8…881b8a``, signed only when ``planning/t010/signoff-record.md`` holds it): every item whose ``level`` includes ``source``. Values,
 codes, missing tokens, support statuses and the date-origin map are read from
 the codebook through :mod:`g3o.codebook`; nothing here restates an enum the
 loader provides. Where a signed slot states its codes only inside rule text
@@ -100,8 +100,8 @@ from g3o.common.support_check import (
 )
 from g3o.common.urlnorm import site_host
 
-#: Codebook r15, PI-signed 2026-11-10 (planning/t010/signoff-record.md).
-SIGNED_CODEBOOK_SHA256 = "ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a"
+#: Codebook r16 (RC-D-034; signed only when planning/t010/signoff-record.md holds this sha256).
+SIGNED_CODEBOOK_SHA256 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a"
 if SIGNED_CODEBOOK_SHA256 != SUPPORT_CHECK_CODEBOOK_SHA256:  # pragma: no cover - pin drift guard
     raise ImportError("source_fields and support_check pin different codebook releases")
 
@@ -244,7 +244,7 @@ def _aggregation_rule(cb: Codebook) -> tuple[tuple[str, str], dict[str, str]]:
 
 def vocab_from_codebook(cb: Codebook) -> SourceVocab:
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
-        raise ValueError(f"codebook sha256 {cb.sha256} is not the signed r15 release")
+        raise ValueError(f"codebook sha256 {cb.sha256} is not the signed r16 release")
     agg_rule, agg_map = _aggregation_rule(cb)
     items = cb.build_items()
     status = cb.vocabularies["support_status"]

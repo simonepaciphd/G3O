@@ -82,13 +82,14 @@ def test_pass1_fields_follow_codebook_coder_column():
     rules = default_rules()
     assert rules.activity_fields == (
         "core.activity_name", "core.observed_actor_name", "core.tool_name",
-        "core.model_name", "core.contracting_party", "core.deployment_scale_number",
+        "core.model_name", "core.contracting_party", "core.developer", "core.deployment_scale_number",
     )
     cb = load_codebook()
     quote_step_activity = {k for k, v in cb.build_items().items()
                            if v["coder"] == "quote_step" and "activity" in v["level"]}
     assert quote_step_activity - set(rules.activity_fields) == set(DEFERRED_FIELDS)
-    # r2#28: scope_notes gone, vendor split (contracting party here; developer is derived)
+    # r2#28: scope_notes gone, vendor split (contracting party here); codebook r16 (A8.1 a): the developer is a
+    # quote-step field too
     assert "core.scope_notes" not in cb.items and "core.vendor" not in cb.items
 
 

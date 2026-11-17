@@ -324,7 +324,10 @@ def test_default_builder_run_is_refused_at_entry_while_producers_are_missing(tmp
     from g3o.run.presweep import perpage_inputs_v27 as pin
     from g3o.run.presweep import perpage_providers_v27 as ppv
 
-    assert pin.MISSING_PRODUCERS  # T-015 / T-022 / T-024 not wired on this branch (T-025 is, PI ruling 102 a)
+    # Codebook r16 leaves no row item unproduced (MISSING_PRODUCERS is empty); the refusal mechanism is
+    # tested with a simulated missing producer.
+    assert pin.MISSING_PRODUCERS == ()
+    monkeypatch.setattr(pin, "MISSING_PRODUCERS", (pin.VALUES_MISSING,))
     _no_planning(monkeypatch)
     _refuse_stages_1_to_4(monkeypatch)
     _refuse_clients(monkeypatch)
@@ -362,7 +365,8 @@ def test_default_builder_passed_explicitly_is_refused_at_entry(tmp_path, monkeyp
     from g3o.persist.stage6_adapters import MissingUpstreamError
     from g3o.run.presweep import perpage_inputs_v27 as pin
 
-    assert pin.MISSING_PRODUCERS
+    # Codebook r16: nothing is missing; simulate a missing producer to test the refusal.
+    monkeypatch.setattr(pin, "MISSING_PRODUCERS", (pin.VALUES_MISSING,))
     _no_planning(monkeypatch)
     v27 = _stub_dispatch(perpage_inputs=getattr(pin, name))
     with pytest.raises(MissingUpstreamError, match="ruling 36 a") as exc:
@@ -436,7 +440,7 @@ def test_runtime_pins_and_models_are_refused_before_planning(tmp_path, monkeypat
     _no_planning(monkeypatch)
     with monkeypatch.context() as m:
         m.setattr(binding, "CODEBOOK_SHA256", "0" * 64)
-        with pytest.raises(ValueError, match="signed r15"):
+        with pytest.raises(ValueError, match="signed r16"):
             orch.run_presweep(_v27_config(tmp_path), v27=_stub_dispatch())
     with monkeypatch.context() as m:
         m.setattr(binding, "version", lambda _: "0.0")

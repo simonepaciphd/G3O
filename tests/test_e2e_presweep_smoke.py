@@ -1090,7 +1090,10 @@ def test_v27_launch_with_the_real_factory_is_refused_at_entry_before_any_spend(t
 
     from g3o.extract import x35_client
 
-    assert pin.MISSING_PRODUCERS
+    # Codebook r16 leaves nothing unproduced (MISSING_PRODUCERS is empty: the default builder is allowed at
+    # entry); ruling 36 a's refusal is tested with a simulated missing producer.
+    assert pin.MISSING_PRODUCERS == ()
+    monkeypatch.setattr(pin, "MISSING_PRODUCERS", (pin.VALUES_MISSING,))
     with pytest.raises(MissingUpstreamError, match="ruling 36 a"):  # Q160 approved: X35 passes entry
         launch(config, credentials=Credentials(**V27_KEYS))
     assert not run_dir.exists() and calls == []

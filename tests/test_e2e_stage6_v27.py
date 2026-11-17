@@ -1,6 +1,6 @@
 """T-030 mocked end-to-end v2.7 Stage 6 -> final CSVs (no network; every provider answer is a fake).
 
-Path exercised: ``bind_runtime`` (immutable instrument bound to the signed r15
+Path exercised: ``bind_runtime`` (immutable instrument bound to the signed r16
 codebook) -> ``stage_validate_v27.run_stage6_v27`` (T-026 relations, support
 checks and pooled reclassification through the durable request journal) ->
 T-028 storage envelope with relation/pooled support nodes ->
@@ -43,7 +43,7 @@ from g3o.validate.consolidate_v27 import ActivityObservation, RelationDecision, 
 from tests._layout import uid_for, write_manifest
 from tests._storage_fixture import _values
 
-R15 = "ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a"
+R16 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a"
 RUN_ID = "R-T030-E2E"
 TRUE = Entailment("true", 0.95)
 CLOCK = lambda: datetime(2026, 11, 10, 12, 0, tzinfo=timezone.utc)  # noqa: E731
@@ -277,9 +277,9 @@ def _csvs(run_dir, insts):
     return result, rows
 
 
-def test_instrument_is_bound_to_signed_r15_and_stage6_config_to_it(tmp_path):
+def test_instrument_is_bound_to_signed_r16_and_stage6_config_to_it(tmp_path):
     run_dir, bound, instrument = _setup(tmp_path)
-    assert instrument["payload"]["codebook_sha256"] == R15
+    assert instrument["payload"]["codebook_sha256"] == R16
     config = bound.stage6_config()
     assert config.setup_pointer == instrument["instrument_id"] == bound.instrument_id
     assert config.configured_model == instrument["payload"]["configured_jev_model"]
