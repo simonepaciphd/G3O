@@ -2165,7 +2165,7 @@
       "level": [
         "activity"
       ],
-      "answer_type": "number",
+      "answer_type": "text",
       "visibility": "public",
       "coder": "quote_step",
       "storage_targets": [
