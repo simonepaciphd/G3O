@@ -52,15 +52,19 @@ def test_r15_pin_keeps_r16_off_and_the_refusals_unchanged():
     assert dict(srow.EXTRACTED_FIELDS) == dict(srow.EXTRACTED_FIELDS_R15)
     assert "core.developer_basis" not in srow.PRODUCED_ACTIVITY_ITEMS
     assert rt.MERGE_REFUSED_R1 == ("core.developer", "core.developer_basis", "core.stage_as_of_basis")
+    assert rt.MERGE_CREDIBLE == rt.MERGE_CREDIBLE_R15 and rt.MERGE_BASIS == ()  # Q166 a is r16 only
     assert ma.PRODUCED == ma.PRODUCED_R15 and ma.STAGE_AS_OF_BASIS not in rt.MERGE_PRODUCED_A8
 
 
 def test_patched_active_sha_lifts_the_refusals(monkeypatch):
     monkeypatch.setattr(r16, "active_codebook_sha256", lambda: r16.R16_CANDIDATE_SHA256)
     assert r16.r16_active() is True
-    # Stage 6: stage_as_of_basis is produced; developer / developer_basis stay explicit merge inputs.
+    # Stage 6: stage_as_of_basis is produced; PI ruling Q166 a (2026-11-16): developer is an R3 item and
+    # developer_basis follows it, so no R1 item is an explicit merge input any more (was: both refused).
     assert ma.STAGE_AS_OF_BASIS in ma.produced_items()
-    assert rt.merge_refused_r1() == ("core.developer", "core.developer_basis")
+    assert rt.merge_refused_r1() == ()
+    assert rt.merge_credible() == (*rt.MERGE_CREDIBLE_R15, "core.developer")
+    assert rt.merge_basis() == ("core.developer_basis",)
     assert "core.stage_as_of_basis" in srow.stage6_activity_items()
     # Per page: without a developer quote task in the codebook in use, both developer items stay refused and
     # content_vendor does not read a developer (review O2-r16 M1: same gate as the refusals).
@@ -79,6 +83,7 @@ def test_explicit_r16_off_matches_r15_even_when_patched(monkeypatch):
     monkeypatch.setattr(r16, "active_codebook_sha256", lambda: r16.R16_CANDIDATE_SHA256)
     assert srow.refused_activity_items(False) == srow.REFUSED_ACTIVITY_ITEMS_R15
     assert rt.merge_refused_r1(False) == rt.MERGE_REFUSED_R1_R15
+    assert rt.merge_credible(False) == rt.MERGE_CREDIBLE_R15 and rt.merge_basis(False) == ()
     assert ma.produced_items(False) == ma.PRODUCED_R15
 
 
@@ -174,3 +179,43 @@ def test_content_vendor_reads_an_extracted_developer_under_r16(monkeypatch):
     monkeypatch.setattr(srow, "EXTRACTED_FIELDS", srow.extracted_fields(False))
     with pytest.raises(sf.MissingUpstreamError):
         srow.content_extracted("core.content_vendor", verdict, ["a1"], {"a1": empty})
+
+
+# --- PI ruling Q166 a (2026-11-16): Stage 6 merge of developer / developer_basis under r16 ---------------
+
+
+def _dev_inst(devs, confidence):
+    from tests.test_stage6_runtime_qa import _merge_inst, _row
+
+    return _merge_inst({k: _row(**{"core.developer": v}) for k, v in devs.items()}, confidence)
+
+
+def test_r16_merge_takes_the_most_credible_real_developer_and_states_its_basis_q166a():
+    inst = _dev_inst({"o1": "not_documented", "o2": "OpenAI", "o3": "Microsoft"},
+                     {"o1": "high", "o2": "low", "o3": "medium"})
+    out = rt.merge_values(inst, ["o1", "o2", "o3"], r16_on=True)
+    assert out["core.developer"] == "Microsoft"  # medium > low; a missing token never wins over a real value
+    assert out["core.developer_basis"] == "stated"
+    tie = _dev_inst({"o1": "OpenAI", "o2": "Microsoft"}, {"o1": "medium", "o2": "medium"})
+    assert rt.merge_values(tie, ["o2", "o1"], r16_on=True)["core.developer"] == "Microsoft"  # pool order
+
+
+@pytest.mark.parametrize("token", ["not_documented", "unknown", "not_asked", "_NA_"])
+def test_r16_merge_basis_of_a_missing_developer_takes_its_token_q166a_q165a(token):
+    inst = _dev_inst({"o1": token, "o2": token}, {"o1": "high", "o2": "low"})
+    out = rt.merge_values(inst, ["o1", "o2"], r16_on=True)
+    assert out["core.developer"] == token and out["core.developer_basis"] == token
+
+
+def test_r16_merge_refuses_a_blank_merged_developer_q166a():
+    from g3o.validate.consolidate_v27 import ConsolidationError
+
+    inst = _dev_inst({"o1": "  ", "o2": "  "}, {"o1": "high", "o2": "low"})
+    with pytest.raises(ConsolidationError):
+        rt.merge_values(inst, ["o1", "o2"], r16_on=True)
+
+
+def test_r15_merge_does_not_touch_developer_q166a():
+    inst = _dev_inst({"o1": "OpenAI", "o2": "Microsoft"}, {"o1": "low", "o2": "high"})
+    for out in (rt.merge_values(inst, ["o1", "o2"]), rt.merge_values(inst, ["o1", "o2"], r16_on=False)):
+        assert "core.developer" not in out and "core.developer_basis" not in out

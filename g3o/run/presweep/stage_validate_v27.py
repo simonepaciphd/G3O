@@ -65,7 +65,8 @@ Rules carried here, not decided here:
   (:class:`~g3o.persist.stage6_adapters.MissingUpstreamError`): the merged
   values R1 asks to re-derive whose rule awaits codebook r16
   (:data:`MERGE_REFUSED_R1`: developer, developer_basis, stage_as_of_basis;
-  under the UNSIGNED r16 candidate stage_as_of_basis is produced instead,
+  under the UNSIGNED r16 candidate none: stage_as_of_basis is produced, developer
+  is an R3 item and developer_basis follows it (PI ruling Q166 a),
   :func:`merge_refused_r1`;
   ``evidence_channel`` is the row metadata
   :data:`EVIDENCE_CHANNEL`, not a row value), the merged values no ruling
@@ -102,6 +103,7 @@ from typing import Any
 from g3o.classify.jev_activity_code import NOT_COVERED, PAIR_ITEMS
 from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE
 from g3o.classify.questions.v27 import load_set
+from g3o.codebook import r16_candidate as r16
 from g3o.common import attrition
 from g3o.common.contract import LANGS_PATTERN
 from g3o.common.independence import independence_groups_for_sources
@@ -266,8 +268,42 @@ ACTIVITY_ITEMS = frozenset(table_fields("activities"))
 
 #: RC-D-030 X1 a R2 / R3 (RC-D-032 B2 a adds the scale number to R3): merged by rule here.
 MERGE_UNION = ("core.tool_name", "core.model_name", "core.reported_outcomes", "core.reported_incidents")
-MERGE_CREDIBLE = ("core.activity_name", "core.contracting_party", "core.observed_actor_name",
-                  "core.deployment_scale_number")
+#: R3 items under the signed r15 codebook.
+MERGE_CREDIBLE_R15 = ("core.activity_name", "core.contracting_party", "core.observed_actor_name",
+                      "core.deployment_scale_number")
+DEVELOPER, DEVELOPER_BASIS = "core.developer", "core.developer_basis"
+
+
+def merge_credible(r16_on: bool | None = None) -> tuple[str, ...]:
+    """R3 items for the codebook in use (``r16_on`` None: read :func:`g3o.codebook.r16_candidate.r16_active`
+    now). r15: :data:`MERGE_CREDIBLE_R15`. PI ruling Q166 a (2026-11-16), UNSIGNED r16 candidate only:
+    ``core.developer`` is an R3 credible single-text item too, as ``contracting_party`` is."""
+    on = r16.r16_active() if r16_on is None else r16_on
+    return (*MERGE_CREDIBLE_R15, DEVELOPER) if on else MERGE_CREDIBLE_R15
+
+
+def merge_basis(r16_on: bool | None = None) -> tuple[str, ...]:
+    """Items merged from the merged developer (PI ruling Q166 a, r16 candidate only): ``core.developer_basis``
+    (:func:`merged_developer_basis`). Empty under r15."""
+    on = r16.r16_active() if r16_on is None else r16_on
+    return (DEVELOPER_BASIS,) if on else ()
+
+
+def merged_developer_basis(developer: Any) -> str:
+    """PI ruling Q166 a: a merged row's ``core.developer_basis`` is ``stated`` when the merged developer is
+    real (:func:`_real`), else, per Q165 a, the developer's own missing token. A merged developer that is
+    neither (e.g. blank text, a non-text value) is refused (``ConsolidationError``: the institution is held)."""
+    if _real(DEVELOPER, developer):
+        return r16.DEVELOPER_BASIS_STATED
+    tokens = FIELDS[DEVELOPER_BASIS]["missing_tokens"]
+    if isinstance(developer, str) and developer in (tokens if isinstance(tokens, list) else ()):
+        return developer
+    raise ConsolidationError(f"merged {DEVELOPER} {developer!r} is neither real nor a {DEVELOPER_BASIS} "
+                             "missing token (PI ruling Q166 a / Q165 a)")
+
+
+MERGE_CREDIBLE = merge_credible()
+MERGE_BASIS = merge_basis()
 #: X1 a R1 items produced here from the pooled observations and their source rows (PI A8 rulings,
 #: 2026-11-11, and 66 a; :mod:`g3o.validate.merged_activity_v27`): stage_as_of (A8.3/A8.4/A8.6 a,
 #: 76 b, 90 c), date_upper_bound (A8.11/A8.12 a), unit_credit (A8.7/A8.8 a), vendor_claim_only
@@ -283,11 +319,12 @@ MERGE_REFUSED_R1_R15 = ("core.developer", "core.developer_basis", "core.stage_as
 def merge_refused_r1(r16_on: bool | None = None) -> tuple[str, ...]:
     """X1 a R1 items still refused (explicit input) for the codebook in use (``r16_on`` None: read
     :func:`g3o.codebook.r16_candidate.r16_active` now). Under the UNSIGNED r16 candidate (PI ruling 140:
-    built against the draft) stage_as_of_basis is produced here (:func:`ma.produced_items`); developer and
-    developer_basis stay explicit inputs for a multi-observation activity: the candidate gives no merge rule
-    for them (a PI question)."""
-    produced = set(ma.produced_items(r16_on))
-    return tuple(i for i in MERGE_REFUSED_R1_R15 if i not in produced)
+    built against the draft) none: stage_as_of_basis is produced here (:func:`ma.produced_items`), and,
+    PI ruling Q166 a, developer is an R3 item (:func:`merge_credible`) and developer_basis follows it
+    (:func:`merge_basis`). Under r15 :data:`MERGE_REFUSED_R1_R15` unchanged."""
+    on = r16.r16_active() if r16_on is None else r16_on
+    merged = {*ma.produced_items(on), *merge_credible(on), *merge_basis(on)}
+    return tuple(i for i in MERGE_REFUSED_R1_R15 if i not in merged)
 
 
 MERGE_REFUSED_R1 = merge_refused_r1()
@@ -310,9 +347,9 @@ def _non_pooled_items() -> frozenset[str]:
 
 
 if (_non_pooled_items() != (MERGE_INPUT_ITEMS | set(MERGE_UNION) | set(MERGE_CREDIBLE) | set(MERGE_DERIVED)
-                            | set(MERGE_PRODUCED_A8))
+                            | set(MERGE_PRODUCED_A8) | set(MERGE_BASIS))
         or len(MERGE_INPUT_ITEMS) + len(MERGE_UNION) + len(MERGE_CREDIBLE) + len(MERGE_DERIVED)
-        + len(MERGE_PRODUCED_A8) != len(_non_pooled_items())):  # pragma: no cover - overlap or gap
+        + len(MERGE_PRODUCED_A8) + len(MERGE_BASIS) != len(_non_pooled_items())):  # pragma: no cover - overlap or gap
     raise RuntimeError("the merged-activity item split no longer matches the activities table")
 INDEPENDENCE_PRODUCER = "near-duplicate / syndication grouping (P15) for source independence groups"
 
@@ -1286,8 +1323,14 @@ def _credibility_rank(inst: Stage6Institution, oid: str) -> int:
     return grades.index(value)
 
 
-def merge_values(inst: Stage6Institution, order: Sequence[str]) -> dict[str, Any]:
-    """RC-D-030 X1 a R2 / R3 values of a merged activity from its pooled observations in pool order."""
+def merge_values(inst: Stage6Institution, order: Sequence[str], *, r16_on: bool | None = None) -> dict[str, Any]:
+    """RC-D-030 X1 a R2 / R3 values of a merged activity from its pooled observations in pool order.
+
+    ``r16_on`` None uses the item split fixed at import (:data:`MERGE_CREDIBLE`, :data:`MERGE_BASIS`), so the
+    r15 call is unchanged; True / False picks the r16 candidate / r15 split (PI ruling Q166 a: under r16
+    ``core.developer`` is R3 and ``core.developer_basis`` follows it, :func:`merged_developer_basis`)."""
+    credible = MERGE_CREDIBLE if r16_on is None else merge_credible(r16_on)
+    basis = MERGE_BASIS if r16_on is None else merge_basis(r16_on)
     rows = {k: inst.observation_inputs[k].row["values"] for k in order}
     out: dict[str, Any] = {}
     ranked = sorted(order, key=lambda k: _credibility_rank(inst, k))  # stable: ties keep pool order
@@ -1307,9 +1350,11 @@ def merge_values(inst: Stage6Institution, order: Sequence[str]) -> dict[str, Any
         # No entry anywhere: the observations' (missing) values may still differ, e.g. [] beside
         # not_documented; RC-D-032 B3 a: the highest-credibility observation's value, R3 order.
         out[item] = rows[ranked[0]][item]
-    for item in MERGE_CREDIBLE:  # R3: most credible source, a real value over a missing token
+    for item in credible:  # R3: most credible source, a real value over a missing token
         pick = next((k for k in ranked if _real(item, rows[k][item])), ranked[0])
         out[item] = rows[pick][item]
+    if DEVELOPER_BASIS in basis:  # PI ruling Q166 a (r16 only): from the merged developer
+        out[DEVELOPER_BASIS] = merged_developer_basis(out[DEVELOPER])
     return out
 
 
@@ -1493,9 +1538,11 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
             _agree_with_fragment(fragments[0]["values"], a8, group[0])
             values = {**fragments[0]["values"], **a8}
         else:
-            if inst.merged_values is None or group not in inst.merged_values:
+            has_input = inst.merged_values is not None and group in inst.merged_values
+            if MERGE_INPUT_ITEMS and not has_input:
                 raise MissingUpstreamError(MERGED_VALUES_PRODUCER, [aid])
-            given = dict(inst.merged_values[group])
+            # r16 candidate (Q166 a): no item is an explicit input, so none need be given
+            given = dict(inst.merged_values[group]) if has_input else {}
             if set(given) != MERGE_INPUT_ITEMS:
                 extra, absent = sorted(set(given) - MERGE_INPUT_ITEMS), sorted(MERGE_INPUT_ITEMS - set(given))
                 if extra:
@@ -1746,8 +1793,9 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 
 __all__ = [
     "ENVELOPE_FAILED", "ENVELOPE_HOLDS", "EXECUTOR_FAILED", "MISSING_UPSTREAM", "HELD_REASON", "STAGE_STOPS", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
-    "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_PRODUCED_A8", "MERGE_REFUSED_R1", "MERGE_REFUSED_R1_R15",
-    "MERGE_UNION", "MERGE_UNRULED", "merge_refused_r1",
+    "MERGE_BASIS", "MERGE_CREDIBLE", "MERGE_CREDIBLE_R15", "MERGE_INPUT_ITEMS", "MERGE_PRODUCED_A8", "MERGE_REFUSED_R1", "MERGE_REFUSED_R1_R15",
+    "MERGE_UNION", "MERGE_UNRULED", "merge_basis", "merge_credible", "merge_refused_r1",
+    "merged_developer_basis",
     "Stage6Metrics", "build_envelope", "hold_reasons", "independence_groups_of", "merge_values", "run_stage6_v27",
     "EXTRACT_REJECT_CAP", "IDENTITY_COLUMNS", "PI_RELEASED", "REASK_SPENT", "WIRING_STOPS", "ExtractRejectCapReached",
     "ReaskSpentUnanswered", "UpstreamRowMalformed", "X35FailCapReached", "require_a8_form", "require_identity", "require_source_confidence_form",

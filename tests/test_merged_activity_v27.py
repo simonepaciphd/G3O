@@ -71,8 +71,9 @@ def test_a8_split_produced_and_refused_items():
     # A8.1 a / A8.5 a need codebook r16; cx_display_rollup is produced since ruling 77 a.
     assert set(rt.MERGE_REFUSED_R1) == {"core.developer", "core.developer_basis", "core.stage_as_of_basis"}
     assert not set(rt.MERGE_PRODUCED_A8) & rt.MERGE_INPUT_ITEMS
+    # PI ruling Q166 a: MERGE_BASIS (developer_basis) joins the split under r16; empty under r15
     assert rt._non_pooled_items() == (rt.MERGE_INPUT_ITEMS | set(rt.MERGE_UNION) | set(rt.MERGE_CREDIBLE)
-                                      | set(rt.MERGE_DERIVED) | set(rt.MERGE_PRODUCED_A8))
+                                      | set(rt.MERGE_DERIVED) | set(rt.MERGE_PRODUCED_A8) | set(rt.MERGE_BASIS))
 
 
 # --- stage_as_of (A8.3 a, A8.4 a, A8.6 a; 76 b, 90 c) -----------------------------------------------
