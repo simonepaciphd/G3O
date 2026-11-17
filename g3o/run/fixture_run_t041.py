@@ -694,10 +694,18 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, out_dir: P
              page_loader: Callable[[Mapping[str, Any]], list[dict[str, Any]]], searched_policy: str,
              official_policy: str, unlocated: str, access_date: str,
              run_fn: Callable[..., Any] | None = None,
-             cost_fn: Callable[[Path], float | None] | None = None) -> dict[str, Any]:
+             cost_fn: Callable[[Path], float | None] | None = None,
+             continue_on_error: bool = False) -> dict[str, Any]:
     """Run each runnable fixture in its own run directory (PAID). ``dispatch`` must already
     have passed :func:`require_live_gates`. Stops before the next fixture once the
-    journaled spend reaches ``max_usd``, or when a fixture's spend cannot be priced."""
+    journaled spend reaches ``max_usd``, or when a fixture's spend cannot be priced.
+
+    A fixture whose run raised (a stage stop) is recorded as a result. The run then stops
+    before the next fixture if that fixture journaled any spend (or its spend cannot be
+    priced): a refusal after paid calls (e.g. the T-015 assembler or Stage 6 refusing the
+    fixture run directory) would refuse every later fixture too, after their paid calls.
+    A refusal with $0 journaled (a gate before any call) lets the run go on.
+    ``continue_on_error=True`` (``--continue-on-error``) goes on after a paid stage stop too."""
     from g3o.run.presweep.perpage_batch_v27 import NO_BATCH
 
     if getattr(dispatch, "extractor_mode", None) != NO_BATCH:
@@ -736,6 +744,9 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, out_dir: P
             spent += cost
             if spent >= max_usd:
                 stopped = f"stopped: journaled spend ${spent:.4f} reached the cap ${max_usd:.2f}"
+            elif error is not None and cost > 0 and not continue_on_error:
+                stopped = (f"stopped: fixture {fixture['fixture_id']} stopped with an error after ${cost:.4f} "
+                           "of journaled spend (pass --continue-on-error to go on)")
     return {"results": results, "spent_usd": spent, "stopped": stopped}
 
 

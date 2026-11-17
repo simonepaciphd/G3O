@@ -45,6 +45,9 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--max-usd", type=float, default=None, help="live: stop once journaled spend reaches it")
     ap.add_argument("--runtime", type=Path, default=None,
                     help="JSON object of every RuntimeSettings field (required with --live)")
+    ap.add_argument("--continue-on-error", action="store_true",
+                    help="live: go on after a fixture that stopped with an error after journaled spend "
+                         "(default: stop the run there; a $0 refusal never stops it)")
     ap.add_argument("--group", action="append", choices=fr.GROUPS, default=None,
                     help="fixture group to select (repeatable); default: all three")
     ap.add_argument("--fixture", action="append", default=None, help="only this fixture id (repeatable)")
@@ -101,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
     est = fr.estimate(plans, seeds=seeds, **models)
     options = {"groups": args.group or list(fr.GROUPS), "fixtures": args.fixture, "unlocated": args.unlocated,
                "searched_pages": args.searched_pages, "official_site": args.official_site,
-               "extractor_mode": "no_batch", "seeds": bool(seeds)}
+               "extractor_mode": "no_batch", "seeds": bool(seeds), "continue_on_error": args.continue_on_error}
     print(fr.format_estimate(est))
 
     if not args.live:
@@ -130,6 +133,7 @@ def main(argv: list[str] | None = None) -> int:
     run = fr.run_live(fixtures, dispatch=dispatch, out_dir=out_dir, max_usd=args.max_usd,
                       page_loader=lambda f: pages[f["fixture_id"]], searched_policy=args.searched_pages,
                       official_policy=args.official_site, unlocated=args.unlocated,
+                      continue_on_error=args.continue_on_error,
                       access_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
     paths = fr.write_outputs(out_dir, mode="live", plans=plans, est=est, results=run["results"], options=options,
                              spent_usd=run["spent_usd"], stopped=run["stopped"])

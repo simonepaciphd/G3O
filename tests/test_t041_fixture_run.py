@@ -267,6 +267,48 @@ def test_run_live_stops_when_a_fixture_cannot_be_priced(tmp_path):
     assert run["results"][1]["status"] == fr.NOT_RUN
 
 
+def _erroring_run(tmp_path, cost, **kwargs):
+    from g3o.run.presweep.orchestrator import V27Dispatch
+    from g3o.run.presweep.perpage_batch_v27 import NO_BATCH
+
+    fake = lambda *a: None  # noqa: E731
+    dispatch = V27Dispatch(settings=None, jev_ask_fn=fake, extract_fn=fake, entail_fn=fake, extractor_mode=NO_BATCH)
+    calls = []
+
+    def run_fn(run_dir, sample, scraped, live):
+        calls.append(run_dir)
+        raise RuntimeError("MissingUpstreamError: assembler refused")
+
+    run = fr.run_live([_fixture([]), _fixture([], fixture_id="F-2"), _fixture([], fixture_id="F-3")],
+                      dispatch=dispatch, out_dir=tmp_path, max_usd=10.0, page_loader=lambda f: fr.fixture_pages(f),
+                      searched_policy=fr.SEARCHED_UNLINKED, official_policy=fr.OFFICIAL_PAGE_HOST,
+                      unlocated=fr.UNRESOLVED, access_date="2026-11-17", run_fn=run_fn,
+                      cost_fn=lambda run_dir: cost, **kwargs)
+    return run, calls
+
+
+def test_run_live_stops_on_the_first_error_after_spend(tmp_path):
+    run, calls = _erroring_run(tmp_path, 0.25)
+    assert len(calls) == 1
+    first, *rest = run["results"]
+    assert first["error"] and first["cost_usd"] == 0.25
+    assert all(r["status"] == fr.NOT_RUN for r in rest)
+    assert "with an error" in run["stopped"] and "--continue-on-error" in run["stopped"]
+    assert run["spent_usd"] == 0.25
+
+
+def test_run_live_goes_on_after_a_zero_cost_refusal(tmp_path):
+    run, calls = _erroring_run(tmp_path, 0.0)
+    assert len(calls) == 3 and run["stopped"] is None
+    assert all(r["error"] for r in run["results"])
+
+
+def test_continue_on_error_goes_on_after_a_paid_error(tmp_path):
+    run, calls = _erroring_run(tmp_path, 0.25, continue_on_error=True)
+    assert len(calls) == 3 and run["stopped"] is None
+    assert run["spent_usd"] == pytest.approx(0.75)
+
+
 # ---------------------------------------------------------------------------
 # Comparison
 # ---------------------------------------------------------------------------
