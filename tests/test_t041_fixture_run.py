@@ -212,6 +212,7 @@ def test_run_live_with_fakes_compares_records_x35_and_stops_at_the_cap(tmp_path)
     x35 = lambda q, t: Entailment("true", 0.9)  # noqa: E731
     fake = lambda *a: None  # noqa: E731
     dispatch = V27Dispatch(settings=None, jev_ask_fn=fake, extract_fn=fake, entail_fn=x35, extractor_mode=NO_BATCH)
+    from g3o.run.presweep import stage_validate_v27 as svv
     url = "https://synthetic.example/syn-9001/p0"
     first = _fixture([{"item": "core.page_verdict", "scope": "page:p0", "value": "confirms_activity"},
                       {"item": "core.has_genai_activity", "scope": "institution", "value": "yes"},
@@ -226,8 +227,11 @@ def test_run_live_with_fakes_compares_records_x35_and_stops_at_the_cap(tmp_path)
         assert [p.url for p in pages] == [url]
         assert live.follow_fetch(url).outcome == "FETCHED"
         assert live.follow_fetch("https://elsewhere.example/").outcome == "FETCH_FAILED"
-        live.entail_fn("question", "text")
-        live.entail_fn("question", "text")
+        assert live.entail_fn is x35  # review M4: the X35 client is passed through unwrapped
+        journal = svv.RequestJournal(institution_dir(run_dir, inst_id) / svv.WORK_DIR / svv.JOURNAL)
+        entail = journal.seams({"x35_model": "m"})[1](live.entail_fn)
+        entail("question", "text")
+        entail("question", "text")
         storage = {"summary": {"values": {"core.has_genai_activity": "no"}},
                    "sources": {"S1": {"values": {"core.source_url": url, "core.page_verdict": "confirms_activity"}}},
                    "activities": {}}
@@ -472,3 +476,44 @@ def test_run_live_flushes_each_result_and_the_script_keeps_them_on_interrupt(tmp
     assert doc["stopped"].startswith("interrupted") and doc["spent_usd"] == pytest.approx(0.01)
     assert [r["fixture_id"] for r in doc["results"]] == ["v27-syn-A011-01", "v27-syn-A004-05"]
     assert doc["results"][1]["status"] == fr.NOT_RUN
+
+
+# ---------------------------------------------------------------------------
+# X35 from the request journals (review M4)
+# ---------------------------------------------------------------------------
+
+
+def test_x35_summary_from_journals_counts_non_answers_and_failed_calls(tmp_path):
+    from g3o.common.paths import institution_dir
+    from g3o.extract.x35_client import X35ResponseError
+    from g3o.run.presweep import stage_validate_v27 as svv
+
+    inst_dir = institution_dir(tmp_path, "INST-SYN-9001")
+    journal = svv.RequestJournal(inst_dir / svv.WORK_DIR / svv.JOURNAL)
+    answers = iter([Entailment("true", 0.95), Entailment("false", 0.7)])
+
+    def x35(question, text):
+        if question == "refused":
+            raise X35ResponseError("refusal", usage={"input_tokens": 10, "output_tokens": 1})
+        return next(answers)
+
+    entail = journal.seams({"x35_model": "m"})[1](x35)
+    assert entail("q1", "t").value == "true"
+    assert entail("q2", "t").value == "false"
+    assert entail("refused", "t").value == support_check.X35_NON_ANSWER  # journaled, not raised (Q169 b)
+    path = inst_dir / svv.WORK_DIR / svv.JOURNAL
+    with path.open("ab") as stream:  # a billed failed call, an old no-response marker, a torn tail
+        stream.write(json.dumps({"kind": "x35_failed", "key": "k1", "n": 0, "elapsed_ms": 1,
+                                 "response": {"error": "E", "usage": {"input_tokens": 1}}}).encode() + b"\n")
+        stream.write(json.dumps({"kind": "x35_failed", "key": "k2", "n": 0, "elapsed_ms": 1,
+                                 "response": {svv.X35_USAGE_ABSENT: svv.X35_NO_RESPONSE}}).encode() + b"\n")
+        stream.write(b'{"kind": "x35", "torn')
+    calls = fr.journal_x35_calls(tmp_path)
+    assert len(calls) == 4
+    s = fr.x35_summary(calls)
+    assert (s["n_calls"], s["n_true"], s["n_false"], s["n_other"]) == (4, 1, 1, 2)
+    assert s["n_non_answer"] == 1 and s["n_failed"] == 1
+    assert s["agreement"] == pytest.approx(1 / 4)
+    assert s["n_probability_missing"] == 2 and s["probability_min"] == 0.7
+    # the summary counts the same calls the cost report prices (RequestJournal.x35_usages)
+    assert len(svv.RequestJournal(path, read_only=True).x35_usages()) == len(calls)

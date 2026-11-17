@@ -566,50 +566,68 @@ def a_id_summary(results: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, in
 # ---------------------------------------------------------------------------
 
 
-class X35Recorder:
-    """Wraps a run's X35 ``entail_fn`` and records each answer and stated probability.
+def journal_x35_calls(run_dir: Path) -> list[dict[str, Any]]:
+    """Every X35 call journaled in one fixture's run directory, read from the request journals.
 
-    Never wraps the refusing stub: the caller checks the dispatch gates on the unwrapped
-    dispatch first (:func:`require_live_gates`). ``entail_with_usage`` is delegated so the
-    request journal still stores each call's usage.
+    Review M4: the journals are the record of the X35 calls (``RequestJournal._entail``,
+    ``stage_validate_v27.py``): an ``x35`` entry holds the answer (``value``) and stated
+    ``probability``; an X35 non-answer (PI ruling Q169 b) is an ``x35`` entry with value
+    ``support_check.X35_NON_ANSWER``, probability ``None`` and a ``non_answer`` field; an
+    ``x35_failed`` entry is a call that came back with a billed response but no answer.
+    An ``x35_failed`` entry carrying the old no-response marker is read as absent, as
+    ``RequestJournal`` reads it (PI ruling Q163 c). The same calls ``RequestJournal.x35_usages``
+    prices, so the summary and the cost agree. Each live invocation has a fresh run root
+    (:func:`fresh_run_root`), so no entry comes from an earlier run. A torn final line is
+    skipped (PI ruling 131.2 a); a corrupt middle line raises ``ValueError``.
     """
+    from g3o.common.paths import iter_institution_dirs
+    from g3o.run.presweep import stage_perpage_v27 as spv
+    from g3o.run.presweep import stage_validate_v27 as svv
 
-    def __init__(self, inner: Any) -> None:
-        self._inner = inner
-        self.calls: list[dict[str, Any]] = []
-
-    def _record(self, ent: Any) -> None:
-        self.calls.append({"answer": getattr(ent, "value", None), "probability": getattr(ent, "probability", None)})
-
-    def entail_with_usage(self, question: str, text: str) -> tuple[Any, Any]:
-        with_usage = getattr(self._inner, "entail_with_usage", None)
-        if with_usage is not None:
-            ent, usage = with_usage(question, text)
-        else:
-            ent, usage = self._inner(question, text), None
-        self._record(ent)
-        return ent, usage
-
-    def __call__(self, question: str, text: str) -> Any:
-        return self.entail_with_usage(question, text)[0]
-
-    def take(self) -> list[dict[str, Any]]:
-        out, self.calls = self.calls, []
-        return out
+    calls: list[dict[str, Any]] = []
+    for inst_dir in iter_institution_dirs(Path(run_dir)):
+        for work_dir, name in ((spv.WORK_DIR, spv.JOURNAL), (svv.WORK_DIR, svv.JOURNAL)):
+            path = inst_dir / work_dir / name
+            if not path.is_file():
+                continue
+            lines = path.read_bytes().split(b"\n")
+            for n, line in enumerate(lines):
+                if not line.strip():
+                    continue
+                try:
+                    entry = json.loads(line.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    if n == len(lines) - 1:  # torn final record
+                        break
+                    raise ValueError(f"corrupt journal line {n + 1}: {work_dir}/{name}") from None
+                kind, response = entry.get("kind"), entry.get("response") or {}
+                if kind == "x35":
+                    calls.append({"answer": response.get("value"), "probability": response.get("probability"),
+                                  "non_answer": "non_answer" in response, "failed": False})
+                elif kind == "x35_failed" and response.get(svv.X35_USAGE_ABSENT) != svv.X35_NO_RESPONSE:
+                    calls.append({"answer": None, "probability": None, "non_answer": False, "failed": True})
+    return calls
 
 
 def x35_summary(calls: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """X35 agreement and the spread of stated probabilities over one fixture's calls.
+    """X35 agreement and the spread of stated probabilities over one fixture's calls
+    (:func:`journal_x35_calls`).
 
     Agreement (default definition, proposed question P2): the share of X35 calls answering
-    ``true``, i.e. X35 agreeing that the quote supports the extractor's code.
+    ``true``, i.e. X35 agreeing that the quote supports the extractor's code. ``n_other``
+    counts every call that is neither ``true`` nor ``false``: the non-answers
+    (``n_non_answer``, PI ruling Q169 b) and the failed calls (``n_failed``) included.
     """
     n = len(calls)
-    probs = sorted(float(c["probability"]) for c in calls if isinstance(c.get("probability"), (int, float)))
+    probs = sorted(float(c["probability"]) for c in calls
+                   if isinstance(c.get("probability"), (int, float)) and not isinstance(c.get("probability"), bool))
     n_true = sum(1 for c in calls if c.get("answer") == "true")
+    n_false = sum(1 for c in calls if c.get("answer") == "false")
     return {
-        "n_calls": n, "n_true": n_true, "n_false": sum(1 for c in calls if c.get("answer") == "false"),
-        "n_other": n - n_true - sum(1 for c in calls if c.get("answer") == "false"),
+        "n_calls": n, "n_true": n_true, "n_false": n_false,
+        "n_other": n - n_true - n_false,
+        "n_non_answer": sum(1 for c in calls if c.get("non_answer")),
+        "n_failed": sum(1 for c in calls if c.get("failed")),
         "agreement": (n_true / n) if n else None,
         "n_probability_missing": n - len(probs),
         "probability_min": probs[0] if probs else None,
@@ -759,7 +777,6 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
                          "(a live run never reuses a run directory)")
     if run_fn is None:
         from g3o.run.presweep.orchestrator import run_v27_dispatch as run_fn
-    recorder = X35Recorder(dispatch.entail_fn)
     spent, results, stopped = 0.0, [], None
 
     def keep(result: dict[str, Any]) -> None:
@@ -778,7 +795,7 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
         pages = page_loader(fixture)
         sample, scraped, served = materialise(run_dir, fixture, pages, searched_policy=searched_policy,
                                               official_policy=official_policy, access_date=access_date)
-        live = dataclasses.replace(dispatch, entail_fn=recorder, follow_fetch=fixture_fetch(served))
+        live = dataclasses.replace(dispatch, follow_fetch=fixture_fetch(served))
         error = None
         try:
             summary = run_fn(run_dir, sample, scraped, live)
@@ -789,7 +806,11 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
         result = compare_fixture(fixture, lambda e, s=storage, u=page_urls: locate_got(s, e, u),
                                  unlocated=unlocated)
         cost = (cost_fn or _journal_cost(dispatch))(run_dir)
-        result.update(summary=summary, error=error, x35=x35_summary(recorder.take()), cost_usd=cost)
+        try:  # review M4: from the journals, so non-answers and failed calls are counted
+            x35 = x35_summary(journal_x35_calls(run_dir))
+        except ValueError as exc:
+            x35 = {**x35_summary([]), "journal_error": str(exc)}
+        result.update(summary=summary, error=error, x35=x35, cost_usd=cost)
         keep(result)
         if cost is None:
             stopped = "stopped: the previous fixture's spend could not be priced"
@@ -909,7 +930,8 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
             lines.append(f"- stage stop: {r['error']}")
         if r.get("x35"):
             x = r["x35"]
-            lines.append(f"- X35: {x['n_calls']} calls, agreement {x['agreement']}, stated probability "
+            lines.append(f"- X35: {x['n_calls']} calls ({x.get('n_non_answer', 0)} non-answers, "
+                         f"{x.get('n_failed', 0)} failed), agreement {x['agreement']}, stated probability "
                          f"min {x['probability_min']} / median {x['probability_median']} / max {x['probability_max']}")
         for e in r["expected"]:
             lines.append(f"- [{e['status']}] {e['item']} @ {e['scope']}: expected {e['expected']!r}, got {e['got']!r}")
@@ -929,8 +951,8 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
 
 
 __all__ = [
-    "F6C_LINE", "GROUPS", "QUOTE_MATCH_LIMITS", "RunRefused", "X35Recorder", "a_id_summary", "compare_fixture",
-    "estimate", "fixture_fetch", "fixture_group", "fixture_pages", "force_sync", "format_estimate",
+    "F6C_LINE", "GROUPS", "QUOTE_MATCH_LIMITS", "RunRefused", "a_id_summary", "compare_fixture",
+    "estimate", "fixture_fetch", "fixture_group", "fixture_pages", "force_sync", "format_estimate", "journal_x35_calls",
     "load_fixtures", "locate_got", "materialise", "not_run_result", "plan_fixture", "report_skeleton",
     "require_live_gates", "run_live", "searched_page_keys", "select_fixtures", "validate_fixture",
     "write_outputs", "x35_summary",
