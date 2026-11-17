@@ -111,7 +111,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: invalid fixtures: {json.dumps(problems)}", file=sys.stderr)
         return 2
     ft = fr.load_fixture_text_module(FIX)
-    seeds = _seeds(args.seeds, drive)
+    try:
+        seeds = _seeds(args.seeds, drive)
+    except (ValueError, OSError) as exc:  # review L5: a malformed seeds file is a clean error, not a traceback
+        print(f"error: seeds file unusable: {exc}", file=sys.stderr)
+        return 2
+    if missing := fr.missing_seeds(seeds):
+        print(f"error: seeds file lacks {', '.join(missing)}", file=sys.stderr)
+        return 2
     target = seeds["spike_chunk_target_bytes"].value if seeds else None
     pages = {f["fixture_id"]: fr.fixture_pages(f, fixture_text=ft, drive=drive) for f in fixtures}
     plans = [fr.plan_fixture(f, pages[f["fixture_id"]], searched_policy=args.searched_pages,

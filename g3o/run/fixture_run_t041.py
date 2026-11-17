@@ -440,6 +440,16 @@ def estimate(plans: Sequence[Mapping[str, Any]], *, jev_model: str, extractor_mo
     return out
 
 
+#: The projection seeds the runner reads (plan chunks and the USD scale).
+T041_SEEDS = ("spike_pages", "spike_chunk_target_bytes", "spike_h_span_usd", "spike_h_pq_usd", "spike_h_aq_usd",
+              "spike_jev_usd")
+
+
+def missing_seeds(seeds: Mapping[str, Any] | None) -> list[str]:
+    """The :data:`T041_SEEDS` a seeds mapping lacks (none when no seeds are given)."""
+    return [] if not seeds else [name for name in T041_SEEDS if name not in seeds]
+
+
 def format_estimate(est: Mapping[str, Any]) -> str:
     lines = [
         f"fixtures: {est['fixtures_planned']} planned, {est['fixtures_runnable']} runnable, "

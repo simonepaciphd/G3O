@@ -589,3 +589,21 @@ def test_page_host_warning_is_printed_for_real_fixtures(tmp_path, monkeypatch, c
     assert fr.PAGE_HOST_NOTE in capsys.readouterr().out
     assert _script().main(["--group", "pipeline", "--out-dir", str(tmp_path)]) == 0
     assert fr.PAGE_HOST_NOTE not in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# Seeds file errors (review L5)
+# ---------------------------------------------------------------------------
+
+
+def test_seeds_file_without_chunk_target_is_a_clean_error(tmp_path, monkeypatch, capsys):
+    _forbid_live(monkeypatch)
+    seeds = tmp_path / "seeds.json"
+    seeds.write_text(json.dumps({"seeds": {"spike_pages": {"value": 50, "source": "S:24"}}}), encoding="utf-8")
+    rc = _script().main(["--group", "pipeline", "--seeds", str(seeds), "--out-dir", str(tmp_path / "out")])
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert err.startswith("error: seeds file") and "spike_chunk_target_bytes" in err
+    assert not (tmp_path / "out").exists()
+    assert fr.missing_seeds({"spike_pages": object()}) == [n for n in fr.T041_SEEDS if n != "spike_pages"]
+    assert fr.missing_seeds(None) == []
