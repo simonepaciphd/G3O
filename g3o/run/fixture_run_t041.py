@@ -566,11 +566,15 @@ def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
     """``(found, value)`` of one expected value in a ``6_storage.json`` document.
 
     Scopes: ``institution`` -> the summary row's values; ``page`` / ``page:<key>`` ->
-    the source row whose values carry that page's URL; ``activity`` / ``activity:<name>``
-    -> the activity row named so (``core.activity_name``), or the only activity row.
+    the source row whose source URL field (``source_fields.URL``, ``core.source_url``) is
+    that page's URL (review L1: never any other string value); ``activity:<name>`` -> the
+    activity row named so (``core.activity_name``), not located when none is; bare
+    ``activity`` (no name) -> the only activity row (review L2).
     Any other scope (``pair``, run telemetry such as ``followed_urls``) is not located:
     no reader is defined for it here.
     """
+    from g3o.common.source_fields import URL as SOURCE_URL
+
     if not storage:
         return False, None
     item, scope = expected["item"], str(expected["scope"])
@@ -581,13 +585,12 @@ def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
     elif kind == "page":
         url = page_urls.get(name) if name else (next(iter(page_urls.values())) if len(page_urls) == 1 else None)
         if url is not None:
-            rows = [r for r in (storage.get("sources") or {}).values()
-                    if url in {v for v in _row_values(r).values() if isinstance(v, str)}]
+            rows = [r for r in (storage.get("sources") or {}).values() if _row_values(r).get(SOURCE_URL) == url]
     elif kind == "activity":
         acts = list((storage.get("activities") or {}).values())
         if name:
             rows = [r for r in acts if _row_values(r).get("core.activity_name") == name]
-        if not rows and len(acts) == 1:
+        elif len(acts) == 1:
             rows = acts
     for row in rows:
         values = _row_values(row)

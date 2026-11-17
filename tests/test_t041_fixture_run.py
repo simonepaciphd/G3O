@@ -350,7 +350,12 @@ def test_locate_got_by_scope():
     assert fr.locate_got(storage, {"item": "core.has_genai_activity", "scope": "institution"}, urls) == (True, "unclear")
     assert fr.locate_got(storage, {"item": "core.page_verdict", "scope": "page:p1"}, urls) == (True, "event_only")
     assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Chatbot"}, urls) == (True, "pilot")
-    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Other"}, urls) == (True, "pilot")
+    # review L2: a named activity that is absent is not located; only a bare scope takes the only activity
+    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Other"}, urls) == (False, None)
+    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity"}, urls) == (True, "pilot")
+    # review L1: the page URL must be the source URL field, not any string value of the row
+    decoy = {"sources": {"S1": {"values": {"core.source_snippet": "https://x/p0", "core.page_verdict": "no_genai"}}}}
+    assert fr.locate_got(decoy, {"item": "core.page_verdict", "scope": "page:p0"}, urls) == (False, None)
     assert fr.locate_got(storage, {"item": "core.page_verdict", "scope": "page"}, urls) == (False, None)
     assert fr.locate_got(storage, {"item": "x", "scope": "pair:1"}, urls) == (False, None)
     assert fr.locate_got(None, {"item": "x", "scope": "institution"}, urls) == (False, None)
