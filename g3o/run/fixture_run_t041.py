@@ -1097,6 +1097,7 @@ def materialise(run_dir: Path, fixture: Mapping[str, Any], pages: Sequence[Mappi
     ``(sample, scraped, served)``: the sample row, the searched pages as stored scrape output
     and the fixture pages the follow leg is served from (by URL)."""
     from g3o.common.paths import LAYOUT_VERSION, MANIFEST_NAME, institution_dir
+    from g3o.run.presweep.config import PIPELINE_V27
     from g3o.run.presweep.official_site_v27 import OFFICIAL_SITE_FILE
     from g3o.run.presweep.perpage_inputs_v27 import INSTITUTION_FILE
     from g3o.run.presweep.records import institution_record
@@ -1110,6 +1111,8 @@ def materialise(run_dir: Path, fixture: Mapping[str, Any], pages: Sequence[Mappi
     (run_dir / MANIFEST_NAME).write_text(json.dumps({
         "layout_version": LAYOUT_VERSION, "run_id": f"T041-{fixture['fixture_id']}",
         "institutions": [inst_id], "institution_uids": {inst_id: fixture_uid(inst_id)},
+        # a v2.7 run directory: ``planning.record_run_pipeline`` refuses any other recorded mode
+        "config": {"pipeline_version": PIPELINE_V27},
         "t041_fixture": fixture["fixture_id"]}, indent=1), encoding="utf-8")
     idir = institution_dir(run_dir, inst_id)
     idir.mkdir(parents=True, exist_ok=True)
@@ -1132,9 +1135,12 @@ def fixture_fetch(served: Mapping[str, Any]) -> Callable[[str], Any]:
     does not hold, or a page whose fixture fetch status is not ok, is FETCH_FAILED."""
     from g3o.run.presweep.stage_follow import FetchResult
 
+    # the follow leg's outcome codes (lowercase)
+    from g3o.scrape.follow import FETCH_FAILED, FETCHED
+
     def fetch(url: str) -> Any:
         page = served.get(url)
-        return FetchResult("FETCHED", page) if page is not None else FetchResult("FETCH_FAILED")
+        return FetchResult(FETCHED, page) if page is not None else FetchResult(FETCH_FAILED)
 
     return fetch
 
