@@ -628,7 +628,8 @@ def load_run_telemetry(run_dir: Path) -> dict[str, Any]:
 
 def _page_key(url: str, page_urls: Mapping[str, str]) -> str:
     """The fixture page key of a followed URL: exact URL first, then the follow leg's same-URL key
-    (RC-D-023 C-Q1 b, :func:`g3o.scrape.follow.same_url_key`); the URL itself when no page matches."""
+    (RC-D-023 C-Q1 b, :func:`g3o.scrape.follow.same_url_key`) only when exactly one page shares it
+    (review L3); the URL itself when no page, or more than one, matches."""
     from g3o.scrape.follow import same_url_key
 
     for key, page_url in page_urls.items():
@@ -636,12 +637,10 @@ def _page_key(url: str, page_urls: Mapping[str, str]) -> str:
             return key
     try:
         want = same_url_key(url)
-        for key, page_url in page_urls.items():
-            if same_url_key(page_url) == want:
-                return key
+        matches = [key for key, page_url in page_urls.items() if same_url_key(page_url) == want]
     except (TypeError, ValueError):
-        pass
-    return url
+        matches = []
+    return matches[0] if len(matches) == 1 else url
 
 
 def locate_follow(item: str, telemetry: Mapping[str, Any] | None,
@@ -1068,15 +1067,20 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
             storage = None
             errors.append(f"storage artifact unreadable: {type(exc).__name__}: {exc}")
         telemetry, telemetry_error = None, None
-        try:  # Q194 c: the run records the telemetry readers read; a malformed record reads as not located
-            telemetry = load_run_telemetry(run_dir)
-        except ValueError as exc:
-            telemetry_error = f"{type(exc).__name__}: {exc}"
-        except Exception as exc:
-            errors.append(f"run records unreadable: {type(exc).__name__}: {exc}")
+        if error is None:  # review M1: after a stage stop the run records are partial: not read
+            try:  # Q194 c: the run records the telemetry readers read; a malformed record reads as not located
+                telemetry = load_run_telemetry(run_dir)
+            except ValueError as exc:
+                telemetry_error = f"{type(exc).__name__}: {exc}"
+            except Exception as exc:
+                errors.append(f"run records unreadable: {type(exc).__name__}: {exc}")
         page_urls = {p["page_key"]: p["url"] for p in pages}
-        result = compare_fixture(fixture, lambda e, s=storage, u=page_urls, t=telemetry: locate_got(s, e, u, t),
-                                 unlocated=unlocated)
+        try:  # review L4: a comparison error after the paid run is a fixture result, never raised
+            result = compare_fixture(fixture, lambda e, s=storage, u=page_urls, t=telemetry: locate_got(s, e, u, t),
+                                     unlocated=unlocated)
+        except Exception as exc:
+            errors.append(f"comparison failed: {type(exc).__name__}: {exc}")
+            result = _uncompared_result(fixture)
         if telemetry_error is not None:
             result["telemetry_error"] = telemetry_error
         try:
@@ -1092,6 +1096,9 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
             x35 = {**x35_summary([]), "journal_error": f"{type(exc).__name__}: {exc}"}
             errors.append(f"X35 journals unreadable: {type(exc).__name__}: {exc}")
         error = "; ".join(errors) if errors else None
+        if error is not None and result.get("status") == PASS:  # review M1: never pass with an error set
+            result["status"] = PARTIAL
+            result["a_ids"] = {a: PARTIAL for a in result.get("a_ids") or {}}
         result.update(summary=summary, error=error, x35=x35, cost_usd=cost)
         keep(result)
         if cost is None:
@@ -1104,6 +1111,18 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
                 stopped = (f"stopped: fixture {fixture['fixture_id']} stopped with an error after ${cost:.4f} "
                            "of journaled spend (pass --continue-on-error to go on)")
     return {"results": results, "spent_usd": spent, "stopped": stopped}
+
+
+def _uncompared_result(fixture: Mapping[str, Any]) -> dict[str, Any]:
+    """The result of a fixture whose comparison raised (review L4): every expected value
+    ``not_located``, status ``unresolved``. Built with ``.get`` only, so it never raises itself."""
+    rows = []
+    for k, e in enumerate(fixture.get("expected") or ()):
+        e = e if isinstance(e, Mapping) else {}
+        rows.append({"index": k, "item": e.get("item"), "scope": e.get("scope"), "expected": e.get("value"),
+                     "got": None, "status": NOT_LOCATED})
+    return {"fixture_id": fixture.get("fixture_id"), "expected": rows, "status": UNRESOLVED,
+            "a_ids": {a: UNRESOLVED for a in fixture.get("a_ids") or ()}}
 
 
 def _read_storage(run_dir: Path) -> dict[str, Any] | None:

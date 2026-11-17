@@ -808,6 +808,71 @@ def test_q194c_run_live_reads_telemetry_and_keeps_a_malformed_state_out_of_error
     assert fr.TELEMETRY_NOTE in report and "run records unreadable (telemetry values not located)" in report
 
 
+def _sync_dispatch():
+    from g3o.run.presweep.orchestrator import V27Dispatch
+    from g3o.run.presweep.perpage_batch_v27 import NO_BATCH
+
+    fake = lambda *a: None  # noqa: E731
+    return V27Dispatch(settings=None, jev_ask_fn=fake, extract_fn=fake, entail_fn=fake, extractor_mode=NO_BATCH)
+
+
+def test_review_m1_a_stage_stop_reads_no_telemetry_and_never_passes(tmp_path):
+    from g3o.common.paths import institution_dir
+    from g3o.persist.stage6_adapters import STORAGE_ARTIFACT
+
+    url = "https://synthetic.example/syn-9001/p0"
+    verdict = {"item": "core.page_verdict", "scope": "page:p0", "value": "confirms_activity"}
+    followed = {"item": "followed_urls", "scope": "institution", "value": ["https://synthetic.example/x1"]}
+    with_follow, storage_only = _fixture([verdict, followed]), _fixture([verdict], fixture_id="F-2")
+
+    def run_fn(run_dir, sample, scraped, live):  # a partial follow state and storage, then a stage stop
+        (inst_id, _), = scraped.items()
+        _write_follow_state(run_dir, inst_id, [("https://synthetic.example/x1", "fetch_failed")])
+        storage = {"summary": {"values": {}}, "activities": {},
+                   "sources": {"S1": {"values": {"core.source_url": url, "core.page_verdict": "confirms_activity"}}}}
+        (institution_dir(run_dir, inst_id) / STORAGE_ARTIFACT).write_text(json.dumps(storage), encoding="utf-8")
+        raise RuntimeError("stage 6 refused")
+
+    run = fr.run_live([with_follow, storage_only], dispatch=_sync_dispatch(), run_root=tmp_path, max_usd=10.0,
+                      page_loader=lambda f: fr.fixture_pages(f), searched_policy=fr.SEARCHED_UNLINKED,
+                      official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17",
+                      run_fn=run_fn, cost_fn=lambda run_dir: 0.0)
+    r1, r2 = run["results"]
+    # (a) the follow state left by the stopped run is not read: the telemetry value is not located
+    assert [e["status"] for e in r1["expected"]] == [fr.PASS, fr.NOT_LOCATED] and r1["status"] == fr.PARTIAL
+    assert "stage 6 refused" in r1["error"]
+    # (b) every value passed, but the run stopped: the fixture is partial, never pass
+    assert [e["status"] for e in r2["expected"]] == [fr.PASS] and "stage 6 refused" in r2["error"]
+    assert r2["status"] == fr.PARTIAL and r2["a_ids"] == {"A-011": fr.PARTIAL}
+
+
+def test_review_l4_a_comparison_error_is_a_fixture_error_after_spend(tmp_path, monkeypatch):
+    def broken(*a, **k):
+        raise KeyError("expected")
+
+    monkeypatch.setattr(fr, "compare_fixture", broken)
+    fixture = _fixture([{"item": "core.page_verdict", "scope": "page:p0", "value": "no_genai"}])
+    run = fr.run_live([fixture, _fixture([], fixture_id="F-2")], dispatch=_sync_dispatch(), run_root=tmp_path,
+                      max_usd=10.0, page_loader=lambda f: fr.fixture_pages(f), searched_policy=fr.SEARCHED_UNLINKED,
+                      official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17",
+                      run_fn=lambda *a: None, cost_fn=lambda run_dir: 0.3)
+    r1, r2 = run["results"]
+    assert "comparison failed: KeyError" in r1["error"] and r1["cost_usd"] == 0.3
+    assert r1["status"] == fr.UNRESOLVED and r1["a_ids"] == {"A-011": fr.UNRESOLVED}
+    assert [e["status"] for e in r1["expected"]] == [fr.NOT_LOCATED]
+    assert r2["status"] == fr.NOT_RUN and "with an error" in run["stopped"]
+
+
+def test_review_l3_same_url_key_fallback_needs_a_single_match():
+    pages = {"p0": "https://synthetic.example/info", "p1": "https://synthetic.example/other"}
+    assert fr._page_key("https://synthetic.example/info", pages) == "p0"  # exact
+    assert fr._page_key("https://WWW.synthetic.example/info/#top", pages) == "p0"  # one same-URL-key match
+    ambiguous = {"a": "https://synthetic.example/info/", "b": "https://www.synthetic.example/info"}
+    assert fr._page_key("https://synthetic.example/info#x", ambiguous) == "https://synthetic.example/info#x"
+    assert fr._page_key("https://www.synthetic.example/info", ambiguous) == "b"  # exact still wins
+    assert fr._page_key("https://elsewhere.example/", pages) == "https://elsewhere.example/"
+
+
 # ---------------------------------------------------------------------------
 # Typed matching (review M6)
 # ---------------------------------------------------------------------------
