@@ -16,7 +16,8 @@ calls are sync (DP-030 / RC-D-001 B).
 Output: ``--out-dir``, default ``$G3O_DRIVE_ROOT/agent-workspace/2026-10-27-reclass-plan/fixture-run``.
 A live run writes its own files (``t041-live-*.json``, ``T041-REPORT-live.md``) and refuses
 to start if any exists; each finished fixture is appended to ``t041-live-fixtures.jsonl`` at
-once, and a crash or Ctrl-C still writes the results of the finished fixtures. Live run
+once, and a crash or Ctrl-C still writes the results of the finished fixtures and prices every
+fixture run directory (the one in flight included) with the same journal pricing. Live run
 directories go to ``--run-root`` (local, default ``~/.g3o/t041-runs``), one fresh
 ``<UTC stamp>/`` folder per invocation.
 
@@ -172,24 +173,31 @@ def main(argv: list[str] | None = None) -> int:
         finished.append(result)
         fr.append_result_jsonl(jsonl, result)
 
-    run = None
+    cost_fn = fr.journal_cost(dispatch)  # one pricing function, per fixture and after an interrupt
+
+    def write(run: dict[str, Any]) -> dict[str, Path]:
+        return fr.write_outputs(out_dir, mode=fr.MODE_LIVE, plans=plans, est=est, results=run["results"],
+                                options=options, spent_usd=run["spent_usd"], stopped=run["stopped"])
+
     try:
         run = fr.run_live(fixtures, dispatch=dispatch, run_root=run_root, max_usd=args.max_usd,
                           page_loader=lambda f: pages[f["fixture_id"]], searched_policy=args.searched_pages,
                           official_policy=args.official_site, unlocated=args.unlocated,
-                          continue_on_error=args.continue_on_error, on_result=keep,
+                          continue_on_error=args.continue_on_error, on_result=keep, cost_fn=cost_fn,
                           access_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-    finally:  # a crash or Ctrl-C still writes the results of the fixtures that finished
-        if run is None:
-            done = {r["fixture_id"] for r in finished}
-            costs = [r.get("cost_usd") for r in finished if "cost_usd" in r]
-            run = {"results": finished + [fr.not_run_result(f, "interrupted: the run ended before this fixture")
-                                          for f in fixtures if f["fixture_id"] not in done],
-                   "spent_usd": None if any(c is None for c in costs) else float(sum(costs)),
-                   "stopped": "interrupted: the run raised or was stopped; finished fixtures are kept "
-                              f"(also in {jsonl.name})"}
-        paths = fr.write_outputs(out_dir, mode=fr.MODE_LIVE, plans=plans, est=est, results=run["results"],
-                                 options=options, spent_usd=run["spent_usd"], stopped=run["stopped"])
+    except BaseException:  # a crash or Ctrl-C still writes the finished fixtures and prices every run dir
+        try:  # review LOW-4: nothing here may mask the original exception
+            run = fr.interrupted_run(fixtures, finished, fr.price_run_root(run_root, cost_fn), jsonl.name)
+            for name, err in run["pricing_errors"].items():  # review MEDIUM-1: reported, never raised
+                print(f"error: could not price fixture run directory {name}: {err}", file=sys.stderr)
+            spent = "unpriced" if run["spent_usd"] is None else f"${run['spent_usd']:.4f}"
+            print(f"live: interrupted; journaled spend {spent} (every fixture run directory priced)",
+                  file=sys.stderr)
+            write(run)
+        except Exception as exc:
+            print(f"error: could not write the live outputs: {type(exc).__name__}: {exc}", file=sys.stderr)
+        raise
+    paths = write(run)
     spent = "unpriced" if run["spent_usd"] is None else f"${run['spent_usd']:.4f}"
     print(f"live: spent {spent}; wrote {paths['results'].name}, {paths['report'].name} and {jsonl.name}")
     return 0

@@ -453,7 +453,9 @@ def test_write_outputs_live_never_overwrites_and_dry_never_touches_live(tmp_path
     assert dry["results"].name == "t041-dry-results.json" and paths["results"].read_bytes() == before
 
 
-def test_run_live_flushes_each_result_and_the_script_keeps_them_on_interrupt(tmp_path, monkeypatch):
+def _live_script_fakes(tmp_path, monkeypatch, run_fn):
+    """Fakes for a script-level live run: gates pass, ``run_fn`` stands in for the pipeline, and
+    the journal pricing reads ``spend.json`` the fake writes into each fixture run directory."""
     from g3o.run.presweep.orchestrator import V27Dispatch
     from g3o.run.presweep.perpage_batch_v27 import NO_BATCH
 
@@ -461,15 +463,12 @@ def test_run_live_flushes_each_result_and_the_script_keeps_them_on_interrupt(tmp
     dispatch = V27Dispatch(settings=None, jev_ask_fn=fake, extract_fn=fake, entail_fn=fake, extractor_mode=NO_BATCH)
     real_run_live = fr.run_live
 
-    def interrupted_run_live(fixtures, **kwargs):
-        def run_fn(run_dir, sample, scraped, live):
-            if run_fn.n:
-                raise KeyboardInterrupt
-            run_fn.n += 1
-        run_fn.n = 0
-        return real_run_live(fixtures, run_fn=run_fn, cost_fn=lambda run_dir: 0.01, **kwargs)
+    def priced(run_dir):
+        spend = Path(run_dir) / "spend.json"
+        return json.loads(spend.read_text(encoding="utf-8"))["usd"] if spend.exists() else 0.0
 
-    monkeypatch.setattr(fr, "run_live", interrupted_run_live)
+    monkeypatch.setattr(fr, "journal_cost", lambda d: priced)
+    monkeypatch.setattr(fr, "run_live", lambda fixtures, **kwargs: real_run_live(fixtures, run_fn=run_fn, **kwargs))
     monkeypatch.setattr(fr, "require_live_gates", lambda d: dispatch)
     import g3o.common.credentials as creds
     import g3o.run.presweep.v27_entry as entry
@@ -478,18 +477,108 @@ def test_run_live_flushes_each_result_and_the_script_keeps_them_on_interrupt(tmp
     monkeypatch.setattr(creds, "resolve", lambda: None)
     rt = tmp_path / "rt.json"
     rt.write_text("{}", encoding="utf-8")
-    out = tmp_path / "out"
+    return ["--live", "--max-usd", "5", "--runtime", str(rt), "--drive", str(tmp_path), "--out-dir",
+            str(tmp_path / "out"), "--run-root", str(tmp_path / "runs"), "--group", "pipeline",
+            "--fixture", "v27-syn-A011-01", "--fixture", "v27-syn-A004-05", "--fixture", "v27-syn-A004-04"]
+
+
+def _interrupting_run_fn():
+    """First fixture: $0.01 journaled, then finishes. Second: $0.02 journaled, then Ctrl-C."""
+    def run_fn(run_dir, sample, scraped, live):
+        usd = 0.01 if run_fn.n == 0 else 0.02
+        (Path(run_dir) / "spend.json").write_text(json.dumps({"usd": usd}), encoding="utf-8")
+        run_fn.n += 1
+        if run_fn.n == 2:
+            raise KeyboardInterrupt
+    run_fn.n = 0
+    return run_fn
+
+
+def test_run_live_flushes_each_result_and_the_script_keeps_them_on_interrupt(tmp_path, monkeypatch, capsys):
+    argv = _live_script_fakes(tmp_path, monkeypatch, _interrupting_run_fn())
     with pytest.raises(KeyboardInterrupt):
-        _script().main(["--live", "--max-usd", "5", "--runtime", str(rt), "--drive", str(tmp_path),
-                        "--out-dir", str(out), "--run-root", str(tmp_path / "runs"), "--group", "pipeline",
-                        "--fixture", "v27-syn-A011-01", "--fixture", "v27-syn-A004-05"])
-    paths = fr.output_paths(out, fr.MODE_LIVE)
+        _script().main(argv)
+    paths = fr.output_paths(tmp_path / "out", fr.MODE_LIVE)
     lines = paths["jsonl"].read_text(encoding="utf-8").splitlines()
-    assert [json.loads(x)["fixture_id"] for x in lines] == ["v27-syn-A011-01"]  # file order
+    assert len(lines) == 1  # only the finished fixture is flushed
+    first = json.loads(lines[0])["fixture_id"]
     doc = json.loads(paths["results"].read_text(encoding="utf-8"))
-    assert doc["stopped"].startswith("interrupted") and doc["spent_usd"] == pytest.approx(0.01)
-    assert [r["fixture_id"] for r in doc["results"]] == ["v27-syn-A011-01", "v27-syn-A004-05"]
-    assert doc["results"][1]["status"] == fr.NOT_RUN
+    # review MEDIUM-1: the in-flight fixture's journaled spend is counted and it is labelled partial
+    assert doc["stopped"].startswith("interrupted") and doc["spent_usd"] == pytest.approx(0.03)
+    by_id = {r["fixture_id"]: r for r in doc["results"]}
+    assert set(by_id) == {"v27-syn-A011-01", "v27-syn-A004-05", "v27-syn-A004-04"}
+    assert by_id[first]["cost_usd"] == pytest.approx(0.01)
+    reasons = sorted(r["reason"] for fid, r in by_id.items() if fid != first)
+    assert reasons == ["interrupted while running (partial spend $0.0200)",
+                       "interrupted: the run ended before this fixture"]
+    assert all(r["status"] == fr.NOT_RUN for fid, r in by_id.items() if fid != first)
+    assert "journaled spend $0.0300" in capsys.readouterr().err
+
+
+def test_a_failing_output_write_does_not_mask_the_interrupt(tmp_path, monkeypatch, capsys):
+    argv = _live_script_fakes(tmp_path, monkeypatch, _interrupting_run_fn())
+
+    def broken_write(*a, **k):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(fr, "write_outputs", broken_write)
+    with pytest.raises(KeyboardInterrupt):  # review LOW-4: the original exception, not the write error
+        _script().main(argv)
+    assert "could not write the live outputs: RuntimeError: disk full" in capsys.readouterr().err
+
+
+def test_price_run_root_records_a_pricing_failure_instead_of_raising(tmp_path):
+    (tmp_path / "F-1").mkdir()
+    (tmp_path / "F-2").mkdir()
+
+    def cost(run_dir):
+        if run_dir.name == "F-2":
+            raise KeyError("x35_model")
+        return 0.5
+
+    priced = fr.price_run_root(tmp_path, cost)
+    assert priced["F-1"] == {"cost_usd": 0.5, "error": None}
+    assert priced["F-2"]["cost_usd"] is None and "KeyError" in priced["F-2"]["error"]
+    run = fr.interrupted_run([_fixture([]), _fixture([], fixture_id="F-2")], [], priced, "x.jsonl")
+    assert run["spent_usd"] is None and "pricing failed for ['F-2']" in run["stopped"]
+    assert run["results"][1]["reason"].startswith("interrupted while running (partial spend unpriced); pricing failed")
+    assert fr.price_run_root(tmp_path / "absent", cost) == {}
+
+
+def test_run_live_records_post_run_errors_and_stops_after_spend(tmp_path, monkeypatch):
+    from g3o.run.presweep.orchestrator import V27Dispatch
+    from g3o.run.presweep.perpage_batch_v27 import NO_BATCH
+
+    fake = lambda *a: None  # noqa: E731
+    dispatch = V27Dispatch(settings=None, jev_ask_fn=fake, extract_fn=fake, entail_fn=fake, extractor_mode=NO_BATCH)
+
+    def bad_storage(run_dir):
+        raise json.JSONDecodeError("bad", "", 0)
+
+    def bad_journal(run_dir):
+        raise OSError("locked")
+
+    monkeypatch.setattr(fr, "_read_storage", bad_storage)
+    monkeypatch.setattr(fr, "journal_x35_calls", bad_journal)
+    run = fr.run_live([_fixture([]), _fixture([], fixture_id="F-2")], dispatch=dispatch, run_root=tmp_path,
+                      max_usd=10.0, page_loader=lambda f: fr.fixture_pages(f), searched_policy=fr.SEARCHED_UNLINKED,
+                      official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17",
+                      run_fn=lambda *a: None, cost_fn=lambda run_dir: 0.25)
+    first = run["results"][0]
+    assert "storage artifact unreadable: JSONDecodeError" in first["error"]
+    assert "X35 journals unreadable: OSError: locked" in first["error"] and first["x35"]["journal_error"]
+    assert first["cost_usd"] == 0.25 and run["results"][1]["status"] == fr.NOT_RUN
+    assert "with an error" in run["stopped"]
+
+    def bad_cost(run_dir):
+        raise KeyError("x35_model")
+
+    run = fr.run_live([_fixture([], fixture_id="F-3")], dispatch=dispatch, run_root=tmp_path / "r2",
+                      max_usd=10.0, page_loader=lambda f: fr.fixture_pages(f), searched_policy=fr.SEARCHED_UNLINKED,
+                      official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17",
+                      run_fn=lambda *a: None, cost_fn=bad_cost)
+    assert run["results"][0]["cost_usd"] is None and "pricing failed: KeyError" in run["results"][0]["error"]
+    assert "could not be priced" in run["stopped"]
 
 
 # ---------------------------------------------------------------------------

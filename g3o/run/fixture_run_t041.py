@@ -864,6 +864,9 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
     fixture run directory) would refuse every later fixture too, after their paid calls.
     A refusal with $0 journaled (a gate before any call) lets the run go on.
     ``continue_on_error=True`` (``--continue-on-error``) goes on after a paid stage stop too.
+    An error after the run (reading the storage artifact, pricing, reading the X35 journals)
+    is recorded as that fixture's error under the same rule, never raised (review MEDIUM-1);
+    a pricing error leaves the fixture unpriced, which stops the run.
 
     ``run_root`` is this invocation's own fresh folder (:func:`fresh_run_root`); each fixture
     runs in ``<run_root>/<fixture_id>``, which must not exist yet (refused before any call).
@@ -904,15 +907,28 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
             summary = run_fn(run_dir, sample, scraped, live)
         except Exception as exc:  # a stage stop is a fixture result, recorded for the PI
             summary, error = None, f"{type(exc).__name__}: {exc}"
-        storage = _read_storage(run_dir)
+        errors = [error] if error is not None else []
+        try:  # review MEDIUM-1: an error after the paid run is a fixture result, never raised
+            storage = _read_storage(run_dir)
+        except Exception as exc:
+            storage = None
+            errors.append(f"storage artifact unreadable: {type(exc).__name__}: {exc}")
         page_urls = {p["page_key"]: p["url"] for p in pages}
         result = compare_fixture(fixture, lambda e, s=storage, u=page_urls: locate_got(s, e, u),
                                  unlocated=unlocated)
-        cost = (cost_fn or _journal_cost(dispatch))(run_dir)
+        try:
+            cost = (cost_fn or journal_cost(dispatch))(run_dir)
+        except Exception as exc:
+            cost = None
+            errors.append(f"pricing failed: {type(exc).__name__}: {exc}")
         try:  # review M4: from the journals, so non-answers and failed calls are counted
             x35 = x35_summary(journal_x35_calls(run_dir))
         except ValueError as exc:
             x35 = {**x35_summary([]), "journal_error": str(exc)}
+        except Exception as exc:
+            x35 = {**x35_summary([]), "journal_error": f"{type(exc).__name__}: {exc}"}
+            errors.append(f"X35 journals unreadable: {type(exc).__name__}: {exc}")
+        error = "; ".join(errors) if errors else None
         result.update(summary=summary, error=error, x35=x35, cost_usd=cost)
         keep(result)
         if cost is None:
@@ -934,7 +950,7 @@ def _read_storage(run_dir: Path) -> dict[str, Any] | None:
     return json.loads(hits[0].read_text(encoding="utf-8")) if hits else None
 
 
-def _journal_cost(dispatch: Any) -> Callable[[Path], float | None]:
+def journal_cost(dispatch: Any) -> Callable[[Path], float | None]:
     """The fixture's spend priced from its request journals (``orchestrator._v27_cost_block``)."""
     def cost(run_dir: Path) -> float | None:
         from g3o.run.presweep.orchestrator import _v27_cost_block
@@ -944,6 +960,58 @@ def _journal_cost(dispatch: Any) -> Callable[[Path], float | None]:
         totals = [entry.get("total_usd") for entry in block.values()]
         return None if any(t is None for t in totals) else float(sum(totals))
     return cost
+
+
+def price_run_root(run_root: Path, cost_fn: Callable[[Path], float | None]) -> dict[str, dict[str, Any]]:
+    """Price every fixture run directory under ``run_root`` with ``cost_fn`` (review MEDIUM-1).
+
+    Used after an interrupted live run, so the fixture that was running when it stopped is
+    priced too. Never raises for one directory: a pricing failure is recorded as that
+    directory's ``error`` with ``cost_usd`` None. Keyed by directory name (the fixture id).
+    """
+    root = Path(run_root)
+    priced: dict[str, dict[str, Any]] = {}
+    if not root.is_dir():
+        return priced
+    for run_dir in sorted(p for p in root.iterdir() if p.is_dir()):
+        try:
+            priced[run_dir.name] = {"cost_usd": cost_fn(run_dir), "error": None}
+        except Exception as exc:
+            priced[run_dir.name] = {"cost_usd": None, "error": f"{type(exc).__name__}: {exc}"}
+    return priced
+
+
+def interrupted_run(fixtures: Sequence[Mapping[str, Any]], finished: Sequence[Mapping[str, Any]],
+                    priced: Mapping[str, Mapping[str, Any]], jsonl_name: str) -> dict[str, Any]:
+    """The run record of a live run that raised or was stopped (review MEDIUM-1).
+
+    ``finished`` are the results already final; ``priced`` is :func:`price_run_root` over this
+    invocation's run root. The spend is the total over every priced directory (None when any
+    could not be priced), so the fixture that was running is counted; it is labelled
+    ``interrupted while running (partial spend $X)``."""
+    done = {r["fixture_id"] for r in finished}
+    results = list(finished)
+    for f in fixtures:
+        fid = f["fixture_id"]
+        if fid in done:
+            continue
+        if fid in priced:
+            p = priced[fid]
+            spend = "unpriced" if p["cost_usd"] is None else f"${p['cost_usd']:.4f}"
+            reason = f"interrupted while running (partial spend {spend})"
+            if p.get("error"):
+                reason += f"; pricing failed: {p['error']}"
+            results.append(not_run_result(f, reason))
+        else:
+            results.append(not_run_result(f, "interrupted: the run ended before this fixture"))
+    costs = [p["cost_usd"] for p in priced.values()]
+    failed = {k: p["error"] for k, p in priced.items() if p.get("error")}
+    stopped = ("interrupted: the run raised or was stopped; finished fixtures are kept "
+               f"(also in {jsonl_name}); spend priced from every fixture run directory")
+    if failed:
+        stopped += f"; pricing failed for {sorted(failed)}"
+    return {"results": results, "stopped": stopped, "pricing_errors": failed,
+            "spent_usd": None if any(c is None for c in costs) else float(sum(costs))}
 
 
 # ---------------------------------------------------------------------------
@@ -1062,8 +1130,8 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
 
 __all__ = [
     "F6C_LINE", "GROUPS", "QUOTE_MATCH_LIMITS", "RunRefused", "a_id_summary", "compare_fixture",
-    "estimate", "fixture_fetch", "fixture_group", "fixture_pages", "force_sync", "format_estimate", "journal_x35_calls",
-    "load_fixtures", "locate_got", "materialise", "not_run_result", "plan_fixture", "report_skeleton",
-    "require_live_gates", "run_live", "searched_page_keys", "select_fixtures", "validate_fixture", "values_equal",
+    "estimate", "fixture_fetch", "fixture_group", "fixture_pages", "force_sync", "format_estimate", "interrupted_run",
+    "journal_cost", "journal_x35_calls", "load_fixtures", "locate_got", "materialise", "not_run_result",
+    "plan_fixture", "price_run_root", "report_skeleton", "require_live_gates", "run_live", "searched_page_keys", "select_fixtures", "validate_fixture", "values_equal",
     "write_outputs", "x35_summary",
 ]
