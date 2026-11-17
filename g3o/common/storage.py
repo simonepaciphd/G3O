@@ -32,6 +32,11 @@ AVAILABILITY_REASONS = {"legacy_not_collected", "historical_provenance_unavailab
 SUPPORT_STATES = {"supported", "downgraded_no_quote", "downgraded_low_confidence",
                   "downgraded_quote_not_stating_value", "set_by_rule", "not_required"}
 METADATA_ITEMS = {"core.codebook_release", "core.setup_pointer", "core.evidence_channel"}
+#: The inverse of each directed relation code: a supplied reverse relation must be this inverse (codes not
+#: listed are their own inverse here). Module level so the T-041 fixture runner reads the same table
+#: (PI ruling Q206 b, 2026-11-17).
+RELATION_INVERSE = {"component_of_program": "has_component", "has_component": "component_of_program",
+                    "governs": "governed_by", "governed_by": "governs"}
 VERDICTS = tuple(FIELDS["core.page_verdict"]["codes"])
 #: PI ruling 102 a (2026-11-14, building 96 a / 79 b): the signed ``core.page_review_state`` codes other than
 #: ``reviewed`` (codebook ``items/core.page_review_state/rules/0``; pinned against the signed vocabulary by
@@ -487,8 +492,7 @@ class StorageEnvelope:
                 _string(result["combining_rule_ref"], "combining rule")
                 if any(s not in self.supports for s in result["input_support_ids"]) or any(s not in sources for s in result["source_ids"]) or any(o not in self.observation_sources for o in result["observation_ids"]):
                     raise ValueError("display rollup input does not resolve")
-        inverse = {"component_of_program": "has_component", "has_component": "component_of_program",
-                   "governs": "governed_by", "governed_by": "governs"}
+        inverse = RELATION_INVERSE
         for (scope, lhs, rhs), value in relation_pairs.items():
             other = relation_pairs.get((scope, rhs, lhs))
             if other is not None and other != inverse.get(value, value):
