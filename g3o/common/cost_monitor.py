@@ -1105,6 +1105,8 @@ def price_v27_usage(
     if "x35" in V27_UNPRICED_PARTS:  # only if X35_PRICING_RULED is False (ruled True: Q158 a)
         x35: dict[str, Any] = {"calls": x35_calls, "usd": None, "reason": V27_UNPRICED_PARTS["x35"]}
     elif x35_usages is not None and x35_model is not None:
+        # Its "calls" is len(x35_usages); that equals x35_calls (x35 + x35_failed entries) by
+        # construction: RequestJournal.x35_usages has one element per call usage() counts.
         x35 = price_x35_requests(x35_usages, model=x35_model)
     else:
         x35 = {"calls": x35_calls, "usd": None,
