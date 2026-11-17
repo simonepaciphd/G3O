@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.data_dictionary. -->
-<!-- codebook release: 2.7 | codebook sha256: ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a -->
+<!-- codebook release: 2.7 | codebook sha256: 381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a -->
 
 # G3O codebook data dictionary
 
-Codebook release `2.7`, sha256 `ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a`. 109 items.
+Codebook release `2.7`, sha256 `381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a`. 109 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: 53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44 -->
@@ -2971,11 +2971,11 @@ The quote step runs for every activity; skipped items are kept internally and pu
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.contracting_party`
-<!-- item: core.contracting_party sha256: 73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24 -->
+<!-- item: core.contracting_party sha256: fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24` |
+| item hash | `fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2` |
 | family | `tool` |
 | name | `contracting_party` |
 | level | `activity` |
@@ -3003,7 +3003,7 @@ The quote step runs for every activity; skipped items are kept internally and pu
 
 1. `items/core.contracting_party/rules/0`
 
-Developer (from lookup or page, with its basis recorded) and contracting party (page-stated only).
+Developer (stated on the page, with its basis recorded) and contracting party (page-stated only).
 
 2. `items/core.contracting_party/rules/1`
 
@@ -3014,17 +3014,17 @@ Vendor holds what the source names, which in purchase records is the contracting
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.developer`
-<!-- item: core.developer sha256: f9bf2b0188ea76b1cb9f68dd866d8a8022fd75dc530d7caed4b2a3227a393ccc -->
+<!-- item: core.developer sha256: 3b7fa3c4814ac318a061237a2bc87bf7d614afa9645d570dcb127a0869dac61d -->
 
 | Field | Value |
 |---|---|
-| item hash | `f9bf2b0188ea76b1cb9f68dd866d8a8022fd75dc530d7caed4b2a3227a393ccc` |
+| item hash | `3b7fa3c4814ac318a061237a2bc87bf7d614afa9645d570dcb127a0869dac61d` |
 | family | `tool` |
 | name | `developer` |
 | level | `activity` |
 | pipelines | `web_extract` |
-| linkage | `pipeline` |
-| coder | `derived` |
+| linkage | `extractor` |
+| coder | `quote_step` |
 | pass | `none` |
 | round | `none` |
 | answer_type | `text` |
@@ -3046,22 +3046,26 @@ The quote step runs for every activity; skipped items are kept internally and pu
 
 1. `items/core.developer/rules/0`
 
-Developer (from lookup or page, with its basis recorded) and contracting party (page-stated only).
+Developer (stated on the page, with its basis recorded) and contracting party (page-stated only).
 
 2. `items/core.developer/rules/1`
 
-vendor = the organisation the page names as supplying the GenAI product or service, verbatim. If none is named but tool_name matches a published lookup table (product -> developer, versioned), fill it deterministically and set `vendor_basis` = lookup, otherwise `stated`.
+vendor = the organisation the page names as supplying the GenAI product or service, verbatim.
 
 3. `items/core.developer/rules/2`
 
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
+4. `items/core.developer/rules/3`
+
+A developer stated on the page comes from the quote step, with its supporting quote; `developer_basis` = stated.
+
 ## `core.developer_basis`
-<!-- item: core.developer_basis sha256: b4da76c1b35bd2d108e8093c659e5917175046ffd66917ba2decf4d770a1a291 -->
+<!-- item: core.developer_basis sha256: d76e4097f154eab1ca16fc863f2dc1a11e713a074ae41ac5324b315ebc3d7194 -->
 
 | Field | Value |
 |---|---|
-| item hash | `b4da76c1b35bd2d108e8093c659e5917175046ffd66917ba2decf4d770a1a291` |
+| item hash | `d76e4097f154eab1ca16fc863f2dc1a11e713a074ae41ac5324b315ebc3d7194` |
 | family | `provenance` |
 | name | `developer_basis` |
 | level | `activity` |
@@ -3089,11 +3093,19 @@ The quote step runs for every activity; skipped items are kept internally and pu
 
 1. `items/core.developer_basis/rules/0`
 
-Developer (from lookup or page, with its basis recorded) and contracting party (page-stated only).
+Developer (stated on the page, with its basis recorded) and contracting party (page-stated only).
 
 2. `items/core.developer_basis/rules/1`
 
-Every 'how we know' field uses the same five values: stated, from metadata, looked up, derived, quoted by the quote step. The per-run version record also holds the codebook version, the channel tag stays on each row, and per-code coder details are stored internally and linked to that record.
+The per-run version record also holds the codebook version, the channel tag stays on each row, and per-code coder details are stored internally and linked to that record.
+
+3. `items/core.developer_basis/rules/2`
+
+When `developer` is a missing token (`not_asked`, `not_documented`, `unknown` or `_NA_`), `developer_basis` takes the same token.
+
+4. `items/core.developer_basis/rules/3`
+
+At Stage 6, a merged activity takes its `developer` as it takes `contracting_party`: from the observation with the highest source credibility, ties by pool order, a real value over a missing token. Its `developer_basis` is `stated` when that developer is a real value, else the developer's missing token.
 
 ## `core.deployment_mode`
 <!-- item: core.deployment_mode sha256: b98e0a21cf8e6214df70fb55b4d1c07d269ccb33edb7018f6d942abbb9a0602c -->
@@ -4998,11 +5010,11 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 stage_as_of = source_publication_date if supported, else the page's latest stated date for the activity, else the access date; plus `stage_as_of_basis`.
 
 ## `core.stage_as_of_basis`
-<!-- item: core.stage_as_of_basis sha256: d7088292a75ed257e9cc7e2ece470d33cdc3aaa19003815ed77979b23788b0a2 -->
+<!-- item: core.stage_as_of_basis sha256: c40ce46095c40201d4c252d58c6eaa6fa915a8ae19e1a4fe3abe01f314c3c953 -->
 
 | Field | Value |
 |---|---|
-| item hash | `d7088292a75ed257e9cc7e2ece470d33cdc3aaa19003815ed77979b23788b0a2` |
+| item hash | `c40ce46095c40201d4c252d58c6eaa6fa915a8ae19e1a4fe3abe01f314c3c953` |
 | family | `provenance` |
 | name | `stage_as_of_basis` |
 | level | `activity` |
@@ -5026,6 +5038,20 @@ stage_as_of = source_publication_date if supported, else the page's latest state
 | long_page_rule | `none` |
 | translation_v25 | `new` |
 
+### Values
+
+#### `publication`
+
+stage_as_of is the supported source_publication_date.
+
+#### `stated`
+
+stage_as_of is the page's latest stated date for the activity.
+
+#### `access`
+
+stage_as_of is the access date.
+
 ### Rules
 
 1. `items/core.stage_as_of_basis/rules/0`
@@ -5034,7 +5060,7 @@ stage_as_of = source_publication_date if supported, else the page's latest state
 
 2. `items/core.stage_as_of_basis/rules/1`
 
-Every 'how we know' field uses the same five values: stated, from metadata, looked up, derived, quoted by the quote step. The per-run version record also holds the codebook version, the channel tag stays on each row, and per-code coder details are stored internally and linked to that record.
+When the observations carrying a merged activity's `stage_as_of` reach that date by different steps, `stage_as_of_basis` takes the first of them in the order `publication`, `stated`, `access`.
 
 ## `core.permanent_pilot`
 <!-- item: core.permanent_pilot sha256: 152bbabb24b057f88773d735097cc0341ee6e95603be4597682f789458beedb2 -->

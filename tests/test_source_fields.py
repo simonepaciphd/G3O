@@ -48,7 +48,7 @@ def vocab():
 
 def test_every_source_level_item_is_named(vocab):
     cb = load_codebook()
-    assert cb.sha256 == "ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a"
+    assert cb.sha256 == "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a"
     expected = {k for k, v in cb.items.items() if "source" in (v.get("level") or [])}
     assert set(vocab.source_items) == expected
     assert {"core.source_type", "core.source_credibility", "core.confidence", "core.source_publication_date",

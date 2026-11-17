@@ -190,7 +190,11 @@ def test_zero_page_institution_is_skipped_without_error(tmp_path, scraped):
     assert list(only_empty) == [] and pin.require_complete(only_empty) == 0
 
 
-def test_unproduced_values_still_refuse(tmp_path):
+def test_assembler_pages_pass_entry_once_r16_leaves_nothing_unproduced(tmp_path):
+    """Ruling 35 a: the row values are left to the T-015 assembler. Under codebook r16 (A8.1 a / A8.5 a)
+    and PI ruling 140 (gate 3: core.confidence is Stage 6's) the assembler has no unproduced row item, so the
+    entry gate names nothing and the pages pass the pre-check (PI ruling 97 b: an item refused only on some
+    pages' data, e.g. source_type, holds that institution in the stage instead)."""
     insts = _built(tmp_path)
     for inst in insts.values():
         for spec in inst.pages:
@@ -199,16 +203,8 @@ def test_unproduced_values_still_refuse(tmp_path):
             assert (up.followed, up.hop) == (False, None)  # searched pages (ruling 61 a)
             assert (up.activity_values, up.source_values, up.codes) == (None, None, None)
     followed = list(insts.values())
-    with pytest.raises(MissingUpstreamError, match=r"row values .*\(activity_values, source_values, codes\)") as exc:
-        pin.require_complete(followed)
-    assert f"{I1}/{url_hash(P_META.url)}" in exc.value.missing
-    # Ruling 35 a: the row values are left to the T-015 assembler, which names what it still refuses.
-    assert "source-row assembler" in str(exc.value) and "core.developer" in str(exc.value)
-    # PI ruling 140 (gate 3): core.confidence is Stage 6's and no longer named at entry.
-    assert "core.confidence" not in str(exc.value)
-    # PI ruling 97 b: an item refused only on some pages' data (here source_type) holds that institution in
-    # the stage; the entry names the unproduced items only.
-    assert "core.source_type" not in str(exc.value) and "refuses on some pages" not in str(exc.value)
+    assert pin.srow.entry_refused_items() == ()
+    assert pin.require_complete(followed) == 5
     assert all(s.upstream.page_fields is not None for i in followed for s in i.pages)
 
 
@@ -388,6 +384,10 @@ def test_v27_dispatch_default_builder_refuses_before_any_call(tmp_path, monkeypa
     v27 = orch.V27Dispatch(settings=SETTINGS, jev_ask_fn=jev, extract_fn=extract, entail_fn=entail,
                            follow_fetch=fetched.append)
     assert v27.perpage_inputs is None
+    # Codebook r16 leaves no row item unproduced; simulate one so ruling 36 a's entry refusal and the
+    # row-values guard of require_complete are both exercised.
+    monkeypatch.setattr(pin, "MISSING_PRODUCERS", (pin.VALUES_MISSING,))
+    monkeypatch.setattr(pin.srow, "entry_refused_items", lambda: ("core.developer",))
     with pytest.raises(MissingUpstreamError, match="ruling 36 a"):  # refused at entry while producers are missing
         orch.run_v27_dispatch(run_dir, ROWS[:2], SCRAPED, v27)
     # Once the producers exist the entry refusal lifts; the builder's own guard still refuses.

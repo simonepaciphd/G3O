@@ -66,12 +66,16 @@ def _inst(obs, srcs, source_of=None, support=None):
 
 
 def test_a8_split_produced_and_refused_items():
+    # Codebook r16: stage_as_of_basis is produced here (A8.5 a); cx_display_rollup since ruling 77 a.
     assert set(rt.MERGE_PRODUCED_A8) == {"core.stage_as_of", "core.date_upper_bound", "core.unit_credit",
-                                         "core.vendor_claim_only", "core.cx_display_rollup"}
-    # A8.1 a / A8.5 a need codebook r16; cx_display_rollup is produced since ruling 77 a.
-    assert set(rt.MERGE_REFUSED_R1) == {"core.developer", "core.developer_basis", "core.stage_as_of_basis"}
+                                         "core.vendor_claim_only", "core.cx_display_rollup",
+                                         "core.stage_as_of_basis"}
+    # Codebook r16 (A8.1 a, PI ruling Q166 a): developer is an R3 item and developer_basis follows it,
+    # so no X1 a R1 item is an explicit merge input any more.
+    assert rt.MERGE_REFUSED_R1 == ()
+    assert "core.developer" in rt.MERGE_CREDIBLE and rt.MERGE_BASIS == ("core.developer_basis",)
     assert not set(rt.MERGE_PRODUCED_A8) & rt.MERGE_INPUT_ITEMS
-    # PI ruling Q166 a: MERGE_BASIS (developer_basis) joins the split under r16; empty under r15
+    # PI ruling Q166 a: MERGE_BASIS (developer_basis) joins the split under r16
     assert rt._non_pooled_items() == (rt.MERGE_INPUT_ITEMS | set(rt.MERGE_UNION) | set(rt.MERGE_CREDIBLE)
                                       | set(rt.MERGE_DERIVED) | set(rt.MERGE_PRODUCED_A8) | set(rt.MERGE_BASIS))
 
@@ -508,9 +512,10 @@ def test_merged_row_carries_the_a8_values(tmp_path):
     order = e.s6.observation_pool_order(a.quotes, ["o1", "o2"])
     expect = ma.merged_values_a8(a, order)
     # declared fixture source rows: publication date 2025-01 (upper bound no), news_major, this_institution
+    # codebook r16 (A8.5 a): the chosen date is a real publication date, so its step is publication
     assert {k: expect[k] for k in ma.PRODUCED if k != ma.CX_ROLLUP} == {
         "core.stage_as_of": "2025-01", "core.date_upper_bound": "no", "core.unit_credit": "no",
-        "core.vendor_claim_only": "no"}
+        "core.vendor_claim_only": "no", "core.stage_as_of_basis": "publication"}
     assert expect[ma.CX_ROLLUP]  # the fixture sources hold CX positives
     assert {k: merged["values"][k] for k in expect} == expect
 

@@ -91,9 +91,9 @@ def test_unapproved_installed_matcher_refuses_before_writing(tmp_path, monkeypat
         binding.bind_runtime(tmp_path, settings())
     assert not list(tmp_path.iterdir())
 
-def test_codebook_mismatch_names_the_signed_r15_release(tmp_path, monkeypatch):
+def test_codebook_mismatch_names_the_signed_r16_release(tmp_path, monkeypatch):
     monkeypatch.setattr(binding, "CODEBOOK_SHA256", "0" * 64)
-    with pytest.raises(ValueError, match="signed r15"):
+    with pytest.raises(ValueError, match="signed r16"):
         binding.bind_runtime(tmp_path, settings())
     assert not list(tmp_path.iterdir())
 

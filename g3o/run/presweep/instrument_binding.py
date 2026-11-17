@@ -132,7 +132,7 @@ def _prepare(settings: RuntimeSettings) -> tuple[dict[str, Any], dict[str, Any],
     """
     cb = load_codebook()
     if cb.sha256 != CODEBOOK_SHA256:
-        raise ValueError("runtime codebook differs from signed r15")
+        raise ValueError("runtime codebook differs from signed r16")
     installed_matcher = version("rapidfuzz")
     if installed_matcher != support_check.PINNED_RAPIDFUZZ:
         raise ValueError("runtime matcher differs from approved RapidFuzz version")

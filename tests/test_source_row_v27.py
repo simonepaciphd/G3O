@@ -88,19 +88,21 @@ def test_source_confidence_leaves_the_per_page_row_ruling_140():
     assert sf.CONFIDENCE not in rows.source
 
 
-STAGE6_ONLY ={"core.stage_as_of", "core.date_upper_bound", "core.vendor_claim_only", "core.cx_display_rollup"}
+#: PI ruling 94 a's four activity-level A8 items, plus core.stage_as_of_basis under codebook r16 (A8.5 a).
+STAGE6_ONLY = {"core.stage_as_of", "core.date_upper_bound", "core.vendor_claim_only", "core.cx_display_rollup",
+               "core.stage_as_of_basis"}
 
 
 def test_stage6_only_items_leave_the_per_page_rows_ruling_94a():
-    """PI ruling 94 a: Stage 6 is the only producer of the four activity-level A8 items; a per-page
-    fragment carries none of them and they no longer block entry (stage_as_of_basis stays refused)."""
+    """PI ruling 94 a: Stage 6 is the only producer of the activity-level A8 items (under codebook r16,
+    A8.5 a, core.stage_as_of_basis too); a per-page fragment carries none of them and they do not block
+    entry."""
     from g3o.validate import merged_activity_v27 as ma
 
     assert set(srow.STAGE6_ACTIVITY_ITEMS) == STAGE6_ONLY and STAGE6_ONLY < set(ma.PRODUCED)
     assert not STAGE6_ONLY & set(srow.REFUSED_ACTIVITY_ITEMS)
     assert not STAGE6_ONLY & set(srow.unproduced_items()) and not STAGE6_ONLY & set(srow.entry_refused_items())
     assert not STAGE6_ONLY & srow.activity_row_items() and not STAGE6_ONLY & pp.ACTIVITY_ITEMS
-    assert "core.stage_as_of_basis" in srow.REFUSED_ACTIVITY_ITEMS
     assert sf.UPPER_BOUND in srow.PRODUCED_SOURCE_ITEMS and sf.UPPER_BOUND in pp.SOURCE_ITEMS  # source level stays
     rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"a1": _activity()}, followed=False)
     assert not STAGE6_ONLY & set(rows.activities["a1"])
@@ -154,8 +156,10 @@ def test_page_level_values_from_page_fields_and_page():
     # Without the pass-1 request and its provenance every quote-step item is refused as well.
     quote_items = {sf.SNIPPET, sf.DATE, sf.UPPER_BOUND, *srow.pass1_activity_fields(), *srow.REPORTED_GATES,
                    *srow.EXTRACTED_FIELDS}
+    # Codebook r16 (A8.1 a, PI ruling Q165 a): developer_basis reads the refused developer.
     assert set(rows.refused) == \
-        set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | quote_items | TYPED
+        set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | quote_items | TYPED | {srow.DEVELOPER_BASIS}
+    assert rows.refused[srow.DEVELOPER_BASIS] == f"reads {srow.DEVELOPER} (refused)"
     assert all(srow.MISSING_EXTRACTION in rows.refused[i] for i in quote_items - {sf.UPPER_BOUND})
     assert not set(rows.source) & set(rows.refused)
 
@@ -324,7 +328,9 @@ def test_vendor_claim_only_not_asked_without_automatic_typing():
 
 
 def test_missing_producers_names_the_refused_items():
-    assert pin.MISSING_PRODUCERS == (pin.VALUES_MISSING,)  # the T-025 entry is gone (PI ruling 102 a)
+    # Codebook r16 (A8.1 a / A8.5 a): the assembler leaves no row item unproduced, so the row-values entry
+    # drops out; the T-025 entry is gone too (PI ruling 102 a).
+    assert srow.unproduced_items() == () and pin.MISSING_PRODUCERS == ()
     for item in srow.unproduced_items():
         assert item in pin.VALUES_MISSING
 
@@ -639,10 +645,13 @@ def test_assemble_with_extraction_builds_activity_quote_values_and_codes():
     assert rows.source[sf.DATE].value == "not_documented"
     assert [rec.coder_type for sr, rec in rows.source_codes if sr.item_id == sf.DATE] == ["quote_step"]
     # No official sites: X37 and source_type refused; the undated source's credibility is low (rules/0).
-    # No contracting party extracted on a GenAI page: content_vendor reads the developer (ruling 65 a; r16).
+    # Codebook r16 (A8.1 a): the developer is a pass-1 field. Pass 1 returned none, so it is not_documented
+    # and its basis takes the same token (PI ruling Q165 a); with no contracting party or developer extracted
+    # on a GenAI page, content_vendor is no (ruling 65 a).
     assert set(rows.refused) == set(srow.REFUSED_SOURCE_ITEMS) | set(srow.REFUSED_ACTIVITY_ITEMS) | \
-        {sf.OFFICIAL, sf.SOURCE_TYPE, "core.content_vendor"}
-    assert "r16" in rows.refused["core.content_vendor"]
+        {sf.OFFICIAL, sf.SOURCE_TYPE}
+    assert got[srow.DEVELOPER] == got[srow.DEVELOPER_BASIS] == "not_documented"
+    assert rows.source["core.content_vendor"].value == "no"
     assert rows.source[sf.CREDIBILITY].value == "low"
     # An activity with no span in the page request is refused item by item.
     rows = srow.assemble(_page(), FIELDS_P1, GENAI, {"p1#a002": acts["p1#a001"]}, followed=False,
@@ -741,8 +750,10 @@ def test_content_extracted_items_65a():
     assert srow.content_extracted("core.content_tool_or_model", "confirms_activity", [aid], {aid: named}).value         == "yes"
     assert srow.content_extracted("core.content_tool_or_model", "confirms_activity", [aid], {aid: bare}).value         == "no"
     assert srow.content_extracted("core.content_vendor", "confirms_activity", [aid], {aid: party}).value == "yes"
-    with pytest.raises(sf.MissingUpstreamError, match="r16"):  # no contracting party: reads the developer
-        srow.content_extracted("core.content_vendor", "confirms_activity", [aid], {aid: bare})
+    # Codebook r16 (A8.1 a): with no contracting party, content_vendor reads the extracted developer.
+    developer = _span(("core.developer", "Microsoft", "built by Microsoft"))
+    assert srow.content_extracted("core.content_vendor", "confirms_activity", [aid], {aid: developer}).value == "yes"
+    assert srow.content_extracted("core.content_vendor", "confirms_activity", [aid], {aid: bare}).value == "no"
     with pytest.raises(sf.MissingUpstreamError):  # an activity with no span in the page request
         srow.content_extracted("core.content_tool_or_model", "confirms_activity", [aid], {})
     for item in srow.EXTRACTED_FIELDS:

@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extractor_prompt_sections. -->
-<!-- codebook release: 2.7 | codebook sha256: ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a -->
+<!-- codebook release: 2.7 | codebook sha256: 381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a -->
 
 # Extractor prompt sections
 
-Codebook release `2.7`, sha256 `ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
+Codebook release `2.7`, sha256 `381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
 
 ## `core.source_publication_date`
 <!-- item: core.source_publication_date sha256: 8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320 -->
@@ -187,15 +187,27 @@ Column `model_name`; item hash `7dd785b572b3e2c6fb2bec9e18322fd3947632922cf627dd
 2. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.contracting_party`
-<!-- item: core.contracting_party sha256: 73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24 -->
+<!-- item: core.contracting_party sha256: fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2 -->
 
-Column `contracting_party`; item hash `73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24`.
+Column `contracting_party`; item hash `fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2`.
 
 ### Rules
 
-1. Developer (from lookup or page, with its basis recorded) and contracting party (page-stated only).
+1. Developer (stated on the page, with its basis recorded) and contracting party (page-stated only).
 2. Vendor holds what the source names, which in purchase records is the contracting party. The developer from the lookup goes into a new model-developer column, and the lookup stops filling vendor.
 3. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
+
+## `core.developer`
+<!-- item: core.developer sha256: 3b7fa3c4814ac318a061237a2bc87bf7d614afa9645d570dcb127a0869dac61d -->
+
+Column `developer`; item hash `3b7fa3c4814ac318a061237a2bc87bf7d614afa9645d570dcb127a0869dac61d`.
+
+### Rules
+
+1. Developer (stated on the page, with its basis recorded) and contracting party (page-stated only).
+2. vendor = the organisation the page names as supplying the GenAI product or service, verbatim.
+3. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
+4. A developer stated on the page comes from the quote step, with its supporting quote; `developer_basis` = stated.
 
 ## `core.deployment_scale_number`
 <!-- item: core.deployment_scale_number sha256: 732f308184bb60eedf1e67468eb657857b20ce4dcfc76fb97cf16c19454b3686 -->

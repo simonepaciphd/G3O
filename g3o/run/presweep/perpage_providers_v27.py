@@ -182,7 +182,7 @@ ACTIVITY_NAME = "core.activity_name"
 
 #: SHA256 (UTF-8) of the PI-approved pass-1 system prompt,
 #: ``request_v27.build_system_prompt()`` (RC-D-021 P-1 a).
-PASS1_SYSTEM_SHA256 = "2ce40a562672a2079204bc57047fa52a6604bf5c6fddc4e5e4622d29e5741ab7"
+PASS1_SYSTEM_SHA256 = "393c9b4b17cb8284c311d44f326dc4137f59b0cf92262ef94da14e461d83b375"
 #: SHA256 (UTF-8) of the PI-approved pass-2 system prompt,
 #: ``pass2_support.build_system_prompt()`` (RC-D-021 P-2 a).
 PASS2_SYSTEM_SHA256 = "fdcd47f2fee649bd82de4a664bd5af4b28c3a73b481a036a50fb52bd1525d044"

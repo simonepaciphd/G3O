@@ -245,6 +245,7 @@ class World:
                  self._code(pid, aid, "core.tool_name", tool, sample),
                  self._code(pid, aid, "core.observed_actor_name", av["core.observed_actor_name"], None),
                  self._code(pid, aid, "core.contracting_party", av["core.contracting_party"], None),
+                 self._code(pid, aid, "core.developer", av["core.developer"], None),
                  self._code(pid, aid, "core.deployment_scale_number", "not_documented", None),
                  self._code(pid, aid, "core.source_type", sv["core.source_type"], sample),
                  self._code(pid, aid, "core.source_publication_date", "not_documented", None),
