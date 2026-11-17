@@ -16,8 +16,11 @@ from __future__ import annotations
 #: UNSIGNED r16 candidate (RC-D-034 A8.1 a / A8.5 a): built against, not signed. SHA256 of
 #: ``agent-workspace/2026-11-16-overnight/governance/codebook-r16-candidate/codebook.yaml`` (CRLF bytes, as r15;
 #: the test fixture copy is committed ``-text``), amended for PI Q167 a (2026-11-16): core.developer rules/1's
-#: lookup sentence moved to ``release.r16_dropped``.
-R16_CANDIDATE_SHA256 = "e049d1a2d96ae786cf1f9adac2a023e2a3b318fdccbcd8541b214b7e67cfac9a"
+#: lookup sentence moved to ``release.r16_dropped``; then (2026-11-16 late evening) the rules/0 trim ("from lookup
+#: or page" -> "stated on the page" in core.contracting_party, core.developer, core.developer_basis), Q185 a (new
+#: core.developer_basis rules/2 and rules/3, core.stage_as_of_basis rules/1), Q186 a and Q187 a (the "same five
+#: values" sentence of core.developer_basis rules/1 and of vocabularies.provenance text moved to r16_dropped).
+R16_CANDIDATE_SHA256 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a"
 
 #: The three ``core.stage_as_of_basis`` step codes of the candidate (``items/core.stage_as_of_basis/values``,
 #: A8.5 a), in candidate order. Equal to the step names of :mod:`g3o.validate.merged_activity_v27`.
