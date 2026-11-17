@@ -458,8 +458,8 @@ def _v27_journal_usage(run_dir: Path) -> dict[str, dict[str, Any]]:
     Per stage: ``totals`` (the summed :meth:`RequestJournal.usage`), ``usages`` (each
     extractor response's own ``usage``, :meth:`RequestJournal.extractor_usages`, priced
     per request; ruling 58 a), ``x35_usages`` (each X35 call's own ``usage``,
-    :meth:`RequestJournal.x35_usages`; priced per request, PI ruling Q158 a) and ``failed`` (journals that could not be read, with the
-    error). Covers every journaled call of every institution, this and earlier sessions.
+    :meth:`RequestJournal.x35_usages`; priced per request, PI ruling Q158 a) and ``failed``
+    (journals that could not be read, with the error). Covers every journaled call of every institution, this and earlier sessions.
     A stage with no journal file on disk is left out.
 
     Journals are opened read-only: a torn final record is skipped, never repaired, and

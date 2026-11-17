@@ -207,7 +207,8 @@ class UpstreamRowMalformed(Exception):  # noqa: N818 - names the wiring defect, 
     Raised for an institution row missing one of the master identity columns
     (checked before the executor, so nothing is asked for it) and for a
     ``KeyError`` while building the storage envelope (e.g. a source row without
-    ``core.source_credibility``, which Stage 6 reads to produce ``core.confidence``, PI ruling 140). It stops the stage (:data:`WIRING_STOPS`); it is never a
+    ``core.source_credibility``, which Stage 6 reads to produce ``core.confidence``,
+    PI ruling 140). It stops the stage (:data:`WIRING_STOPS`); it is never a
     per-institution hold. ``institution_id`` and ``field`` name what is missing
     (or, with ``problem``, what is malformed, e.g. a language value outside the schema pattern).
     """
