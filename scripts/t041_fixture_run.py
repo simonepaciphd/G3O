@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""T-041 fixture run on the v2.7 new-run path (PI Q184 a). Logic: :mod:`g3o.run.fixture_run_t041`.
+
+DRY RUN by default: no network, no paid call, no client built. It loads and validates the
+selected fixtures, writes the per-fixture plan, a results file (every fixture ``not_run``)
+and the ``T041-REPORT.md`` skeleton, and prints call and token counts with the cited
+rate rows. A USD figure is printed only from the projection seeds (``--seeds`` or
+``$G3O_PROJECTION_SEEDS``, PI Q177 a).
+
+``--live`` is PAID and is run by the PI (red line 4). It also needs ``--max-usd`` and
+``--runtime FILE`` (a JSON object of every ``RuntimeSettings`` field, as a real v2.7 run's
+``v27_runtime``), and is refused unless every gate of a real v2.7 run passes. Extractor
+calls are sync (DP-030 / RC-D-001 B).
+
+Output: ``--out-dir``, default ``$G3O_DRIVE_ROOT/agent-workspace/2026-10-27-reclass-plan/fixture-run``.
+
+Example (dry run):
+  python scripts/t041_fixture_run.py --seeds agent-workspace/2026-11-16-overnight/projection/seeds.json
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from g3o.run import fixture_run_t041 as fr  # noqa: E402
+
+REPO = Path(__file__).resolve().parents[1]
+FIX = REPO / "tests" / "fixtures" / "v27"
+#: Model ids the dry run prices when no --runtime is given (the v2.7 bindings: jev-1.13.0; the
+#: extractor and X35 on claude-haiku-5-5, PI ruling 139 a). --runtime overrides all three.
+DEFAULT_MODELS = {"jev_model": "jev-1.13.0", "extractor_model": "claude-haiku-5-5", "x35_model": "claude-haiku-5-5"}
+
+
+def parser() -> argparse.ArgumentParser:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--live", action="store_true", help="PAID: make real calls (the PI runs it)")
+    ap.add_argument("--max-usd", type=float, default=None, help="live: stop once journaled spend reaches it")
+    ap.add_argument("--runtime", type=Path, default=None,
+                    help="JSON object of every RuntimeSettings field (required with --live)")
+    ap.add_argument("--group", action="append", choices=fr.GROUPS, default=None,
+                    help="fixture group to select (repeatable); default: all three")
+    ap.add_argument("--fixture", action="append", default=None, help="only this fixture id (repeatable)")
+    ap.add_argument("--drive", default=None, help=f"G3O Drive root; default ${fr.DRIVE_ENV}")
+    ap.add_argument("--out-dir", type=Path, default=None, help=f"default <drive>/{fr.OUT_SUBDIR}")
+    ap.add_argument("--seeds", default=None, help="projection seeds JSON (absolute, or relative to the Drive root)")
+    ap.add_argument("--unlocated", choices=fr.UNLOCATED_POLICIES, default=fr.UNRESOLVED,
+                    help="how a not-located expected value counts (default: unresolved; proposed question P3)")
+    ap.add_argument("--searched-pages", choices=fr.SEARCHED_POLICIES, default=fr.SEARCHED_UNLINKED,
+                    help="which fixture pages are searched pages (default: unlinked; proposed question P4)")
+    ap.add_argument("--official-site", choices=fr.OFFICIAL_POLICIES, default=fr.OFFICIAL_PAGE_HOST,
+                    help="official site recorded for a fixture run (default: page-host; proposed question P4)")
+    return ap
+
+
+def _seeds(raw: str | None, drive: Path | None) -> Any:
+    from g3o.common import run_projection as rp
+
+    if raw is not None and not Path(raw).is_absolute() and drive is not None:
+        raw = str(drive / raw)
+    try:
+        return rp.load_seeds(raw)
+    except rp.SeedsUnavailable:
+        return None
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parser().parse_args(argv)
+    drive = fr.drive_root(args.drive)
+    out_dir = args.out_dir or fr.default_out_dir(drive)
+    if out_dir is None:
+        print(f"error: no --out-dir and ${fr.DRIVE_ENV} is not set", file=sys.stderr)
+        return 2
+    if args.live and (args.max_usd is None or args.max_usd <= 0 or args.runtime is None):
+        print("refused: --live needs --max-usd > 0 and --runtime FILE", file=sys.stderr)
+        return 2
+    if args.live and drive is None:
+        print(f"refused: --live needs the Drive root (real fixture pages): set ${fr.DRIVE_ENV}", file=sys.stderr)
+        return 2
+    runtime = json.loads(args.runtime.read_text(encoding="utf-8")) if args.runtime else None
+    models = {k: (runtime or {}).get(k, v) for k, v in DEFAULT_MODELS.items()}
+
+    fixtures = fr.select_fixtures(fr.load_fixtures(FIX), args.group or fr.GROUPS, args.fixture)
+    problems = {f["fixture_id"]: p for f in fixtures if (p := fr.validate_fixture(f))}
+    if problems:
+        print(f"error: invalid fixtures: {json.dumps(problems)}", file=sys.stderr)
+        return 2
+    ft = fr.load_fixture_text_module(FIX)
+    seeds = _seeds(args.seeds, drive)
+    target = seeds["spike_chunk_target_bytes"].value if seeds else None
+    pages = {f["fixture_id"]: fr.fixture_pages(f, fixture_text=ft, drive=drive) for f in fixtures}
+    plans = [fr.plan_fixture(f, pages[f["fixture_id"]], searched_policy=args.searched_pages,
+                             chunk_target_bytes=target) for f in fixtures]
+    est = fr.estimate(plans, seeds=seeds, **models)
+    options = {"groups": args.group or list(fr.GROUPS), "fixtures": args.fixture, "unlocated": args.unlocated,
+               "searched_pages": args.searched_pages, "official_site": args.official_site,
+               "extractor_mode": "no_batch", "seeds": bool(seeds)}
+    print(fr.format_estimate(est))
+
+    if not args.live:
+        results = [fr.not_run_result(f, "dry run") for f in fixtures]
+        paths = fr.write_outputs(out_dir, mode="dry-run", plans=plans, est=est, results=results, options=options)
+        print(f"dry run: no call made. wrote {paths['plan'].name}, {paths['results'].name}, {paths['report'].name} "
+              f"to the output folder")
+        return 0
+
+    if est["seed_usd"] is not None:
+        projected = est["seed_usd"]["extractor_sync_usd"] + est["seed_usd"]["jev_usd"]
+        if projected > args.max_usd:
+            print(f"refused: the seed scale ${projected:.4f} exceeds --max-usd {args.max_usd}", file=sys.stderr)
+            return 2
+    from g3o.common.credentials import resolve
+    from g3o.run.presweep.v27_entry import build_v27_dispatch
+
+    config = SimpleNamespace(v27_runtime=runtime, v27_extractor_mode="no_batch", scrape_host_delay_seconds=1.0,
+                             scrape_respect_robots=True, scrape_render_on_download_failure=False,
+                             scrape_unlocker_on_block=False, scrape_unlocker_on_empty=False, empty_page_min_chars=0)
+    try:
+        dispatch = fr.require_live_gates(build_v27_dispatch(config, resolve()))
+    except Exception as exc:  # every gate refusal ends the run before any call
+        print(f"refused: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 2
+    run = fr.run_live(fixtures, dispatch=dispatch, out_dir=out_dir, max_usd=args.max_usd,
+                      page_loader=lambda f: pages[f["fixture_id"]], searched_policy=args.searched_pages,
+                      official_policy=args.official_site, unlocated=args.unlocated,
+                      access_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+    paths = fr.write_outputs(out_dir, mode="live", plans=plans, est=est, results=run["results"], options=options,
+                             spent_usd=run["spent_usd"], stopped=run["stopped"])
+    print(f"live: spent ${run['spent_usd']:.4f}; wrote {paths['results'].name} and {paths['report'].name}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
