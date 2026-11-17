@@ -380,14 +380,16 @@ EXTRACT_REJECTED = "extract_rejected"
 JEV_UNIDENTIFIED = "jev_unidentified"
 ACCOUNTING_KINDS = frozenset({JEV_UNIDENTIFIED, "jev_incomplete", "extract_failed", "x35_failed",
                               EXTRACT_REJECTED})
-#: The marker on an ``x35_failed`` entry whose exception came with no response at all
-#: (``response[X35_USAGE_ABSENT] == X35_NO_RESPONSE``): counted, never priced (PI ruling 131.1 b).
+#: The marker a journal written before PI ruling Q163 c put on an ``x35_failed`` entry whose
+#: exception came with no response at all (``response[X35_USAGE_ABSENT] == X35_NO_RESPONSE``).
+#: Since Q163 c such a call is not journaled (as the extractor under 131.1 b), and an old entry
+#: carrying the marker is treated as absent on load (:meth:`RequestJournal._load`).
 X35_USAGE_ABSENT = "usage_absent"
 X35_NO_RESPONSE = "no_response"
 
 
 def _x35_no_response(response: Mapping[str, Any]) -> bool:
-    """Whether an ``x35_failed`` entry's response is the PI ruling 131.1 b no-response marker."""
+    """Whether an ``x35_failed`` entry's response is the pre-Q163 c no-response marker (131.1 b)."""
     return response.get(X35_USAGE_ABSENT) == X35_NO_RESPONSE
 
 
@@ -403,8 +405,8 @@ class X35FailCapReached(RuntimeError):
     the production client does not raise, or such an entry in a journal written before Q169 b.
 
     Mirrors :class:`ExtractRejectCapReached` (ruling 34 b / 41 a), with the same cap: after that
-    many such entries for one exact X35 request key (NOT the ``no_response`` ones, which are asked
-    again), the journaled X35 call raises this *instead of* calling X35, on this run and every
+    many such entries for one exact X35 request key (a call that died with no response is not
+    journaled, Q163 c, and is asked again), the journaled X35 call raises this *instead of* calling X35, on this run and every
     later load, until a per-page PI release names the key (or releases ``all``); Stage 6 has no
     release path for it (REVIEW-O2-fixes M1). A ``RuntimeError``, so the stages hold exactly
     as they hold the failure it replaces, with no billed call. ``key`` is the journal's request key.
@@ -572,6 +574,11 @@ class RequestJournal:
                     break
                 raise ValueError(f"corrupt Stage 6 journal line {n + 1}: {self.path}") from None
             keep.append(line)
+            if entry.get("kind") == "x35_failed" and _x35_no_response(entry.get("response") or {}):
+                # PI ruling Q163 c: an X35 call that died with no response is not journaled (as the
+                # extractor, 131.1 b). An entry an older journal wrote for one is kept on disk but read
+                # as absent: not counted, not priced, not timed, never towards the O2 M4 cap.
+                continue
             self._elapsed.append(int(entry.get("elapsed_ms", 0)))
             self._mark_batch(entry)
             if entry["kind"] in _LIVE_EXTRACT_KINDS:  # ruling 104 b: a live call uses up its re-ask
@@ -641,8 +648,8 @@ class RequestJournal:
     # --- ruling 34 b / 41 a: the rejection cap and its PI release ------------
 
     def _count_x35_failure(self, kind: str, key: str, response: Mapping[str, Any]) -> None:
-        """Review O2 M4: count an ``x35_failed`` entry that carries a response (not ``no_response``)."""
-        if kind == "x35_failed" and not _x35_no_response(response):
+        """Review O2 M4: count an ``x35_failed`` entry (since Q163 c, only ones carrying a response are written)."""
+        if kind == "x35_failed" and not _x35_no_response(response):  # pre-Q163 c entries are skipped on load
             self._x35_failures[key] = self._x35_failures.get(key, 0) + 1
 
     def x35_failures(self, key: str) -> int:
@@ -872,13 +879,13 @@ class RequestJournal:
         # entry (a non-answer's too, Q169 b below) or, for another billed exception, on the
         # ``x35_failed`` one (the exception's ``usage``), so :meth:`x35_usages` can price each call. A plain
         # ``entail_fn`` (a fake) journals no usage, exactly as before.
-        # An exception that carries no ``usage`` attribute at all (a transport error, a
-        # timeout, a 429/529 raised before any response, a refusing stub) is still counted
-        # as ``x35_failed`` but marked ``usage_absent: "no_response"``: like an extractor call
-        # that died without a response (PI ruling 131.1 b), it is not priced
-        # (:meth:`x35_usages` skips it), so it neither guesses a price nor blocks the total.
+        # PI ruling Q163 c: an exception that carries no ``usage`` attribute at all (a transport
+        # error, a timeout, a 429/529 raised before any response, a refusing stub) is not
+        # journaled, exactly as an extractor call that died without a response (PI ruling
+        # 131.1 b): a resume asks it again, and it is neither counted nor priced. An older
+        # journal's ``usage_absent: "no_response"`` entry is read as absent (:meth:`_load`).
         # An exception whose ``usage`` attribute is present but not a dict (a response that
-        # reported no usage) is not marked: it stays unpriced (``None``), never guessed.
+        # reported no usage) is journaled as ``x35_failed``: it stays unpriced (``None``), never guessed.
         # PI ruling Q169 b: an X35 non-answer (``X35ResponseError``: a refusal, a ``max_tokens``
         # stop, unparseable output) is an answer with no probability. It is journaled as an
         # ``x35`` entry (replayed on resume, so it is never asked or billed again) with value
@@ -912,12 +919,12 @@ class RequestJournal:
                 self._append(slot, response, _elapsed_ms(start))
                 return non_answer
             except Exception as exc:
+                if not hasattr(exc, "usage"):  # no response came back: not journaled (Q163 c / 131.1 b)
+                    raise
                 failed: dict[str, Any] = {"error": f"{type(exc).__name__}: {exc}"}
                 exc_usage = getattr(exc, "usage", None)
                 if isinstance(exc_usage, dict):
                     failed["usage"] = exc_usage
-                elif not hasattr(exc, "usage"):  # no response came back (PI ruling 131.1 b)
-                    failed[X35_USAGE_ABSENT] = X35_NO_RESPONSE
                 self._append(self._slot("x35_failed", request, prompt), failed, _elapsed_ms(start))
                 raise
             self.live += 1
@@ -1038,18 +1045,17 @@ class RequestJournal:
         before usage was journaled), a failed response that reported no usage, or a failed call
         journaled before the ``usage_absent`` marker existed; it is never guessed.
 
-        PI ruling 131.1 b, as for the extractor: a call that died without a response is not
-        priced. An ``x35_failed`` entry marked ``usage_absent: "no_response"`` (an exception
-        raised before any response came back, e.g. a transport error, a timeout or a 429/529)
-        is skipped here, so it neither gets a price nor makes the X35 part unpriced; it is
-        still counted in ``usage()["x35_failed"]``, so this list can be shorter than that
-        count. Nothing is priced at $0. A torn last line (131.2 a) applies too.
+        PI ruling Q163 c (131.1 b, as for the extractor): a call that died without a response
+        (an exception raised before any response came back, e.g. a transport error, a timeout
+        or a 429/529) is not journaled, so it is neither priced nor counted in
+        ``usage()["x35_failed"]``; an older journal's ``usage_absent: "no_response"`` entry is
+        read as absent on load. This list has one element per call ``usage()`` counts. Nothing
+        is priced at $0. A torn last line (131.2 a) applies too.
         """
         out: list[dict[str, Any] | None] = [
             response.get("usage") for (kind, _, _), response in self._recorded.items() if kind == "x35"
         ]
-        out.extend(entry["response"].get("usage") for entry in self._accounting
-                   if entry["kind"] == "x35_failed" and not _x35_no_response(entry["response"]))
+        out.extend(entry["response"].get("usage") for entry in self._accounting if entry["kind"] == "x35_failed")
         return out
 
     def usage(self) -> dict[str, int]:

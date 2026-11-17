@@ -251,10 +251,11 @@ def test_journal_of_a_plain_entail_fn_records_no_usage(tmp_path):
     assert journal.x35_usages() == [None]
 
 
-def test_journal_marks_a_responseless_x35_failure_and_does_not_price_it(tmp_path):
-    """Review O2 M1 (PI ruling 131.1 b, as for the extractor): an exception raised before any response
-    came back is counted in ``x35_failed`` but marked ``usage_absent: no_response`` and skipped by
-    ``x35_usages``, so it is neither priced nor makes the X35 part unpriced. A billed failure is kept."""
+def test_journal_does_not_record_a_responseless_x35_failure_q163c(tmp_path):
+    """PI ruling Q163 c (2026-11-16; supersedes the review O2 M1 ``usage_absent: no_response`` marker):
+    an exception raised before any response came back is not journaled, exactly as an extractor call
+    under 131.1 b, so it is neither counted, nor priced, nor makes the X35 part unpriced, and a resume
+    asks it again. A billed non-answer is kept (Q169 b)."""
     from g3o.run.presweep.stage_validate_v27 import RequestJournal
 
     path = tmp_path / "journal.jsonl"
@@ -270,12 +271,53 @@ def test_journal_marks_a_responseless_x35_failure_and_does_not_price_it(tmp_path
     # PI ruling Q169 b: a billed non-answer is a replayed x35 answer, not a failure
     assert wrap_entail(client)(QUESTION, WINDOW + " other") == Entailment(sc.X35_NON_ANSWER, None)
     entries = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
-    assert [e["kind"] for e in entries] == ["x35_failed", "x35"]
-    assert entries[0]["response"]["usage_absent"] == "no_response" and "usage" not in entries[0]["response"]
-    assert "usage_absent" not in entries[1]["response"] and entries[1]["response"]["usage"] == USAGE
-    assert journal.usage()["x35_failed"] == 1 and journal.usage()["x35_calls"] == 1  # both still counted
+    assert [e["kind"] for e in entries] == ["x35"]  # Q163 c: the responseless failure is not journaled
+    assert "usage_absent" not in entries[0]["response"] and entries[0]["response"]["usage"] == USAGE
+    assert journal.usage()["x35_failed"] == 0 and journal.usage()["x35_calls"] == 1  # uncounted
     assert journal.x35_usages() == [USAGE]  # the responseless failure is not priced (never $0, never None)
     assert RequestJournal(path, read_only=True).x35_usages() == [USAGE]
+
+    # a resume asks the responseless request again (nothing to replay)
+    asked: list[str] = []
+    resumed = RequestJournal(path)
+    _, wrap_again = resumed.seams({"x35_model": "claude-haiku-5-5"})
+    assert wrap_again(lambda q, t: asked.append(t) or Entailment("true", 0.9))(QUESTION, WINDOW) == Entailment(
+        "true", 0.9)
+    assert asked == [WINDOW] and resumed.live == 1
+
+
+def test_journal_reads_an_old_no_response_entry_as_absent_q163c(tmp_path):
+    """PI ruling Q163 c, backward compatibility: a journal written before Q163 c may hold an ``x35_failed``
+    entry marked ``usage_absent: no_response``. It loads without error and is read as absent: not counted
+    in ``usage()``, not in ``x35_usages()``, not timed, not towards the O2 M4 cap, and the request is asked
+    again. The line itself stays on disk (it is never rewritten)."""
+    from g3o.run.presweep.stage_validate_v27 import (
+        EXTRACT_REJECT_CAP,
+        X35_NO_RESPONSE,
+        X35_USAGE_ABSENT,
+        RequestJournal,
+    )
+
+    path = tmp_path / "journal.jsonl"
+    probe = RequestJournal(tmp_path / "probe.jsonl")
+    _, wrap_probe = probe.seams({"x35_model": "fake"})
+    wrap_probe(lambda q, t: Entailment("true", 0.9))(QUESTION, WINDOW)
+    key = json.loads((tmp_path / "probe.jsonl").read_text(encoding="utf-8").splitlines()[0])["key"]
+    old = [{"kind": "x35_failed", "key": key, "n": n, "elapsed_ms": 1000,
+            "response": {"error": "ConnectionError: reset", X35_USAGE_ABSENT: X35_NO_RESPONSE}}
+           for n in range(EXTRACT_REJECT_CAP + 1)]
+    path.write_bytes(b"".join(json.dumps(e).encode("utf-8") + b"\n" for e in old))
+    before = path.read_bytes()
+
+    for journal in (RequestJournal(path, read_only=True), RequestJournal(path)):
+        assert journal.usage()["x35_failed"] == 0 and journal.usage()["request_ms"] == 0
+        assert journal.x35_usages() == []
+        assert journal.x35_failures(key) == 0
+    assert path.read_bytes() == before
+    journal = RequestJournal(path)
+    _, wrap_entail = journal.seams({"x35_model": "fake"})
+    assert wrap_entail(lambda q, t: Entailment("false", 0.95))(QUESTION, WINDOW) == Entailment("false", 0.95)
+    assert journal.live == 1 and journal.x35_usages() == [None]
 
 
 def test_x35_non_answer_is_replayed_on_resume_and_never_rebilled_q169b(tmp_path):
@@ -305,7 +347,7 @@ def test_x35_cap_is_an_inert_backstop_for_other_billed_exceptions(tmp_path):
     """Review O2 M4 cap, kept after PI ruling Q169 b as a backstop: X35 non-answers no longer reach it;
     only a billed exception that is not an X35ResponseError (the production client raises none) counts.
     After the cap the journal refuses the live call (X35FailCapReached), also after a reload, until a PI
-    release names the key. Responseless failures (no_response, PI 131.1 b) do not count towards the cap."""
+    release names the key. Responseless failures are not journaled (PI Q163 c) and never count towards it."""
     from g3o.run.presweep.stage_validate_v27 import (
         EXTRACT_REJECT_CAP,
         RequestJournal,

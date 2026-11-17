@@ -266,7 +266,9 @@ def test_entailment_refuses_with_no_approved_binding(tmp_path):
         _run(run_dir, bound, instrument, insts[:1], providers, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
     assert not any(r["reason"] == pp.HELD_REASON for r in attrition.read_records(run_dir))
     journal = (institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.JOURNAL).read_text(encoding="utf-8")
-    assert any(json.loads(line)["kind"] == "x35_failed" for line in journal.splitlines())
+    # PI ruling Q163 c: the refusing stub raises before any response (no ``usage``), so the call is not
+    # journaled (as the extractor under 131.1 b) and is asked again on resume
+    assert not any(json.loads(line)["kind"] == "x35_failed" for line in journal.splitlines())
 
 
 def test_x35_non_answer_is_journaled_and_does_not_hold_q169b(tmp_path):
