@@ -129,12 +129,12 @@ def stop_after_assemble(real, on_rows):
     items; signed r16 refuses none, so tests whose later runs resume a page stopped after T-022 (PI rulings
     105 b, 110 b, 120 c) get that stop from here instead. The real assembler still runs and ``on_rows``
     still sees its rows."""
-    from g3o.common import source_fields as sf
     from g3o.run.presweep import source_row_v27 as srow
 
     def stop(page, rows, keywords):
         on_rows(page, rows, keywords)
-        raise sf.MissingUpstreamError(f"{pp.VALUES_PRODUCER} ({srow.ASSEMBLER})", ["test stop after T-022"])
+        # the stage's own class (g3o.persist.stage6_adapters), not source_fields' sibling of the same name
+        raise pp.MissingUpstreamError(f"{pp.VALUES_PRODUCER} ({srow.ASSEMBLER})", ["test stop after T-022"])
     return assemble_spy(real, stop)
 
 
