@@ -55,6 +55,9 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--fixture", action="append", default=None, help="only this fixture id (repeatable)")
     ap.add_argument("--drive", default=None, help=f"G3O Drive root; default ${fr.DRIVE_ENV}")
     ap.add_argument("--out-dir", type=Path, default=None, help=f"default <drive>/{fr.OUT_SUBDIR}")
+    ap.add_argument("--run-root", type=Path, default=None,
+                    help="live: local folder for the fixture run directories (default ~/.g3o/t041-runs); "
+                         "each live invocation makes a fresh <run-root>/<UTC stamp>/ and refuses if it exists")
     ap.add_argument("--seeds", default=None, help="projection seeds JSON (absolute, or relative to the Drive root)")
     ap.add_argument("--unlocated", choices=fr.UNLOCATED_POLICIES, default=fr.UNRESOLVED,
                     help="how a not-located expected value counts (default: unresolved; proposed question P3)")
@@ -132,7 +135,14 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:  # every gate refusal ends the run before any call
         print(f"refused: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2
-    run = fr.run_live(fixtures, dispatch=dispatch, out_dir=out_dir, max_usd=args.max_usd,
+    try:
+        run_root = fr.fresh_run_root(args.run_root or fr.default_run_base(), fr.utc_stamp())
+    except fr.RunRefused as exc:
+        print(f"refused: {exc}", file=sys.stderr)
+        return 2
+    print(f"live run directories: {run_root}")
+    options["run_root"] = str(run_root)
+    run = fr.run_live(fixtures, dispatch=dispatch, run_root=run_root, max_usd=args.max_usd,
                       page_loader=lambda f: pages[f["fixture_id"]], searched_policy=args.searched_pages,
                       official_policy=args.official_site, unlocated=args.unlocated,
                       continue_on_error=args.continue_on_error,

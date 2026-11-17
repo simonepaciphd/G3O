@@ -42,6 +42,7 @@ import math
 import os
 import statistics
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -111,6 +112,27 @@ def drive_root(explicit: str | os.PathLike[str] | None = None,
 
 def default_out_dir(drive: Path | None) -> Path | None:
     return None if drive is None else drive / OUT_SUBDIR
+
+
+def default_run_base() -> Path:
+    """Where live fixture run directories go by default: a local, non-synced folder under the
+    user's home (``~/.g3o/t041-runs``), resolved at run time. Reports stay in ``--out-dir``."""
+    return Path.home() / ".g3o" / "t041-runs"
+
+
+def utc_stamp(now: datetime | None = None) -> str:
+    """A UTC timestamp for one live invocation's run root (``20261117T031500Z``)."""
+    return (now or datetime.now(timezone.utc)).strftime("%Y%m%dT%H%M%SZ")
+
+
+def fresh_run_root(base: Path, stamp: str) -> Path:
+    """Create ``<base>/<stamp>`` for one live invocation; refuse if it exists, so a re-run never
+    reuses a run directory (its journals would be replayed and its spend counted twice)."""
+    root = Path(base) / stamp
+    if root.exists():
+        raise RunRefused(f"run root already exists: {root} (a live run never reuses a run directory)")
+    root.mkdir(parents=True)
+    return root
 
 
 def load_fixtures(fix_dir: Path) -> list[dict[str, Any]]:
@@ -699,7 +721,7 @@ def fixture_fetch(served: Mapping[str, Any]) -> Callable[[str], Any]:
     return fetch
 
 
-def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, out_dir: Path, max_usd: float,
+def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: Path, max_usd: float,
              page_loader: Callable[[Mapping[str, Any]], list[dict[str, Any]]], searched_policy: str,
              official_policy: str, unlocated: str, access_date: str,
              run_fn: Callable[..., Any] | None = None,
@@ -715,11 +737,19 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, out_dir: P
     priced): a refusal after paid calls (e.g. the T-015 assembler or Stage 6 refusing the
     fixture run directory) would refuse every later fixture too, after their paid calls.
     A refusal with $0 journaled (a gate before any call) lets the run go on.
-    ``continue_on_error=True`` (``--continue-on-error``) goes on after a paid stage stop too."""
+    ``continue_on_error=True`` (``--continue-on-error``) goes on after a paid stage stop too.
+
+    ``run_root`` is this invocation's own fresh folder (:func:`fresh_run_root`); each fixture
+    runs in ``<run_root>/<fixture_id>``, which must not exist yet (refused before any call)."""
     from g3o.run.presweep.perpage_batch_v27 import NO_BATCH
 
     if getattr(dispatch, "extractor_mode", None) != NO_BATCH:
         raise RunRefused("live fixture runs are sync only (DP-030): pass the dispatch through require_live_gates")
+    reused = sorted(f["fixture_id"] for f in fixtures
+                    if fixture_group(f) != GROUP_INJECTED and (Path(run_root) / f["fixture_id"]).exists())
+    if reused:
+        raise RunRefused(f"fixture run directories already exist under {run_root}: {reused} "
+                         "(a live run never reuses a run directory)")
     if run_fn is None:
         from g3o.run.presweep.orchestrator import run_v27_dispatch as run_fn
     recorder = X35Recorder(dispatch.entail_fn)
@@ -731,7 +761,7 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, out_dir: P
         if stopped is not None:
             results.append(not_run_result(fixture, stopped))
             continue
-        run_dir = out_dir / "runs" / fixture["fixture_id"]
+        run_dir = Path(run_root) / fixture["fixture_id"]
         pages = page_loader(fixture)
         sample, scraped, served = materialise(run_dir, fixture, pages, searched_policy=searched_policy,
                                               official_policy=official_policy, access_date=access_date)

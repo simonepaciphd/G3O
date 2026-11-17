@@ -196,7 +196,7 @@ def test_force_sync_sets_no_batch_on_a_batched_dispatch():
 
 def test_run_live_refuses_a_dispatch_that_is_not_sync(tmp_path):
     with pytest.raises(fr.RunRefused):
-        fr.run_live([], dispatch=SimpleNamespace(extractor_mode="mix"), out_dir=tmp_path, max_usd=1.0,
+        fr.run_live([], dispatch=SimpleNamespace(extractor_mode="mix"), run_root=tmp_path, max_usd=1.0,
                     page_loader=lambda f: [], searched_policy=fr.SEARCHED_UNLINKED,
                     official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17")
 
@@ -233,7 +233,7 @@ def test_run_live_with_fakes_compares_records_x35_and_stops_at_the_cap(tmp_path)
         path.write_text(json.dumps(storage), encoding="utf-8")
         return {"n_stage6_written": 1}
 
-    run = fr.run_live([first, second], dispatch=dispatch, out_dir=tmp_path, max_usd=0.5,
+    run = fr.run_live([first, second], dispatch=dispatch, run_root=tmp_path, max_usd=0.5,
                       page_loader=lambda f: fr.fixture_pages(f), searched_policy=fr.SEARCHED_UNLINKED,
                       official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17",
                       run_fn=run_fn, cost_fn=lambda run_dir: 0.5)
@@ -259,7 +259,7 @@ def test_run_live_stops_when_a_fixture_cannot_be_priced(tmp_path):
         calls.append(run_dir)
         raise RuntimeError("stage stop")
 
-    run = fr.run_live([_fixture([]), _fixture([], fixture_id="F-2")], dispatch=dispatch, out_dir=tmp_path,
+    run = fr.run_live([_fixture([]), _fixture([], fixture_id="F-2")], dispatch=dispatch, run_root=tmp_path,
                       max_usd=10.0, page_loader=lambda f: fr.fixture_pages(f), searched_policy=fr.SEARCHED_UNLINKED,
                       official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17",
                       run_fn=run_fn, cost_fn=lambda run_dir: None)
@@ -281,7 +281,7 @@ def _erroring_run(tmp_path, cost, **kwargs):
         raise RuntimeError("MissingUpstreamError: assembler refused")
 
     run = fr.run_live([_fixture([]), _fixture([], fixture_id="F-2"), _fixture([], fixture_id="F-3")],
-                      dispatch=dispatch, out_dir=tmp_path, max_usd=10.0, page_loader=lambda f: fr.fixture_pages(f),
+                      dispatch=dispatch, run_root=tmp_path, max_usd=10.0, page_loader=lambda f: fr.fixture_pages(f),
                       searched_policy=fr.SEARCHED_UNLINKED, official_policy=fr.OFFICIAL_PAGE_HOST,
                       unlocated=fr.UNRESOLVED, access_date="2026-11-17", run_fn=run_fn,
                       cost_fn=lambda run_dir: cost, **kwargs)
@@ -370,3 +370,35 @@ def test_report_skeleton_carries_limits_untested_line_and_per_fixture_rows(tmp_p
     assert "$0.1200" in report
     doc = json.loads(paths["results"].read_text(encoding="utf-8"))
     assert doc["a_id_summary"] == {"A-011": {fr.FAIL: 1}}
+
+
+# ---------------------------------------------------------------------------
+# Run roots (review M3 / L4)
+# ---------------------------------------------------------------------------
+
+
+def test_fresh_run_root_is_new_per_invocation_and_refuses_reuse(tmp_path):
+    root = fr.fresh_run_root(tmp_path, "20261117T000000Z")
+    assert root == tmp_path / "20261117T000000Z" and root.is_dir()
+    with pytest.raises(fr.RunRefused):
+        fr.fresh_run_root(tmp_path, "20261117T000000Z")
+    assert fr.utc_stamp().endswith("Z") and len(fr.utc_stamp()) == 16
+    assert fr.default_run_base() == Path.home() / ".g3o" / "t041-runs"
+
+
+def test_run_live_refuses_an_existing_fixture_run_dir_before_any_call(tmp_path):
+    from g3o.run.presweep.orchestrator import V27Dispatch
+    from g3o.run.presweep.perpage_batch_v27 import NO_BATCH
+
+    fake = lambda *a: None  # noqa: E731
+    dispatch = V27Dispatch(settings=None, jev_ask_fn=fake, extract_fn=fake, entail_fn=fake, extractor_mode=NO_BATCH)
+    (tmp_path / "F-1").mkdir()
+
+    def run_fn(*a):
+        raise AssertionError("a fixture ran")
+
+    with pytest.raises(fr.RunRefused):
+        fr.run_live([_fixture([])], dispatch=dispatch, run_root=tmp_path, max_usd=1.0,
+                    page_loader=lambda f: fr.fixture_pages(f), searched_policy=fr.SEARCHED_UNLINKED,
+                    official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17",
+                    run_fn=run_fn, cost_fn=lambda run_dir: 0.0)
