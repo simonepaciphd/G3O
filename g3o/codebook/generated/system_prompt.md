@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.system_prompt. -->
-<!-- codebook release: 2.7 | codebook sha256: ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a -->
+<!-- codebook release: 2.7 | codebook sha256: 381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a -->
 
 # System prompts
 
-Codebook release `2.7`, sha256 `ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a`. Intended target: T-022 / T-032 g3o/extract/prompts/system_prompt.md (and the Stage 6 prompts).
+Codebook release `2.7`, sha256 `381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a`. Intended target: T-022 / T-032 g3o/extract/prompts/system_prompt.md (and the Stage 6 prompts).
 
 ## `shared/system_prompt`
 

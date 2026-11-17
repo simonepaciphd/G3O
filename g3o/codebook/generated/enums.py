@@ -1,13 +1,13 @@
 # GENERATED FILE - do not edit. Built from codebook/codebook.yaml by
 # g3o.codebook.generators.enums.
-# codebook release: 2.7 | codebook sha256: ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a
+# codebook release: 2.7 | codebook sha256: 381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a
 # Intended target: T-012 enum constants (g3o/common/contract.py or a module T-012 names).
 """Codebook value lists as constants; each carries its item id and item hash."""
 
 from __future__ import annotations
 
 CODEBOOK_RELEASE = '2.7'
-CODEBOOK_SHA256 = 'ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a'
+CODEBOOK_SHA256 = '381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a'
 
 #: item id -> (item hash, value codes in codebook order)
 ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -57,6 +57,7 @@ ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
     'core.evaluation_type_ongoing_monitoring': ('e7866831b2329fc016fb0018765cf5e4d16e3b44f872f693a0993f6e09e6c0cf', ('yes', 'no',)),
     'core.evaluation_type_user_feedback': ('036e7caa5b9aab26435a359d33ecaa4a209693b802f4541772cf7122b3c5a65a', ('yes', 'no',)),
     'core.evaluation_type_bias_or_safety_testing': ('21268a987d8ea93b84d5bd166774219636358e77538014241ebf4aac7f679e70', ('yes', 'no',)),
+    'core.stage_as_of_basis': ('c40ce46095c40201d4c252d58c6eaa6fa915a8ae19e1a4fe3abe01f314c3c953', ('publication', 'stated', 'access',)),
     'core.permanent_pilot': ('152bbabb24b057f88773d735097cc0341ee6e95603be4597682f789458beedb2', ('yes', 'no',)),
     'core.support_entailment': ('c5b4622acfca3d8d78dffb98f55c0693dc122be59dbe75e77cfaafa7b186af8b', ('true', 'false',)),
     'core.activity_relation_cross_page': ('ace0da2bc93b3c6a70f0a97873b123abea5906bba93b238f926feff086ed6e5c', ('same_activity', 'component_of_program', 'has_component', 'shared_participation', 'governs', 'governed_by', 'distinct_action', 'unresolved',)),
@@ -116,6 +117,7 @@ EVALUATION_TYPE_INDEPENDENT_AUDIT = ITEM_ENUMS['core.evaluation_type_independent
 EVALUATION_TYPE_ONGOING_MONITORING = ITEM_ENUMS['core.evaluation_type_ongoing_monitoring'][1]  # core.evaluation_type_ongoing_monitoring
 EVALUATION_TYPE_USER_FEEDBACK = ITEM_ENUMS['core.evaluation_type_user_feedback'][1]  # core.evaluation_type_user_feedback
 EVALUATION_TYPE_BIAS_OR_SAFETY_TESTING = ITEM_ENUMS['core.evaluation_type_bias_or_safety_testing'][1]  # core.evaluation_type_bias_or_safety_testing
+STAGE_AS_OF_BASIS = ITEM_ENUMS['core.stage_as_of_basis'][1]  # core.stage_as_of_basis
 PERMANENT_PILOT = ITEM_ENUMS['core.permanent_pilot'][1]  # core.permanent_pilot
 SUPPORT_ENTAILMENT = ITEM_ENUMS['core.support_entailment'][1]  # core.support_entailment
 ACTIVITY_RELATION = ITEM_ENUMS['core.activity_relation_cross_page'][1]  # core.activity_relation_cross_page

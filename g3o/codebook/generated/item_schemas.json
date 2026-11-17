@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.item_schemas",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a",
+  "codebook_sha256": "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a",
   "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)",
   "$defs": {
     "page_verdict": {
@@ -568,19 +568,19 @@
     },
     "contracting_party": {
       "x-item-id": "core.contracting_party",
-      "x-item-hash": "73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24",
+      "x-item-hash": "fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2",
       "x-answer-type": "text",
       "type": "string"
     },
     "developer": {
       "x-item-id": "core.developer",
-      "x-item-hash": "f9bf2b0188ea76b1cb9f68dd866d8a8022fd75dc530d7caed4b2a3227a393ccc",
+      "x-item-hash": "3b7fa3c4814ac318a061237a2bc87bf7d614afa9645d570dcb127a0869dac61d",
       "x-answer-type": "text",
       "type": "string"
     },
     "developer_basis": {
       "x-item-id": "core.developer_basis",
-      "x-item-hash": "b4da76c1b35bd2d108e8093c659e5917175046ffd66917ba2decf4d770a1a291",
+      "x-item-hash": "d76e4097f154eab1ca16fc863f2dc1a11e713a074ae41ac5324b315ebc3d7194",
       "x-answer-type": "single",
       "type": "string"
     },
@@ -996,9 +996,17 @@
     },
     "stage_as_of_basis": {
       "x-item-id": "core.stage_as_of_basis",
-      "x-item-hash": "d7088292a75ed257e9cc7e2ece470d33cdc3aaa19003815ed77979b23788b0a2",
+      "x-item-hash": "c40ce46095c40201d4c252d58c6eaa6fa915a8ae19e1a4fe3abe01f314c3c953",
       "x-answer-type": "single",
-      "type": "string"
+      "enum": [
+        "publication",
+        "stated",
+        "access",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
     },
     "permanent_pilot": {
       "x-item-id": "core.permanent_pilot",
