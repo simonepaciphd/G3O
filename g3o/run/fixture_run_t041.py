@@ -611,7 +611,7 @@ TELEMETRY_NOTE = ("run telemetry readers (PI ruling Q194 c): followed_urls = eve
                   "request matching no fixture page is counted under `unattributed`; pair:<A>|<B> relations = the "
                   "stored activity_relations with lhs activity named A and rhs named B (exact names), or, PI "
                   "ruling Q206 b, the inverse (g3o/common/storage.py RELATION_INVERSE) of a stored B->A relation; "
-                  "a code with no inverse entry is not read in reverse; when the values disagree, their sorted "
+                  "a code with no inverse entry is its own inverse, as storage reads it; when the values disagree, their sorted "
                   "list is the value (it fails); relation scope by item (core.activity_segment within_page, "
                   "core.activity_relation_cross_page cross_page). A missing follow state, journal or relation is "
                   "not_located. No reader (not_located): "
@@ -745,7 +745,8 @@ def locate_pair(storage: Mapping[str, Any], item: str, names: str) -> tuple[bool
     activities, so Q202 c leaves them on exact names); the relation scope is that of ``item``
     (:data:`RELATION_SCOPE_OF_ITEM`). The values are the relations stored A->B, together with
     the inverse (``g3o.common.storage.RELATION_INVERSE``) of each relation stored B->A (PI ruling
-    Q206 b); a B->A code with no inverse entry gives nothing. When these agree there is one
+    Q206 b), read as storage reads it, ``RELATION_INVERSE.get(code, code)``: a code with no
+    inverse entry (e.g. ``distinct_action``) is its own inverse. When these agree there is one
     value (a stored A->B relation needs no inverse); when they disagree, or several are stored,
     their sorted list is the value (so it fails visibly).
     """
@@ -764,9 +765,8 @@ def locate_pair(storage: Mapping[str, Any], item: str, names: str) -> tuple[bool
             if isinstance(rel, Mapping) and rel.get("relation_scope") == rel_scope]
     direct = {rel.get("relation") for rel in rels
               if rel.get("lhs_final_activity_id") in left and rel.get("rhs_final_activity_id") in right}
-    inverse = {RELATION_INVERSE[rel["relation"]] for rel in rels
-               if rel.get("lhs_final_activity_id") in right and rel.get("rhs_final_activity_id") in left
-               and rel.get("relation") in RELATION_INVERSE}
+    inverse = {RELATION_INVERSE.get(rel.get("relation"), rel.get("relation")) for rel in rels
+               if rel.get("lhs_final_activity_id") in right and rel.get("rhs_final_activity_id") in left}
     found = sorted(direct | inverse, key=str)
     if not found:
         return False, None

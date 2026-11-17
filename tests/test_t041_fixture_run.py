@@ -751,9 +751,9 @@ def test_q194c_pair_relations_from_activity_relations():
     # PI ruling Q206 b: the reverse pair reads the inverse (storage.RELATION_INVERSE) of the stored relation
     assert fr.locate_got(storage, {"item": seg, "scope": "pair:Smart Kingsford AI Programme|Ask Kira"}, {}) == (
         True, "has_component")
-    # a code with no inverse entry is not read in reverse
+    # a code with no inverse entry is its own inverse, as storage reads it (RELATION_INVERSE.get(code, code))
     reverse_cross = {"item": "core.activity_relation_cross_page", "scope": "pair:Copilot finance pilot|Ask Kira"}
-    assert fr.locate_got(storage, reverse_cross, {}) == (False, None)
+    assert fr.locate_got(storage, reverse_cross, {}) == (True, "distinct_action")
     # the relation scope follows the item: a cross-page relation is not a core.activity_segment value
     assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira|Copilot finance pilot"}, {}) == (False, None)
     cross = {"item": "core.activity_relation_cross_page", "scope": "pair:Ask Kira|Copilot finance pilot"}
@@ -790,7 +790,8 @@ def test_q206b_stored_direction_and_inverse_agree_or_fail_visibly():
     assert fr.locate_got(storage, reverse, {}) == (True, "governed_by")
     acts["A2"]["activity_relations"] = [_relation("A2", "A1", "distinct_action")]  # stored reverse disagrees
     assert fr.locate_got(storage, reverse, {}) == (True, ["distinct_action", "governed_by"])
-    assert fr.locate_got(storage, forward, {}) == (True, "governs")  # distinct_action has no inverse entry
+    # distinct_action is its own inverse, so the forward pair now sees it too and fails visibly
+    assert fr.locate_got(storage, forward, {}) == (True, ["distinct_action", "governs"])
 
 
 def _write_perpage_journal(run_dir, inst_id, entries, *, torn=False):
