@@ -56,6 +56,7 @@ wave's peaks are shown as the reference.
 from __future__ import annotations
 
 import json
+import math
 import os
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -87,6 +88,10 @@ REQUIRED_SEEDS = (
     "spike_batch_round_s", "spike_batch_requests",
 )
 
+#: seeds the projection divides by: a zero one is refused at load (every seed is a count, a
+#: spend, a duration or a size, so a NaN, an infinity or a negative value is refused too)
+DIVISOR_SEEDS = ("wave4_n", "wave4_wall_s", "spike_pages")
+
 #: parts whose seed-only figure depends on pages per institution
 PAGE_PARTS = ("typesafe", "anthropic_perpage")
 
@@ -107,7 +112,12 @@ Seeds = Mapping[str, Seed]
 
 def resolve_seeds_path(explicit: str | os.PathLike[str] | None = None,
                        environ: Mapping[str, str] | None = None) -> Path | None:
-    """``explicit``, else ``$G3O_PROJECTION_SEEDS`` (relative to ``$G3O_DRIVE_ROOT`` when not absolute)."""
+    """``explicit``, else ``$G3O_PROJECTION_SEEDS`` (relative to ``$G3O_DRIVE_ROOT`` when not absolute).
+
+    A relative ``$G3O_PROJECTION_SEEDS`` with no ``$G3O_DRIVE_ROOT`` is refused
+    (:class:`SeedsUnavailable`) rather than read against the working directory: the
+    variable is documented as absolute or relative to ``$G3O_DRIVE_ROOT`` (Q177 a).
+    """
     if explicit is not None:
         return Path(explicit)
     env = os.environ if environ is None else environ
@@ -115,7 +125,10 @@ def resolve_seeds_path(explicit: str | os.PathLike[str] | None = None,
     if not raw:
         return None
     path = Path(raw)
-    if not path.is_absolute() and env.get(DRIVE_ENV):
+    if not path.is_absolute():
+        if not env.get(DRIVE_ENV):
+            raise SeedsUnavailable(f"{SEEDS_ENV}={raw!r} is relative and {DRIVE_ENV} is not set "
+                                   f"(give an absolute path, or set {DRIVE_ENV})")
         path = Path(env[DRIVE_ENV]) / path
     return path
 
@@ -140,12 +153,19 @@ def load_seeds(path: str | os.PathLike[str] | None = None,
         value, source = entry.get("value"), entry.get("source")
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError(f"seed {name!r} has no numeric value")
+        if not math.isfinite(value) or value < 0:
+            raise ValueError(f"seed {name!r} = {value!r} is not a finite, non-negative figure")
+        if name in DIVISOR_SEEDS and value == 0:
+            raise ValueError(f"seed {name!r} is zero: the projection divides by it")
         if not isinstance(source, str) or ":" not in source:
             raise ValueError(f"seed {name!r} has no 'path:line' source")
         seeds[name] = Seed(float(value), source, str(entry.get("note") or ""))
     missing = [n for n in REQUIRED_SEEDS if n not in seeds]
     if missing:
         raise ValueError(f"seeds file lacks {', '.join(missing)}")
+    legs = ("spike_h_span_usd", "spike_h_pq_usd", "spike_h_aq_usd")
+    if sum(seeds[n].value for n in legs) == 0:
+        raise ValueError(f"seeds {', '.join(legs)} are all zero: the first-round share divides by their sum")
     return seeds
 
 
@@ -458,7 +478,7 @@ def format_table(rows: list[dict[str, Any]], n: float, notes: Sequence[str] = ()
 
 __all__ = [
     "ALL_BATCH", "BATCH_MODES", "DRIVE_ENV", "MIX", "MODES", "NO_BATCH", "PAGE_PARTS",
-    "REQUIRED_SEEDS", "SEEDS_ENV",
+    "DIVISOR_SEEDS", "REQUIRED_SEEDS", "SEEDS_ENV",
     "ModeAssumptions", "Seed", "SeedsUnavailable", "batch_queue_mb", "batch_rounds",
     "extractor_mode_usd", "format_table", "load_seeds", "per_institution_from_cost_report",
     "project_all", "project_mode", "remaining_envelope", "resolve_seeds_path",
