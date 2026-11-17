@@ -110,7 +110,9 @@ def anthropic_sdk_client(api_key: str) -> Any:
     journaled or raised to its caller; a retried, possibly billed attempt never goes
     unrecorded. A raised SDK error (``anthropic.APIError``: a 401, 429 or 5xx) is neither a
     ``RuntimeError`` nor a ``ValueError``, so the stages' per-institution handlers do not
-    hold it: it stops the stage (the extractor and X35 alike), except where a caller catches
+    hold it: it stops the stage (the extractor and X35 alike; an error while submitting a
+    Message Batch in ``all_batch``/``mix`` mode stops it after that wave's pass, the rest of
+    the wave being journaled as queued first), except where a caller catches
     every exception (the Stage 6 quote step holds that one answer,
     ``g3o.validate.stage6_v27._support``). A call that died without a response is not
     journaled and is asked again on resume (131.1 b, Q163 c).
