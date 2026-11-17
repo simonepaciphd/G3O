@@ -148,13 +148,15 @@ def test_dry_run_is_the_default_and_makes_no_call(tmp_path, monkeypatch, capsys)
     assert rc == 0
     out = capsys.readouterr().out
     assert "dry run: no call made" in out and "USD estimate: none" in out
-    doc = json.loads((tmp_path / fr.RESULTS_FILE).read_text(encoding="utf-8"))
+    out = fr.output_paths(tmp_path, fr.MODE_DRY)
+    doc = json.loads(out["results"].read_text(encoding="utf-8"))
     assert doc["mode"] == "dry-run" and doc["options"]["extractor_mode"] == "no_batch"
     assert len(doc["results"]) == 66 and {r["status"] for r in doc["results"]} == {fr.NOT_RUN}
-    plan = json.loads((tmp_path / fr.PLAN_FILE).read_text(encoding="utf-8"))
+    plan = json.loads(out["plan"].read_text(encoding="utf-8"))
     assert len(plan["plans"]) == 66 and plan["estimate"]["fixtures_runnable"] == 32
-    report = (tmp_path / fr.REPORT_FILE).read_text(encoding="utf-8")
-    assert fr.F6C_LINE in report and all(limit in report for limit in fr.QUOTE_MATCH_LIMITS)
+    report = out["report"].read_text(encoding="utf-8")
+    assert fr.F6C_LINE in report
+    assert fr.existing_live_outputs(tmp_path) == []  # review M2: a dry run never writes live files and all(limit in report for limit in fr.QUOTE_MATCH_LIMITS)
 
 
 @pytest.mark.parametrize("extra", [[], ["--max-usd", "5"], ["--runtime", "rt.json"], ["--max-usd", "0", "--runtime",
@@ -163,7 +165,7 @@ def test_live_without_cap_and_runtime_is_refused_before_any_work(tmp_path, monke
     _forbid_live(monkeypatch)
     rc = _script().main(["--live", "--out-dir", str(tmp_path), *extra])
     assert rc == 2
-    assert not (tmp_path / fr.RESULTS_FILE).exists()
+    assert not any(tmp_path.iterdir())
 
 
 def test_live_without_drive_root_is_refused(tmp_path, monkeypatch):
@@ -402,3 +404,71 @@ def test_run_live_refuses_an_existing_fixture_run_dir_before_any_call(tmp_path):
                     page_loader=lambda f: fr.fixture_pages(f), searched_policy=fr.SEARCHED_UNLINKED,
                     official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17",
                     run_fn=run_fn, cost_fn=lambda run_dir: 0.0)
+
+
+# ---------------------------------------------------------------------------
+# Outputs: mode-specific, never overwritten, flushed per fixture (review M2)
+# ---------------------------------------------------------------------------
+
+
+def test_live_refuses_to_start_over_existing_live_results(tmp_path, monkeypatch, capsys):
+    _forbid_live(monkeypatch)
+    rt = tmp_path / "rt.json"
+    rt.write_text("{}", encoding="utf-8")
+    out = tmp_path / "out"
+    out.mkdir()
+    fr.output_paths(out, fr.MODE_LIVE)["results"].write_text("{}", encoding="utf-8")
+    rc = _script().main(["--live", "--max-usd", "5", "--runtime", str(rt), "--drive", str(tmp_path),
+                         "--out-dir", str(out), "--run-root", str(tmp_path / "runs")])
+    assert rc == 2 and "never overwritten" in capsys.readouterr().err
+    assert fr.output_paths(out, fr.MODE_LIVE)["results"].read_text(encoding="utf-8") == "{}"
+
+
+def test_write_outputs_live_never_overwrites_and_dry_never_touches_live(tmp_path):
+    kwargs = {"plans": [], "est": {"seed_usd": None}, "results": [], "options": {}}
+    paths = fr.write_outputs(tmp_path, mode=fr.MODE_LIVE, spent_usd=0.0, **kwargs)
+    assert paths["results"].name == "t041-live-results.json" and paths["report"].name == "T041-REPORT-live.md"
+    with pytest.raises(fr.RunRefused):
+        fr.write_outputs(tmp_path, mode=fr.MODE_LIVE, spent_usd=0.0, **kwargs)
+    before = paths["results"].read_bytes()
+    dry = fr.write_outputs(tmp_path, mode=fr.MODE_DRY, **kwargs)
+    assert dry["results"].name == "t041-dry-results.json" and paths["results"].read_bytes() == before
+
+
+def test_run_live_flushes_each_result_and_the_script_keeps_them_on_interrupt(tmp_path, monkeypatch):
+    from g3o.run.presweep.orchestrator import V27Dispatch
+    from g3o.run.presweep.perpage_batch_v27 import NO_BATCH
+
+    fake = lambda *a: None  # noqa: E731
+    dispatch = V27Dispatch(settings=None, jev_ask_fn=fake, extract_fn=fake, entail_fn=fake, extractor_mode=NO_BATCH)
+    real_run_live = fr.run_live
+
+    def interrupted_run_live(fixtures, **kwargs):
+        def run_fn(run_dir, sample, scraped, live):
+            if run_fn.n:
+                raise KeyboardInterrupt
+            run_fn.n += 1
+        run_fn.n = 0
+        return real_run_live(fixtures, run_fn=run_fn, cost_fn=lambda run_dir: 0.01, **kwargs)
+
+    monkeypatch.setattr(fr, "run_live", interrupted_run_live)
+    monkeypatch.setattr(fr, "require_live_gates", lambda d: dispatch)
+    import g3o.common.credentials as creds
+    import g3o.run.presweep.v27_entry as entry
+
+    monkeypatch.setattr(entry, "build_v27_dispatch", lambda config, c: dispatch)
+    monkeypatch.setattr(creds, "resolve", lambda: None)
+    rt = tmp_path / "rt.json"
+    rt.write_text("{}", encoding="utf-8")
+    out = tmp_path / "out"
+    with pytest.raises(KeyboardInterrupt):
+        _script().main(["--live", "--max-usd", "5", "--runtime", str(rt), "--drive", str(tmp_path),
+                        "--out-dir", str(out), "--run-root", str(tmp_path / "runs"), "--group", "pipeline",
+                        "--fixture", "v27-syn-A011-01", "--fixture", "v27-syn-A004-05"])
+    paths = fr.output_paths(out, fr.MODE_LIVE)
+    lines = paths["jsonl"].read_text(encoding="utf-8").splitlines()
+    assert [json.loads(x)["fixture_id"] for x in lines] == ["v27-syn-A011-01"]  # file order
+    doc = json.loads(paths["results"].read_text(encoding="utf-8"))
+    assert doc["stopped"].startswith("interrupted") and doc["spent_usd"] == pytest.approx(0.01)
+    assert [r["fixture_id"] for r in doc["results"]] == ["v27-syn-A011-01", "v27-syn-A004-05"]
+    assert doc["results"][1]["status"] == fr.NOT_RUN

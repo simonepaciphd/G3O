@@ -50,9 +50,13 @@ from urllib.parse import urlparse
 DRIVE_ENV = "G3O_DRIVE_ROOT"
 #: Default output folder under the Drive root (PLAN T-041 Outputs).
 OUT_SUBDIR = "agent-workspace/2026-10-27-reclass-plan/fixture-run"
-RESULTS_FILE = "t041-results.json"
-PLAN_FILE = "t041-plan.json"
-REPORT_FILE = "T041-REPORT.md"
+#: Run modes; each writes its own output files (review M2: a dry run never overwrites live results).
+MODE_DRY, MODE_LIVE = "dry-run", "live"
+OUTPUT_NAMES = {
+    MODE_DRY: {"plan": "t041-dry-plan.json", "results": "t041-dry-results.json", "report": "T041-REPORT-dry.md"},
+    MODE_LIVE: {"plan": "t041-live-plan.json", "results": "t041-live-results.json", "report": "T041-REPORT-live.md",
+                "jsonl": "t041-live-fixtures.jsonl"},
+}
 
 #: Fixture groups the runner can select (Q184 a: the new-run path only).
 GROUP_PIPELINE = "pipeline"  # synthetic, mode pipeline: page text through jev / extractor
@@ -726,7 +730,8 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
              official_policy: str, unlocated: str, access_date: str,
              run_fn: Callable[..., Any] | None = None,
              cost_fn: Callable[[Path], float | None] | None = None,
-             continue_on_error: bool = False) -> dict[str, Any]:
+             continue_on_error: bool = False,
+             on_result: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
     """Run each runnable fixture in its own run directory (PAID). ``dispatch`` must already
     have passed :func:`require_live_gates`. Stops before the next fixture once the
     journaled spend reaches ``max_usd``, or when a fixture's spend cannot be priced. The cap
@@ -740,7 +745,9 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
     ``continue_on_error=True`` (``--continue-on-error``) goes on after a paid stage stop too.
 
     ``run_root`` is this invocation's own fresh folder (:func:`fresh_run_root`); each fixture
-    runs in ``<run_root>/<fixture_id>``, which must not exist yet (refused before any call)."""
+    runs in ``<run_root>/<fixture_id>``, which must not exist yet (refused before any call).
+    ``on_result`` is called with each fixture's result as soon as it is final (the script
+    appends it to ``t041-live-fixtures.jsonl``, so a crash or Ctrl-C keeps finished fixtures)."""
     from g3o.run.presweep.perpage_batch_v27 import NO_BATCH
 
     if getattr(dispatch, "extractor_mode", None) != NO_BATCH:
@@ -754,12 +761,18 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
         from g3o.run.presweep.orchestrator import run_v27_dispatch as run_fn
     recorder = X35Recorder(dispatch.entail_fn)
     spent, results, stopped = 0.0, [], None
+
+    def keep(result: dict[str, Any]) -> None:
+        results.append(result)
+        if on_result is not None:  # review M2: each finished fixture is flushed as it completes
+            on_result(result)
+
     for fixture in fixtures:
         if fixture_group(fixture) == GROUP_INJECTED:
-            results.append(not_run_result(fixture, "injected answers: no adapter plays them into the pipeline yet"))
+            keep(not_run_result(fixture, "injected answers: no adapter plays them into the pipeline yet"))
             continue
         if stopped is not None:
-            results.append(not_run_result(fixture, stopped))
+            keep(not_run_result(fixture, stopped))
             continue
         run_dir = Path(run_root) / fixture["fixture_id"]
         pages = page_loader(fixture)
@@ -777,7 +790,7 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
                                  unlocated=unlocated)
         cost = (cost_fn or _journal_cost(dispatch))(run_dir)
         result.update(summary=summary, error=error, x35=x35_summary(recorder.take()), cost_usd=cost)
-        results.append(result)
+        keep(result)
         if cost is None:
             stopped = "stopped: the previous fixture's spend could not be priced"
         else:
@@ -814,12 +827,43 @@ def _journal_cost(dispatch: Any) -> Callable[[Path], float | None]:
 # ---------------------------------------------------------------------------
 
 
+def output_paths(out_dir: Path, mode: str) -> dict[str, Path]:
+    """The output files of ``mode`` in ``out_dir`` (:data:`OUTPUT_NAMES`)."""
+    if mode not in OUTPUT_NAMES:
+        raise ValueError(f"mode must be one of {sorted(OUTPUT_NAMES)}")
+    return {k: Path(out_dir) / name for k, name in OUTPUT_NAMES[mode].items()}
+
+
+def existing_live_outputs(out_dir: Path) -> list[Path]:
+    """Live output files already in ``out_dir``: a live run refuses to start over any of them."""
+    return [p for p in output_paths(out_dir, MODE_LIVE).values() if p.exists()]
+
+
+def append_result_jsonl(path: Path, result: Mapping[str, Any]) -> None:
+    """Append one fixture's result as a JSON line, flushed and fsynced (review M2)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(result, ensure_ascii=False, default=str)
+    with path.open("ab") as stream:
+        stream.write(line.encode("utf-8") + b"\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
 def write_outputs(out_dir: Path, *, mode: str, plans: Sequence[Mapping[str, Any]], est: Mapping[str, Any],
                   results: Sequence[Mapping[str, Any]], options: Mapping[str, Any],
                   spent_usd: float | None = None, stopped: str | None = None) -> dict[str, Path]:
-    """Write the machine-readable plan / results and the ``T041-REPORT.md`` skeleton."""
+    """Write the mode's machine-readable plan / results and its report skeleton.
+
+    Dry and live write different files (:data:`OUTPUT_NAMES`). A live write never
+    overwrites: it refuses if any live plan / results / report file exists.
+    """
+    paths = output_paths(out_dir, mode)
+    plan_path, results_path, report_path = paths["plan"], paths["results"], paths["report"]
+    if mode == MODE_LIVE:
+        clash = [p.name for p in (plan_path, results_path, report_path) if p.exists()]
+        if clash:
+            raise RunRefused(f"live outputs already exist in the output folder: {clash} (never overwritten)")
     out_dir.mkdir(parents=True, exist_ok=True)
-    plan_path, results_path, report_path = out_dir / PLAN_FILE, out_dir / RESULTS_FILE, out_dir / REPORT_FILE
     plan_path.write_text(json.dumps({"plans": list(plans), "estimate": est}, indent=1, ensure_ascii=False),
                          encoding="utf-8")
     doc = {"mode": mode, "options": dict(options), "a_id_summary": a_id_summary(results),
@@ -845,7 +889,9 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
         "",
         "## Cost",
         f"- Estimate: {est_line}",
-        "- Actual: " + ("n/a (dry run)" if spent_usd is None else f"${spent_usd:.4f} (request journals)"),
+        "- Actual: " + ("n/a (dry run)" if mode == MODE_DRY else
+                        "unpriced (a fixture's spend could not be priced)" if spent_usd is None else
+                        f"${spent_usd:.4f} (request journals)"),
         f"- Cap: {CAP_NOTE}.",
         f"- Seed check: {SEED_CHECK_NOTE}.",
         *([f"- {stopped}"] if stopped else []),

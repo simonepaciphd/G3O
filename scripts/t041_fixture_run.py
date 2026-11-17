@@ -3,7 +3,7 @@
 
 DRY RUN by default: no network, no paid call, no client built. It loads and validates the
 selected fixtures, writes the per-fixture plan, a results file (every fixture ``not_run``)
-and the ``T041-REPORT.md`` skeleton, and prints call and token counts with the cited
+and the report skeleton (``t041-dry-*.json``, ``T041-REPORT-dry.md``), and prints call and token counts with the cited
 rate rows. A USD figure is printed only from the projection seeds (``--seeds`` or
 ``$G3O_PROJECTION_SEEDS``, PI Q177 a).
 
@@ -14,6 +14,11 @@ cap, checked between fixtures: a single fixture can overshoot it by its own cost
 calls are sync (DP-030 / RC-D-001 B).
 
 Output: ``--out-dir``, default ``$G3O_DRIVE_ROOT/agent-workspace/2026-10-27-reclass-plan/fixture-run``.
+A live run writes its own files (``t041-live-*.json``, ``T041-REPORT-live.md``) and refuses
+to start if any exists; each finished fixture is appended to ``t041-live-fixtures.jsonl`` at
+once, and a crash or Ctrl-C still writes the results of the finished fixtures. Live run
+directories go to ``--run-root`` (local, default ``~/.g3o/t041-runs``), one fresh
+``<UTC stamp>/`` folder per invocation.
 
 Example (dry run):
   python scripts/t041_fixture_run.py --seeds agent-workspace/2026-11-16-overnight/projection/seeds.json
@@ -92,6 +97,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.live and drive is None:
         print(f"refused: --live needs the Drive root (real fixture pages): set ${fr.DRIVE_ENV}", file=sys.stderr)
         return 2
+    if args.live and (existing := fr.existing_live_outputs(out_dir)):
+        print(f"refused: live outputs already exist in the output folder: {[p.name for p in existing]} "
+              "(never overwritten; move them or pass another --out-dir)", file=sys.stderr)
+        return 2
     runtime = json.loads(args.runtime.read_text(encoding="utf-8")) if args.runtime else None
     models = {k: (runtime or {}).get(k, v) for k, v in DEFAULT_MODELS.items()}
 
@@ -114,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.live:
         results = [fr.not_run_result(f, "dry run") for f in fixtures]
-        paths = fr.write_outputs(out_dir, mode="dry-run", plans=plans, est=est, results=results, options=options)
+        paths = fr.write_outputs(out_dir, mode=fr.MODE_DRY, plans=plans, est=est, results=results, options=options)
         print(f"dry run: no call made. wrote {paths['plan'].name}, {paths['results'].name}, {paths['report'].name} "
               f"to the output folder")
         return 0
@@ -142,14 +151,33 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     print(f"live run directories: {run_root}")
     options["run_root"] = str(run_root)
-    run = fr.run_live(fixtures, dispatch=dispatch, run_root=run_root, max_usd=args.max_usd,
-                      page_loader=lambda f: pages[f["fixture_id"]], searched_policy=args.searched_pages,
-                      official_policy=args.official_site, unlocated=args.unlocated,
-                      continue_on_error=args.continue_on_error,
-                      access_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-    paths = fr.write_outputs(out_dir, mode="live", plans=plans, est=est, results=run["results"], options=options,
-                             spent_usd=run["spent_usd"], stopped=run["stopped"])
-    print(f"live: spent ${run['spent_usd']:.4f}; wrote {paths['results'].name} and {paths['report'].name}")
+    jsonl = fr.output_paths(out_dir, fr.MODE_LIVE)["jsonl"]
+    finished: list[dict[str, Any]] = []
+
+    def keep(result: dict[str, Any]) -> None:  # review M2: flushed as each fixture completes
+        finished.append(result)
+        fr.append_result_jsonl(jsonl, result)
+
+    run = None
+    try:
+        run = fr.run_live(fixtures, dispatch=dispatch, run_root=run_root, max_usd=args.max_usd,
+                          page_loader=lambda f: pages[f["fixture_id"]], searched_policy=args.searched_pages,
+                          official_policy=args.official_site, unlocated=args.unlocated,
+                          continue_on_error=args.continue_on_error, on_result=keep,
+                          access_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+    finally:  # a crash or Ctrl-C still writes the results of the fixtures that finished
+        if run is None:
+            done = {r["fixture_id"] for r in finished}
+            costs = [r.get("cost_usd") for r in finished if "cost_usd" in r]
+            run = {"results": finished + [fr.not_run_result(f, "interrupted: the run ended before this fixture")
+                                          for f in fixtures if f["fixture_id"] not in done],
+                   "spent_usd": None if any(c is None for c in costs) else float(sum(costs)),
+                   "stopped": "interrupted: the run raised or was stopped; finished fixtures are kept "
+                              f"(also in {jsonl.name})"}
+        paths = fr.write_outputs(out_dir, mode=fr.MODE_LIVE, plans=plans, est=est, results=run["results"],
+                                 options=options, spent_usd=run["spent_usd"], stopped=run["stopped"])
+    spent = "unpriced" if run["spent_usd"] is None else f"${run['spent_usd']:.4f}"
+    print(f"live: spent {spent}; wrote {paths['results'].name}, {paths['report'].name} and {jsonl.name}")
     return 0
 
 
