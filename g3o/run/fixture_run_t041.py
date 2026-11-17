@@ -577,9 +577,11 @@ def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
 
     Scopes: ``institution`` -> the summary row's values; ``page`` / ``page:<key>`` ->
     the source row whose source URL field (``source_fields.URL``, ``core.source_url``) is
-    that page's URL (review L1: never any other string value); ``activity:<name>`` -> the
-    activity row named so (``core.activity_name``), not located when none is; bare
-    ``activity`` (no name) -> the only activity row (review L2).
+    that page's URL (review L1: never any other string value); ``activity:<name>`` and bare
+    ``activity`` -> when the run produced exactly one activity, that activity whatever its
+    name; with several, the activity row named so (``core.activity_name``), not located when
+    none is or the scope names none (PI ruling Q202 c; the expected name itself is checked as
+    its own value, :func:`expected_values`).
     Any other scope (``pair``, run telemetry such as ``followed_urls``) is not located:
     no reader is defined for it here.
     """
@@ -598,10 +600,10 @@ def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
             rows = [r for r in (storage.get("sources") or {}).values() if _row_values(r).get(SOURCE_URL) == url]
     elif kind == "activity":
         acts = list((storage.get("activities") or {}).values())
-        if name:
-            rows = [r for r in acts if _row_values(r).get("core.activity_name") == name]
-        elif len(acts) == 1:
+        if len(acts) == 1:  # PI ruling Q202 c: the only activity, whatever its name
             rows = acts
+        elif name:  # several activities: exact name match only (Q202 c)
+            rows = [r for r in acts if _row_values(r).get(ACTIVITY_NAME) == name]
     for row in rows:
         values = _row_values(row)
         if item in values:
@@ -609,9 +611,35 @@ def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
     return False, None
 
 
+#: The activity name item; and the rule a derived name value carries (PI ruling Q202 c).
+ACTIVITY_NAME = "core.activity_name"
+NAME_CHECK_RULE = ("PI ruling Q202 c: the activity name an activity:<name> scope expects, checked as its own value "
+                   "(with one activity in the run, the other values of that scope are compared against it whatever "
+                   "its name)")
+
+
+def expected_values(fixture: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """The fixture's expected values, then one derived name value per activity name its
+    ``activity:<name>`` scopes expect (PI ruling Q202 c), unless the fixture already expects
+    ``core.activity_name`` at that scope. A derived value has ``derived`` set to
+    :data:`NAME_CHECK_RULE`; pair scopes add none (they match names exactly)."""
+    out = [dict(e) for e in fixture["expected"]]
+    have = {(e["item"], str(e["scope"])) for e in out}
+    for e in fixture["expected"]:
+        scope = str(e["scope"])
+        kind, _, name = scope.partition(":")
+        if kind == "activity" and name and (ACTIVITY_NAME, scope) not in have:
+            have.add((ACTIVITY_NAME, scope))
+            out.append({"item": ACTIVITY_NAME, "scope": scope, "value": name, "derived": NAME_CHECK_RULE})
+    return out
+
+
 def compare_fixture(fixture: Mapping[str, Any], got: Callable[[Mapping[str, Any]], tuple[bool, Any]],
                     *, unlocated: str = UNRESOLVED) -> dict[str, Any]:
     """Per expected value ``pass`` / ``fail`` / ``not_located``, and per A-ID a status.
+
+    The values are :func:`expected_values`: the fixture's own, then the derived activity-name
+    values of PI ruling Q202 c (``index`` None, ``derived`` the rule).
 
     Fixture status (review M5): ``fail`` when any value failed (or, with
     ``unlocated='fail'``, any was not located); ``pass`` only when EVERY value passed;
@@ -623,11 +651,15 @@ def compare_fixture(fixture: Mapping[str, Any], got: Callable[[Mapping[str, Any]
     if unlocated not in UNLOCATED_POLICIES:
         raise ValueError(f"unlocated policy must be one of {UNLOCATED_POLICIES}")
     rows = []
-    for k, e in enumerate(fixture["expected"]):
+    n_own = len(fixture["expected"])
+    for k, e in enumerate(expected_values(fixture)):
         found, value = got(e)
         status = (PASS if values_equal(e["item"], e["value"], value) else FAIL) if found else NOT_LOCATED
-        rows.append({"index": k, "item": e["item"], "scope": e["scope"], "expected": e["value"],
-                     "got": value if found else None, "status": status})
+        row = {"index": k if k < n_own else None, "item": e["item"], "scope": e["scope"], "expected": e["value"],
+               "got": value if found else None, "status": status}
+        if "derived" in e:
+            row["derived"] = e["derived"]
+        rows.append(row)
     statuses = {r["status"] for r in rows}
     if FAIL in statuses or (unlocated == FAIL and NOT_LOCATED in statuses):
         overall = FAIL
@@ -1109,7 +1141,8 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
                          f"{x.get('agreement_answered')}), stated probability "
                          f"min {x['probability_min']} / median {x['probability_median']} / max {x['probability_max']}")
         for e in r["expected"]:
-            lines.append(f"- [{e['status']}] {e['item']} @ {e['scope']}: expected {e['expected']!r}, got {e['got']!r}")
+            lines.append(f"- [{e['status']}] {e['item']} @ {e['scope']}: expected {e['expected']!r}, got {e['got']!r}"
+                         + (" (derived: Q202 c name check)" if e.get("derived") else ""))
     lines += [
         "",
         "## Comparison",
@@ -1130,7 +1163,7 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
 
 __all__ = [
     "F6C_LINE", "GROUPS", "QUOTE_MATCH_LIMITS", "RunRefused", "a_id_summary", "compare_fixture",
-    "estimate", "fixture_fetch", "fixture_group", "fixture_pages", "force_sync", "format_estimate", "interrupted_run",
+    "estimate", "expected_values", "fixture_fetch", "fixture_group", "fixture_pages", "force_sync", "format_estimate", "interrupted_run",
     "journal_cost", "journal_x35_calls", "load_fixtures", "locate_got", "materialise", "not_run_result",
     "plan_fixture", "price_run_root", "report_skeleton", "require_live_gates", "run_live", "searched_page_keys", "select_fixtures", "validate_fixture", "values_equal",
     "write_outputs", "x35_summary",

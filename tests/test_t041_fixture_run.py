@@ -351,8 +351,8 @@ def test_locate_got_by_scope():
     assert fr.locate_got(storage, {"item": "core.has_genai_activity", "scope": "institution"}, urls) == (True, "unclear")
     assert fr.locate_got(storage, {"item": "core.page_verdict", "scope": "page:p1"}, urls) == (True, "event_only")
     assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Chatbot"}, urls) == (True, "pilot")
-    # review L2: a named activity that is absent is not located; only a bare scope takes the only activity
-    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Other"}, urls) == (False, None)
+    # PI ruling Q202 c: with exactly one activity in the run, it is compared whatever its name
+    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Other"}, urls) == (True, "pilot")
     assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity"}, urls) == (True, "pilot")
     # review L1: the page URL must be the source URL field, not any string value of the row
     decoy = {"sources": {"S1": {"values": {"core.source_snippet": "https://x/p0", "core.page_verdict": "no_genai"}}}}
@@ -360,6 +360,54 @@ def test_locate_got_by_scope():
     assert fr.locate_got(storage, {"item": "core.page_verdict", "scope": "page"}, urls) == (False, None)
     assert fr.locate_got(storage, {"item": "x", "scope": "pair:1"}, urls) == (False, None)
     assert fr.locate_got(None, {"item": "x", "scope": "institution"}, urls) == (False, None)
+
+
+def _activities(*rows):
+    return {"summary": {"values": {}}, "sources": {},
+            "activities": {f"A{k}": {"values": values, "activity_relations": []} for k, values in enumerate(rows, 1)}}
+
+
+def test_q202c_several_activities_match_names_exactly():
+    storage = _activities({"core.activity_name": "Chatbot", "core.adoption_stage": "pilot"},
+                          {"core.activity_name": "Copilot", "core.adoption_stage": "in_use"})
+    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:Copilot"}, {}) == (True, "in_use")
+    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity:chatbot"}, {}) == (False, None)
+    assert fr.locate_got(storage, {"item": "core.adoption_stage", "scope": "activity"}, {}) == (False, None)
+    assert fr.locate_got(_activities(), {"item": "core.adoption_stage", "scope": "activity:X"}, {}) == (False, None)
+
+
+def test_q202c_name_is_checked_as_its_own_value():
+    fixture = _fixture([{"item": "core.adoption_stage", "scope": "activity:AI chatbot", "value": "pilot"},
+                        {"item": "core.target_users", "scope": "activity:AI chatbot", "value": "staff"},
+                        {"item": "core.page_verdict", "scope": "page:p0", "value": "confirms_activity"}])
+    values = fr.expected_values(fixture)
+    assert len(values) == 4 and values[:3] == fixture["expected"]  # one name value per named activity scope
+    assert values[3] == {"item": "core.activity_name", "scope": "activity:AI chatbot", "value": "AI chatbot",
+                         "derived": fr.NAME_CHECK_RULE}
+    urls = {"p0": "https://synthetic.example/syn-9001/p0"}
+    sources = {"S1": {"values": {"core.source_url": urls["p0"], "core.page_verdict": "confirms_activity"}}}
+
+    def run(name):
+        storage = {**_activities({"core.activity_name": name, "core.adoption_stage": "pilot",
+                                  "core.target_users": "staff"}), "sources": sources}
+        return fr.compare_fixture(fixture, lambda e: fr.locate_got(storage, e, urls))
+
+    same = run("AI chatbot")
+    assert [e["status"] for e in same["expected"]] == [fr.PASS] * 4 and same["status"] == fr.PASS
+    other = run("Ask Kira chatbot")  # the one activity is compared; only the name value fails
+    assert [e["status"] for e in other["expected"]] == [fr.PASS, fr.PASS, fr.PASS, fr.FAIL]
+    assert other["status"] == fr.FAIL
+    name_row = other["expected"][3]
+    assert name_row["index"] is None and name_row["derived"] == fr.NAME_CHECK_RULE
+    assert name_row["got"] == "Ask Kira chatbot"
+
+
+def test_q202c_no_duplicate_name_value_and_none_for_pairs_or_bare_scope():
+    fixture = _fixture([{"item": "core.activity_name", "scope": "activity:Bot", "value": "Bot"},
+                        {"item": "core.adoption_stage", "scope": "activity:Bot", "value": "pilot"},
+                        {"item": "core.adoption_stage", "scope": "activity", "value": "pilot"},
+                        {"item": "core.activity_segment", "scope": "pair:Bot|Policy", "value": "governed_by"}])
+    assert fr.expected_values(fixture) == fixture["expected"]
 
 
 def test_x35_summary_spread_and_agreement():
