@@ -571,9 +571,126 @@ def _row_values(row: Mapping[str, Any]) -> Mapping[str, Any]:
     return values if isinstance(values, Mapping) else {}
 
 
+# ---------------------------------------------------------------------------
+# Run telemetry readers (PI ruling Q194 c)
+# ---------------------------------------------------------------------------
+
+
+#: Telemetry items read from the follow state ``<inst>/follow/state_v27.json`` (institution scope only).
+FOLLOW_ITEMS = ("followed_urls", "cap_reached")
+#: The relation item of each stored relation scope (``g3o/common/storage.py`` relation validation).
+RELATION_SCOPE_OF_ITEM = {"core.activity_segment": "within_page", "core.activity_relation_cross_page": "cross_page"}
+#: Telemetry items Q194 c names that have no reader: the run records do not settle them, so they stay
+#: ``not_located`` (behaviour a, the fallback). The report prints each reason.
+NO_READER = {
+    "event_order": ("no run record holds one order across calls and follow attempts: a request-journal entry "
+                    "is keyed by a request hash and a jev entry names no page; follow records carry no position "
+                    "relative to journal entries; the activity steps (support check, recombine, extra round, "
+                    "finalize) are not journaled as events"),
+    "extractor_calls": ("extractor journal entries carry their custom_id, so calls can be attributed to pages, but "
+                        "which calls count as a page's extractor call (the page request only, or also pass 2, "
+                        "extra-round and activity-only requests) is not settled (open question)"),
+}
+TELEMETRY_NOTE = ("run telemetry readers (PI ruling Q194 c): followed_urls = every URL the follow leg tried, any "
+                  "outcome, in record order, as the fixture's page key (the URL itself when the fixture has no "
+                  "such page), from <inst>/follow/state_v27.json `records`; cap_reached = that file's "
+                  "`cap_reached`; pair:<A>|<B> relations = the stored activity_relations with lhs activity named A "
+                  "and rhs named B, exact names and stored direction, relation scope by item "
+                  "(core.activity_segment within_page, core.activity_relation_cross_page cross_page). A missing "
+                  "follow state or relation is not_located. No reader (not_located): "
+                  + "; ".join(f"{k}: {v}" for k, v in NO_READER.items()))
+
+
+def load_run_telemetry(run_dir: Path) -> dict[str, Any]:
+    """The run records the telemetry readers read, from one fixture's run directory.
+
+    ``follow_state``: the institution's ``follow/state_v27.json`` (the v2.7 follow leg's state,
+    :func:`g3o.run.presweep.follow_v27.state_payload`), None when the run wrote none. Raises
+    ``ValueError`` when the file is not UTF-8 JSON, not of the v2.7 state format, or when more
+    than one institution of the run has one (a fixture run has one institution).
+    """
+    from g3o.common.paths import iter_institution_dirs
+    from g3o.run.presweep import follow_v27 as fv
+
+    states = []
+    for inst_dir in iter_institution_dirs(Path(run_dir)):
+        path = inst_dir / fv.FOLLOW_DIR / fv.STATE_FILE
+        if not path.is_file():
+            continue
+        doc = json.loads(path.read_bytes().decode("utf-8"))
+        if not isinstance(doc, dict) or doc.get("format") != fv.STATE_FORMAT:
+            raise ValueError(f"follow state {fv.FOLLOW_DIR}/{fv.STATE_FILE} is not of format {fv.STATE_FORMAT}")
+        states.append(doc)
+    if len(states) > 1:
+        raise ValueError(f"{len(states)} institutions have a follow state; a fixture run has one")
+    return {"follow_state": states[0] if states else None}
+
+
+def _page_key(url: str, page_urls: Mapping[str, str]) -> str:
+    """The fixture page key of a followed URL: exact URL first, then the follow leg's same-URL key
+    (RC-D-023 C-Q1 b, :func:`g3o.scrape.follow.same_url_key`); the URL itself when no page matches."""
+    from g3o.scrape.follow import same_url_key
+
+    for key, page_url in page_urls.items():
+        if page_url == url:
+            return key
+    try:
+        want = same_url_key(url)
+        for key, page_url in page_urls.items():
+            if same_url_key(page_url) == want:
+                return key
+    except (TypeError, ValueError):
+        pass
+    return url
+
+
+def locate_follow(item: str, telemetry: Mapping[str, Any] | None,
+                  page_urls: Mapping[str, str]) -> tuple[bool, Any]:
+    """``(found, value)`` of a follow telemetry item (:data:`FOLLOW_ITEMS`) from the follow state."""
+    state = (telemetry or {}).get("follow_state")
+    if not isinstance(state, Mapping):
+        return False, None
+    if item == "cap_reached":
+        value = state.get("cap_reached")
+        return (True, value) if isinstance(value, bool) else (False, None)
+    records = state.get("records")
+    if not isinstance(records, list) or not all(isinstance(r, Mapping) and isinstance(r.get("url"), str)
+                                                for r in records):
+        return False, None
+    return True, [_page_key(r["url"], page_urls) for r in records]
+
+
+def locate_pair(storage: Mapping[str, Any], item: str, names: str) -> tuple[bool, Any]:
+    """``(found, value)`` of a ``pair:<A>|<B>`` relation from the stored ``activity_relations``.
+
+    A and B are matched to activity rows by exact ``core.activity_name`` (pairs need two
+    activities, so Q202 c leaves them on exact names); the relation is the one stored with
+    its lhs final activity named A and its rhs named B (direction as stored, no inverse read)
+    and the relation scope of ``item`` (:data:`RELATION_SCOPE_OF_ITEM`). Several distinct
+    stored relations for the pair are returned as their sorted list (so the value fails visibly).
+    """
+    rel_scope = RELATION_SCOPE_OF_ITEM.get(item)
+    lhs, sep, rhs = names.partition("|")
+    if rel_scope is None or not sep or not lhs or not rhs or "|" in rhs:
+        return False, None
+    acts = storage.get("activities") or {}
+    left = {aid for aid, row in acts.items() if _row_values(row).get(ACTIVITY_NAME) == lhs}
+    right = {aid for aid, row in acts.items() if _row_values(row).get(ACTIVITY_NAME) == rhs}
+    if not left or not right:
+        return False, None
+    found = sorted({rel.get("relation") for row in acts.values() for rel in (row.get("activity_relations") or ())
+                    if isinstance(rel, Mapping) and rel.get("relation_scope") == rel_scope
+                    and rel.get("lhs_final_activity_id") in left and rel.get("rhs_final_activity_id") in right},
+                   key=str)
+    if not found:
+        return False, None
+    return True, found[0] if len(found) == 1 else found
+
+
 def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
-               page_urls: Mapping[str, str]) -> tuple[bool, Any]:
-    """``(found, value)`` of one expected value in a ``6_storage.json`` document.
+               page_urls: Mapping[str, str], telemetry: Mapping[str, Any] | None = None) -> tuple[bool, Any]:
+    """``(found, value)`` of one expected value in a ``6_storage.json`` document or, for run
+    telemetry, in the run records (``telemetry``: :func:`load_run_telemetry`).
 
     Scopes: ``institution`` -> the summary row's values; ``page`` / ``page:<key>`` ->
     the source row whose source URL field (``source_fields.URL``, ``core.source_url``) is
@@ -582,15 +699,20 @@ def locate_got(storage: Mapping[str, Any] | None, expected: Mapping[str, Any],
     name; with several, the activity row named so (``core.activity_name``), not located when
     none is or the scope names none (PI ruling Q202 c; the expected name itself is checked as
     its own value, :func:`expected_values`).
-    Any other scope (``pair``, run telemetry such as ``followed_urls``) is not located:
-    no reader is defined for it here.
+    ``pair:<A>|<B>`` -> :func:`locate_pair`. The follow items (:data:`FOLLOW_ITEMS`, institution
+    scope) -> :func:`locate_follow` (PI ruling Q194 c). Any other scope or telemetry item
+    (:data:`NO_READER` among them) is not located: no reader is defined for it here.
     """
     from g3o.common.source_fields import URL as SOURCE_URL
 
-    if not storage:
-        return False, None
     item, scope = expected["item"], str(expected["scope"])
     kind, _, name = scope.partition(":")
+    if item in FOLLOW_ITEMS:
+        return locate_follow(item, telemetry, page_urls) if scope == "institution" else (False, None)
+    if not storage:
+        return False, None
+    if kind == "pair":
+        return locate_pair(storage, item, name)
     rows: list[Mapping[str, Any]] = []
     if kind == "institution":
         rows = [storage.get("summary") or {}]
@@ -945,9 +1067,18 @@ def run_live(fixtures: Sequence[Mapping[str, Any]], *, dispatch: Any, run_root: 
         except Exception as exc:
             storage = None
             errors.append(f"storage artifact unreadable: {type(exc).__name__}: {exc}")
+        telemetry, telemetry_error = None, None
+        try:  # Q194 c: the run records the telemetry readers read; a malformed record reads as not located
+            telemetry = load_run_telemetry(run_dir)
+        except ValueError as exc:
+            telemetry_error = f"{type(exc).__name__}: {exc}"
+        except Exception as exc:
+            errors.append(f"run records unreadable: {type(exc).__name__}: {exc}")
         page_urls = {p["page_key"]: p["url"] for p in pages}
-        result = compare_fixture(fixture, lambda e, s=storage, u=page_urls: locate_got(s, e, u),
+        result = compare_fixture(fixture, lambda e, s=storage, u=page_urls, t=telemetry: locate_got(s, e, u, t),
                                  unlocated=unlocated)
+        if telemetry_error is not None:
+            result["telemetry_error"] = telemetry_error
         try:
             cost = (cost_fn or journal_cost(dispatch))(run_dir)
         except Exception as exc:
@@ -1134,6 +1265,8 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
         lines.append(f"### {r['fixture_id']}: {r['status']}" + (f" ({r.get('reason')})" if r.get("reason") else ""))
         if r.get("error"):
             lines.append(f"- stage stop: {r['error']}")
+        if r.get("telemetry_error"):
+            lines.append(f"- run records unreadable (telemetry values not located): {r['telemetry_error']}")
         if r.get("x35"):
             x = r["x35"]
             lines.append(f"- X35: {x['n_calls']} calls ({x.get('n_non_answer', 0)} non-answers, "
@@ -1147,6 +1280,7 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
         "",
         "## Comparison",
         f"- {COMPARE_NOTE}.",
+        f"- {TELEMETRY_NOTE}.",
         "",
         "## Known limits of the quote match",
         *(f"- {limit}" for limit in QUOTE_MATCH_LIMITS),
@@ -1164,7 +1298,8 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
 __all__ = [
     "F6C_LINE", "GROUPS", "QUOTE_MATCH_LIMITS", "RunRefused", "a_id_summary", "compare_fixture",
     "estimate", "expected_values", "fixture_fetch", "fixture_group", "fixture_pages", "force_sync", "format_estimate", "interrupted_run",
-    "journal_cost", "journal_x35_calls", "load_fixtures", "locate_got", "materialise", "not_run_result",
+    "journal_cost", "journal_x35_calls", "load_fixtures", "load_run_telemetry", "locate_follow", "locate_got",
+    "locate_pair", "materialise", "not_run_result",
     "plan_fixture", "price_run_root", "report_skeleton", "require_live_gates", "run_live", "searched_page_keys", "select_fixtures", "validate_fixture", "values_equal",
     "write_outputs", "x35_summary",
 ]

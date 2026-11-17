@@ -671,6 +671,144 @@ def test_x35_summary_from_journals_counts_non_answers_and_failed_calls(tmp_path)
 
 
 # ---------------------------------------------------------------------------
+# Run telemetry readers (PI ruling Q194 c)
+# ---------------------------------------------------------------------------
+
+
+def _write_follow_state(run_dir, inst_id, tried, *, cap_reached=False):
+    """A v2.7 follow state written by the follow leg's own payload function; ``tried`` is
+    ``[(url, outcome), ...]`` in record order."""
+    from g3o.common.paths import institution_dir
+    from g3o.run.presweep import follow_v27 as fv
+    from g3o.scrape import follow as fl
+
+    state = fl.InstitutionFollow(inst_id, "T041-run")
+    state.records = [fl.FollowRecord(institution_id=inst_id, url=url, url_key=url, parent_page_id="P0",
+                                     parent_url="https://synthetic.example/parent", hop=1, link_id=f"L{k}",
+                                     link_quote="", outcome=outcome, fetch_date=None, release_id="T041-run",
+                                     backfill=False, counted=True)
+                     for k, (url, outcome) in enumerate(tried)]
+    state.followed, state.cap_reached = len(state.records), cap_reached
+    path = institution_dir(run_dir, inst_id) / fv.FOLLOW_DIR / fv.STATE_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(fv.state_payload(state)), encoding="utf-8")
+    return path
+
+
+def test_q194c_follow_state_reads_followed_urls_and_cap_reached(tmp_path):
+    fixture = _synthetic("v27-syn-A004-05")
+    urls = {p["page_key"]: p["url"] for p in fixture["pages"]}
+    assert fr.load_run_telemetry(tmp_path) == {"follow_state": None}
+    _write_follow_state(tmp_path, "INST-SYN-0034", [(urls["p1"], "fetch_failed"),
+                                                    ("https://elsewhere.example/x", "fetched")], cap_reached=True)
+    telemetry = fr.load_run_telemetry(tmp_path)
+    followed = {"item": "followed_urls", "scope": "institution", "value": ["p1"]}
+    # every URL tried, any outcome (A004-05: a failed fetch is followed), as page keys; unknown URL kept as is
+    assert fr.locate_got(None, followed, urls, telemetry) == (True, ["p1", "https://elsewhere.example/x"])
+    assert fr.locate_got(None, {"item": "cap_reached", "scope": "institution"}, urls, telemetry) == (True, True)
+    assert fr.locate_got(None, {"item": "cap_reached", "scope": "page:p0"}, urls, telemetry) == (False, None)
+    assert fr.locate_got(None, followed, urls) == (False, None)  # no run records: behaviour a
+    assert fr.locate_got(None, followed, urls, {"follow_state": None}) == (False, None)
+
+    only_p1 = tmp_path / "only"
+    _write_follow_state(only_p1, "INST-SYN-0034", [(urls["p1"], "fetch_failed")])
+    t = fr.load_run_telemetry(only_p1)
+    rows = {e["item"]: e for e in fr.compare_fixture(fixture, lambda e: fr.locate_got(None, e, urls, t))["expected"]}
+    assert rows["followed_urls"]["status"] == fr.PASS and rows["followed_urls"]["got"] == ["p1"]
+
+
+def test_q194c_malformed_follow_state_is_a_value_error(tmp_path):
+    path = _write_follow_state(tmp_path, "INST-SYN-0034", [])
+    path.write_text(json.dumps({"format": "other"}), encoding="utf-8")
+    with pytest.raises(ValueError, match="not of format"):
+        fr.load_run_telemetry(tmp_path)
+    path.write_bytes(b'{"format": ')
+    with pytest.raises(ValueError):
+        fr.load_run_telemetry(tmp_path)
+    _write_follow_state(tmp_path / "two", "INST-SYN-0001", [])
+    _write_follow_state(tmp_path / "two", "INST-SYN-0002", [])
+    with pytest.raises(ValueError, match="2 institutions"):
+        fr.load_run_telemetry(tmp_path / "two")
+
+
+def _relation(lhs, rhs, relation, scope="within_page"):
+    return {"relation_id": f"REL-{lhs}{rhs}{relation}", "lhs_observation_id": f"O-{lhs}", "rhs_observation_id": f"O-{rhs}",
+            "relation": relation, "source_refs": [], "support_ids": [], "lhs_final_activity_id": lhs,
+            "rhs_final_activity_id": rhs, "relation_scope": scope}
+
+
+def test_q194c_pair_relations_from_activity_relations():
+    storage = _activities({"core.activity_name": "Ask Kira"}, {"core.activity_name": "Smart Kingsford AI Programme"},
+                          {"core.activity_name": "Copilot finance pilot"})
+    acts = storage["activities"]
+    acts["A1"]["activity_relations"] = [_relation("A1", "A2", "component_of_program"),
+                                        _relation("A1", "A3", "distinct_action", scope="cross_page")]
+    seg = "core.activity_segment"
+    assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira|Smart Kingsford AI Programme"}, {}) == (
+        True, "component_of_program")
+    # direction as stored: the reverse pair is not read as the inverse relation
+    assert fr.locate_got(storage, {"item": seg, "scope": "pair:Smart Kingsford AI Programme|Ask Kira"}, {}) == (
+        False, None)
+    # the relation scope follows the item: a cross-page relation is not a core.activity_segment value
+    assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira|Copilot finance pilot"}, {}) == (False, None)
+    cross = {"item": "core.activity_relation_cross_page", "scope": "pair:Ask Kira|Copilot finance pilot"}
+    assert fr.locate_got(storage, cross, {}) == (True, "distinct_action")
+    assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira|Nobody"}, {}) == (False, None)
+    assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira"}, {}) == (False, None)
+    acts["A2"]["activity_relations"] = [_relation("A1", "A2", "governs")]  # two stored relations disagree
+    assert fr.locate_got(storage, {"item": seg, "scope": "pair:Ask Kira|Smart Kingsford AI Programme"}, {}) == (
+        True, ["component_of_program", "governs"])
+
+
+def test_q194c_items_without_a_reader_stay_not_located(tmp_path):
+    _write_follow_state(tmp_path, "INST-SYN-0034", [("https://synthetic.example/p1", "fetched")])
+    telemetry = fr.load_run_telemetry(tmp_path)
+    storage = _activities({"core.activity_name": "a0"})
+    for item in fr.NO_READER:
+        for scope in ("institution", "activity:a0"):
+            assert fr.locate_got(storage, {"item": item, "scope": scope}, {}, telemetry) == (False, None)
+    assert set(fr.NO_READER) == {"event_order", "extractor_calls"}
+
+
+def test_q194c_run_live_reads_telemetry_and_keeps_a_malformed_state_out_of_errors(tmp_path):
+    from g3o.common.paths import institution_dir
+    from g3o.persist.stage6_adapters import STORAGE_ARTIFACT
+    from g3o.run.presweep.orchestrator import V27Dispatch
+    from g3o.run.presweep.perpage_batch_v27 import NO_BATCH
+
+    fake = lambda *a: None  # noqa: E731
+    dispatch = V27Dispatch(settings=None, jev_ask_fn=fake, extract_fn=fake, entail_fn=fake, extractor_mode=NO_BATCH)
+    url = "https://synthetic.example/syn-9001/p0"
+    expected = [{"item": "followed_urls", "scope": "institution", "value": ["https://synthetic.example/x1"]},
+                {"item": "cap_reached", "scope": "institution", "value": False},
+                {"item": "event_order", "scope": "institution", "value": ["pass1:p0"]}]
+    good, bad = _fixture(expected), _fixture(expected, fixture_id="F-2")
+
+    def run_fn(run_dir, sample, scraped, live):
+        (inst_id, _), = scraped.items()
+        path = _write_follow_state(run_dir, inst_id, [("https://synthetic.example/x1", "fetch_failed")])
+        if run_dir.name == "F-2":
+            path.write_bytes(b"not json")
+        storage = {"summary": {"values": {}}, "sources": {"S1": {"values": {"core.source_url": url}}}, "activities": {}}
+        (institution_dir(run_dir, inst_id) / STORAGE_ARTIFACT).write_text(json.dumps(storage), encoding="utf-8")
+
+    run = fr.run_live([good, bad], dispatch=dispatch, run_root=tmp_path, max_usd=10.0,
+                      page_loader=lambda f: fr.fixture_pages(f), searched_policy=fr.SEARCHED_UNLINKED,
+                      official_policy=fr.OFFICIAL_PAGE_HOST, unlocated=fr.UNRESOLVED, access_date="2026-11-17",
+                      run_fn=run_fn, cost_fn=lambda run_dir: 0.1)
+    r1, r2 = run["results"]
+    assert [e["status"] for e in r1["expected"]] == [fr.PASS, fr.PASS, fr.NOT_LOCATED]
+    assert r1["status"] == fr.PARTIAL and r1["error"] is None and "telemetry_error" not in r1
+    assert [e["status"] for e in r2["expected"]] == [fr.NOT_LOCATED] * 3
+    assert r2["error"] is None and r2["telemetry_error"].startswith(("JSONDecodeError", "UnicodeDecodeError"))
+    assert run["stopped"] is None
+    paths = fr.write_outputs(tmp_path / "out", mode="live", plans=[], est={"seed_usd": None}, results=run["results"],
+                             options={}, spent_usd=run["spent_usd"], stopped=None)
+    report = paths["report"].read_text(encoding="utf-8")
+    assert fr.TELEMETRY_NOTE in report and "run records unreadable (telemetry values not located)" in report
+
+
+# ---------------------------------------------------------------------------
 # Typed matching (review M6)
 # ---------------------------------------------------------------------------
 
