@@ -89,7 +89,8 @@ def test_config_round_trips_through_json(config: PresweepConfig) -> None:
 def test_a_v25_mapping_keeps_the_pre_run_mode_key_set(config: PresweepConfig) -> None:
     """T-030 QA4 L1: a v2.5 submit writes exactly the keys it wrote before the two run-mode
     fields existed (as ``planning.config_snapshot`` does); a v2.7 one records both."""
-    from dataclasses import fields as dc_fields, replace as dc_replace
+    from dataclasses import fields as dc_fields
+    from dataclasses import replace as dc_replace
 
     # PI ruling 134: the v2.7 extractor mode is a run-mode key too (left out of a v2.5 mapping)
     run_mode = {"pipeline_version", "v27_not_production_ready_opt_in", "v27_extractor_mode"}
