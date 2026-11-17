@@ -1641,12 +1641,12 @@ def test_residual_source_type_page_reaches_its_row_through_the_stage_95a(tmp_pat
     from g3o.common import source_fields as sf
     from g3o.extract import request_v27
     from g3o.run.presweep import source_row_v27 as srow
-    from tests.test_e2e_perpage_v27 import assemble_spy
+    from tests.test_e2e_perpage_v27 import stop_after_assemble
 
     run_dir, bound, instrument, world, insts = _world(tmp_path)
     monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
     seen = []
-    monkeypatch.setattr(srow, "assemble", assemble_spy(srow.assemble, lambda page, rows, kw: seen.append((rows, kw))))
+    monkeypatch.setattr(srow, "assemble", stop_after_assemble(srow.assemble, lambda page, rows, kw: seen.append((rows, kw))))
     extract = FakeExtractor(world)
     jev = FakeJev({**ANSWERS, sf.SOURCE_TYPE: "vendor"}, RELATIONS)
     with pytest.raises(pp.MissingUpstreamError, match="source-row assembler") as exc:
@@ -1679,12 +1679,12 @@ def test_residual_answers_are_saved_and_never_asked_again_on_a_resume_105b(tmp_p
     (pass1_request_not_journaled) before any extractor call."""
     from g3o.common import source_fields as sf
     from g3o.run.presweep import source_row_v27 as srow
-    from tests.test_e2e_perpage_v27 import assemble_spy
+    from tests.test_e2e_perpage_v27 import stop_after_assemble
 
     run_dir, bound, instrument, world, insts = _world(tmp_path)
     monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
     seen = []
-    monkeypatch.setattr(srow, "assemble", assemble_spy(srow.assemble, lambda page, rows, kw: seen.append(kw)))
+    monkeypatch.setattr(srow, "assemble", stop_after_assemble(srow.assemble, lambda page, rows, kw: seen.append(kw)))
     inst = [_residual_inst(insts)]
     spec = inst[0].pages[0]
     saved = pp.page_state_dir(run_dir, spec.page) / pp.SOURCE_TYPE_FILE
@@ -1857,12 +1857,12 @@ def test_residual_deciding_part_failed_holds_then_only_that_part_is_asked_again_
     from g3o.common import source_fields as sf
     from g3o.extract import request_v27
     from g3o.run.presweep import source_row_v27 as srow
-    from tests.test_e2e_perpage_v27 import assemble_spy
+    from tests.test_e2e_perpage_v27 import stop_after_assemble
 
     run_dir, bound, instrument, world, insts = _world(tmp_path)
     monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
     seen = []
-    monkeypatch.setattr(srow, "assemble", assemble_spy(srow.assemble, lambda page, rows, kw: seen.append((rows, kw))))
+    monkeypatch.setattr(srow, "assemble", stop_after_assemble(srow.assemble, lambda page, rows, kw: seen.append((rows, kw))))
     inst = [_residual_inst(insts)]
     saved = pp.page_state_dir(run_dir, inst[0].pages[0].page) / pp.SOURCE_TYPE_FILE
 
@@ -2046,6 +2046,10 @@ def test_malformed_source_type_file_stops_the_stage_like_pairs_json(tmp_path, mo
     inst = [_residual_inst(insts)]
     saved = pp.page_state_dir(run_dir, inst[0].pages[0].page) / pp.SOURCE_TYPE_FILE
     answers = {**ANSWERS, sf.SOURCE_TYPE: "vendor"}
+    from g3o.run.presweep import source_row_v27 as srow
+    from tests.test_e2e_perpage_v27 import stop_after_assemble
+
+    monkeypatch.setattr(srow, "assemble", stop_after_assemble(srow.assemble, lambda page, rows, kw: None))
     with pytest.raises(pp.MissingUpstreamError, match="source-row assembler"):
         _run(run_dir, bound, instrument, inst,
              _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()), FakeJev(answers, RELATIONS))

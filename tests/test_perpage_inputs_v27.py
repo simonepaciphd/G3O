@@ -175,13 +175,16 @@ def test_a4_syndication_groups_are_scoped_to_the_institution(tmp_path):
 
 @pytest.mark.parametrize("scraped", [{**SCRAPED, I3: []}, {I1: SCRAPED[I1], I2: SCRAPED[I2]},
                                      {**SCRAPED, I3: None}])
-def test_zero_page_institution_is_skipped_without_error(tmp_path, scraped):
+def test_zero_page_institution_is_skipped_without_error(tmp_path, monkeypatch, scraped):
     """Ruling 37 a: an institution with no stored page yields no PerPageInstitution and raises nothing
     (skipped before its uid or identity are read: here it has no institution.json at all); its outcome
     is decided afterwards from the run folder, as v2.5 does."""
     run_dir = _run_dir(tmp_path)
     (institution_dir(run_dir, I3) / "institution.json").unlink()
     insts = pin.build_perpage_inputs(run_dir, ROWS, scraped)
+    # Codebook r16 leaves no row item unproduced; simulate one so the pages' refusal is still exercised
+    # (as test_v27_dispatch_refuses_at_entry_while_producers_are_missing).
+    monkeypatch.setattr(pin.srow, "entry_refused_items", lambda: ("core.developer",))
     assert [i.institution_id for i in insts] == [I1, I2]
     assert [i.institution_id for i in insts] == [I1, I2]  # re-iterable, same result
     with pytest.raises(MissingUpstreamError):  # the pages present still refuse as before
@@ -269,8 +272,11 @@ def test_require_complete_refuses_each_none_row_value(tmp_path, absent):
     assert exc.value.missing == (f"{I1}/{first.page.page_id}",)
 
 
-def test_unproduced_values_refusals_in_the_stage(tmp_path):
+def test_unproduced_values_refusals_in_the_stage(tmp_path, monkeypatch):
     insts = _built(tmp_path)
+    # Codebook r16 leaves no row item unproduced; simulate one so the pages' refusal is still exercised
+    # (as test_v27_dispatch_refuses_at_entry_while_producers_are_missing).
+    monkeypatch.setattr(pin.srow, "entry_refused_items", lambda: ("core.developer",))
     # The per-page stage's own refusal is unchanged: failed_page still refuses a page with no follow value
     # (an injected builder's gap); the builder's pages are searched.
     spec = insts[I1].pages[0]

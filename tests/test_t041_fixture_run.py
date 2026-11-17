@@ -532,7 +532,7 @@ def _live_script_fakes(tmp_path, monkeypatch, run_fn):
     rt.write_text("{}", encoding="utf-8")
     return ["--live", "--max-usd", "5", "--runtime", str(rt), "--drive", str(tmp_path), "--out-dir",
             str(tmp_path / "out"), "--run-root", str(tmp_path / "runs"), "--group", "pipeline",
-            "--fixture", "v27-syn-A011-01", "--fixture", "v27-syn-A004-05", "--fixture", "v27-syn-A004-04"]
+            "--group", "injected", "--fixture", "v27-syn-A011-01", "--fixture", "v27-syn-A004-05", "--fixture", "v27-syn-A004-04"]
 
 
 def _interrupting_run_fn():

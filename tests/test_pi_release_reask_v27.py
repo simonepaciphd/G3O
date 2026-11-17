@@ -1259,13 +1259,13 @@ def _residual_world(tmp_path, monkeypatch):
     from g3o.common import source_fields as sf
     from g3o.common.part_combine import NOT_COVERED
     from g3o.run.presweep import source_row_v27 as srow
-    from tests.test_e2e_perpage_v27 import assemble_spy
+    from tests.test_e2e_perpage_v27 import stop_after_assemble
     from tests.test_perpage_providers_v27 import _elsewhere, _residual_inst
 
     run_dir, bound, instrument, world, insts = _world(tmp_path)
     monkeypatch.setattr(pp, "load_run_official_sites", lambda run_dir: _elsewhere())
     seen = []
-    monkeypatch.setattr(srow, "assemble", assemble_spy(srow.assemble, lambda page, rows, kw: seen.append((rows, kw))))
+    monkeypatch.setattr(srow, "assemble", stop_after_assemble(srow.assemble, lambda page, rows, kw: seen.append((rows, kw))))
     inst = [_residual_inst(insts)]
     extractors = []
 
