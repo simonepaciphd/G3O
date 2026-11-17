@@ -522,3 +522,36 @@ def test_x35_summary_from_journals_counts_non_answers_and_failed_calls(tmp_path)
     assert s["n_probability_missing"] == 2 and s["probability_min"] == 0.7
     # the summary counts the same calls the cost report prices (RequestJournal.x35_usages)
     assert len(svv.RequestJournal(path, read_only=True).x35_usages()) == len(calls)
+
+
+# ---------------------------------------------------------------------------
+# Typed matching (review M6)
+# ---------------------------------------------------------------------------
+
+
+def test_a021_04_expected_int_year_matches_the_stored_string():
+    fixture = _synthetic("v27-syn-A021-04")
+    (exp,) = fixture["expected"]
+    assert exp["item"] == "core.year_announced" and exp["value"] == 2023
+    assert fr.item_value_type("core.year_announced") == ("string", False)
+    assert fr.compare_fixture(fixture, lambda e: (True, "2023"))["status"] == fr.PASS
+    assert fr.compare_fixture(fixture, lambda e: (True, " 2023 "))["status"] == fr.PASS
+    assert fr.compare_fixture(fixture, lambda e: (True, "2024"))["status"] == fr.FAIL
+    assert fr.compare_fixture(fixture, lambda e: (True, "not_documented"))["status"] == fr.FAIL
+
+
+def test_values_equal_by_schema_type_and_lists_as_multisets():
+    assert fr.item_value_type("core.deployment_scale_number") == ("number", False)
+    assert fr.values_equal("core.deployment_scale_number", 5, "5")
+    assert fr.values_equal("core.deployment_scale_number", "not_documented", "not_documented")
+    assert not fr.values_equal("core.deployment_scale_number", 5, "not_documented")
+    assert fr.item_value_type("core.tool_name") == ("string", True)
+    assert fr.values_equal("core.tool_name", ["Copilot", "ChatGPT"], ["ChatGPT", "Copilot"])
+    assert fr.values_equal("core.tool_name", ["Copilot", "ChatGPT"], '["ChatGPT", "Copilot"]')
+    assert not fr.values_equal("core.tool_name", ["Copilot", "Copilot"], ["Copilot"])
+    assert not fr.values_equal("core.tool_name", ["Copilot"], "not_documented")
+    assert fr.item_value_type("core.governance_form")[1] is True
+    assert fr.item_value_type("core.page_verdict") == ("string", False)
+    assert fr.item_value_type("followed_urls") == (None, False)
+    assert fr.values_equal("followed_urls", ["b", "a"], ["a", "b"])  # unknown order: multiset
+    assert not fr.values_equal("followed_urls", 1, "1")  # no schema: no type conversion

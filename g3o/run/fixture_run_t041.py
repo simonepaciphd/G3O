@@ -474,12 +474,79 @@ def format_estimate(est: Mapping[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _norm(value: Any) -> Any:
-    if isinstance(value, str):
-        return value.strip()
-    if isinstance(value, (list, tuple)):
-        return [_norm(v) for v in value]
-    return value
+#: How expected and stored values are compared (review M6); the report carries it.
+COMPARE_NOTE = ("values are compared after normalising each scalar by the item's storage schema type "
+                "(g3o/common/storage_fields.py: e.g. an expected 2023 equals a stored \"2023\" for a string item) "
+                "and trimming strings; lists are compared as multisets (order ignored, repeats counted), because "
+                "no storage schema marks an item as ordered")
+_SCALAR_TYPES = ("string", "number", "integer", "boolean")
+
+
+def item_value_type(item: str) -> tuple[str | None, bool]:
+    """``(scalar type, is_list)`` of ``item`` from its storage schema (``storage_fields.FIELDS``).
+
+    The scalar type is the schema's ``type`` (an enum-only schema is ``string``); for an
+    array it is the type of its items. ``(None, False)`` for an item without a schema
+    (e.g. run telemetry): its values are compared after string trimming only.
+    """
+    from g3o.common.storage_fields import FIELDS
+
+    field = FIELDS.get(item)
+    schema = field.get("schema") if isinstance(field, Mapping) else None
+    if not isinstance(schema, Mapping):
+        return None, False
+    for variant in schema.get("anyOf") or [schema]:
+        kind = variant.get("type")
+        if kind == "array":
+            items = variant.get("items") or {}
+            return (items.get("type") or ("string" if "enum" in items else None)), True
+        if kind in _SCALAR_TYPES:
+            return kind, False
+    return ("string" if "enum" in schema else None), False
+
+
+def _norm_scalar(value: Any, kind: str | None) -> Any:
+    if isinstance(value, bool) or value is None:
+        return value
+    if kind == "string" and isinstance(value, (int, float)):
+        return str(int(value)) if isinstance(value, float) and value.is_integer() else str(value)
+    if kind in ("number", "integer") and isinstance(value, str):
+        try:
+            return float(value.strip())
+        except ValueError:
+            return value.strip()  # a missing-data token (e.g. not_documented) stays a string
+    if kind in ("number", "integer") and isinstance(value, (int, float)):
+        return float(value)
+    return value.strip() if isinstance(value, str) else value
+
+
+def _multiset(values: Sequence[Any]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for v in values:
+        key = json.dumps(v, sort_keys=True, default=str)
+        out[key] = out.get(key, 0) + 1
+    return out
+
+
+def values_equal(item: str, expected: Any, got: Any) -> bool:
+    """Whether a stored value equals the expected one (review M6, :data:`COMPARE_NOTE`).
+
+    Scalars are normalised by the item's storage schema type; lists are compared as
+    multisets (no schema marks an item as ordered). A stored JSON-array string of a
+    list item is read as that list.
+    """
+    kind, is_list = item_value_type(item)
+    if is_list and isinstance(got, str) and got.strip().startswith("["):
+        try:
+            got = json.loads(got)
+        except json.JSONDecodeError:
+            pass
+    if isinstance(expected, (list, tuple)) or isinstance(got, (list, tuple)):
+        if not (isinstance(expected, (list, tuple)) and isinstance(got, (list, tuple))):
+            return False
+        return (_multiset([_norm_scalar(v, kind) for v in expected])
+                == _multiset([_norm_scalar(v, kind) for v in got]))
+    return _norm_scalar(expected, kind) == _norm_scalar(got, kind)
 
 
 def _row_values(row: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -538,7 +605,7 @@ def compare_fixture(fixture: Mapping[str, Any], got: Callable[[Mapping[str, Any]
     rows = []
     for k, e in enumerate(fixture["expected"]):
         found, value = got(e)
-        status = (PASS if _norm(value) == _norm(e["value"]) else FAIL) if found else NOT_LOCATED
+        status = (PASS if values_equal(e["item"], e["value"], value) else FAIL) if found else NOT_LOCATED
         rows.append({"index": k, "item": e["item"], "scope": e["scope"], "expected": e["value"],
                      "got": value if found else None, "status": status})
     statuses = {r["status"] for r in rows}
@@ -950,6 +1017,9 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
             lines.append(f"- [{e['status']}] {e['item']} @ {e['scope']}: expected {e['expected']!r}, got {e['got']!r}")
     lines += [
         "",
+        "## Comparison",
+        f"- {COMPARE_NOTE}.",
+        "",
         "## Known limits of the quote match",
         *(f"- {limit}" for limit in QUOTE_MATCH_LIMITS),
         "",
@@ -967,6 +1037,6 @@ __all__ = [
     "F6C_LINE", "GROUPS", "QUOTE_MATCH_LIMITS", "RunRefused", "a_id_summary", "compare_fixture",
     "estimate", "fixture_fetch", "fixture_group", "fixture_pages", "force_sync", "format_estimate", "journal_x35_calls",
     "load_fixtures", "locate_got", "materialise", "not_run_result", "plan_fixture", "report_skeleton",
-    "require_live_gates", "run_live", "searched_page_keys", "select_fixtures", "validate_fixture",
+    "require_live_gates", "run_live", "searched_page_keys", "select_fixtures", "validate_fixture", "values_equal",
     "write_outputs", "x35_summary",
 ]
