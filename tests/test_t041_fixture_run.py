@@ -366,15 +366,17 @@ def test_x35_summary_spread_and_agreement():
              {"answer": "true", "probability": None}]
     s = fr.x35_summary(calls)
     assert s["n_calls"] == 3 and s["n_true"] == 2 and s["n_false"] == 1 and s["n_other"] == 0
-    assert s["agreement"] == pytest.approx(2 / 3)
+    assert s["agreement"] == pytest.approx(2 / 3) and s["agreement_answered"] == pytest.approx(2 / 3)
     assert s["n_probability_missing"] == 1 and s["probability_min"] == 0.6 and s["probability_max"] == 0.95
     assert s["n_below_0_8"] == 1
     assert fr.x35_summary([])["agreement"] is None
+    assert fr.x35_summary([{"answer": None, "non_answer": True}])["agreement_answered"] is None  # review LOW-3
 
 
 def test_report_skeleton_carries_limits_untested_line_and_per_fixture_rows(tmp_path):
     fixture = _fixture([{"item": "core.page_verdict", "scope": "page:p0", "value": "no_genai"}])
     result = fr.compare_fixture(fixture, lambda e: (True, "confirms_activity"))
+    result["x35"] = fr.x35_summary([{"answer": "true", "probability": 0.9}, {"answer": None, "non_answer": True}])
     paths = fr.write_outputs(tmp_path, mode="live", plans=[], est={"seed_usd": None}, results=[result],
                              options={"unlocated": fr.UNRESOLVED}, spent_usd=0.12, stopped=None)
     report = paths["report"].read_text(encoding="utf-8")
@@ -384,6 +386,7 @@ def test_report_skeleton_carries_limits_untested_line_and_per_fixture_rows(tmp_p
     assert "| A-011 | 0 | 0 | 1 | 0 | 0 |" in report and fr.A_ID_ROLLUP_NOTE in report  # review M5
     assert "expected 'no_genai', got 'confirms_activity'" in report
     assert "$0.1200" in report
+    assert "agreement 0.5 (answered only: 1.0)" in report  # review LOW-3
     doc = json.loads(paths["results"].read_text(encoding="utf-8"))
     assert doc["a_id_summary"] == {"A-011": {fr.FAIL: 1}}
 
@@ -523,7 +526,7 @@ def test_x35_summary_from_journals_counts_non_answers_and_failed_calls(tmp_path)
     s = fr.x35_summary(calls)
     assert (s["n_calls"], s["n_true"], s["n_false"], s["n_other"]) == (4, 1, 1, 2)
     assert s["n_non_answer"] == 1 and s["n_failed"] == 1
-    assert s["agreement"] == pytest.approx(1 / 4)
+    assert s["agreement"] == pytest.approx(1 / 4) and s["agreement_answered"] == pytest.approx(1 / 2)
     assert s["n_probability_missing"] == 2 and s["probability_min"] == 0.7
     # the summary counts the same calls the cost report prices (RequestJournal.x35_usages)
     assert len(svv.RequestJournal(path, read_only=True).x35_usages()) == len(calls)

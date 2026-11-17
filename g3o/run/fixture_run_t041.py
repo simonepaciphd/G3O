@@ -714,6 +714,8 @@ def x35_summary(calls: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     ``true``, i.e. X35 agreeing that the quote supports the extractor's code. ``n_other``
     counts every call that is neither ``true`` nor ``false``: the non-answers
     (``n_non_answer``, PI ruling Q169 b) and the failed calls (``n_failed``) included.
+    ``agreement_answered`` is the same share over the answered calls only
+    (``n_true / (n_true + n_false)``; None when no call answered), reported alongside.
     """
     n = len(calls)
     probs = sorted(float(c["probability"]) for c in calls
@@ -726,6 +728,7 @@ def x35_summary(calls: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "n_non_answer": sum(1 for c in calls if c.get("non_answer")),
         "n_failed": sum(1 for c in calls if c.get("failed")),
         "agreement": (n_true / n) if n else None,
+        "agreement_answered": (n_true / (n_true + n_false)) if (n_true + n_false) else None,
         "n_probability_missing": n - len(probs),
         "probability_min": probs[0] if probs else None,
         "probability_median": statistics.median(probs) if probs else None,
@@ -1034,7 +1037,8 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
         if r.get("x35"):
             x = r["x35"]
             lines.append(f"- X35: {x['n_calls']} calls ({x.get('n_non_answer', 0)} non-answers, "
-                         f"{x.get('n_failed', 0)} failed), agreement {x['agreement']}, stated probability "
+                         f"{x.get('n_failed', 0)} failed), agreement {x['agreement']} (answered only: "
+                         f"{x.get('agreement_answered')}), stated probability "
                          f"min {x['probability_min']} / median {x['probability_median']} / max {x['probability_max']}")
         for e in r["expected"]:
             lines.append(f"- [{e['status']}] {e['item']} @ {e['scope']}: expected {e['expected']!r}, got {e['got']!r}")
