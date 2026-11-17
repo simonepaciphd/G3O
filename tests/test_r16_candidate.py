@@ -59,12 +59,17 @@ def test_r15_pin_keeps_r16_off_and_the_refusals_unchanged():
 def test_patched_active_sha_lifts_the_refusals(monkeypatch):
     monkeypatch.setattr(r16, "active_codebook_sha256", lambda: r16.R16_CANDIDATE_SHA256)
     assert r16.r16_active() is True
-    # Stage 6: stage_as_of_basis is produced; PI ruling Q166 a (2026-11-16): developer is an R3 item and
-    # developer_basis follows it, so no R1 item is an explicit merge input any more (was: both refused).
+    # Stage 6: stage_as_of_basis is produced. PI ruling Q166 a (2026-11-16): developer is an R3 item and
+    # developer_basis follows it, but only when pass 1 asks the developer (the per-page gate; review of
+    # 59ab80e). This tree's codebook asks no developer quote task, so both stay explicit merge inputs here.
     assert ma.STAGE_AS_OF_BASIS in ma.produced_items()
-    assert rt.merge_refused_r1() == ()
-    assert rt.merge_credible() == (*rt.MERGE_CREDIBLE_R15, "core.developer")
-    assert rt.merge_basis() == ("core.developer_basis",)
+    assert rt.merge_refused_r1() == ("core.developer", "core.developer_basis")
+    assert rt.merge_credible() == rt.MERGE_CREDIBLE_R15 and rt.merge_basis() == ()
+    with monkeypatch.context() as m:  # pass 1 asks the developer: no R1 item is an explicit input any more
+        _with_developer(m)
+        assert rt.merge_refused_r1() == ()
+        assert rt.merge_credible() == (*rt.MERGE_CREDIBLE_R15, "core.developer")
+        assert rt.merge_basis() == ("core.developer_basis",)
     assert "core.stage_as_of_basis" in srow.stage6_activity_items()
     # Per page: without a developer quote task in the codebook in use, both developer items stay refused and
     # content_vendor does not read a developer (review O2-r16 M1: same gate as the refusals).

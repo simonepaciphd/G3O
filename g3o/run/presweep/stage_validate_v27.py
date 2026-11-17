@@ -274,19 +274,32 @@ MERGE_CREDIBLE_R15 = ("core.activity_name", "core.contracting_party", "core.obse
 DEVELOPER, DEVELOPER_BASIS = "core.developer", "core.developer_basis"
 
 
+def _developer_merged(r16_on: bool | None) -> bool:
+    """Whether Stage 6 merges the developer itself (PI ruling Q166 a). An explicit ``r16_on`` is taken as
+    given. None: the r16 candidate is active AND pass 1 asks the developer, the same gate the per-page rows
+    use (``source_row_v27.produced_activity_items``), so a codebook that asks no developer quote task keeps
+    both developer items refused here too (an explicit input, which holds that institution) instead of a
+    missing row value stopping the stage (review of 59ab80e, LOW)."""
+    if r16_on is not None:
+        return r16_on
+    if not r16.r16_active():
+        return False
+    from g3o.run.presweep import source_row_v27 as srow  # lazy: the per-page gate, no import cycle
+
+    return DEVELOPER in srow.pass1_activity_fields()
+
+
 def merge_credible(r16_on: bool | None = None) -> tuple[str, ...]:
-    """R3 items for the codebook in use (``r16_on`` None: read :func:`g3o.codebook.r16_candidate.r16_active`
-    now). r15: :data:`MERGE_CREDIBLE_R15`. PI ruling Q166 a (2026-11-16), UNSIGNED r16 candidate only:
+    """R3 items for the codebook in use (``r16_on`` None: :func:`_developer_merged`). r15:
+    :data:`MERGE_CREDIBLE_R15`. PI ruling Q166 a (2026-11-16), UNSIGNED r16 candidate only:
     ``core.developer`` is an R3 credible single-text item too, as ``contracting_party`` is."""
-    on = r16.r16_active() if r16_on is None else r16_on
-    return (*MERGE_CREDIBLE_R15, DEVELOPER) if on else MERGE_CREDIBLE_R15
+    return (*MERGE_CREDIBLE_R15, DEVELOPER) if _developer_merged(r16_on) else MERGE_CREDIBLE_R15
 
 
 def merge_basis(r16_on: bool | None = None) -> tuple[str, ...]:
     """Items merged from the merged developer (PI ruling Q166 a, r16 candidate only): ``core.developer_basis``
-    (:func:`merged_developer_basis`). Empty under r15."""
-    on = r16.r16_active() if r16_on is None else r16_on
-    return (DEVELOPER_BASIS,) if on else ()
+    (:func:`merged_developer_basis`). Empty under r15 (``r16_on`` None: :func:`_developer_merged`)."""
+    return (DEVELOPER_BASIS,) if _developer_merged(r16_on) else ()
 
 
 def merged_developer_basis(developer: Any) -> str:
@@ -323,7 +336,7 @@ def merge_refused_r1(r16_on: bool | None = None) -> tuple[str, ...]:
     PI ruling Q166 a, developer is an R3 item (:func:`merge_credible`) and developer_basis follows it
     (:func:`merge_basis`). Under r15 :data:`MERGE_REFUSED_R1_R15` unchanged."""
     on = r16.r16_active() if r16_on is None else r16_on
-    merged = {*ma.produced_items(on), *merge_credible(on), *merge_basis(on)}
+    merged = {*ma.produced_items(on), *merge_credible(r16_on), *merge_basis(r16_on)}  # same developer gate
     return tuple(i for i in MERGE_REFUSED_R1_R15 if i not in merged)
 
 
