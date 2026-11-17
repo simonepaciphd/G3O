@@ -532,7 +532,7 @@ def _live_script_fakes(tmp_path, monkeypatch, run_fn):
     rt.write_text("{}", encoding="utf-8")
     return ["--live", "--max-usd", "5", "--runtime", str(rt), "--drive", str(tmp_path), "--out-dir",
             str(tmp_path / "out"), "--run-root", str(tmp_path / "runs"), "--group", "pipeline",
-            "--fixture", "v27-syn-A011-01", "--fixture", "v27-syn-A004-05", "--fixture", "v27-syn-A004-04"]
+            "--fixture", "v27-syn-A011-01", "--fixture", "v27-syn-A004-05", "--fixture", "v27-syn-A011-02"]
 
 
 def _interrupting_run_fn():
@@ -559,7 +559,7 @@ def test_run_live_flushes_each_result_and_the_script_keeps_them_on_interrupt(tmp
     # review MEDIUM-1: the in-flight fixture's journaled spend is counted and it is labelled partial
     assert doc["stopped"].startswith("interrupted") and doc["spent_usd"] == pytest.approx(0.03)
     by_id = {r["fixture_id"]: r for r in doc["results"]}
-    assert set(by_id) == {"v27-syn-A011-01", "v27-syn-A004-05", "v27-syn-A004-04"}
+    assert set(by_id) == {"v27-syn-A011-01", "v27-syn-A004-05", "v27-syn-A011-02"}
     assert by_id[first]["cost_usd"] == pytest.approx(0.01)
     reasons = sorted(r["reason"] for fid, r in by_id.items() if fid != first)
     assert reasons == ["interrupted while running (partial spend $0.0200)",

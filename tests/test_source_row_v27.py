@@ -398,7 +398,7 @@ class _Extraction:
 def test_pass1_fields_are_the_signed_activity_quote_step_items():
     assert set(srow.pass1_activity_fields()) == {"core.activity_name", "core.observed_actor_name",
                                                  "core.tool_name", "core.model_name", "core.contracting_party",
-                                                 "core.deployment_scale_number"}
+                                                 "core.developer", "core.deployment_scale_number"}  # r16 A8.1 a
     for item in srow.pass1_activity_fields():
         assert FIELDS[item]["coder"] == "quote_step"
 

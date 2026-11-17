@@ -557,7 +557,7 @@ def test_unruled_a8_value_holds_the_institution(tmp_path, monkeypatch):
     run_dir, bound, instrument = e._setup(tmp_path)
     a, b = e._institutions(run_dir, bound, instrument)
 
-    def unruled(inst, order):
+    def unruled(inst, order, **_kw):  # r16: the envelope passes r16_on (stage_validate_v27._A8_KW)
         raise ma.UnruledMergeError(ma.STAGE_AS_OF, "declared fixture")
 
     monkeypatch.setattr(ma, "merged_values_a8", unruled)

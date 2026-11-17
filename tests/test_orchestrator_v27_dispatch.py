@@ -560,11 +560,16 @@ def test_v27_dispatch_runs_through_stage6_and_writes_the_outputs(tmp_path):
 
 
 def test_v27_dispatch_without_merged_values_holds_that_institution_at_stage6(tmp_path):
-    """The merged-activity values have no producer (RC-D-030 X1 a): absent, Stage 6 holds the merging
+    """r15: the merged-activity values have no producer (RC-D-030 X1 a): absent, Stage 6 holds the merging
     institution (MissingUpstreamError from the Stage 6 envelope build is per-institution, B1 a) and
-    writes the others."""
+    writes the others. Signed r16 (Q166 a): no merged item is an explicit input (``MERGE_INPUT_ITEMS``
+    empty), so without the input every institution is written."""
     run_dir, bound, instrument, world = _world_run(tmp_path)
     out = orch.run_v27_dispatch(run_dir, [], None, _dispatch(world, inputs=WorldInputs(world, merged=False)))
+    if not rt.MERGE_INPUT_ITEMS:
+        assert (out["n_stage6_written"], out["n_stage6_failed"]) == (3, 0)
+        assert (institution_dir(run_dir, INSTS[0]) / "6_storage.json").exists()
+        return
     assert (out["n_stage6_written"], out["n_stage6_failed"]) == (2, 1)
     held = json.loads((institution_dir(run_dir, INSTS[0]) / rt.WORK_DIR / rt.HELD_FILE).read_text(encoding="utf-8"))
     assert "MissingUpstreamError" in held["error"]
