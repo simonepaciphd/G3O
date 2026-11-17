@@ -327,7 +327,12 @@ def test_compare_statuses_and_unlocated_policy():
     got = {"a": (True, " yes "), "b": (False, None)}
     default = fr.compare_fixture(fixture, lambda e: got[e["item"]])
     assert [e["status"] for e in default["expected"]] == [fr.PASS, fr.NOT_LOCATED]
-    assert default["status"] == fr.PASS and default["a_ids"] == {"A-010": fr.PASS, "A-011": fr.PASS}
+    assert default["status"] == fr.PARTIAL and default["a_ids"] == {"A-010": fr.PARTIAL, "A-011": fr.PARTIAL}
+    every = fr.compare_fixture(fixture, lambda e: (True, {"a": "yes", "b": "x"}[e["item"]]))
+    assert every["status"] == fr.PASS and every["a_ids"] == {"A-010": fr.PASS, "A-011": fr.PASS}
+    failing = fr.compare_fixture(fixture, lambda e: (True, "no") if e["item"] == "a" else (False, None))
+    assert failing["status"] == fr.FAIL
+    assert fr.compare_fixture(_fixture([]), lambda e: (True, None))["status"] == fr.UNRESOLVED
     strict = fr.compare_fixture(fixture, lambda e: got[e["item"]], unlocated=fr.FAIL)
     assert strict["status"] == fr.FAIL
     nothing = fr.compare_fixture(fixture, lambda e: (False, None))
@@ -371,7 +376,7 @@ def test_report_skeleton_carries_limits_untested_line_and_per_fixture_rows(tmp_p
     assert "curly apostrophe" in report and "CJK or Thai" in report
     assert "calendar years untested" in report
     assert "overshoot it by its own cost" in report and "excludes X35" in report  # review M1
-    assert "| A-011 | 0 | 1 | 0 | 0 |" in report
+    assert "| A-011 | 0 | 0 | 1 | 0 | 0 |" in report and fr.A_ID_ROLLUP_NOTE in report  # review M5
     assert "expected 'no_genai', got 'confirms_activity'" in report
     assert "$0.1200" in report
     doc = json.loads(paths["results"].read_text(encoding="utf-8"))

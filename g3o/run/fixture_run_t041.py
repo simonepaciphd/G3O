@@ -68,8 +68,15 @@ EXCLUDED_KINDS = frozenset({"real_transfer"})
 
 #: Expected-value outcomes.
 PASS, FAIL, NOT_LOCATED = "pass", "fail", "not_located"
-#: Per-fixture / per-A-ID outcomes beyond pass / fail.
-UNRESOLVED, NOT_RUN = "unresolved", "not_run"
+#: Per-fixture / per-A-ID outcomes beyond pass / fail. ``partial``: some values passed, the
+#: others were not located, none failed (review M5; distinct from ``pass``).
+PARTIAL, UNRESOLVED, NOT_RUN = "partial", "unresolved", "not_run"
+#: Column order of the per-A-ID table.
+A_ID_STATUSES = (PASS, PARTIAL, FAIL, UNRESOLVED, NOT_RUN)
+#: The roll-up caveat the report carries (proposed question on the meaning of the roll-up).
+A_ID_ROLLUP_NOTE = ("every A-ID of a fixture shares that fixture's whole set of expected values: the fixture "
+                    "format ties expected values to the fixture, not to one A-ID, so an A-ID's status here is "
+                    "its fixtures' status, not a test of that A-ID alone")
 #: How a not-located expected value counts (``--unlocated``); default: it decides nothing.
 UNLOCATED_POLICIES = (UNRESOLVED, FAIL)
 #: Which fixture pages are the searched pages (``--searched-pages``); the rest are served to the
@@ -519,11 +526,12 @@ def compare_fixture(fixture: Mapping[str, Any], got: Callable[[Mapping[str, Any]
                     *, unlocated: str = UNRESOLVED) -> dict[str, Any]:
     """Per expected value ``pass`` / ``fail`` / ``not_located``, and per A-ID a status.
 
-    An A-ID passes when at least one of the fixture's expected values was located and
-    every located one passed; it fails when any located one failed; otherwise it is
-    ``unresolved``. With ``unlocated='fail'`` a not-located value fails its A-IDs.
-    Every A-ID of the fixture gets the fixture's status (the fixture format ties
-    expected values to the fixture, not to one A-ID).
+    Fixture status (review M5): ``fail`` when any value failed (or, with
+    ``unlocated='fail'``, any was not located); ``pass`` only when EVERY value passed;
+    ``partial`` when some passed and the rest were not located; ``unresolved`` when none
+    was located (or the fixture has no expected value). Every A-ID of the fixture gets the
+    fixture's status: the fixture format ties expected values to the fixture, not to one
+    A-ID (:data:`A_ID_ROLLUP_NOTE`); no finer mapping is invented here.
     """
     if unlocated not in UNLOCATED_POLICIES:
         raise ValueError(f"unlocated policy must be one of {UNLOCATED_POLICIES}")
@@ -536,8 +544,10 @@ def compare_fixture(fixture: Mapping[str, Any], got: Callable[[Mapping[str, Any]
     statuses = {r["status"] for r in rows}
     if FAIL in statuses or (unlocated == FAIL and NOT_LOCATED in statuses):
         overall = FAIL
-    elif PASS in statuses:
+    elif statuses == {PASS}:
         overall = PASS
+    elif PASS in statuses:
+        overall = PARTIAL
     else:
         overall = UNRESOLVED
     return {"fixture_id": fixture["fixture_id"], "expected": rows, "status": overall,
@@ -918,11 +928,14 @@ def report_skeleton(*, mode: str, est: Mapping[str, Any], results: Sequence[Mapp
         *([f"- {stopped}"] if stopped else []),
         "",
         "## Per A-ID",
-        "| A-ID | " + " | ".join((PASS, FAIL, UNRESOLVED, NOT_RUN)) + " |",
-        "|---|---|---|---|---|",
+        f"Fixtures per status. Note: {A_ID_ROLLUP_NOTE}. `{PASS}`: every value of the fixture passed; "
+        f"`{PARTIAL}`: some passed, the others were not located, none failed.",
+        "",
+        "| A-ID | " + " | ".join(A_ID_STATUSES) + " |",
+        "|---|" + "---|" * len(A_ID_STATUSES),
     ]
     for a, counts in a_id_summary(results).items():
-        lines.append(f"| {a} | " + " | ".join(str(counts.get(s, 0)) for s in (PASS, FAIL, UNRESOLVED, NOT_RUN)) + " |")
+        lines.append(f"| {a} | " + " | ".join(str(counts.get(s, 0)) for s in A_ID_STATUSES) + " |")
     lines += ["", "## Per fixture (expected vs got)"]
     for r in results:
         lines.append(f"### {r['fixture_id']}: {r['status']}" + (f" ({r.get('reason')})" if r.get("reason") else ""))
