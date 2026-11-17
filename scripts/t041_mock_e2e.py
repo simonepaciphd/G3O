@@ -228,33 +228,6 @@ def _titled(pages: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
     return out, n
 
 
-#: Mock-only institution search languages (see :func:`_mock_languages`).
-MOCK_LANGUAGES = "en"
-
-
-def _mock_languages() -> None:
-    """MOCK-ONLY: ``fixture_run_t041.materialise`` writes ``institution_search_languages: []``, which the
-    per-page stage refuses as a malformed identity row (``UpstreamRowMalformed``, ``contract.LANGS_PATTERN``)
-    after the page's paid calls. The fixtures name no language, so the right value is a PI choice; the
-    mock rewrites it to :data:`MOCK_LANGUAGES` so the run can go on. ``--keep-runner-languages`` turns this off.
-    """
-    from g3o.common.paths import institution_dir
-    from g3o.run.presweep.perpage_inputs_v27 import INSTITUTION_FILE
-
-    real = fr.materialise
-
-    def materialise(run_dir, fixture, pages, **kw):
-        sample, scraped, served = real(run_dir, fixture, pages, **kw)
-        for inst_id in scraped:
-            path = institution_dir(run_dir, inst_id) / INSTITUTION_FILE
-            doc = json.loads(path.read_text(encoding="utf-8"))
-            doc["institution_search_languages"] = MOCK_LANGUAGES
-            path.write_text(json.dumps(doc, indent=1), encoding="utf-8")
-        return sample, scraped, served
-
-    fr.materialise = materialise
-
-
 def _system_text(system: Any) -> str:
     if isinstance(system, str):
         return system
@@ -409,14 +382,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="JSON object of every RuntimeSettings field (the paid run's file); default MOCK_RUNTIME")
     ap.add_argument("--keep-untitled", action="store_true",
                     help="do not add the mock-only page title (shows the ruling 39 a hold the paid run would hit)")
-    ap.add_argument("--keep-runner-languages", action="store_true",
-                    help="keep the runner's empty institution_search_languages (shows the stage stop)")
     ap.add_argument("--drive", default=None, help=f"G3O Drive root (real fixtures only); default ${fr.DRIVE_ENV}")
     args = ap.parse_args(argv)
     _guard_clients()
-    if not args.keep_runner_languages:
-        _mock_languages()
-        print(f"note: mock-only institution_search_languages={MOCK_LANGUAGES!r} (the runner writes [])")
     check = Checks()
     check("environment: paid-key variables removed before import", not any(_PAID_ENV.search(k) for k in os.environ),
           f"removed {len(REMOVED_ENV)} variable(s)")
