@@ -214,10 +214,11 @@ class FixtureExtractor:
 def _titled(pages: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
     """MOCK-ONLY: give each fetched synthetic page without a title :data:`MOCK_TITLE`.
 
-    No synthetic fixture page carries a title, and ``source_row_v27`` refuses an empty
-    ``RenderedPage.title`` (the first-heading fallback is unproduced, PI ruling 39 a), which holds
-    the institution at the per-page stage before Stage 6. The mock adds a title so that Stage 6 is
-    exercised too; ``--keep-untitled`` runs the fixtures as the paid run would see them.
+    ``source_row_v27`` refuses an empty ``RenderedPage.title`` (the first-heading fallback is
+    unproduced, PI ruling 39 a), which holds the institution at the per-page stage before Stage 6.
+    Since PI ruling 4 a (2026-11-17) every synthetic fixture page carries a title
+    (``build_synthetic.page``), so this is a guard that should find nothing; the note printed in
+    :func:`main` reports the count. ``--keep-untitled`` turns it off.
     """
     out, n = [], 0
     for p in pages:

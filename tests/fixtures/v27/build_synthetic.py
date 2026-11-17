@@ -32,7 +32,13 @@ def exp(item, value, rule, scope="page:p0", **kw):
     return d
 
 
-def page(key, url, text=None, links=None, title="", fetch="ok", text_parts=None):
+def page(key, url, text=None, links=None, title=None, fetch="ok", text_parts=None):
+    # A neutral title for every page (PI ruling 4 a, 2026-11-17): source_row_v27 refuses an empty
+    # RenderedPage.title (the first-heading fallback is unproduced, ruling 39 a), so untitled pages
+    # held every synthetic fixture before Stage 6. Built from the page key only, so it says nothing
+    # about the page content.
+    if title is None:
+        title = f"Synthetic page {key}"
     p = {
         "page_key": key,
         "url": url,
