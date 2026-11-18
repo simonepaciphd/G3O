@@ -105,13 +105,20 @@ def test_downgraded_confirms_activity_alone_gives_unclear(status):
 
 @pytest.mark.parametrize("status", ["supported", "not_required", "set_by_rule"])
 def test_undowngraded_confirms_activity_off_yes_is_refused(status):
-    # supported but below the 0.8 probability bar, or supported with no supported observation
-    for confirmed, obs in ((page("c", "confirms_activity", chosen_probability=.5, support_status=status),
-                            [observation(page_id="c")]),
-                           (page("c", "confirms_activity", support_status=status),
-                            [observation(page_id="c", supported=False)])):
-        with pytest.raises(ConsolidationError, match="did not fail their support check"):
-            summary_values([page(), confirmed], obs, published_activity_values=[])
+    # supported but below the 0.8 probability bar, with a supported observation
+    confirmed = page("c", "confirms_activity", chosen_probability=.5, support_status=status)
+    with pytest.raises(ConsolidationError, match="did not fail their support check"):
+        summary_values([page(), confirmed], [observation(page_id="c")], published_activity_values=[])
+
+
+@pytest.mark.parametrize("status", ["supported", "not_required", "set_by_rule"])
+def test_confirms_activity_with_no_supported_observation_is_unclear(status):
+    # PI R4 a (2026-11-18): a confirming page that passed its check, none of whose observations is
+    # supported (Y1), sits on an unclear institution (was refused under RC-D-027 2 a)
+    confirmed = page("c", "confirms_activity", support_status=status)
+    result = summary_values([page(), confirmed], [observation(page_id="c", supported=False)],
+                            published_activity_values=[])
+    assert result["core.has_genai_activity"] == "unclear"
 
 
 def test_yes_with_supported_plus_downgraded_confirms_activity():
