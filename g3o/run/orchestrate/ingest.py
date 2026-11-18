@@ -87,6 +87,9 @@ LOADER_REPO_ENV_VAR = "G3O_API_REPO"
 DSN_ENV_VAR = "DATABASE_URL"
 
 INGEST_SCRIPT_RELPATH = Path("scripts") / "ingest.py"
+#: The g3o-api module that loads codebook release 2.7 runs hidden (R-056, T-051/T-052). A loader
+#: checkout without it would publish a 2.7 run as an ordinary one, so such a run is refused here.
+V27_LOADER_RELPATH = Path("scripts") / "v27_ingest.py"
 INGEST_LOG_FILENAME = "ingest.log"
 INGEST_REPORTS_DIRNAME = "ingest_reports"
 
@@ -316,6 +319,31 @@ def resolve_loader_repo(explicit: Path | None = None) -> Path:
     if not script.is_file():
         raise IngestError(f"{script} does not exist — {repo} is not a g3o-api checkout.")
     return repo
+
+
+def assert_loader_handles_release(run_dir: Path, repo: Path) -> None:
+    """Refuse a run whose manifest declares codebook release 2.7 unless the loader checkout can hold it hidden.
+
+    R-056: 2.7 rows load hidden until release. Only a g3o-api checkout carrying
+    :data:`V27_LOADER_RELPATH` does that; an older one would publish the rows.
+    """
+    from g3o.common.contract import CODEBOOK_RELEASE_V27
+    from g3o.run.orchestrate.status import MANIFEST_FILENAME, read_json
+
+    manifest = read_json(Path(run_dir) / MANIFEST_FILENAME)
+    block = manifest.get("storage_contract") if isinstance(manifest, dict) else None
+    if not isinstance(manifest, dict) or not isinstance(block, (dict, type(None))):
+        raise IngestError(
+            f"run {Path(run_dir).name}: {MANIFEST_FILENAME} is unreadable or its storage_contract is not an "
+            f"object, so its codebook release is unknown; refusing rather than risk publishing a 2.7 run (R-056)."
+        )
+    declared = (block or {}).get("codebook_release")
+    if declared == CODEBOOK_RELEASE_V27 and not (repo / V27_LOADER_RELPATH).is_file():
+        raise IngestError(
+            f"run {Path(run_dir).name} declares codebook release {CODEBOOK_RELEASE_V27}, but the g3o-api "
+            f"checkout at {repo} has no {V27_LOADER_RELPATH.as_posix()}: that loader would publish the rows "
+            f"instead of holding them hidden (R-056). Re-pin the checkout to a release-2.7 loader first."
+        )
 
 
 def loader_provenance(repo: Path) -> dict[str, Any]:
@@ -672,6 +700,7 @@ def ingest_run(
         )
 
     repo = resolve_loader_repo(loader_repo)
+    assert_loader_handles_release(run_dir, repo)
     provenance = loader_provenance(repo)
     if expect_loader_sha and provenance.get("git_sha") != expect_loader_sha:
         raise IngestError(

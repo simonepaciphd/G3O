@@ -65,8 +65,10 @@ Rules applied, each as SPEC v001.20 / codebook r13 states it:
   characters each side are kept (W-05-P3), via :mod:`g3o.extract.years`; the
   classifier chooses (T-023).
 
-The X35 jev call itself is a stub that raises :class:`SupportGateError`
-(binding T-030/T-035).
+The X35 call is bound to Claude Haiku 5.5 behind the pinned ``x35_model`` (PI
+ruling 139 a; client :class:`g3o.extract.x35_client.AnthropicX35Client`), but
+:func:`run_entailment`, the entry used while its probability source and
+instrument wording await the PI, still raises :class:`SupportGateError`.
 
 Re-pin: the codebook is pinned by the single constant ``SIGNED_CODEBOOK_SHA256``.
 The support vocabulary (``status_by_answer``) is read from the codebook, not
@@ -87,8 +89,8 @@ from typing import Any
 
 from g3o.codebook.loader import Codebook, load_codebook
 
-#: Codebook r13, PI-signed 2026-11-05 (planning/t010/signoff-record.md). Another file is refused.
-SIGNED_CODEBOOK_SHA256 = "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527"
+#: Codebook r16 (RC-D-034; signed only when planning/t010/signoff-record.md holds this sha256). Another file is refused.
+SIGNED_CODEBOOK_SHA256 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a"
 
 PINNED_RAPIDFUZZ = "3.14.3"  # DEC-007 a; RC-D-017 1a. Change only with a re-calibration (T-003).
 MATCH_METRIC = "token_set_ratio_norm"  # RC-D-017 1a
@@ -107,6 +109,11 @@ QUOTE_MAX_CHARS = 200  # RC-D-017 3: extraction-prompt cap and website display c
 OVER_CAP_FLAG = "quote_over_cap"  # RC-D-017 "2 whole"
 PROBABILITY_UNAVAILABLE = "probability_unavailable"  # RC-D-010
 ENTAILMENT_PROBABILITY_UNAVAILABLE = "entailment_probability_unavailable"  # RC-D-010, X35 answer
+#: PI ruling Q169 b (2026-11-16): the value of an X35 non-answer (a refusal, a ``max_tokens`` stop or
+#: unparseable output). It is an answer with no probability: only that one check fails
+#: (:data:`ENTAILMENT_PROBABILITY_UNAVAILABLE`, ``downgraded_quote_not_stating_value``), and the
+#: institution goes on. ``unknown`` is a missing token of ``core.support_entailment`` (R-045).
+X35_NON_ANSWER = "unknown"
 
 SUPPORTED = "supported"
 NO_QUOTE = "downgraded_no_quote"
@@ -362,7 +369,9 @@ def _needs_quote(ev: CodeEvidence, item: dict[str, Any], rules: SupportRules) ->
 
 
 def _entailment_fails(ent: Entailment, bar: float, flags: list[str]) -> bool:
-    if ent.value not in ("true", "false"):
+    if ent.value == X35_NON_ANSWER and ent.probability is not None:
+        raise ValueError(f"an X35 non-answer ({X35_NON_ANSWER!r}) carries no probability")
+    if ent.value not in ("true", "false", X35_NON_ANSWER):
         raise ValueError(f"X35 answer must be 'true' or 'false', got {ent.value!r}")
     if ent.probability is None:
         flags.append(ENTAILMENT_PROBABILITY_UNAVAILABLE)
@@ -609,10 +618,17 @@ def entailment_window_for(ev: CodeEvidence, sources: PageSources,
 
 
 def run_entailment(*_: Any, **__: Any) -> Entailment:
-    # TODO(gate: X35 call wiring): the state is entailment_window_for() (RC-D-019 E3) and the question
-    # entailment_question(); the jev client binding is T-021/T-023's, the runtime instrument T-030/T-035.
-    # Until then, callers pass Entailment in.
-    raise SupportGateError("X35 entailment call not wired: jev binding T-030/T-035")
+    # The refusing X35 stub. The X35 client is wired (PI ruling 139 a:
+    # g3o.extract.x35_client.AnthropicX35Client on the pinned x35_model; the state is
+    # entailment_window_for(), RC-D-019 E3, the question entailment_question()), its
+    # probability source ruled (Q159 a: "stated") and its wording approved and pinned (Q160).
+    # v27_entry.x35_entail_fn returns this stub only if the wording no longer matches the pin
+    # or the probability source is unset; the orchestrator refuses a dispatch naming it.
+    raise SupportGateError(
+        "X35 entailment call refused: this is the refusing stub, which v27_entry.x35_entail_fn "
+        "returns only when the X35 wording is not the approved one (Q160: its SHA256 differs from "
+        "x35_client.X35_INSTRUCTION_APPROVED_SHA256) or no probability source is set (Q159 a: stated)"
+    )
 
 
 # ---------------------------------------------------------------------------

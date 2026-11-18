@@ -782,3 +782,633 @@ def test_stage2_jev_failure_keeps_prior_behaviour(tmp_path: Path, stage: str) ->
     assert rec["final_status"] == "NO_EVIDENCE_FOUND"
     assert rec["reason"] == "zero URLs passed triage"
     assert rec["error"] is None
+
+
+# ---------------------------------------------------------------------------
+# v2.7 holds (ruling 45 a): a held institution is not concluded
+# ---------------------------------------------------------------------------
+
+# A finished v2.7 run leaves the classify_triage and scrape markers only: the
+# per-page stage and v2.7 Stage 6 replace Stages 5/6 and write no extract or
+# validate marker, and no extract/ folder.
+V27_DONE = ("classify_triage", "scrape")
+
+
+def _make_v27_run(run_dir: Path, institutions: list[str]) -> None:
+    _make_run(run_dir, institutions=institutions, done=V27_DONE)
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["config"]["pipeline_version"] = "v2.7"
+    manifest["run_pipeline"] = {"pipeline_version": "v2.7", "instrument_id": "INSTR-test"}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def _perpage_held(run_dir: Path, inst_id: str, stage: str = "extract_response_failed") -> None:
+    """What stage_perpage_v27 writes for a held institution: held.json + ledger."""
+    _write(
+        inst_dir_of(run_dir, inst_id) / "perpage_v27" / "held.json",
+        {"institution_id": inst_id, "held": [{"page_id": "P1", "stage": stage}]},
+    )
+    _attrition.record(run_dir, institution_id=inst_id, stage="perpage_v27",
+                      reason="perpage_held", detail=f"P1:{stage}")
+
+
+def _stage6_held(run_dir: Path, inst_id: str, reason: str = "stage6_quote_step_absent") -> None:
+    """What stage_validate_v27 writes for a held institution: held.json + ledger."""
+    _write(
+        inst_dir_of(run_dir, inst_id) / "stage6_v27" / "held.json",
+        {"institution_id": inst_id, "reasons": [reason], "held": []},
+    )
+    _attrition.record(run_dir, institution_id=inst_id, stage="validate",
+                      reason=f"stage6_held:{reason}")
+
+
+def _v27_upstream(run_dir: Path, inst_id: str) -> None:
+    _discovery(run_dir, inst_id)
+    _triage(run_dir, inst_id, keeps=2)
+    _scraped(run_dir, inst_id)
+
+
+def test_v27_hold_paths_match_the_stages() -> None:
+    """The reader mirrors the stages' constants rather than importing them."""
+    from g3o.run.presweep import stage_perpage_v27, stage_validate_v27
+
+    assert [w for w, _ in outcomes._V27_HOLDS] == [
+        stage_perpage_v27.WORK_DIR, stage_validate_v27.WORK_DIR]
+    assert outcomes._V27_HELD_FILE == stage_perpage_v27.HELD_FILE == stage_validate_v27.HELD_FILE
+
+
+@pytest.mark.parametrize(
+    "stage", ["extract_response_failed", "extract_rejected_cap", "pi_release_malformed",
+              "pi_release_archive_failed", "pi_release_record_failed", "page_state_archive_failed"]
+)
+def test_v27_perpage_hold_is_not_concluded(tmp_path: Path, stage: str) -> None:
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _v27_upstream(run_dir, "INST-0000001")
+    _perpage_held(run_dir, "INST-0000001", stage)
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert rec["final_status"] != "NO_EVIDENCE_FOUND"
+    assert "run aborted" not in rec["reason"]
+    assert "held as pending at the v2.7 per-page stage" in rec["reason"]
+    assert f"P1:{stage}" in rec["reason"]
+    assert rec["error"] == rec["reason"]
+
+
+def test_v27_stage6_hold_is_not_concluded(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _v27_upstream(run_dir, "INST-0000001")
+    _stage6_held(run_dir, "INST-0000001")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert "run aborted" not in rec["reason"]
+    assert "held as pending at v2.7 Stage 6" in rec["reason"]
+    assert "stage6_quote_step_absent" in rec["reason"]
+
+
+def test_v27_unreadable_held_file_still_holds(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _v27_upstream(run_dir, "INST-0000001")
+    path = inst_dir_of(run_dir, "INST-0000001") / "perpage_v27" / "held.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"{truncated")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert "held as pending" in rec["reason"]
+    assert "unreadable" in rec["reason"]
+
+
+def test_v27_hold_keeps_an_attrition_failure_in_the_reason(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _v27_upstream(run_dir, "INST-0000001")
+    _attrition.record(run_dir, institution_id="INST-0000001", stage="scrape",
+                      reason="scrape_failed", url="https://x9.gov/")
+    _perpage_held(run_dir, "INST-0000001")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert rec["reason"].startswith("held as pending")
+    assert "scrape:scrape_failed" in rec["reason"]
+
+
+@pytest.mark.parametrize("held", [_perpage_held, _stage6_held])
+def test_v27_released_and_concluded_reads_normally(tmp_path: Path, held: Any) -> None:
+    """A hold the stage later cleared (release record appended, held.json removed)
+    no longer holds: the concluded Stage 6 result decides the outcome."""
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _v27_upstream(run_dir, "INST-0000001")
+    held(run_dir, "INST-0000001")
+    work_dir = "perpage_v27" if held is _perpage_held else "stage6_v27"
+    _attrition.record(run_dir, institution_id="INST-0000001",
+                      stage="perpage_v27" if held is _perpage_held else "validate",
+                      reason=f"{'perpage' if held is _perpage_held else 'stage6'}_held_released")
+    (inst_dir_of(run_dir, "INST-0000001") / work_dir / "held.json").unlink()
+    _validated(run_dir, "INST-0000001", has_genai="yes", n_activities=1)
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "EVIDENCE_FOUND"
+    assert "held" not in rec["reason"]
+
+
+def test_v27_held_again_after_a_release_is_still_held(tmp_path: Path) -> None:
+    """The ledger dedups the second ``perpage_held`` row, so its last word reads
+    "released"; held.json, rewritten on every hold, is what says held."""
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _v27_upstream(run_dir, "INST-0000001")
+    _perpage_held(run_dir, "INST-0000001")
+    _attrition.record(run_dir, institution_id="INST-0000001", stage="perpage_v27",
+                      reason="perpage_held_released", detail="P1:extract_response_failed")
+    _perpage_held(run_dir, "INST-0000001")
+    assert _attrition.read_records(run_dir)[-1]["reason"] == "perpage_held_released"
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert "held as pending" in rec["reason"]
+
+
+def test_v27_zero_page_institution_reads_as_v25(tmp_path: Path) -> None:
+    """Ruling 37 a: a v2.7 institution with no stored page is never a per-page
+    input; its outcome is decided from the run folder exactly as in v2.5."""
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001", "INST-0000002"])
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=2)  # kept URLs, nothing scraped
+    _discovery(run_dir, "INST-0000002")
+    _triage(run_dir, "INST-0000002", keeps=0)
+
+    recs = {r["institution_id"]: r for r in outcomes.compute_institution_report(run_dir)}
+    assert recs["INST-0000001"]["final_status"] == "NO_EVIDENCE_FOUND"
+    assert recs["INST-0000001"]["reason"] == "no pages scraped from kept URLs"
+    assert recs["INST-0000002"]["final_status"] == "NO_EVIDENCE_FOUND"
+    assert recs["INST-0000002"]["reason"] == "zero URLs passed triage"
+
+
+# ---------------------------------------------------------------------------
+# v2.7 verdict from storage (ruling 48.1 b), missing storage (48.2 a) and the
+# v2.7 stages' own .done markers (48.3 a)
+# ---------------------------------------------------------------------------
+
+V27_MARKERS = ("perpage_v27", "stage6_v27")
+# The storage fixture's institution (tests/_storage_fixture.fixture_bundle).
+V27_INST = "INST-0001"
+
+
+def _v27_identity(inst_id: str) -> dict[str, Any]:
+    return {"institution_id": inst_id, "institution_name": "Test Ministry", "country": "Testland",
+            "branch_of_government": "executive", "level_of_government": "national",
+            "institution_search_languages": "en"}
+
+
+def _v27_meta(inst_id: str) -> dict[str, Any]:
+    return {"institution_id": inst_id, "n_input_pages": 2, "n_input_rows": 2,
+            "response_timestamp": "2026-11-10T12:00:00Z", "model_label": "stage6-v27", "notes": "none"}
+
+
+def _make_v27_storage_run(run_dir: Path, institutions: list[str],
+                          done: tuple[str, ...] = V27_DONE + V27_MARKERS) -> None:
+    """A v2.7 run whose Stage 6 artifacts load: storage contract 2.7 and the instrument."""
+    from g3o.common.instrument import write_instrument
+    from tests._storage_fixture import instrument_payload
+
+    _make_v27_run(run_dir, institutions)
+    for stage in done:
+        _write(done_path(run_dir, stage), {"stage": stage, "no_batch": True})
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["storage_contract"] = {"codebook_release": "2.7"}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    write_instrument(run_dir / "final" / "instruments", instrument_payload())
+
+
+def _v27_validated(run_dir: Path, verdict: str, *, storage: bool = True) -> None:
+    """What v2.7 Stage 6 writes for V27_INST: a keys-only 6_validate.json and the
+    6_storage.json whose summary row carries the verdict (2 activities)."""
+    from g3o.common.instrument import canonical_json
+    from g3o.common.response_v27 import response_from_storage
+    from tests._storage_fixture import fixture_bundle
+
+    data, *_ = fixture_bundle(run_dir)  # its page artifact is written under run_dir
+    data["summary"]["values"]["core.has_genai_activity"] = verdict
+    d = inst_dir_of(run_dir, V27_INST)
+    d.mkdir(parents=True, exist_ok=True)
+    payload = response_from_storage(institution=_v27_identity(V27_INST), metadata=_v27_meta(V27_INST),
+                                    storage=data).model_dump(mode="json")
+    (d / "6_validate.json").write_text(canonical_json(payload), encoding="utf-8")
+    if storage:
+        (d / "6_storage.json").write_text(canonical_json(data), encoding="utf-8")
+
+
+def test_v27_marker_names_match_the_stages() -> None:
+    """The reader mirrors the stages' marker names rather than importing them,
+    and neither collides with a v2.5 marker."""
+    from g3o.run.presweep import stage_perpage_v27, stage_validate_v27
+
+    assert outcomes._V27_MARKERS == {"extract": stage_perpage_v27.DONE_MARKER,
+                                     "validate": stage_validate_v27.DONE_MARKER}
+    assert not set(outcomes._V27_MARKERS.values()) & set(outcomes._STAGES_WITH_MARKERS)
+
+
+@pytest.mark.parametrize(
+    "verdict, status",
+    [("yes", "EVIDENCE_FOUND"), ("no", "NO_EVIDENCE_FOUND"), ("unclear", "PROCESSING_FAILED")],
+)
+def test_v27_verdict_is_read_from_storage(tmp_path: Path, verdict: str, status: str) -> None:
+    """Ruling 48.1 b: the v2.7 6_validate.json carries no verdict; the 6_storage.json
+    summary row's has_genai_activity decides, and `unclear` is not concluded."""
+    run_dir = tmp_path / "run"
+    _make_v27_storage_run(run_dir, [V27_INST])
+    _v27_upstream(run_dir, V27_INST)
+    _v27_validated(run_dir, verdict)
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == status
+    assert rec["validation_status"] == "consolidated"
+    assert rec["consolidated_row_count"] == 2
+    if verdict == "yes":
+        assert rec["reason"] == "has_genai_activity=yes with 2 consolidated activity(ies)"
+        assert rec["error"] is None
+    elif verdict == "no":
+        assert rec["reason"].startswith("has_genai_activity='no'")
+        assert rec["error"] is None
+    else:
+        assert rec["reason"] == "has_genai_activity='unclear' (v2.7 verdict unclear; not concluded)"
+        assert rec["error"] == rec["reason"]
+
+
+def test_v27_unclear_keeps_an_attrition_failure_in_the_reason(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    _make_v27_storage_run(run_dir, [V27_INST])
+    _v27_upstream(run_dir, V27_INST)
+    _attrition.record(run_dir, institution_id=V27_INST, stage="scrape",
+                      reason="scrape_failed", url="https://x9.gov/")
+    _v27_validated(run_dir, "unclear")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert rec["reason"].startswith("has_genai_activity='unclear' (v2.7 verdict unclear")
+    assert "scrape:scrape_failed" in rec["reason"]
+
+
+def test_v27_hold_still_wins_over_a_storage_verdict(tmp_path: Path) -> None:
+    """Ruling 45 a is checked first, whatever the stored verdict."""
+    run_dir = tmp_path / "run"
+    _make_v27_storage_run(run_dir, [V27_INST])
+    _v27_upstream(run_dir, V27_INST)
+    _v27_validated(run_dir, "no")
+    _stage6_held(run_dir, V27_INST)
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert rec["reason"].startswith("held as pending at v2.7 Stage 6")
+
+
+def test_v27_missing_storage_fails_only_that_institution(tmp_path: Path) -> None:
+    """Ruling 48.2 a: the report names 6_storage.json for that institution and goes on;
+    it records nothing, and Stage 7 still refuses the run."""
+    from g3o.common.response_v27 import build_response_v27
+    from g3o.persist.writer import load_consolidated_outputs
+
+    other = "INST-0002"
+    run_dir = tmp_path / "run"
+    _make_v27_storage_run(run_dir, [V27_INST, other])
+    _v27_upstream(run_dir, V27_INST)
+    _v27_validated(run_dir, "yes")
+    _v27_upstream(run_dir, other)
+    payload = build_response_v27(institution=_v27_identity(other), metadata=_v27_meta(other),
+                                 activity_ids=["A1"], sources=[("S1", "A1")]).model_dump(mode="json")
+    _write(inst_dir_of(run_dir, other) / "6_validate.json", payload)  # a real v2.7 response
+
+    recs = {r["institution_id"]: r for r in outcomes.compute_institution_report(run_dir)}
+    assert recs[V27_INST]["final_status"] == "EVIDENCE_FOUND"
+    missing = recs[other]
+    assert missing["final_status"] == "PROCESSING_FAILED"
+    assert missing["validation_status"] == "storage_missing"
+    assert "6_storage.json" in missing["reason"]
+    assert "run aborted" not in missing["reason"]
+    assert missing["error"] == missing["reason"]
+    assert _attrition.read_records(run_dir) == []
+    with pytest.raises(ValueError, match="lacks its 6_storage.json"):
+        load_consolidated_outputs(run_dir)
+
+
+def test_v27_yes_with_attrition_failure_is_evidence_found(tmp_path: Path) -> None:
+    """Ruling 53 b: a v2.7 yes with attrition failures is EVIDENCE_FOUND, not
+    EVIDENCE_FOUND_PARTIAL; the attrition stays in the reason. (v2.5 is unchanged:
+    test_a_positive_with_one_failed_url_is_partial_not_failed and
+    test_v25_yes_with_attrition_failure_is_still_partial.)"""
+    run_dir = tmp_path / "run"
+    _make_v27_storage_run(run_dir, [V27_INST])
+    _v27_upstream(run_dir, V27_INST)
+    _attrition.record(run_dir, institution_id=V27_INST, stage="scrape",
+                      reason="scrape_failed", url="https://x9.gov/", detail="download_error=HTTPError")
+    _v27_validated(run_dir, "yes")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "EVIDENCE_FOUND"
+    assert rec["validation_status"] == "consolidated"
+    assert rec["reason"] == (
+        "has_genai_activity=yes with 2 consolidated activity(ies); "
+        "attrition: scrape:scrape_failed (download_error=HTTPError)"
+    )
+    assert rec["error"] is None
+
+
+def test_v25_yes_with_attrition_failure_is_still_partial(tmp_path: Path) -> None:
+    """Ruling 53 b leaves v2.5 as built: yes + a failure row is EVIDENCE_FOUND_PARTIAL."""
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=2)
+    _scraped(run_dir, "INST-0000001")
+    _validated(run_dir, "INST-0000001", has_genai="yes", n_activities=1)
+    _attrition.record(run_dir, institution_id="INST-0000001", stage="scrape",
+                      reason="scrape_failed", url="https://x9.gov/")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "EVIDENCE_FOUND_PARTIAL"
+    assert rec["error"] == "scrape:scrape_failed"
+
+
+# Ruling 54 a: a 6_storage.json that exists but does not load (or does not match its
+# 6_validate.json), or a legacy 6_validate.json without storage in a 2.7 run, fails
+# that institution alone in the report; nothing is recorded; Stage 7 still refuses it.
+V27_OTHER = "INST-0002"
+
+
+def _v27_storage_run_with_bystander(run_dir: Path) -> None:
+    """V27_INST validated (yes); V27_OTHER scraped with neither Stage 6 output nor hold."""
+    _make_v27_storage_run(run_dir, [V27_INST, V27_OTHER])
+    _v27_upstream(run_dir, V27_INST)
+    _v27_validated(run_dir, "yes")
+    _v27_upstream(run_dir, V27_OTHER)
+
+
+def _assert_only_that_institution_failed(run_dir: Path, inst_id: str, *needles: str) -> dict[str, Any]:
+    recs = {r["institution_id"]: r for r in outcomes.compute_institution_report(run_dir)}
+    assert len(recs) == 2
+    bad = recs[inst_id]
+    assert bad["final_status"] == "PROCESSING_FAILED"
+    assert bad["validation_status"] == "storage_unreadable"
+    assert bad["error"] == bad["reason"]
+    assert "run aborted" not in bad["reason"]
+    for needle in needles:
+        assert needle in bad["reason"]
+    assert recs[V27_OTHER]["final_status"] == "NO_EVIDENCE_FOUND"  # unaffected bystander
+    assert _attrition.read_records(run_dir) == []  # the report is read-only
+    return bad
+
+
+def test_v27_truncated_storage_fails_only_that_institution(tmp_path: Path) -> None:
+    from g3o.persist.writer import load_consolidated_outputs
+
+    run_dir = tmp_path / "run"
+    _v27_storage_run_with_bystander(run_dir)
+    storage_path = inst_dir_of(run_dir, V27_INST) / "6_storage.json"
+    raw = storage_path.read_bytes()
+    storage_path.write_bytes(raw[: len(raw) // 2])
+
+    _assert_only_that_institution_failed(
+        run_dir, V27_INST, "6_storage.json does not load", "JSONDecodeError")
+    with pytest.raises(ValueError):  # Stage 7 without lists still refuses it
+        load_consolidated_outputs(run_dir)
+    assert _attrition.read_records(run_dir) == []
+
+
+def test_v27_truncated_storage_without_declared_release_fails_only_that_institution(
+    tmp_path: Path,
+) -> None:
+    """Ruling 54 a follows the v2.7 response, not only the declared release: a run
+    whose manifest declares no storage codebook release still accepts a v2.7
+    6_validate.json, so its truncated 6_storage.json fails that institution alone."""
+    from g3o.persist.writer import load_consolidated_outputs
+
+    run_dir = tmp_path / "run"
+    _v27_storage_run_with_bystander(run_dir)
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del manifest["storage_contract"]  # declared_release is None
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    storage_path = inst_dir_of(run_dir, V27_INST) / "6_storage.json"
+    raw = storage_path.read_bytes()
+    storage_path.write_bytes(raw[: len(raw) // 2])
+
+    _assert_only_that_institution_failed(
+        run_dir, V27_INST, "6_storage.json does not load", "JSONDecodeError")
+    with pytest.raises(ValueError):  # Stage 7 without lists still refuses it
+        load_consolidated_outputs(run_dir)
+    assert _attrition.read_records(run_dir) == []
+
+
+def test_v27_storage_binding_mismatch_fails_only_that_institution(tmp_path: Path) -> None:
+    """A per-institution integrity mismatch (here: row keys) is that file's content
+    problem, so it is reported for that institution alone."""
+    from g3o.common.instrument import canonical_json
+    from g3o.common.response_v27 import build_response_v27
+    from g3o.persist.writer import load_consolidated_outputs
+
+    run_dir = tmp_path / "run"
+    _v27_storage_run_with_bystander(run_dir)
+    payload = build_response_v27(institution=_v27_identity(V27_INST), metadata=_v27_meta(V27_INST),
+                                 activity_ids=["A1"], sources=[("S1", "A1")]).model_dump(mode="json")
+    (inst_dir_of(run_dir, V27_INST) / "6_validate.json").write_text(
+        canonical_json(payload), encoding="utf-8")
+
+    _assert_only_that_institution_failed(
+        run_dir, V27_INST, "6_storage.json does not match 6_validate.json",
+        "storage row identifiers differ")
+    with pytest.raises(ValueError, match="storage row identifiers differ"):
+        load_consolidated_outputs(run_dir)
+    held: list[str] = []
+    with pytest.raises(ValueError, match="storage row identifiers differ"):
+        load_consolidated_outputs(run_dir, held=held)  # Stage 7's own call
+    assert held == []
+
+
+def test_legacy_validate_without_storage_in_v27_run_fails_only_that_institution(
+    tmp_path: Path,
+) -> None:
+    from g3o.persist.writer import load_consolidated_outputs
+
+    run_dir = tmp_path / "run"
+    _v27_storage_run_with_bystander(run_dir)
+    # The bystander now carries a legacy-format (v2.5) 6_validate.json and no storage.
+    _validated(run_dir, V27_OTHER, has_genai="yes", n_activities=1)
+
+    recs = {r["institution_id"]: r for r in outcomes.compute_institution_report(run_dir)}
+    assert recs[V27_INST]["final_status"] == "EVIDENCE_FOUND"
+    bad = recs[V27_OTHER]
+    assert bad["final_status"] == "PROCESSING_FAILED"
+    assert bad["validation_status"] == "storage_unreadable"
+    assert "legacy-format 6_validate.json without 6_storage.json in a 2.7 run" in bad["reason"]
+    assert bad["error"] == bad["reason"]
+    assert _attrition.read_records(run_dir) == []
+    with pytest.raises(ValueError, match="2.7 run lacks explicit 6_storage.json"):
+        load_consolidated_outputs(run_dir)
+    with pytest.raises(ValueError, match="2.7 run lacks explicit 6_storage.json"):
+        load_consolidated_outputs(run_dir, held=[])
+
+
+@pytest.mark.parametrize("declared_release", [None, "v2.5"])
+@pytest.mark.parametrize("broken", ["truncated", "mismatched"])
+def test_v25_run_with_broken_storage_still_raises_on_the_report_path(
+    tmp_path: Path, declared_release: str | None, broken: str,
+) -> None:
+    """Ruling 54 a was put for the v2.7 run report: outside a 2.7 run the report keeps
+    its pre-54 a behaviour, so a 6_storage.json that does not load or does not match
+    its legacy 6_validate.json still raises (no per-institution capture)."""
+    from g3o.common.instrument import canonical_json, write_instrument
+    from g3o.persist.writer import load_consolidated_outputs
+    from tests._storage_fixture import fixture_bundle, instrument_payload
+
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=[V27_INST], done=ALL_STAGES)
+    if declared_release is not None:
+        manifest_path = run_dir / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["storage_contract"] = {"codebook_release": declared_release}
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    _discovery(run_dir, V27_INST)
+    _triage(run_dir, V27_INST, keeps=2)
+    _scraped(run_dir, V27_INST)
+    _validated(run_dir, V27_INST, has_genai="yes", n_activities=1)
+    storage_path = inst_dir_of(run_dir, V27_INST) / "6_storage.json"
+    if broken == "truncated":
+        storage_path.write_text('{"format": "g3o-storage-v1", ', encoding="utf-8")
+    else:
+        # A storage file that loads but belongs to other rows (A1/A2, S1/S2 against the
+        # legacy payload's A1/S1; and, under "v2.5", the 2.7 release too).
+        write_instrument(run_dir / "final" / "instruments", instrument_payload())
+        data, *_ = fixture_bundle(run_dir)
+        storage_path.write_text(canonical_json(data), encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        outcomes.compute_institution_report(run_dir)
+    unreadable: list[tuple[str, str]] = []
+    with pytest.raises(ValueError):
+        load_consolidated_outputs(run_dir, missing_storage=[], unreadable_storage=unreadable)
+    assert unreadable == []
+    assert _attrition.read_records(run_dir) == []
+
+
+def test_v27_unheld_without_v27_markers_is_processing_failed(tmp_path: Path) -> None:
+    """Ruling 48.3 a: scraped, unheld, no Stage 6 output, and the per-page stage never
+    finished. v2.5's extract/validate markers do not stand in for it."""
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    for stage in ("extract", "validate"):
+        _write(done_path(run_dir, stage), {"stage": stage, "no_batch": True})
+    _v27_upstream(run_dir, "INST-0000001")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert "run aborted before stage 'perpage_v27' completed" in rec["reason"]
+
+
+def test_v27_unheld_after_perpage_but_before_stage6_finished_is_processing_failed(
+    tmp_path: Path,
+) -> None:
+    """Passed on by the per-page stage, then queued behind a Stage 6 stop."""
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    _write(done_path(run_dir, "perpage_v27"), {"stage": "perpage_v27", "no_batch": True})
+    _v27_upstream(run_dir, "INST-0000001")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert "run aborted before stage 'stage6_v27' completed" in rec["reason"]
+
+
+def test_v27_unheld_with_both_markers_is_no_evidence(tmp_path: Path) -> None:
+    """Ruling 37 a with 48.3 a: both v2.7 stages finished and left this institution
+    neither output nor hold, so the run-folder reading decides as v2.5 does."""
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    for stage in V27_MARKERS:
+        _write(done_path(run_dir, stage), {"stage": stage, "no_batch": True})
+    _v27_upstream(run_dir, "INST-0000001")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "NO_EVIDENCE_FOUND"
+    assert rec["reason"] == "pages scraped but no v2.7 Stage 6 output or hold for this institution"
+    assert rec["error"] is None
+
+
+@pytest.mark.parametrize("stop_in, missing", [("perpage", "perpage_v27"), ("stage6", "stage6_v27")])
+def test_v27_released_then_stopped_on_resume_is_processing_failed(
+    tmp_path: Path, stop_in: str, missing: str,
+) -> None:
+    """Ruling 48.3 a / 45 a: pass 1 finished (both markers) with the institution held; the
+    resumed per-page pass released it, then a stage stop came before its Stage 6. The stages
+    clear their markers when a pass starts (per-page: both; Stage 6: its own), so the report
+    never reads the released, unrun institution as NO_EVIDENCE_FOUND."""
+    from g3o.common.run_state import clear_done, is_done
+    from g3o.run.presweep import stage_perpage_v27, stage_validate_v27
+
+    run_dir = tmp_path / "run"
+    _make_v27_run(run_dir, ["INST-0000001"])
+    for stage in V27_MARKERS:  # pass 1 finished
+        _write(done_path(run_dir, stage), {"stage": stage, "no_batch": True})
+    _v27_upstream(run_dir, "INST-0000001")
+    _perpage_held(run_dir, "INST-0000001")
+    # resumed per-page pass: its entry clears both markers, then it releases the institution
+    clear_done(run_dir, stage_perpage_v27.DONE_MARKER)
+    clear_done(run_dir, stage_validate_v27.DONE_MARKER)
+    _attrition.record(run_dir, institution_id="INST-0000001", stage="perpage_v27",
+                      reason="perpage_held_released", detail="P1:extract_response_failed")
+    (inst_dir_of(run_dir, "INST-0000001") / "perpage_v27" / "held.json").unlink()
+    if stop_in == "stage6":  # the per-page pass finished; Stage 6 cleared its marker, then stopped
+        _write(done_path(run_dir, "perpage_v27"), {"stage": "perpage_v27", "no_batch": True})
+        clear_done(run_dir, stage_validate_v27.DONE_MARKER)
+    assert not is_done(run_dir, "stage6_v27")
+    clear_done(run_dir, "stage6_v27")  # a missing marker is fine
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert f"run aborted before stage {missing!r} completed" in rec["reason"]
+    assert rec["error"] == rec["reason"]
+
+
+def test_stage_completion_reads_v27_markers(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=[], done=("classify_triage", "scrape", "perpage_v27"))
+    assert outcomes._stage_completion(run_dir, v27=True) == {
+        "classify_triage": True, "scrape": True, "extract": True, "validate": False}
+    assert outcomes._stage_completion(run_dir) == {
+        "classify_triage": True, "scrape": True, "extract": False, "validate": False}
+
+
+def test_v25_unclear_verdict_is_still_no_evidence(tmp_path: Path) -> None:
+    """v2.5 unchanged: `unclear` stays NO_EVIDENCE_FOUND, read from 6_validate.json."""
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=2)
+    _scraped(run_dir, "INST-0000001")
+    _validated(run_dir, "INST-0000001", has_genai="unclear", n_activities=0)
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "NO_EVIDENCE_FOUND"
+    assert rec["reason"] == "has_genai_activity='unclear', 0 qualifying activities"
+
+
+def test_v25_run_ignores_v27_markers(tmp_path: Path) -> None:
+    """v2.5 unchanged: the v2.7 markers never stand in for a v2.5 run's extract."""
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"],
+              done=("classify_triage", "scrape") + V27_MARKERS)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=4)
+    _scraped(run_dir, "INST-0000001")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert "run aborted before stage 'extract' completed" in rec["reason"]

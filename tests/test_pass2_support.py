@@ -341,6 +341,18 @@ def test_unhashable_or_non_string_ids_are_contract_errors():
             parse_pass2_result(ok(payload), page, plan)
 
 
+@pytest.mark.parametrize("shape", [5, "x", {"k": 1}, True])
+@pytest.mark.parametrize("where", ["quotes", "fields"])
+def test_array_field_of_the_wrong_shape_is_a_contract_error(where, shape):
+    """Ruling 30 a: an array field that is not a list raises ExtractContractError (never a
+    TypeError); null still reads as empty."""
+    page = two_activity_page()
+    plan = select_requests(page)
+    with pytest.raises(ExtractContractError, match="must be an array"):
+        parse_pass2_result(ok({"quotes": [], "fields": [], where: shape}), page, plan)
+    parse_pass2_result(ok({"quotes": [], "fields": [], where: None}), page, plan)
+
+
 def test_over_cap_quote_kept_whole_and_flagged():
     page = two_activity_page()
     plan = select_requests(page)

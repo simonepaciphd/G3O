@@ -277,6 +277,21 @@ def test_entailment_false_or_unsure_fails_quote_check():
         check_code(ev(ent=Entailment("yes", 0.9)), SRC)
 
 
+def test_x35_non_answer_fails_only_that_check_q169b():
+    """PI ruling Q169 b: an X35 non-answer is an answer with no probability. The quote check fails
+    (entailment_probability_unavailable -> downgraded_quote_not_stating_value); nothing raises."""
+    non_answer = Entailment(sc.X35_NON_ANSWER, None)
+    assert sc.X35_NON_ANSWER == "unknown"
+    flags: list[str] = []
+    assert sc._entailment_fails(non_answer, 0.8, flags) is True
+    assert flags == [sc.ENTAILMENT_PROBABILITY_UNAVAILABLE]
+    r = check_code(ev(ent=non_answer), SRC)
+    assert (r.support_status, r.value, r.support_status_second_reason) == (NOT_STATING, "unknown", None)
+    assert sc.ENTAILMENT_PROBABILITY_UNAVAILABLE in r.flags
+    with pytest.raises(ValueError, match="carries no probability"):  # a non-answer never has a number
+        check_code(ev(ent=Entailment(sc.X35_NON_ANSWER, 0.9)), SRC)
+
+
 def test_matched_quote_without_entailment_answer_is_refused():
     with pytest.raises(ValueError, match="X35"):
         check_code(ev(ent=None), SRC)
@@ -448,7 +463,8 @@ def test_entailment_question_forms():
 
 
 def test_entailment_call_is_gated():
-    with pytest.raises(SupportGateError, match="jev binding"):
+    # The refusing stub (returned only for a wording off the Q160 pin or no probability source)
+    with pytest.raises(SupportGateError, match=r"not the approved one \(Q160"):
         sc.run_entailment()
 
 

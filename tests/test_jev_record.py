@@ -276,6 +276,35 @@ def test_nonpage_downgrade_projection_retains_original_and_does_not_forge_final_
         StorageEnvelope(data, instrument, artifact_root=tmp_path)
 
 
+def test_storage_validator_accepts_a_residual_source_type_record_95a(tmp_path):
+    """Review M3 / PI ruling 95 a, checked with the storage validator itself (StorageEnvelope, whose support
+    check calls ``validate_value``), not schema text: a source_type coder record of the residual question set
+    is accepted when the instrument binds the residual set's hash; without that binding, or on another item,
+    it is refused."""
+    from g3o.common import source_fields as sf
+    from g3o.common.storage import validate_value
+
+    data, plain, _, _ = fixture_bundle(tmp_path)
+    payload = instrument_payload()
+    payload["question_hashes"] = {**payload["question_hashes"],
+                                  sf.RESIDUAL_QUESTION_HASH_KEY: sf.residual_set_sha256()}
+    residual = build_instrument(payload)
+    source = data["sources"]["S1"]
+    coder = next(c for c in source["coder_records"] if c["item_id"] == sf.SOURCE_TYPE)
+    assert coder["coder_type"] == "classifier"
+    coder["question_set_version"] = sf.RESIDUAL_SET_VERSION
+    for code in ("vendor", source["values"][sf.SOURCE_TYPE]):  # a residual answer's stored value
+        validate_value(sf.SOURCE_TYPE, code)
+    with pytest.raises(ValueError, match="coder configuration"):  # the plain instrument binds no residual set
+        StorageEnvelope(data, plain, artifact_root=tmp_path)
+    data["setup_pointer"] = residual["instrument_id"]
+    StorageEnvelope(data, residual, artifact_root=tmp_path)  # accepted
+    verdict = next(c for c in source["coder_records"] if c["item_id"] == "core.page_verdict")
+    verdict["question_set_version"] = sf.RESIDUAL_SET_VERSION  # the residual version is source_type's only
+    with pytest.raises(ValueError, match="coder configuration"):
+        StorageEnvelope(data, residual, artifact_root=tmp_path)
+
+
 def test_q2a_refuses_invented_or_inconsistent_instrument_and_support(tmp_path):
     data, instrument, _, _ = fixture_bundle(tmp_path)
     support = next(s for s in data["sources"]["S1"]["item_support"] if s["item_id"] == "core.page_verdict")

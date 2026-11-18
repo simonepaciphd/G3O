@@ -66,6 +66,7 @@ from g3o.common.batch_client import DEFAULT_MODEL
 from g3o.common.pricing import (
     SERPER_PRICING,
     UNLOCKER_PRICING,
+    anthropic_request_usd,
     pricing_for,
     serper_usd,
     unlocker_usd,
@@ -903,10 +904,261 @@ class CostMonitor:
         return report
 
 
+# ---------------------------------------------------------------------------
+# v2.7 stage pricing (RC-D-021 procedural: the cost_monitor hunks; PI ruling 1 a)
+# ---------------------------------------------------------------------------
+
+#: RULED (PI ruling Q158 a, 2026-11-16): X35 calls are priced at the ``x35_model`` rate row
+#: (``claude-haiku-5-5``, PI ruling 139 a) at standard rates for live calls and at batch
+#: rates if they are ever batched (the 130 a rule), each from its own journaled usage (as
+#: 58 a does for the extractor; :func:`price_x35_requests`). With it True the X35 part is
+#: not in :data:`V27_UNPRICED_PARTS`. False would put it back there, unpriced.
+X35_PRICING_RULED = True  # Q158 a
+#: The reason the X35 part would be unpriced were :data:`X35_PRICING_RULED` False.
+X35_PRICING_PENDING = (
+    "X35 is bound (PI ruling 139 a: claude-haiku-5-5 behind the pinned x35_model) and its "
+    "per-request usage is journaled, but its pricing awaits Q158: not priced"
+)
+
+#: Parts of a v2.7 stage's usage this module does not price, with the reason. While
+#: such a part has calls, the stage's total stays ``None``, and
+#: :func:`g3o.run.presweep.config.refuse_v27_budget_settings` keeps refusing v2.7-stage
+#: budget figures while this is non-empty (PI rulings 1 a and 60 a, 2026-11-11).
+V27_UNPRICED_PARTS: dict[str, str] = {} if X35_PRICING_RULED else {"x35": X35_PRICING_PENDING}
+
+#: The ``usage`` keys an extractor response must carry to be priced per request
+#: (ruling 58 a: cache tokens included). ``None`` values count as 0, as the SDK
+#: reports them; a missing key is an old or partial record and is not guessed.
+EXTRACTOR_USAGE_KEYS: tuple[str, ...] = (
+    "input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens",
+)
+#: Reason given when some extractor responses carry no usable per-request usage.
+EXTRACTOR_USAGE_MISSING = (
+    "extractor response(s) without per-request usage (input, output and cache token "
+    "counts; e.g. a journal written before they were stored): not priced, not guessed "
+    "(ruling 58 a)"
+)
+#: Key of the marker :meth:`RequestJournal.extractor_usages` gives, in place of a
+#: usage, for a failed extractor result that reports no usage: its result type
+#: (``ExtractorResult.error["type"]``, e.g. ``"errored"``).
+EXTRACTOR_FAILED_RESULT_KEY = "failed_result_type"
+#: Key :meth:`RequestJournal.extractor_usages` adds (True) to the usage of a result a Message
+#: Batch returned (PI rulings 134 / 130 a): priced at the rate row's batch rates, not standard.
+EXTRACTOR_BATCH_KEY = "batch"
+#: Failed Message Batches result types priced at $0 when they report no usage (PI
+#: ruling 67 a). Verified: Anthropic does not bill errored or expired batch requests.
+EXTRACTOR_UNBILLED_FAILED_RESULTS: frozenset[str] = frozenset({"errored", "expired"})
+#: A canceled batch result reporting no usage is also priced at $0 (ruling 67 a), but
+#: counted on its own: that Anthropic does not bill canceled requests is NOT verified.
+EXTRACTOR_UNBILLED_CANCELED_RESULT = "canceled"
+
+
+def price_extractor_requests(
+    usages: list[dict[str, Any] | None], *, model: str,
+) -> dict[str, Any]:
+    """Price v2.7 extractor calls one request at a time (PI rulings 130 a, 58 a).
+
+    Each element is one journaled response's own ``usage``
+    (:meth:`RequestJournal.extractor_usages`). v2.7 extractor calls are made live (a
+    synchronous ``messages.create`` per job), so each is priced at STANDARD (non-batch)
+    Anthropic rates (PI ruling 130 a, which supersedes 57 a for live calls); the
+    long-prompt tier is applied per request, cache reads and writes included (58 a), by
+    :func:`g3o.common.pricing.anthropic_request_usd`. ``rates`` in the result names
+    that basis. A response without the :data:`EXTRACTOR_USAGE_KEYS` is counted in
+    ``unpriced_calls``; while any is, ``usd`` is ``None`` (never a partial sum).
+
+    Only journaled responses are priced. A call that was sent and died without a
+    response (e.g. a read timeout) is not journaled and so not priced (PI ruling
+    131.1 b: accepted). A torn last journal line (an interrupted write) is skipped on a
+    read-only load and dropped on repair, so at most one billed call can be missing
+    from any report (PI ruling 131.2 a: accepted).
+
+    A failed call that reports no usage comes as ``{EXTRACTOR_FAILED_RESULT_KEY: type}``
+    (PI ruling 67 a): an ``errored`` or ``expired`` result costs $0 and is counted in
+    ``unbilled_failed_calls`` (Anthropic does not bill these: verified); a ``canceled``
+    result costs $0 and is counted in ``unbilled_canceled_calls`` -- the premise that a
+    canceled request is not billed is NOT verified, hence the separate count. Any other
+    failed type without usage (e.g. ``unknown``), and a successful or rejected response
+    missing usage keys, stays unpriced (ruling 58 a: not guessed).
+    """
+    row = pricing_for(model)
+    rates = None if row is None else row.get("tiers", {}).get("up_to_threshold", row)
+    priceable_row = rates is not None and "standard_cache_write_5m_per_1m_usd" in rates
+    total = 0.0
+    unpriced = unbilled_failed = unbilled_canceled = 0
+    n_batch = n_standard = 0
+    tokens = dict.fromkeys(EXTRACTOR_USAGE_KEYS, 0)
+    for u in usages:
+        failed_type = u.get(EXTRACTOR_FAILED_RESULT_KEY) if isinstance(u, dict) else None
+        if failed_type in EXTRACTOR_UNBILLED_FAILED_RESULTS:
+            unbilled_failed += 1
+            continue
+        if failed_type == EXTRACTOR_UNBILLED_CANCELED_RESULT:
+            unbilled_canceled += 1
+            continue
+        if not isinstance(u, dict) or any(k not in u for k in EXTRACTOR_USAGE_KEYS):
+            unpriced += 1
+            continue
+        for k in EXTRACTOR_USAGE_KEYS:
+            tokens[k] += int(u.get(k) or 0)
+        batched = u.get(EXTRACTOR_BATCH_KEY) is True
+        n_batch, n_standard = n_batch + batched, n_standard + (not batched)
+        if priceable_row:
+            # PI ruling 130 a: live calls at standard rates, batched results (PI ruling 134,
+            # marked EXTRACTOR_BATCH_KEY) at the same row's batch rates.
+            total += anthropic_request_usd(u, row, batch=batched)
+    basis = "batch" if n_batch and not n_standard else "standard+batch" if n_batch else "standard"
+    out: dict[str, Any] = {
+        "model": model, "calls": len(usages), "unpriced_calls": unpriced,
+        "unbilled_failed_calls": unbilled_failed, "unbilled_canceled_calls": unbilled_canceled,
+        "rates": basis, "batch_calls": n_batch, **tokens,
+        "usd": _round_usd(total) if priceable_row and not unpriced else None,
+    }
+    if not priceable_row and usages:
+        out["reason"] = f"no Anthropic rate row for {model!r}"
+    elif unpriced:
+        out["reason"] = EXTRACTOR_USAGE_MISSING
+    return out
+
+
+#: Reason given when some X35 responses carry no usable per-request usage.
+X35_USAGE_MISSING = (
+    "X35 call(s) without per-request usage (a client that reports none, or a failed call "
+    "with no billed response): not priced, not guessed"
+)
+
+
+def price_x35_requests(usages: list[dict[str, Any] | None], *, model: str) -> dict[str, Any]:
+    """Price X35 calls one request at a time (PI ruling Q158 a).
+
+    Each element is one journaled X35 response's own ``usage``
+    (:meth:`RequestJournal.x35_usages`). X35 calls are live today (one synchronous
+    ``messages.create`` per question), so each is priced at the ``model`` rate row's
+    STANDARD rates with the long-prompt tier per request, by the same arithmetic as
+    :func:`price_extractor_requests`; a usage marked :data:`EXTRACTOR_BATCH_KEY` (none is
+    today: X35 is never batched) would be priced at that row's batch rates (Q158 a, the
+    130 a rule). A call without usage is counted in ``unpriced_calls`` and makes ``usd``
+    ``None``. A call that died with no response is not journaled, so neither priced nor
+    counted (PI ruling Q163 c, as the extractor under 131.1 b).
+    """
+    out = price_extractor_requests(usages, model=model)
+    if out.get("reason") == EXTRACTOR_USAGE_MISSING:
+        out["reason"] = X35_USAGE_MISSING
+    return out
+
+
+def price_v27_usage(
+    usage: dict[str, Any] | None,
+    *,
+    jev_model: str,
+    extractor_model: str | None = None,
+    extractor_usages: list[dict[str, Any] | None] | None = None,
+    x35_model: str | None = None,
+    x35_usages: list[dict[str, Any] | None] | None = None,
+) -> dict[str, Any] | None:
+    """Price one v2.7 stage's journal usage as far as the PI rulings allow.
+
+    ``usage`` is the stage's summed :meth:`RequestJournal.usage`. The jev part
+    (``input_tokens`` / ``output_tokens``; jev responses, unidentified and incomplete
+    ones included) is priced from ``jev_model``'s rate row at its standard rates (jev
+    is synchronous; RS-031 names jev-1.13.0). The extractor part is priced per request
+    from ``extractor_usages`` (:func:`price_extractor_requests`; rulings 130 a, 58 a:
+    live calls at standard rates, the long-prompt tier per request); given totals
+    only, it is unpriced. The X35 part is priced per request from ``x35_usages`` on
+    ``x35_model`` (:func:`price_x35_requests`; PI ruling Q158 a); given totals only it
+    stays unpriced, and it is unpriced outright if it is ever put back in
+    :data:`V27_UNPRICED_PARTS` (:data:`X35_PRICING_RULED` False).
+
+    The figures cover journaled calls only: a call sent that died without a response
+    (e.g. a read timeout) is neither journaled nor priced (PI ruling 131.1 b), and a
+    torn last journal line drops at most one billed call from the report (PI ruling
+    131.2 a); both accepted.
+
+    ``total_usd`` is a number only when every part with calls is priced: an
+    unpriced part with calls makes it ``None``, never a partial sum (review F2). A
+    part with no calls costs nothing and does not block the total. ``None`` in,
+    ``None`` out.
+    """
+    if usage is None:
+        return None
+
+    def n(key: str) -> int:
+        return int(usage.get(key) or 0)
+
+    row = pricing_for(jev_model)
+    jev_in, jev_out = n("input_tokens"), n("output_tokens")
+    jev_usd = (
+        None if row is None
+        else usd(jev_in, row["standard_input_per_1m_usd"])
+        + usd(jev_out, row["standard_output_per_1m_usd"])
+    )
+    jev_calls = n("jev_responses") + n("jev_unidentified") + n("jev_incomplete")
+    if extractor_usages is not None and extractor_model is not None:
+        extractor = price_extractor_requests(extractor_usages, model=extractor_model)
+    else:
+        extractor = {
+            "calls": n("extractor_calls"), "input_tokens": n("extractor_input_tokens"),
+            "output_tokens": n("extractor_output_tokens"), "usd": None,
+            "reason": "journal totals only: the extractor is priced per request (ruling 58 a)",
+        }
+    x35_calls = n("x35_calls") + n("x35_failed")
+    if "x35" in V27_UNPRICED_PARTS:  # only if X35_PRICING_RULED is False (ruled True: Q158 a)
+        x35: dict[str, Any] = {"calls": x35_calls, "usd": None, "reason": V27_UNPRICED_PARTS["x35"]}
+    elif x35_usages is not None and x35_model is not None:
+        # Its "calls" is len(x35_usages); that equals x35_calls (x35 + x35_failed entries) by
+        # construction: RequestJournal.x35_usages has one element per call usage() counts.
+        x35 = price_x35_requests(x35_usages, model=x35_model)
+    else:
+        x35 = {"calls": x35_calls, "usd": None,
+               "reason": "journal totals only: X35 is priced per request (PI ruling Q158 a)"}
+    parts: dict[str, dict[str, Any]] = {
+        "jev": {
+            "model": jev_model, "calls": jev_calls, "input_tokens": jev_in,
+            "output_tokens": jev_out, "usd": _round_usd(jev_usd),
+            **({} if row is not None else {"reason": f"no rate row for {jev_model!r}"}),
+        },
+        "extractor": extractor,
+        "x35": x35,
+    }
+    if n("quote_responses") and not (parts["extractor"]["calls"] or parts["x35"]["calls"]):
+        # A Stage 6 quote step without seams journals only its answers: its extractor
+        # and X35 calls happened but are not itemised, so they cannot be priced either.
+        parts["quote_step"] = {
+            "calls": n("quote_responses"), "usd": None,
+            "reason": "quote step without seams: its extractor and X35 calls are not itemised",
+        }
+    blocking = [
+        name for name, part in parts.items()
+        if part["usd"] is None and (part["calls"] or part.get("input_tokens") or part.get("output_tokens"))
+    ]
+    # Unrounded parts: jev from jev_usd, the extractor and X35 from their own (rounded) figures.
+    total = None if blocking else (
+        (jev_usd or 0.0) + (parts["extractor"]["usd"] or 0.0) + (parts["x35"]["usd"] or 0.0)
+    )
+    return {
+        "priced": not blocking,
+        "unpriced_parts": blocking,
+        "total_usd": _round_usd(total),
+        "parts": parts,
+    }
+
+
 __all__ = [
+    "EXTRACTOR_BATCH_KEY",
+    "EXTRACTOR_FAILED_RESULT_KEY",
+    "EXTRACTOR_UNBILLED_CANCELED_RESULT",
+    "EXTRACTOR_UNBILLED_FAILED_RESULTS",
+    "EXTRACTOR_USAGE_KEYS",
+    "V27_UNPRICED_PARTS",
+    "X35_PRICING_PENDING",
+    "X35_PRICING_RULED",
+    "X35_USAGE_MISSING",
     "BudgetExceededError",
     "CostMonitor",
     "ProjectedBudgetExceededError",
     "StageCost",
     "UnpricedModelError",
+    "price_extractor_requests",
+    "price_v27_usage",
+    "price_x35_requests",
 ]

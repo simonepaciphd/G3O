@@ -59,6 +59,7 @@ from g3o.run.presweep import (
     institution_record,
     stratified_sample,
 )
+from g3o.run.presweep.config import PIPELINE_V27
 from g3o.scrape.render import FetchMetadata, RenderedPage
 
 # Rough chars→tokens heuristic for cost estimation (English-ish text). Stated as
@@ -197,6 +198,65 @@ def _project_chunks(n_jobs: int, per_job_bytes: int) -> dict[str, Any]:
     }
 
 
+def _mark_v27_preview(preview: dict[str, Any]) -> None:
+    """Label a v2.7 run's cost preview as covering Stages 2/3 (+ metered APIs) only (PI ruling 1 a)."""
+    preview["v27_unpriced_stages"] = ["perpage_v27", "stage6_v27"]
+    preview["note"] += (
+        " pipeline_version='v2.7': Stages 2 and 3 and the metered APIs only. The "
+        "v2.7 per-page stage and v2.7 Stage 6 have no pricing yet and are not in "
+        "this figure, nor in the ceiling it is compared with (PI ruling 1 a)."
+    )
+
+
+def _extractor_mode_estimates(n: int, *, unlocker_on: bool, configured_mode: str | None,
+                              seeds_path: str | None = None) -> dict[str, Any]:
+    """Estimated cost and wall time of a v2.7 run per extractor mode (PI ruling 134).
+
+    Shown so the operator can choose a mode; never compared with the ceiling and never a
+    reason to stop (the cost gate above is unchanged, and v2.7 stages stay outside it,
+    ruling 1 a). Basis: the private seeds file of :mod:`g3o.common.run_projection`
+    (``seeds_path``, else ``$G3O_PROJECTION_SEEDS``; PI ruling Q177 a) scaled to this run's
+    ``n``; the Unlocker is zero when the run does not use it. No seeds file: the block says
+    the seeds are unavailable. The seed pages basis leaves the total withheld. For a
+    projection from a smoke run's own telemetry use ``scripts/project_run_cost.py``.
+    """
+    try:
+        from g3o.common import run_projection as rp
+
+        try:
+            seeds = rp.load_seeds(seeds_path)
+        except rp.SeedsUnavailable as exc:
+            return {"is_estimate": True, "seeds_available": False, "configured_mode": configured_mode,
+                    "note": f"seeds unavailable ({exc}); no per-mode estimate. Not a gate."}
+        per_inst = rp.seed_per_institution(seeds)
+        if not unlocker_on:
+            per_inst["unlocker_usd"] = 0.0
+        a = rp.ModeAssumptions.from_seeds(seeds)
+        rows = rp.project_all(per_inst, n, a)
+        return {
+            "is_estimate": True,
+            "seeds_available": True,
+            "configured_mode": configured_mode,
+            "default_mode": rp.MIX,
+            "basis": per_inst["basis"],
+            "pages_basis": per_inst["pages_basis"],
+            "rows": rows,
+            "table": rp.format_table(rows, n, rp.table_notes(per_inst, seeds, rows, a)),
+            "note": (
+                "Seeds only (prior-wave cost report; spike per-page legs, proxy questions), "
+                "not this run's telemetry. Pages basis: wave-4 v2.5 scrape-out; v2.7 followed "
+                "pages not included, so the total is withheld and the per-page parts are marked. "
+                "The Stage 6 quote step and X35 have no seed and are not projected; the Unlocker is at the "
+                "cost-report basis, which under-counts. Batch-mode wall time is a lower bound: "
+                "the batch round trip is unmeasured at wave scale (up to the API's 24 h) and "
+                "the throughput is v2.5's. queue_MB is a lower bound on the memory a batch "
+                "mode's first wave holds. Not a gate."
+            ),
+        }
+    except Exception as exc:  # noqa: BLE001 - an estimate never stops a preflight
+        return {"is_estimate": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
 def _unpriced_cost_preview(
     model: str,
     *,
@@ -327,6 +387,11 @@ def run_preflight(
     if n == 0:
         summary["error"] = "planned sample is empty; nothing to project"
         return summary
+    if config.pipeline_version == PIPELINE_V27:
+        summary["extractor_mode_estimates"] = _extractor_mode_estimates(
+            n, unlocker_on=services["brightdata_unlocker"]["active"],
+            configured_mode=getattr(config, "v27_extractor_mode", None),
+        )
 
     # --- 3. Model verification (opt-in).
     if verify_model_live:
@@ -376,10 +441,20 @@ def run_preflight(
 
     total_in_tokens = extract_in_tokens + other_in_tokens
     total_out_tokens = extract_out_tokens + other_out_tokens
+    # A v2.7 run (PI ruling 1 a, 2026-11-11) replaces Stages 5/6 with the v2.7
+    # per-page stage and v2.7 Stage 6, which have no pricing yet (RC-D-021
+    # cost_monitor hunks owed). Its projection, and the ceiling compared with it,
+    # cover Stages 2 and 3 plus the metered APIs: what its budget is enforced on.
+    v27 = config.pipeline_version == PIPELINE_V27
+    priced_stages = ("classify_official_site", "classify_triage") if v27 else tuple(stage_models)
+    if v27:
+        # Two of the three per-institution "other" stages; no Stage 5 volume.
+        total_in_tokens = other_in_tokens * 2 / 3
+        total_out_tokens = other_out_tokens * 2 / 3
     # Rates per stage, for the model each stage will actually submit (review F2,
     # 2026-08-24; per-stage since 2026-10-02). Pricing every stage at the
     # run-wide model priced the jev stages at OpenAI rates.
-    stage_pricing = {stage: pricing_for(model) for stage, model in stage_models.items()}
+    stage_pricing = {stage: pricing_for(stage_models[stage]) for stage in priced_stages}
     unpriced = [stage_models[s] for s, row in stage_pricing.items() if row is None]
     if unpriced:
         # PI ruling half 1: a ceiling cannot be enforced for a model we cannot
@@ -396,6 +471,8 @@ def run_preflight(
             total_out_tokens=total_out_tokens,
             output_tokens_per_job=a.output_tokens_per_job,
         )
+        if v27:
+            _mark_v27_preview(summary["cost_preview"])
         summary["cost_ceiling_usd"] = None
         return summary
 
@@ -409,6 +486,7 @@ def run_preflight(
         "extract": (extract_in_tokens, extract_out_tokens),
         "validate": other_per_stage,
     }
+    stage_tokens = {stage: stage_tokens[stage] for stage in priced_stages}
     stage_estimates: dict[str, float] = {}
     stage_in_usd: dict[str, float] = {}
     stage_out_usd: dict[str, float] = {}
@@ -417,11 +495,11 @@ def run_preflight(
         stage_in_usd[stage] = usd(tin, row["batch_input_per_1m_usd"])
         stage_out_usd[stage] = usd(tout, row["batch_output_per_1m_usd"])
         stage_estimates[stage] = stage_in_usd[stage] + stage_out_usd[stage]
-    openai_stages = [s for s, m in stage_models.items() if not m.startswith("jev-")]
+    openai_stages = [s for s in priced_stages if not stage_models[s].startswith("jev-")]
     input_usd = sum(stage_in_usd[s] for s in openai_stages)
     output_usd = sum(stage_out_usd[s] for s in openai_stages)
     openai_usd = input_usd + output_usd
-    typesafe_usd = sum(stage_estimates[s] for s in stage_models if s not in openai_stages)
+    typesafe_usd = sum(stage_estimates[s] for s in priced_stages if s not in openai_stages)
     llm_usd = openai_usd + typesafe_usd
 
     # Metered APIs (PI ruling 2026-10-02: one ceiling covers every paid API).
@@ -444,7 +522,10 @@ def run_preflight(
         # rate table, so any consumer mutating the summary would have mutated
         # the pricing registry for the rest of the process.
         # The run-wide model's row, as before; per-stage rows beside it.
-        "pricing": dict(pricing_for(config.model) or stage_pricing["extract"]),
+        "pricing": dict(
+            pricing_for(config.model) or stage_pricing.get("extract")
+            or stage_pricing["classify_official_site"]
+        ),
         "stage_pricing": {stage: dict(row) for stage, row in stage_pricing.items()},
         "stage_models": stage_models,
         "chars_per_token_assumption": _CHARS_PER_TOKEN,
@@ -486,6 +567,8 @@ def run_preflight(
             "spend; this projection only gates the start."
         ),
     }
+    if v27:
+        _mark_v27_preview(summary["cost_preview"])
     summary["cost_ceiling_usd"] = cost_ceiling_usd
     if cost_ceiling_usd is not None:
         over = total_usd > cost_ceiling_usd

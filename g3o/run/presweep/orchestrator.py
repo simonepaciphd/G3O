@@ -7,6 +7,8 @@ import gc
 import json
 import logging
 import sys
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -22,8 +24,17 @@ from g3o.common.paths import require_layout
 from g3o.common.run_state import state_dir
 from g3o.discovery.serper_client import SerperOptions, set_live_mode
 from g3o.report.run_summary import render_run_summary_text, write_run_summary
-from g3o.run.presweep.config import PresweepConfig
-from g3o.run.presweep.planning import plan_run, update_manifest_llm_provenance
+from g3o.run.presweep.config import (
+    PIPELINE_V27,
+    V27_PRICED_STAGES,
+    PresweepConfig,
+    refuse_v27_budget_settings,
+)
+from g3o.run.presweep.planning import (
+    plan_run,
+    record_run_pipeline,
+    update_manifest_llm_provenance,
+)
 from g3o.run.presweep.records import institution_record
 from g3o.run.presweep.stage_classify import (
     STAGE_2_FALLBACK,
@@ -264,11 +275,446 @@ def _record_and_track_stage_budget(
         budget_exceeded_stages.append(stage_name)
 
 
+# ---------------------------------------------------------------------------
+# v2.7 run mode (T-030): not production ready, off by default.
+#
+# Selected by ``config.pipeline_version == "v2.7"`` (which the config refuses
+# without ``v27_not_production_ready_opt_in=True``). After Stage 4 scrape the
+# v2.5 Stage 5 extract / Stage 6 validate are replaced by the sequence the v2.7
+# modules define: instrument binding (``bind_runtime``), the per-page stage
+# (``run_perpage_v27``, providers from ``build_perpage_providers``) and v2.7
+# Stage 6 (``run_stage6_v27``, quote step from ``BoundRuntime.stage6_quote_fn``),
+# which write the per-institution Stage 6 artifacts. Every provider call is
+# injected (:class:`V27Dispatch`); nothing here builds a client. A run given no
+# V27Dispatch gets one built from its config by ``v27_entry.build_v27_dispatch``
+# (PI ruling 132 a), whose clients are constructed lazily. The v2.7
+# modules are imported only on this path, so a v2.5 run imports nothing new.
+# ---------------------------------------------------------------------------
+
+#: Telemetry span names of the two v2.7 stages (the per-page one is
+#: ``stage_perpage_v27.STAGE``; Stage 6 is named apart from the v2.5 ``validate``).
+V27_PERPAGE_SPAN = "perpage_v27"
+V27_STAGE6_SPAN = "stage6_v27"
+
+
+@dataclass(frozen=True)
+class V27Dispatch:
+    """The injected inputs of a v2.7 run. Every field but ``perpage_inputs`` is required.
+
+    - ``settings``: the :class:`~g3o.run.presweep.instrument_binding.RuntimeSettings`
+      bound into the run's instrument (models, approval reference, ...).
+    - ``jev_ask_fn(state, questions) -> JevResult``: the jev call of the per-page
+      stage and of Stage 6.
+    - ``extract_fn(job) -> ExtractorResult``: the extractor call (T-022 pass 1,
+      T-032 pass 2, the Stage 6 quote step).
+    - ``entail_fn(question, text) -> Entailment``: the X35 call. Its only non-fake
+      entry, :func:`g3o.common.support_check.run_entailment`, still refuses, so it
+      is refused on entry, before any work (X35 is bound, PI ruling 139 a, but its
+      probability source and instrument wording await the PI; the real client,
+      ``v27_entry.LazyX35``, is returned only once those are ruled); any
+      other callable that refuses stops the stage at its first X35 check
+      (``SupportGateError``).
+    - ``perpage_inputs(run_dir, sample, scraped, bound, instrument)``: the
+      :class:`~g3o.run.presweep.stage_perpage_v27.PerPageInstitution` inputs for the
+      scraped pages. ``None`` (the default, PI ruling D1 a): built from the stored
+      scrape artifacts by
+      :func:`g3o.run.presweep.perpage_inputs_v27.default_perpage_inputs`, which
+      leaves ``None`` the values no producer supplies yet (the
+      T-015/T-022/T-024 row values). While those producers are missing
+      (``perpage_inputs_v27.MISSING_PRODUCERS``) a run on the default is refused at
+      entry (PI ruling 36 a). An injected callable wins (the D1 a seam, kept for
+      tests). Whichever builder is used, ``perpage_inputs_v27.require_complete``
+      refuses a ``None`` upstream value (``MissingUpstreamError``) before any paid
+      call (PI ruling 40 a); key coverage is still checked in the per-page stage.
+    - ``follow_fetch(url) -> stage_follow.FetchResult``: the T-025 follow leg's fetch
+      (:func:`g3o.run.presweep.stage_follow.polite_fetch` binds the existing scrape
+      path; tests pass fakes). Given, the per-page stage follows the searched pages'
+      links (:class:`g3o.run.presweep.follow_v27.FollowLeg`). Required with the
+      default builder (refused at entry otherwise); with an injected builder, None
+      follows nothing.
+    - ``extractor_mode`` (PI ruling 134): ``all_batch``, ``mix`` or ``no_batch``
+      (:mod:`g3o.run.presweep.perpage_batch_v27`), the per-page stage's use of the
+      Message Batches API. The production entry copies ``config.v27_extractor_mode``
+      (default ``mix``); an injected dispatch (a test seam) keeps the current live
+      path, ``no_batch``, unless it names a mode.
+    - ``batch_client``: ``submit_batch`` / ``batch_status`` / ``batch_results``
+      (``AnthropicExtractorClient``), required by a batched mode.
+    """
+
+    settings: Any
+    jev_ask_fn: Callable[..., Any]
+    extract_fn: Callable[..., Any]
+    entail_fn: Callable[..., Any]
+    perpage_inputs: Callable[..., Iterable[Any]] | None = None
+    follow_fetch: Callable[[str], Any] | None = None
+    extractor_mode: str = "no_batch"
+    batch_client: Any = None
+
+
+def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
+    """Refuse a v2.7 run whose injected calls or inputs are absent or unbindable, before any work.
+
+    Called on entry to ``run_presweep`` (before planning, so before any Stage 1-4
+    spend) and again on entry to :func:`run_v27_dispatch`. Beyond the presence
+    checks it refuses (T-030 QA4 M2):
+
+    - ``entail_fn`` being :func:`g3o.common.support_check.run_entailment`, which
+      refuses every real X35 call (``v27_entry.x35_entail_fn`` returns it only when the
+      X35 wording no longer matches the approved pin, Q160:
+      ``x35_client.X35_INSTRUCTION_APPROVED_SHA256``, or no probability source is set);
+    - every check that needs no run directory: the codebook SHA, matcher pin and
+      estimator checks of ``bind_runtime`` (through its non-writing half,
+      ``instrument_binding.check_runtime``), the P-1/P-2 prompt pins and the
+      extractor / X35 model checks of the per-page providers
+      (``perpage_providers_v27.check_binding``), and the Stage 6 quote step's
+      instruction pin and X35 model (``BoundRuntime.stage6_quote_fn``);
+    - a run on the default per-page builder (``perpage_inputs`` None) while
+      :data:`g3o.run.presweep.perpage_inputs_v27.MISSING_PRODUCERS` is non-empty
+      (PI ruling 36 a: the T-015/T-022/T-024 row values have no producer yet; the T-025
+      attempted pages have one since PI ruling 102 a, so the builder could only refuse after Stages 1-4 had
+      spent). The default builder passed explicitly (``default_perpage_inputs`` or
+      ``build_perpage_inputs``) is refused the same way; any other injected
+      ``perpage_inputs`` is not refused here.
+
+    Nothing here writes. Every later check still runs where it did.
+    """
+    if not isinstance(v27, V27Dispatch):
+        raise ValueError(
+            "pipeline_version='v2.7' needs the injected calls (V27Dispatch: jev_ask_fn, "
+            "extract_fn, entail_fn, settings); there is no default client"
+        )
+    missing = [name for name in ("jev_ask_fn", "extract_fn", "entail_fn")
+               if not callable(getattr(v27, name))]
+    if missing:
+        raise ValueError(f"v2.7 dispatch: {', '.join(missing)} must be supplied as callables; "
+                         "there is no default client")
+    if v27.perpage_inputs is not None and not callable(v27.perpage_inputs):
+        raise ValueError("v2.7 dispatch: perpage_inputs must be a callable, or None for the default "
+                         "builder (D1 a)")
+    if v27.follow_fetch is not None and not callable(v27.follow_fetch):
+        raise ValueError("v2.7 dispatch: follow_fetch must be a callable (stage_follow.polite_fetch or a fake), "
+                         "or None")
+    from g3o.run.presweep.perpage_batch_v27 import NO_BATCH, require_mode
+
+    require_mode(v27.extractor_mode)  # PI ruling 134
+    if v27.extractor_mode != NO_BATCH and not all(
+            callable(getattr(v27.batch_client, name, None)) for name in ("submit_batch", "batch_status",
+                                                                       "batch_results")):
+        raise ValueError(f"v2.7 dispatch: extractor_mode {v27.extractor_mode!r} needs a batch_client with "
+                         "submit_batch, batch_status and batch_results (PI ruling 134)")
+    from g3o.run.presweep.instrument_binding import RuntimeSettings
+
+    if not isinstance(v27.settings, RuntimeSettings):
+        raise ValueError("v2.7 dispatch: settings must be an explicit RuntimeSettings")
+    from g3o.common import support_check
+
+    # Kept: v27_entry.x35_entail_fn returns run_entailment (the refusing stub) only when the X35
+    # wording no longer matches its approved pin (Q160) or no probability source is set (Q159 a).
+    if v27.entail_fn is support_check.run_entailment:
+        raise ValueError(
+            "v2.7 dispatch: entail_fn is support_check.run_entailment, which refuses every real "
+            "X35 call: the X35 wording is not the approved one (Q160) or no probability source is "
+            "set (Q159 a), so the run is refused before any work"
+        )
+    from g3o.run.presweep.instrument_binding import check_runtime
+    from g3o.run.presweep.perpage_providers_v27 import check_binding
+
+    settings = v27.settings
+    bound, record = check_runtime(settings)
+    check_binding(bound, record, extractor_model=settings.extractor_model, x35_model=settings.x35_model)
+    bound.stage6_quote_fn(v27.extract_fn, v27.entail_fn, x35_model=settings.x35_model)
+    from g3o.run.presweep import perpage_inputs_v27 as pin
+
+    # the default builder, whether left as None or passed explicitly by name
+    if v27.perpage_inputs is None or v27.perpage_inputs in (pin.default_perpage_inputs, pin.build_perpage_inputs):
+        from g3o.persist.stage6_adapters import MissingUpstreamError
+
+        if pin.MISSING_PRODUCERS:  # ruling 36 a
+            raise MissingUpstreamError(
+                "the default v2.7 per-page builder (ruling 36 a: a v2.7 run on it is refused at "
+                "entry, before any Stage 1-4 spend, while these producers are missing)",
+                pin.MISSING_PRODUCERS,
+            )
+        if v27.follow_fetch is None:  # T-025: the default builder's searched pages are followed
+            raise MissingUpstreamError("the T-025 follow leg (V27Dispatch.follow_fetch) of the default v2.7 "
+                                       "per-page builder", ["follow_fetch"])
+    return v27
+
+
+#: Summary / cost-report key of the v2.7 stages' raw usage (T-030 QA4 M1).
+V27_USAGE_KEY = "v27_unpriced_usage"
+#: Cost-report key and value stating what a v2.7 run's budget covers (PI ruling 1 a).
+V27_BUDGET_SCOPE_KEY = "budget_scope"
+V27_BUDGET_SCOPE = "stages_1_4"
+#: Cost-report key of the v2.7 stages' priced parts (RC-D-021 cost_monitor hunks):
+#: ``{stage: price_v27_usage(...)}``. Outside ``total_usd`` and the budget (ruling 1 a).
+V27_COST_KEY = "v27_stage_cost"
+
+
+def _v27_journal_usage(run_dir: Path) -> dict[str, dict[str, Any]]:
+    """The v2.7 stages' usage read from the request journals on disk (RC-D-021: the cost
+    of a v2.7 run, an interrupted one included).
+
+    Per stage: ``totals`` (the summed :meth:`RequestJournal.usage`), ``usages`` (each
+    extractor response's own ``usage``, :meth:`RequestJournal.extractor_usages`, priced
+    per request; ruling 58 a), ``x35_usages`` (each X35 call's own ``usage``,
+    :meth:`RequestJournal.x35_usages`; priced per request, PI ruling Q158 a) and ``failed``
+    (journals that could not be read, with the error). Covers every journaled call of every
+    institution, this and earlier sessions.
+    A stage with no journal file on disk is left out.
+
+    Journals are opened read-only: a torn final record is skipped, never repaired, and
+    nothing is written (the next run's own load repairs it). One unreadable journal (a
+    corrupt middle line) is recorded in ``failed`` and does not stop the others.
+    """
+    from g3o.common.paths import iter_institution_dirs
+    from g3o.run.presweep import stage_perpage_v27 as spv
+    from g3o.run.presweep import stage_validate_v27 as svv
+
+    out: dict[str, dict[str, Any]] = {}
+    for span, work_dir, journal_name in ((V27_PERPAGE_SPAN, spv.WORK_DIR, spv.JOURNAL),
+                                         (V27_STAGE6_SPAN, svv.WORK_DIR, svv.JOURNAL)):
+        totals: dict[str, int] = {}
+        usages: list[dict[str, Any] | None] = []
+        x35_usages: list[dict[str, Any] | None] = []
+        failed: list[dict[str, str]] = []
+        n_inst = 0
+        for inst_dir in iter_institution_dirs(run_dir):
+            path = inst_dir / work_dir / journal_name
+            if not path.is_file():
+                continue
+            try:
+                journal = svv.RequestJournal(path, read_only=True)
+                inst_totals = journal.usage()
+                inst_usages = journal.extractor_usages()
+                inst_x35 = journal.x35_usages()
+            except Exception as exc:  # recorded: this stage's figure is then unpriced
+                rel = path.relative_to(run_dir).as_posix()
+                # run-relative in the report: the absolute local path is left out
+                failed.append({"journal": rel, "error": f"{type(exc).__name__}: {exc}".replace(str(path), rel)})
+                continue
+            n_inst += 1
+            for key, value in inst_totals.items():
+                totals[key] = totals.get(key, 0) + int(value)
+            usages.extend(inst_usages)
+            x35_usages.extend(inst_x35)
+        if n_inst or failed:
+            out[span] = {"totals": {"n_institutions": n_inst, **dict(sorted(totals.items()))},
+                         "usages": usages, "x35_usages": x35_usages, "failed": failed}
+    return out
+
+
+def _v27_cost_block(run_dir: Path, summary: dict[str, Any], jev_model: str,
+                    extractor_model: str, x35_model: str | None = None) -> dict[str, Any]:
+    """The cost report's :data:`V27_COST_KEY` block.
+
+    Each stage is priced from its journals on disk (every journaled call of the run,
+    earlier sessions included; the extractor per request, rulings 130 a / 58 a). A stage
+    that never journaled a call is absent.
+
+    ``returned_this_session`` is True when the stage returned its usage to this
+    session's summary (it finished in this session). False means this session did not
+    finish it: it stopped mid-stage, or this session never reached it (e.g. a resumed
+    run that stopped before the v2.7 stages, whose journals come from an earlier
+    session). It does not say that the stage is incomplete.
+
+    A journal that could not be read is listed under ``unreadable_journals``; its calls
+    are unknown, so the stage is unpriced (``"journals"`` in ``unpriced_parts``,
+    ``total_usd`` None), not guessed.
+    """
+    from g3o.common.cost_monitor import price_v27_usage
+
+    returned = summary.get(V27_USAGE_KEY) or {}
+    block: dict[str, Any] = {}
+    for span, read in _v27_journal_usage(run_dir).items():
+        priced = price_v27_usage(read["totals"], jev_model=jev_model, extractor_model=extractor_model,
+                                 extractor_usages=read["usages"], x35_model=x35_model,
+                                 x35_usages=read["x35_usages"])
+        entry = {"source": "journals_on_disk", "returned_this_session": span in returned,
+                 "usage": read["totals"], **priced}
+        if read["failed"]:
+            entry.update(unreadable_journals=read["failed"], priced=False, total_usd=None,
+                         unpriced_parts=[*priced["unpriced_parts"], "journals"])
+        block[span] = entry
+    return block
+
+
+def _usage_totals(metrics: Any) -> dict[str, int]:
+    """One v2.7 stage's raw usage: its per-institution journal totals summed, no prices.
+
+    Each institution's totals are its request journal's (``RequestJournal.usage``:
+    jev and extractor tokens, call counts, X35 calls, summed call time), and so
+    include the calls an earlier, interrupted session journaled for it. An
+    institution this invocation skipped (committed Stage 6 artifacts) has none.
+    """
+    totals: dict[str, int] = {}
+    for per_inst in metrics.usage.values():
+        for key, value in per_inst.items():
+            totals[key] = totals.get(key, 0) + int(value)
+    batched = getattr(metrics, "batched_requests", 0)  # PI ruling 134: per-page stage only; left out when 0
+    return {"n_institutions": len(metrics.usage), "live_requests": metrics.live_requests,
+            **({"batched_requests": batched} if batched else {}),
+            "replayed_requests": metrics.replayed_requests, **dict(sorted(totals.items()))}
+
+
+class V27InputsChanged(RuntimeError):
+    """The per-page inputs' run pass saw other pages than the ``require_complete`` pass saw.
+
+    A re-iterable ``perpage_inputs`` output must give the same institutions and pages on
+    each pass (ruling 40 a checks the first pass only); one that empties or changes on the
+    second pass is a wiring error and stops the dispatch before Stage 6.
+    """
+
+
+def _same_pages(institutions: Iterable[Any], expected: Sequence[tuple[str, str]]) -> Iterator[Any]:
+    """Yield ``institutions`` (the run pass), raising :class:`V27InputsChanged` as soon as its
+    ordered ``(institution_id, page_id)`` list departs from ``expected`` (the ``require_complete``
+    pass's, in order): more pages, or other pages or another order; at the end when it falls short."""
+    seen = 0
+    for inst in institutions:
+        got = [(inst.institution_id, spec.page.page_id) for spec in inst.pages]
+        if seen + len(got) > len(expected):
+            raise V27InputsChanged(f"v2.7 per-page inputs: the run pass yielded more than the {len(expected)} "
+                                   "page(s) require_complete counted (the builder's output changed between passes)")
+        if got != list(expected[seen:seen + len(got)]):
+            raise V27InputsChanged(f"v2.7 per-page inputs: the run pass yielded {got} where require_complete saw "
+                                   f"{list(expected[seen:seen + len(got)])} (the builder's output changed between "
+                                   "passes)")
+        seen += len(got)
+        yield inst
+    if seen != len(expected):
+        raise V27InputsChanged(f"v2.7 per-page inputs: the run pass yielded {seen} page(s), require_complete "
+                               f"counted {len(expected)} (a re-iterable that empties or changes on the second "
+                               "pass)")
+
+
+def run_v27_dispatch(
+    run_dir: Path,
+    sample: list[dict[str, Any]],
+    scraped: Any,
+    v27: V27Dispatch,
+    *,
+    telemetry: RunTelemetry | None = None,
+    into: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Bind the instrument, run the v2.7 per-page stage and v2.7 Stage 6.
+
+    Returns the summary counts, written into ``into`` when given (as each stage
+    finishes, so a Stage 6 stop keeps the per-page figures). Stage stops of either
+    stage (``SupportGateError``, ``MissingUpstreamError`` in the per-page stage
+    and in the Stage 6 executor, ``JevAccountError``, ...) propagate unchanged.
+    Within-stage budget checks are not wired here (no ``cost_check_callback``; PI ruling
+    Q164 a keeps it so although the cost monitor now prices every part of a v2.7 stage:
+    jev, the extractor and X35, Q158 a), so a v2.7 run's ``budget_usd``
+    covers Stages 1-4 only (PI ruling 1 a, 2026-11-11) and the config refuses
+    preflight estimates for any other stage. The priced parts are reported under
+    :data:`V27_COST_KEY` in the cost report, outside ``total_usd``.
+    The two stages' raw token and call counts go under :data:`V27_USAGE_KEY`
+    (``{"perpage_v27": ..., "stage6_v27": ...}``), unpriced; a stage that stops
+    records none there (its journals on disk keep them).
+    """
+    v27 = _require_v27_dispatch(v27)
+    from g3o.common.instrument import load_instrument
+    from g3o.run.presweep.instrument_binding import bind_runtime
+    from g3o.run.presweep.perpage_providers_v27 import build_perpage_providers
+    from g3o.run.presweep.stage_perpage_v27 import run_perpage_v27
+    from g3o.run.presweep.stage_validate_v27 import run_stage6_v27
+
+    tel = telemetry if telemetry is not None else NO_TELEMETRY
+    settings = v27.settings
+    bound = bind_runtime(run_dir, settings)
+    instrument = load_instrument(run_dir / "final" / "instruments", bound.instrument_id)
+    from g3o.run.presweep.perpage_batch_v27 import (
+        NO_BATCH,
+        BatchExtractor,
+        has_batch_journal,
+        run_waves,
+    )
+
+    # PI ruling 134: in a batched mode (or with batches left by an earlier session) the per-page
+    # extractor calls go through the batch journal; Stage 6 keeps the live extract_fn
+    batch = (BatchExtractor(run_dir, v27.extract_fn, v27.batch_client, v27.extractor_mode)
+             if v27.extractor_mode != NO_BATCH or has_batch_journal(run_dir) else None)
+    providers = build_perpage_providers(
+        bound, instrument, run_dir,
+        extract_fn=v27.extract_fn if batch is None else batch, entail_fn=v27.entail_fn,
+        extractor_model=settings.extractor_model, x35_model=settings.x35_model,
+    )
+    # Only once the providers are built (QA4 M2 c): a run refused above leaves no 2.7
+    # run_pipeline block (nor storage_contract) in its manifest.
+    record_run_pipeline(run_dir, pipeline_version=PIPELINE_V27, instrument_id=bound.instrument_id)
+    build_inputs = v27.perpage_inputs
+    if build_inputs is None:  # D1 a: the default builder over the stored scrape artifacts
+        from g3o.run.presweep.perpage_inputs_v27 import default_perpage_inputs
+
+        build_inputs = default_perpage_inputs
+    # Not materialised: the default builder's PerPageInputs is lazy and re-iterable (one
+    # institution's page text live at a time, as ScrapedPages intends). Only a one-shot
+    # iterator, which cannot be walked twice, is held as a list.
+    institutions = build_inputs(run_dir, sample, scraped, bound, instrument)
+    if isinstance(institutions, Iterator):
+        institutions = list(institutions)
+    # Ruling 40 a: whichever builder ran, refuse a missing upstream value before any paid call
+    # (a first pass that keeps no page text; it also counts the pages).
+    from g3o.run.presweep.perpage_inputs_v27 import require_complete
+
+    page_keys: list[tuple[str, str]] = []
+    n_pages = require_complete(institutions, page_keys)
+    out: dict[str, Any] = into if into is not None else {}
+    out.update({"pipeline_version": PIPELINE_V27, "instrument_id": bound.instrument_id})
+    usage: dict[str, dict[str, int]] = {}
+
+    follow = None
+    if v27.follow_fetch is not None:  # T-025 (RC-D-023 C-1 a): followed inside the per-page stage
+        from g3o.run.presweep.follow_v27 import FollowLeg
+
+        follow = FollowLeg(v27.follow_fetch)
+    span = tel.stage_start(V27_PERPAGE_SPAN, counts_in=n_pages)
+    # PI ruling 134: waves until no batched request is queued (one pass when batch is None)
+    waves: list[Any] = []
+
+    def _wave() -> Any:
+        result = run_perpage_v27(
+            run_dir, _same_pages(institutions, page_keys), ask_fn=v27.jev_ask_fn, providers=providers,
+            page_config=bound.page_config, activity_config=bound.activity_config,
+            instrument=instrument, follow=follow,
+        )
+        waves.append(result[1])
+        return result
+
+    ready, pm = run_waves(batch, _wave)
+    # Each wave makes its own calls: live and batched counts are summed over the waves (review M-a). A
+    # later wave replays what an earlier one asked, so ``replayed_requests`` stays the last wave's.
+    pm.live_requests = sum(w.live_requests for w in waves)
+    pm.batched_requests = sum(w.batched_requests for w in waves)
+    out["n_perpage_ready"] = len(pm.ready)
+    out["n_perpage_held"] = len(pm.held)
+    out["n_perpage_failed_pages"] = len(pm.failed_pages)
+    usage[V27_PERPAGE_SPAN] = _usage_totals(pm)
+    out[V27_USAGE_KEY] = usage
+    tel.stage_end(span, counts_out=len(ready))
+
+    quote_fn = bound.stage6_quote_fn(v27.extract_fn, v27.entail_fn, x35_model=settings.x35_model)
+    span = tel.stage_start(V27_STAGE6_SPAN, counts_in=len(ready))
+    s6m = run_stage6_v27(
+        run_dir, ready, ask_fn=v27.jev_ask_fn, quote_fn=quote_fn,
+        config=bound.stage6_config(), instrument=instrument,
+    )
+    out["n_stage6_written"] = len(s6m.written)
+    out["n_stage6_held"] = len(s6m.held)
+    out["n_stage6_failed"] = len(s6m.failed)
+    out["n_stage6_skipped"] = len(s6m.skipped)
+    usage[V27_STAGE6_SPAN] = _usage_totals(s6m)
+    tel.stage_end(span, counts_out=len(s6m.written))
+    return out
+
+
 def run_presweep(
     config: PresweepConfig,
     *,
     credentials: Credentials | None = None,
     telemetry: RunTelemetry | None = None,
+    v27: V27Dispatch | None = None,
 ) -> dict[str, Any]:
     """End-to-end pre-sweep runner.
 
@@ -295,8 +741,41 @@ def run_presweep(
     runs in one process can spend two different keys. Resolution happens for a
     dry run too (it costs nothing and records nothing), which is what lets PR C
     write the manifest's credential fingerprints on every run, not just live ones.
+
+    Run mode (T-030): ``config.pipeline_version="v2.7"`` (not production ready,
+    opt-in) replaces Stages 5/6 with :func:`run_v27_dispatch`. Without an
+    injected ``v27`` the real providers are built from ``config.v27_runtime`` and
+    the resolved credentials (:func:`g3o.run.presweep.v27_entry.build_v27_dispatch`,
+    PI ruling 132 a); an unset ``v27_runtime`` or a missing jev / extractor key is
+    refused here. Either way :func:`_require_v27_dispatch` then runs its entry
+    refusals (the refusing X35 entry, returned only for a wording off its Q160 pin or an unset
+    probability source; the default per-page builder
+    while producers are missing, ruling 36 a; the binding checks), all before any
+    planning or spend. An injected ``v27`` whose settings differ from a set
+    ``config.v27_runtime`` is refused. ``v27`` is refused on a v2.5 run.
     """
+    # Resolved before the v2.7 entry, which builds its clients' keys from it (nothing is recorded).
     resolved = resolve(credentials)
+    if config.pipeline_version == PIPELINE_V27:
+        refuse_v27_budget_settings(config)
+        from g3o.run.presweep import v27_entry
+
+        if v27 is None:  # PI ruling 132 a: the real providers, built from config
+            v27 = v27_entry.build_v27_dispatch(config, resolved)
+        elif config.v27_runtime is not None and v27_entry.runtime_settings(config) != getattr(v27, "settings", None):
+            raise ValueError("v2.7 dispatch: the injected settings differ from config.v27_runtime, which the "
+                             "manifest records; the run is refused before any work")
+        v27 = _require_v27_dispatch(v27)
+        if config.budget_usd is not None:
+            logger.warning(
+                "pipeline_version='v2.7': budget_usd $%.4f is enforced on Stages 1-4 only; "
+                "the v2.7 per-page stage and v2.7 Stage 6 stay outside it (rulings 60 a, Q164 a: "
+                "no within-stage check): their usage and priced parts are reported under %s and %s, "
+                "outside total_usd", config.budget_usd, V27_USAGE_KEY, V27_COST_KEY,
+            )
+    elif v27 is not None:
+        raise ValueError("v27 dispatch inputs were supplied but pipeline_version is "
+                         f"{config.pipeline_version!r}")
     tel = telemetry if telemetry is not None else NO_TELEMETRY
     if not config.dry_run:
         _assert_live_keys(config, resolved)
@@ -344,14 +823,22 @@ def run_presweep(
     # Per-stage model overrides (review 2026-09-23: jev integration): each
     # stage's tokens are priced off its own model's rate row, not the run-wide
     # default. Stages not in the map fall back to ``config.model``.
+    # A v2.7 run (PI ruling 1 a) prices only the Stage 2/3 LLM stages it runs:
+    # its run-wide ``model`` is only the fallback of the v2.5 extract/validate
+    # stages it does not run, so it must not decide whether its budget is
+    # priceable (independent review of 1 a, MEDIUM). Its fallback rate row is
+    # the Stage 2 model's, as in the v2.7 preflight.
+    v27_run = config.pipeline_version == PIPELINE_V27
     stage_models = {
         stage: config.model_for_stage(stage)
         for stage in (
-            "classify_official_site",
-            STAGE_2_FALLBACK,
-            "classify_triage",
-            "extract",
-            "validate",
+            V27_PRICED_STAGES if v27_run else (
+                "classify_official_site",
+                STAGE_2_FALLBACK,
+                "classify_triage",
+                "extract",
+                "validate",
+            )
         )
     }
     monitor = CostMonitor(
@@ -359,7 +846,7 @@ def run_presweep(
         # The model this run submits selects its own rate row (review F2). Without
         # it the monitor priced every model as gpt-5-nano, so the budget it was
         # enforcing was not the budget of the run it was watching.
-        model=config.model,
+        model=config.model_for_stage("classify_official_site") if v27_run else config.model,
         preflight_stage_estimates=config.preflight_stage_estimates,
         stage_models=stage_models,
     )
@@ -785,6 +1272,14 @@ def run_presweep(
         if config.stop_after == "scrape":
             return _finish("stop_after")
 
+        if config.pipeline_version == PIPELINE_V27:
+            # v2.7 (T-030): instead of Stage 5 extract / Stage 6 validate. The
+            # config admits only stop_after="validate" here.
+            _return_freed_memory()
+            assert v27 is not None  # checked on entry
+            run_v27_dispatch(plan.run_dir, plan.sample, scraped, v27, telemetry=tel, into=summary)
+            return _finish()
+
         # Stage 4's fetched HTML is freed by now, but it sat on the glibc heap of
         # twelve worker threads; trim before Stage 5 loads its capped page texts
         # (~0.74 GB at 50k, #128) so they are not stacked on top of it.
@@ -913,6 +1408,25 @@ def run_presweep(
             # and budget_exceeded_stages will contain all stages up to and including
             # the abort stage.
             cost_report["budget_exceeded_stages"] = budget_exceeded_stages
+            if config.pipeline_version == PIPELINE_V27:
+                # T-030 QA4 M1: the v2.7 stages' raw token/call counts, unpriced.
+                # They are NOT in total_usd / llm_total_usd (no v2.7 stage
+                # pricing yet); None when no v2.7 stage finished.
+                cost_report[V27_USAGE_KEY] = summary.get(V27_USAGE_KEY)
+                # PI ruling 1 a: budget_usd, budget_exceeded and total_usd cover
+                # Stages 1-4 only on a v2.7 run.
+                cost_report[V27_BUDGET_SCOPE_KEY] = V27_BUDGET_SCOPE
+                # RC-D-021 cost_monitor hunks: the priced parts of each v2.7 stage, read
+                # read-only from its journals (an unreadable journal is listed per stage);
+                # outside total_usd. The catch below is a last-resort backstop only.
+                if v27 is not None:
+                    try:
+                        cost_report[V27_COST_KEY] = _v27_cost_block(
+                            plan.run_dir, summary, v27.settings.jev_model,
+                            v27.settings.extractor_model, v27.settings.x35_model)
+                    except Exception:
+                        logger.exception("v2.7 stage pricing failed for %s (non-fatal)", plan.run_dir)
+                        cost_report[V27_COST_KEY] = None
             # Include preflight vs actual comparison if preflight was run
             if config.preflight_estimate_usd is not None and cost_report["total_usd"] is not None:
                 actual_usd = cost_report["total_usd"]

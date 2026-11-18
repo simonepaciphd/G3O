@@ -1,7 +1,7 @@
 {
   "format": "g3o-d007-field-map-v1",
   "state": "PI_APPROVED_LOCAL_IMPLEMENTATION",
-  "codebook_sha256": "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527",
+  "codebook_sha256": "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a",
   "rows": [
     {
       "item_id": "core.page_verdict",
@@ -1759,7 +1759,7 @@
       ],
       "answer_type": "text",
       "visibility": "public",
-      "coder": "derived",
+      "coder": "quote_step",
       "storage_targets": [
         "activities"
       ],
@@ -2717,7 +2717,11 @@
       ],
       "column_or_member": "stage_as_of_basis",
       "storage_type": "text",
-      "value_codes_or_shape": "none",
+      "value_codes_or_shape": [
+        "publication",
+        "stated",
+        "access"
+      ],
       "missing_tokens": [
         "not_asked",
         "not_documented",
@@ -2735,7 +2739,7 @@
       ],
       "answer_type": "yes_no",
       "visibility": "public",
-      "coder": "derived",
+      "coder": "classifier",
       "storage_targets": [
         "activities"
       ],

@@ -38,6 +38,7 @@ from g3o.common.contract import (
     BatchResponse,
     ConsolidatedInstitutionResponse,
     ContractRow,
+    refuse_support_status,
 )
 from g3o.common.credentials import ResolvedCredentials
 from g3o.common.paths import institution_dir, require_layout
@@ -303,7 +304,11 @@ def write_consolidated_output(
     institution_id: str,
     response: ConsolidatedInstitutionResponse,
 ) -> Path:
-    """Persist ``runs/<run_id>/<inst>/6_validate.json``."""
+    """Persist ``runs/<run_id>/<inst>/6_validate.json``.
+
+    Refuses a response with any ``SourceRecord.support_status`` set (RC-D-029 O1 b, Q2).
+    """
+    refuse_support_status(response)
     inst_dir = institution_dir(run_dir, institution_id)
     inst_dir.mkdir(parents=True, exist_ok=True)
     out_path = inst_dir / "6_validate.json"

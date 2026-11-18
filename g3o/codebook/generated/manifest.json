@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.manifest",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527",
+  "codebook_sha256": "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a",
   "build_scope": [
     "core"
   ],
@@ -183,7 +183,7 @@
     },
     {
       "item_id": "core.source_credibility",
-      "item_hash": "787c52481878e073a52393208c9c9b56aa66be14783486d1bc95367b043e8978",
+      "item_hash": "c912c76f4ecb296c07dde7ed38e2e81a3512c1cda34dfc1f36315af16e8b1ffa",
       "frozen_signature": "none",
       "in_build_scope": true
     },
@@ -225,7 +225,7 @@
     },
     {
       "item_id": "core.adoption_stage",
-      "item_hash": "3c9a80bba2641f0192a3812d0281bb44469e5efffe698f13b8f7117dc6939c6f",
+      "item_hash": "4aa4962b9e5b24a8ae88c84a0603d337d835b5e894cda596ef242a4c7b97e4e6",
       "frozen_signature": "none",
       "in_build_scope": true
     },
@@ -315,19 +315,19 @@
     },
     {
       "item_id": "core.contracting_party",
-      "item_hash": "73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24",
+      "item_hash": "fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.developer",
-      "item_hash": "f9bf2b0188ea76b1cb9f68dd866d8a8022fd75dc530d7caed4b2a3227a393ccc",
+      "item_hash": "3b7fa3c4814ac318a061237a2bc87bf7d614afa9645d570dcb127a0869dac61d",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.developer_basis",
-      "item_hash": "b4da76c1b35bd2d108e8093c659e5917175046ffd66917ba2decf4d770a1a291",
+      "item_hash": "d76e4097f154eab1ca16fc863f2dc1a11e713a074ae41ac5324b315ebc3d7194",
       "frozen_signature": "none",
       "in_build_scope": true
     },
@@ -501,19 +501,19 @@
     },
     {
       "item_id": "core.stage_as_of_basis",
-      "item_hash": "d7088292a75ed257e9cc7e2ece470d33cdc3aaa19003815ed77979b23788b0a2",
+      "item_hash": "c40ce46095c40201d4c252d58c6eaa6fa915a8ae19e1a4fe3abe01f314c3c953",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.permanent_pilot",
-      "item_hash": "300a332733fec4ee2d42e5288bc95dc722d2cc159d9ffcae19e7c98b26ec5452",
+      "item_hash": "152bbabb24b057f88773d735097cc0341ee6e95603be4597682f789458beedb2",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.vendor_claim_only",
-      "item_hash": "9dda40ba9ac691c619a8447340735430e6a657f4b40f3a80650f1801830249f7",
+      "item_hash": "8d2d3e7b7d9864d230056eeab9d9c44d5cf51f4633e7aa5f1ebb7e571c372553",
       "frozen_signature": "none",
       "in_build_scope": true
     },
@@ -585,7 +585,7 @@
     },
     {
       "item_id": "core.confidence",
-      "item_hash": "be718eed17df646c03fff6a7f335f7ea2b267c926236030d9bf91cb932dbd698",
+      "item_hash": "e7c3cc4a6ef4f3d0aa4ab7e63a6e700f56f971175415070e02d4fcb3c9e8707b",
       "frozen_signature": "none",
       "in_build_scope": true
     },
@@ -731,42 +731,42 @@
   "generated_files": [
     {
       "path": "g3o/codebook/generated/jev_questions.json",
-      "sha256": "f403f35cc19658d9013e7d32a6a4bb2eb2d3fb99462c4854ea4075020a5c8b1d",
+      "sha256": "d906570500362256e50a35aa47c7ebf842a1e02506fa50e1f7bbb44b1582c952",
       "intended_target": "T-011 jev question and choice sets (path chosen by T-011)"
     },
     {
       "path": "g3o/codebook/generated/extractor_prompt_sections.md",
-      "sha256": "cb0fbcab8cd5514d2869db905af12a5a94bace6d7460a512e33726fe36bb6da4",
+      "sha256": "8974fb6ac742b152d21c43cd09e4cec00ce36431f52b70344e29b7ba14d95bf5",
       "intended_target": "T-022 / T-032 extractor prompt sections (path chosen there)"
     },
     {
       "path": "g3o/codebook/generated/enums.py",
-      "sha256": "c21cb19474df83af59095c978daee49ddcfe8f6a5414b5965bd90fff2d4a5505",
+      "sha256": "d72620797dcd9aaa50591405ccf17a39decd60a0ee7d78ca21b8a6d8728018d6",
       "intended_target": "T-012 enum constants (g3o/common/contract.py or a module T-012 names)"
     },
     {
       "path": "g3o/codebook/generated/item_schemas.json",
-      "sha256": "2cdb56cb9d996548cf976969c03bebbc7ca6b6142632b024a4f0c4166dfc0a15",
+      "sha256": "af92ab3c78a5cc75849094e58bb0b418936bbf863269f938667d28f2235ec12d",
       "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)"
     },
     {
       "path": "g3o/codebook/generated/data_dictionary.md",
-      "sha256": "d777d241e96f56f7be6fba33e8dbd49548b21b24de0909f9b439c79e1f439215",
+      "sha256": "0fef670007771baacc40699cfd4c3f1a0937a2363aeefcfaa0920dfd7b534cee",
       "intended_target": "T-090 data dictionary (docs/data_dictionary.md)"
     },
     {
       "path": "g3o/codebook/generated/extract_output_contract.md",
-      "sha256": "d2edfc640e277dfe6097a7ce50de37c869b616fb89496c1a30126879d747aa80",
+      "sha256": "ab4f70cab31711b3a1e3da343862c8ac596d02d7886f6525646c7dae525b0225",
       "intended_target": "T-010 g3o/extract/prompts/output_contract.md"
     },
     {
       "path": "g3o/codebook/generated/validate_output_contract.md",
-      "sha256": "5f841cf8d9293a288c3c26d68d74904e547bafb7de497a207eb92f3967b2168d",
+      "sha256": "6658dd5c390f31137bf2da0ae3a8467332d47f06335398c3a35287885085715c",
       "intended_target": "T-010 g3o/validate/prompts/output_contract.md"
     },
     {
       "path": "g3o/codebook/generated/system_prompt.md",
-      "sha256": "61a537a1abe852b4449c4c028e82fb14668bc79314deb480b1570bb9a5537e03",
+      "sha256": "06d0d15eea2f98cc0e1024450b13571560030fee4c9a3f7406faf56112a1e7d0",
       "intended_target": "T-022 / T-032 g3o/extract/prompts/system_prompt.md (and the Stage 6 prompts)"
     }
   ],

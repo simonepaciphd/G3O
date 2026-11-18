@@ -21,6 +21,7 @@ import hashlib
 import json
 import math
 import re
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, fields
 from typing import Any
 
@@ -307,12 +308,18 @@ class CoderRecord:
     def from_json(cls, text: str) -> CoderRecord:
         return cls.from_dict(json.loads(text, object_pairs_hook=_object))
 
-    def storage_projection(self, *, support: dict[str, Any], instrument: dict[str, Any]) -> dict[str, Any]:
+    def storage_projection(self, *, support: dict[str, Any], instrument: dict[str, Any],
+                           linked_supports: Sequence[dict[str, Any]] = ()) -> dict[str, Any]:
         """Project ORIGINAL-code provenance into unchanged Q2a CoderRecord.
 
         Requires an actual matching support and the immutable instrument record.
         The return is not a substitute for this complete record's JSON. Do not
         manufacture original-code support to use this adapter after a downgrade.
+
+        A mechanical record may instead back the linked FINAL node of a
+        downgrade (RC-D-025 P6): ``support`` is that node and ``linked_supports``
+        holds every ORIGINAL support its ``input_support_ids`` name (same item,
+        part and context, same ``downgraded_*`` status, the original code).
         """
         from g3o.common.instrument import validate_instrument
 
@@ -323,7 +330,8 @@ class CoderRecord:
         if (payload["codebook_release"] == "2.7" and self.coder_type == "classifier"
                 and self.classifier_rule is None):
             raise ValueError("release 2.7 classifier projection requires the signed item/part downgrade rule")
-        if self.question_set_version != payload["question_set_version"]:
+        if (self.question_set_version != payload["question_set_version"]
+                and not residual_version_bound(self.item_id, self.question_set_version, payload)):
             raise ValueError("question-set version differs from the instrument")
         if self.classifier_rule is not None and self.classifier_rule.codebook_sha256 != payload["codebook_sha256"]:
             raise ValueError("signed downgrade rule differs from the instrument codebook")
@@ -332,7 +340,9 @@ class CoderRecord:
                     "chunk_id": self.chunk_id, "value_json": self.chosen_value}
         if self.support_id is None or any(support.get(k) != v for k, v in expected.items()):
             raise ValueError("existing support must match the original code and context")
-        if self.coder_type in {"mechanical", "derived"}:
+        if self.coder_type == "mechanical" and _downgrade_final(support, linked_supports):
+            pass  # FINAL node of a classifier downgrade; rule_reference names the downgrade rule
+        elif self.coder_type in {"mechanical", "derived"}:
             if support.get("support_status") != "set_by_rule" or support.get("support_rule_name") != self.rule_reference:
                 raise ValueError("existing support must name the actual mechanical rule")
         if self.coder_type not in {"mechanical", "derived"}:
@@ -346,6 +356,69 @@ class CoderRecord:
         if self.coder_type in {"mechanical", "derived"}:
             result["field_availability"] = {k: NOT_APPLICABLE for k in (*_PROVIDER_FIELDS, "chosen_answer_probability", "probability_distribution")}
         return result
+
+
+def residual_version_bound(item_id: str, question_set_version: str, payload: dict[str, Any]) -> bool:
+    """PI ruling 95 a: the instrument's second accepted question-set version, for ``source_type`` records
+    only: the residual set (:data:`g3o.common.source_fields.RESIDUAL_SET_VERSION`), bound when the
+    instrument payload's ``question_hashes`` holds its hash under
+    :data:`~g3o.common.source_fields.RESIDUAL_QUESTION_HASH_KEY` and that hash is the current set's.
+    Read by :meth:`CoderRecord.storage_projection` and the storage validator."""
+    from g3o.common import source_fields as sf
+
+    if item_id != sf.SOURCE_TYPE or question_set_version != sf.RESIDUAL_SET_VERSION:
+        return False
+    bound = (payload.get("question_hashes") or {}).get(sf.RESIDUAL_QUESTION_HASH_KEY)
+    return bound is not None and bound == sf.residual_set_sha256()
+
+
+def _downgrade_final(support: dict[str, Any], linked: Sequence[dict[str, Any]]) -> bool:
+    """Whether ``support`` is the FINAL node linked to its ORIGINAL downgraded supports."""
+    status = support.get("support_status")
+    inputs = support.get("input_support_ids")
+    if not isinstance(status, str) or not status.startswith("downgraded_") or not inputs:
+        return False
+    by_id = {s.get("support_id"): s for s in linked}
+    context = ("item_id", "item_part", "observation_id", "source_id", "chunk_id", "support_status")
+    for prior in inputs:
+        original = by_id.get(prior)
+        if (original is None or any(original.get(k) != support.get(k) for k in context)
+                or (original.get("input_support_ids") and not downgrade_source_original(original))
+                or original.get("value_json") == support.get("value_json")):
+            return False
+    return True
+
+
+#: The X30 cross-page relation item: its Stage 6 nodes are not pooled (RC-D-031 A1 covers pooled
+#: originals; RC-D-032 B5 a adds copied relation originals, :func:`relation_copied_original`).
+_RELATION_ITEM = "core.activity_relation_cross_page"
+
+
+def pooled_original(support: dict[str, Any]) -> bool:
+    """RC-D-031 A1 a: a pooled Stage 6 ORIGINAL node, which names its shown inputs
+    (``input_support_ids``) and has no source claim or observation of its own. Such an
+    original may be the source of a FINAL downgrade node."""
+    return (support.get("source_id") is None and support.get("observation_id") is None
+            and support.get("item_id") != _RELATION_ITEM and bool(support.get("input_support_ids")))
+
+
+def relation_copied_original(support: dict[str, Any]) -> bool:
+    """RC-D-032 B5 a: a cross-page relation (X30) ORIGINAL whose quote was copied from one
+    shown input: it names exactly that input (``input_support_ids``), keeps the copied text,
+    and has no source claim or observation of its own. Such an original may be the source
+    of a FINAL downgrade node (e.g. downgraded for low confidence)."""
+    inputs = support.get("input_support_ids")
+    passage = support.get("passage")
+    return (support.get("item_id") == _RELATION_ITEM and support.get("source_id") is None
+            and support.get("observation_id") is None and isinstance(inputs, list) and len(inputs) == 1
+            and bool(support.get("supporting_text"))
+            and isinstance(passage, dict) and passage.get("quote_source_id") is not None)
+
+
+def downgrade_source_original(support: dict[str, Any]) -> bool:
+    """An ORIGINAL that names inputs and may still source a FINAL downgrade node:
+    pooled (RC-D-031 A1 a) or a copied relation original (RC-D-032 B5 a)."""
+    return pooled_original(support) or relation_copied_original(support)
 
 
 def records_to_json(records: list[CoderRecord]) -> str:

@@ -37,6 +37,8 @@ Ruled specifics:
   (``chrome_status`` says which).
 - A part request with no request id is a failed part request
   (``jev_missing_request_id``; PI Q5); no placeholder id is ever recorded.
+  An empty or whitespace-only id is missing too
+  (:func:`~g3o.common.jev_client.has_request_id`, shared with the extra-round re-ask).
 - A failed part request enters combining as a failed answer (``unknown``,
   all-03 a). Failed verdict requests have no vote: successful parts combine.
   At least 75% failed verdict parts, counted on the current leaf layout, fail
@@ -54,7 +56,7 @@ from typing import Any
 from g3o.classify.questions.v27 import choice_request, load_set
 from g3o.codebook.loader import Codebook, load_codebook
 from g3o.common import part_combine as pc
-from g3o.common.jev_client import JevAccountError, JevResult
+from g3o.common.jev_client import JevAccountError, JevResult, has_request_id
 from g3o.common.jev_record import ClassifierRule, CoderRecord
 from g3o.common.page_chunks import (
     DEFAULT_MAX_SPLIT_DEPTH,
@@ -370,6 +372,20 @@ class _OverLimit(Exception):
         self.chunk = chunk
 
 
+class LayoutPartOverLimit(Exception):  # noqa: N818 - names the refusal, as PageFailed does
+    """A part of a GIVEN layout (``code_page(layout=...)``) is over the request limit (review M2).
+
+    It is not halved: the halves would not be parts of the layout it was given (PI ruling 95 a: the
+    residual ``source_type`` answers must sit on parts of the page's first pass-1 request, whose
+    ``Pass1Page`` refuses any other part). The caller decides; the per-page stage holds that institution
+    on the page's own data (PI ruling 97 b). Raised before the request is sent."""
+
+    def __init__(self, page_id: str, chunk_id: str) -> None:
+        super().__init__(f"page {page_id}: part {chunk_id} of the given layout is over the request limit; "
+                         "a given layout is never halved")
+        self.page_id, self.chunk_id = page_id, chunk_id
+
+
 def _mechanical(item_id: str, value: Any, rule: str, config: PageCoderConfig, qsv: str) -> CoderRecord:
     return CoderRecord(
         item_id=item_id, item_part=None, question_id=item_id, support_id=None, observation_id=None,
@@ -402,12 +418,19 @@ def _single_chunk(page: PageInput, est: TokenEstimator) -> Chunk:
 
 
 def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
-              on_response: Callable[[JevResult], None] | None = None) -> PageCodeResult:
+              on_response: Callable[[JevResult], None] | None = None,
+              layout: Sequence[Chunk] | None = None) -> PageCodeResult:
     """Code one page (pass 1). Raises :class:`PageFailed` when no verdict can be made.
 
     ``ask_fn(state, questions)`` sends one jev request (``questions`` as
     ``{id: {instructions, criteria}}``). ``on_response`` sees every response (cost
     meter; it may raise to stop). :class:`JevAccountError` propagates.
+
+    ``layout``: the parts to ask on, instead of planning them from this question
+    set (PI ruling 95 a: the residual ``source_type`` question is asked on the
+    page's T-021 parts, so each answer's part is a part of the page's first
+    pass-1 request, R-044). The parts must tile the page text; a part over the
+    request limit is NOT halved (review M2): :class:`LayoutPartOverLimit` is raised.
     """
     s = _setup(config)
     qsv = s.qset["question_set_version"]
@@ -435,7 +458,18 @@ def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
         return PageCodeResult(status="not_assessable", chunks=(_single_chunk(page, config.estimator),),
                               records=tuple(records), items=items, chrome_status=chrome_status, **common)
 
-    layout = plan_layout(page, config, s)
+    given = layout is not None
+    if layout is None:
+        layout = plan_layout(page, config, s)
+    else:
+        layout = list(layout)
+        pos = 0
+        for c in layout:
+            if c.page_id != page.page_id or c.start != pos or page.text[c.start:c.end] != c.text:
+                raise ValueError(f"given layout part {c.chunk_id} does not tile page {page.page_id}")
+            pos = c.end
+        if not layout or pos != len(page.text):
+            raise ValueError(f"given layout does not cover page {page.page_id}")
     cache: dict[tuple[str, int, str], dict[str, Any]] = {}
     requests: list[dict[str, Any]] = []
     exhausted: set[str] = set()
@@ -477,7 +511,7 @@ def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
             on_response(result)
         log.update(response_model=result.response_model, request_id=result.request_id,
                    input_tokens=result.input_tokens, output_tokens=result.output_tokens)
-        if not result.request_id:
+        if not has_request_id(result.request_id):  # whitespace-only = missing, as on a re-ask (ruling 75 a)
             entry["failure"] = {"reason": MISSING_REQUEST_ID, "detail": "jev returned no request id"}
             requests.append({**log, "outcome": MISSING_REQUEST_ID})
             cache[key] = entry
@@ -501,6 +535,8 @@ def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
             items, part_entries = _rounds(layout, s, page, config, qsv, send)
             break
         except _OverLimit as ol:
+            if given:  # review M2: a given layout's part is never halved (its halves are not its parts)
+                raise LayoutPartOverLimit(page.page_id, ol.chunk.chunk_id) from None
             pos = next(i for i, c in enumerate(layout) if c.chunk_id == ol.chunk.chunk_id)
             halves = halve_chunk(ol.chunk, estimator=config.estimator)
             if halves is None or ol.chunk.depth >= config.max_split_depth:
@@ -716,7 +752,7 @@ def to_pass1_page(result: PageCodeResult, page: PageInput) -> Any:
 
 
 __all__ = [
-    "CHROME_STATE_FIELD", "CODER_VERSION", "SKIPPED_QUESTIONS", "FinalPage", "ItemOutcome",
+    "CHROME_STATE_FIELD", "CODER_VERSION", "SKIPPED_QUESTIONS", "FinalPage", "ItemOutcome", "LayoutPartOverLimit",
     "PageCodeResult", "PageCoderConfig", "PageFailed", "PageInput", "build_questions", "build_state",
     "code_page", "finalize_page", "gate_open", "gated_out_value", "part_answer", "plan_layout",
     "serialize_request", "to_pass1_page",

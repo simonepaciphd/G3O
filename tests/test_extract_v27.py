@@ -35,6 +35,7 @@ from g3o.extract.request_v27 import (
     build_user_message,
     default_rules,
     output_schema,
+    quote_tasks_only,
     select_requests,
 )
 
@@ -81,13 +82,14 @@ def test_pass1_fields_follow_codebook_coder_column():
     rules = default_rules()
     assert rules.activity_fields == (
         "core.activity_name", "core.observed_actor_name", "core.tool_name",
-        "core.model_name", "core.contracting_party", "core.deployment_scale_number",
+        "core.model_name", "core.contracting_party", "core.developer", "core.deployment_scale_number",
     )
     cb = load_codebook()
     quote_step_activity = {k for k, v in cb.build_items().items()
                            if v["coder"] == "quote_step" and "activity" in v["level"]}
     assert quote_step_activity - set(rules.activity_fields) == set(DEFERRED_FIELDS)
-    # r2#28: scope_notes gone, vendor split (contracting party here; developer is derived)
+    # r2#28: scope_notes gone, vendor split (contracting party here); codebook r16 (A8.1 a): the developer is a
+    # quote-step field too
     assert "core.scope_notes" not in cb.items and "core.vendor" not in cb.items
 
 
@@ -241,6 +243,38 @@ def test_date_task_only_without_metadata_date_and_only_on_requested_pages():
     assert select_requests(make_page(codes=codes)).date_task
     assert not select_requests(make_page(codes=codes, has_date=True)).date_task
     assert not select_requests(make_page(verdict="no_genai")).date_task
+
+
+def test_quote_tasks_only_drops_link_span_and_date_tasks():
+    """C1 a (PI 2026-11-11): an extra-round plan keeps only the quote tasks; the prompt and schema
+    are those of every pass-1 request, and the first-round plan is unchanged."""
+    links = ({"url": "https://example.gov/more", "anchor_text": "More", "context": "Read more"},)
+    page = make_page(page_complete="yes", links=links, codes=[
+        PageCode("core.source_type", "P1#p001", "vendor"), PageCode("core.bogus", "P1#p001", "x")])
+    plan = select_requests(page)
+    assert plan.link_task and plan.activity_task and plan.date_task and plan.skipped_codes
+    extra = quote_tasks_only(plan)
+    assert extra.quote_tasks == plan.quote_tasks and extra.skipped_codes == plan.skipped_codes
+    assert (extra.links, extra.link_task, extra.activity_fields, extra.activity_task, extra.date_task,
+            extra.link_status) == ((), False, (), False, False, None)
+    tasks = json.loads(build_user_message(page, extra).split("\nTASKS:\n", 1)[1])
+    assert tasks == {"quote_tasks": [{"task_id": "q001", "part_id": "P1#p001",
+                                      "question": default_rules().questions["core.source_type"],
+                                      "answer": "vendor", "chrome_allowed": False}],
+                     "link_task": False, "activity_task": None, "date_task": False}
+    assert "STORED LINKS:" not in build_user_message(page, extra)
+    a, b = build_job(page, plan, system="s"), build_job(page, extra, system="s")
+    assert a.params["system"] == b.params["system"]
+    assert a.params["output_config"] == b.params["output_config"]  # same output schema
+    # an R-003 page whose new codes need no quote: no request (it used to ask spans again)
+    assert not quote_tasks_only(select_requests(make_page(
+        codes=[PageCode("core.source_type", "P1#p001", "not_documented")]))).needs_request
+    # a quote-only answer is parsed with no rejection
+    ext = parse_pass1_result(ok(empty_answer(quotes=[{"task_id": "q001", "part_id": "P1#p001",
+                                                       "quote": "The council launched the CivicBot chatbot"}])),
+                             page, extra)
+    assert [q.status for q in ext.quotes] == ["quoted"] and not ext.rejected
+    assert ext.links == () and ext.activities == () and ext.publication_date is None
 
 
 def test_unknown_item_or_value_is_skipped_and_recorded():
@@ -463,6 +497,23 @@ def test_malformed_anchors_and_ids_are_contract_errors_not_type_errors():
             parse_pass1_result(ok(bad), page, plan)
 
 
+@pytest.mark.parametrize("shape", [5, "x", {"k": 1}, True])
+@pytest.mark.parametrize("where", ["quotes", "links", "activities", "activity fields"])
+def test_array_field_of_the_wrong_shape_is_a_contract_error(where, shape):
+    """Ruling 30 a: an array field that is not a list raises ExtractContractError (never a
+    TypeError/KeyError/AttributeError); null still reads as empty."""
+    page = _activity_page()
+    plan = select_requests(page)
+    activity = {"part_id": "P1#p001", "start_text": "The", "end_text": "2024.", "fields": []}
+    if where == "activity fields":
+        bad, null = (empty_answer(activities=[{**activity, "fields": v}]) for v in (shape, None))
+    else:
+        bad, null = empty_answer(**{where: shape}), empty_answer(**{where: None})
+    with pytest.raises(ExtractContractError, match="must be an array"):
+        parse_pass1_result(ok(bad), page, plan)
+    parse_pass1_result(ok(null), page, plan)
+
+
 def test_empty_anchor_activity_is_kept_unresolved_and_the_page_parses():
     page = _activity_page()
     out = parse_pass1_result(ok(empty_answer(activities=[
@@ -596,6 +647,30 @@ def test_batch_submit_and_results_keyed_by_custom_id():
     assert res["c"].error == {"type": "expired"}
     with pytest.raises(ValueError):
         client.submit_batch([jobs[0], jobs[0]])
+
+
+def test_a_batched_result_carries_the_batch_request_id_and_live_is_unchanged():
+    """PI ruling Q178 a: a batched response's request id is ``batch:<batch_id>/<message_id>``; a failed entry
+    (no message) has none; a live response keeps the API's own request id."""
+    fake = FakeClient()
+    client = AnthropicExtractorClient(fake)
+    res = {r.custom_id: r for r in client.batch_results("msgbatch_1")}
+    assert res["a"].request_id == "batch:msgbatch_1/msg_1" and res["a"].message_id == "msg_1"
+    assert res["b"].request_id is None and res["c"].request_id is None
+    live = client.create(ExtractorJob("x27-a", ac.build_params(system="s", user="u", output_schema={})))
+    assert live.request_id == "req_1"
+
+
+def test_a_batched_result_without_a_message_id_has_no_request_id():
+    """PI ruling Q178 a: the request id stays mandatory; no message id, no request id."""
+    message = _msg("{}")
+    message.id = None
+    fake = FakeClient()
+    fake.batches.results = lambda batch_id: iter([SimpleNamespace(
+        custom_id="a", result=SimpleNamespace(type="succeeded", message=message))])
+    (res,) = list(AnthropicExtractorClient(fake).batch_results("msgbatch_1"))
+    assert res.success and res.message_id is None and res.request_id is None
+    assert ac.batch_request_id("msgbatch_1", "  ") is None and ac.batch_request_id(None, "msg_1") is None
 
 
 def test_custom_id_is_batches_safe():

@@ -57,6 +57,74 @@ STAGES: tuple[str, ...] = (
     "extract",
     "validate",
 )
+#: Run modes of :func:`g3o.run.presweep.orchestrator.run_presweep` (T-030).
+#: ``v2.5`` (the default) runs Stage 5 extract and Stage 6 validate exactly as
+#: before. ``v2.7`` replaces them, after Stage 4 scrape, with instrument binding,
+#: the v2.7 per-page stage and v2.7 Stage 6; it is NOT production ready and is
+#: refused unless :attr:`PresweepConfig.v27_not_production_ready_opt_in` is set.
+PIPELINE_V25 = "v2.5"
+PIPELINE_V27 = "v2.7"
+PIPELINE_VERSIONS: tuple[str, ...] = (PIPELINE_V25, PIPELINE_V27)
+#: ``stop_after`` values a v2.7 run accepts: any stage up to scrape (the shared
+#: v2.5 stages) or ``validate`` (through v2.7 Stage 6). ``extract`` names a v2.5
+#: stage the v2.7 run does not have, so it is refused rather than reinterpreted.
+V27_STOP_AFTER: tuple[str, ...] = STAGES[: STAGES.index("scrape") + 1] + ("validate",)
+#: The LLM stages a v2.7 run executes and the cost monitor prices: Stages 2 and 3
+#: (with the Stage 2 fallback sub-step, ``stage_classify.STAGE_2_FALLBACK``). A
+#: v2.7 run's ``budget_usd`` is enforced on these and on the metered Serper /
+#: Web Unlocker spend of Stages 1-4 (PI ruling 1 a, 2026-11-11); the v2.7 per-page
+#: stage and v2.7 Stage 6 are unpriced and outside it.
+V27_PRICED_STAGES: tuple[str, ...] = (
+    "classify_official_site", "classify_official_site_fallback", "classify_triage",
+)
+
+
+def refuse_v27_budget_settings(config: Any) -> None:
+    """Refuse v2.7-stage budget figures on a v2.7 config (PI ruling 1 a, 2026-11-11).
+
+    The cost monitor prices the jev, extractor and X35 parts of a v2.7 stage
+    (:func:`g3o.common.cost_monitor.price_v27_usage`; rulings 130 a, 58 a, Q158 a), so
+    :data:`g3o.common.cost_monitor.V27_UNPRICED_PARTS` is empty. v2.7 stages still stay
+    outside the budget (ruling 60 a; PI ruling Q164 a, 2026-11-16): no within-stage
+    budget check is wired for a v2.7 stage, so none can carry a budget figure. The
+    refusal's reason is read from ``V27_UNPRICED_PARTS`` at call time (it names any
+    unpriced part, were one put back); with it empty the refusal stands on the
+    within-stage ground, which is not lifted here (Q164 a). ``budget_usd``, ``projection_safety_factor``,
+    ``preflight_estimate_usd`` and ``cost_monitor_dry_run`` stay valid: they act
+    on Stages 1-4, which a v2.7 run executes and which are priced (the preflight
+    prices only those stages on a v2.7 run). ``preflight_stage_estimates`` is
+    checked against a positive allowlist, :data:`V27_PRICED_STAGES`: any other
+    key is refused — a v2.5 ``extract`` / ``validate`` figure, a v2.7 stage, and
+    also a Stage 1-4 or unknown name that v2.5 would ignore, since no stage
+    outside the allowlist records an LLM cost a projection could compare it with.
+    Called by :meth:`PresweepConfig.__post_init__` and again on entry to
+    ``run_presweep`` (the config is a mutable dataclass; the CLI sets the
+    preflight fields after construction). A no-op on a v2.5 config.
+    """
+    if getattr(config, "pipeline_version", None) != PIPELINE_V27:
+        return
+    found = sorted(set(config.preflight_stage_estimates or {}) - set(V27_PRICED_STAGES))
+    if found:
+        from g3o.common import cost_monitor
+
+        unpriced = cost_monitor.V27_UNPRICED_PARTS  # read at call time (empty: Q158 a)
+        if unpriced:
+            ground = (
+                f"unpriced v2.7 parts ({'; '.join(f'{k}: {v}' for k, v in sorted(unpriced.items()))}; "
+                "g3o.common.cost_monitor.V27_UNPRICED_PARTS), so no v2.7 stage has a complete price "
+                "under the RC-D-021 cost_monitor hunks, and v2.7 stages stay outside the budget "
+                "(PI ruling 60 a)"
+            )
+        else:
+            ground = ("every v2.7 part is priced, but no within-stage budget check is wired for a "
+                      "v2.7 stage, so v2.7 stages stay outside the budget (PI rulings 60 a, Q164 a)")
+        raise ValueError(
+            f"pipeline_version='v2.7' refuses preflight_stage_estimates for {', '.join(found)}: "
+            f"v2.7 stage budgets stay refused: {ground}; only Stages 1-4 can carry a budget figure "
+            f"({', '.join(V27_PRICED_STAGES)})"
+        )
+
+
 StageName = Literal[
     "discovery_general",
     "classify_official_site",
@@ -354,6 +422,27 @@ class PresweepConfig:
     # Non-blocking: stages aren't comparable (extract dominates), so an arbitrary
     # default factor can trigger false aborts. Operators must opt in.
     projection_safety_factor: float | None = None
+    # Run mode (T-030). Off by default: ``v2.5`` is the unchanged pipeline, and
+    # the config snapshot leaves both fields out while they hold their defaults,
+    # so a v2.5 manifest and its config_hash are byte-identical to before.
+    pipeline_version: Literal["v2.5", "v2.7"] = PIPELINE_V25
+    # Second, explicit opt-in for ``pipeline_version="v2.7"``, which is not
+    # production ready (upstream producers are absent and the X35 entry still
+    # refuses). Refused when set on a v2.5 run.
+    v27_not_production_ready_opt_in: bool = False
+    # The v2.7 run's runtime settings (T-030, PI ruling 132 a): the keyword
+    # arguments of ``instrument_binding.RuntimeSettings`` (jev / extractor / X35
+    # models, extractor effort and max tokens, reserved tokens, reference year,
+    # approval reference), every one explicit. With no injected ``V27Dispatch``,
+    # ``run_presweep`` binds the instrument from these and builds the real
+    # providers (``g3o.run.presweep.v27_entry``). None (the default) is left out
+    # of the config snapshot, so no earlier manifest or config_hash changes; set,
+    # it is recorded in the manifest's config. Refused on a v2.5 run.
+    v27_runtime: dict[str, Any] | None = None
+    # PI ruling 134 (default mix, its default note; 143 a): the v2.7 per-page stage's
+    # extractor use of the Message Batches API: "all_batch", "mix" or "no_batch"
+    # (g3o.run.presweep.perpage_batch_v27). Left out of a v2.5 snapshot.
+    v27_extractor_mode: str = "mix"
 
     def __post_init__(self) -> None:
         """Reject a language this run could not actually query (A7, 2026-08-02).
@@ -368,6 +457,41 @@ class PresweepConfig:
         construction: a language that cannot be queried cannot be configured,
         so the provenance column can no longer claim one that never ran.
         """
+        if self.pipeline_version not in PIPELINE_VERSIONS:
+            raise ValueError(
+                f"pipeline_version must be one of {PIPELINE_VERSIONS}, got "
+                f"{self.pipeline_version!r}"
+            )
+        if self.pipeline_version == PIPELINE_V27:
+            if self.v27_not_production_ready_opt_in is not True:
+                raise ValueError(
+                    "pipeline_version='v2.7' is not production ready and is refused "
+                    "without v27_not_production_ready_opt_in=True"
+                )
+            if self.stop_after not in V27_STOP_AFTER:
+                raise ValueError(
+                    f"pipeline_version='v2.7' has no {self.stop_after!r} stage: "
+                    f"stop_after must be one of {V27_STOP_AFTER}"
+                )
+            refuse_v27_budget_settings(self)
+        elif self.v27_not_production_ready_opt_in:
+            raise ValueError(
+                "v27_not_production_ready_opt_in is set but pipeline_version is "
+                f"{self.pipeline_version!r}; it only opts in to 'v2.7'"
+            )
+        if self.v27_extractor_mode not in ("all_batch", "mix", "no_batch"):
+            raise ValueError("v27_extractor_mode must be 'all_batch', 'mix' or 'no_batch' (PI ruling 134), "
+                             f"got {self.v27_extractor_mode!r}")
+        if self.v27_runtime is not None:
+            if self.pipeline_version != PIPELINE_V27:
+                raise ValueError(
+                    "v27_runtime is set but pipeline_version is "
+                    f"{self.pipeline_version!r}; it only configures a 'v2.7' run"
+                )
+            if not isinstance(self.v27_runtime, Mapping):
+                raise ValueError("v27_runtime must be a mapping of RuntimeSettings keyword arguments")
+            # A plain dict copy: snapshotted by asdict() and not shared with the caller.
+            self.v27_runtime = dict(self.v27_runtime)
         # Validate budget_usd is positive (fix: previously accepted zero, which would always abort)
         if self.budget_usd is not None and self.budget_usd <= 0:
             raise ValueError(

@@ -1,6 +1,57 @@
-# T-010 signature record: release 2.7, r13 (RC-D-019)
+# T-010 signature record: release 2.7, r16 (RC-D-034)
 
 ## Current signature authorization
+
+| | |
+|---|---|
+| sha256 | `381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a` |
+| File | `codebook/codebook.yaml` |
+| Branch, commit | `codebook/r16-20261116`, `b2c3b2f` (committed blob `6837aef81fa97378405d0a94ce4bd5e89a7987f4`; CRLF, `codebook/.gitattributes` `-text`; 12,322 lines) |
+| Release | `2.7` |
+| Approver | Simone Paci |
+| Date | 2026-11-17, in chat |
+| Recorder | G3O integrator lane, plan integrator `20261117-claude-v2-304d807556676abd` (Claude Code, claude-opus-5-5) (DEC-012 a), on the relay of the morning-debrief session `20261117-claude-v2-17bb37b422d04368` |
+
+- **Words, verbatim:** "1 i sign the codebook & approve the rest of the work as proposed -- use up to 5 subagents as needed", the entire reply, given in the morning-debrief session, where the single r16 candidate (this sha256; `agent-workspace/2026-11-16-overnight/governance/codebook-r16-candidate/SIGN-r16.md`) was the codebook put to her. The hash itself was not pasted back (same practice as r14 and r15); this record takes "i sign the codebook" as the signature of that hash. In the same session, on the r16 questions Q188-Q204: "all as rec accepted" (2026-11-17), which includes Q188 a (`core.content_vendor` keeps "looked up", as confirmed), Q189 b (the r16 release note quotes "rec" where the PI wrote "recl"; left), and Q204 a (below).
+- **What was put to her:** the r16 candidate above, `SIGN-r16.md` and `DIFF-r15-r16.md` (same folder), and the rulings it applies (A8.1 a, A8.5 a, Q167 a, the rules/0 trim, Q185 a, Q186 a, Q187 a), each traced to a PI quote in `planning/t010/r16-provenance.json`. The codebook checks had **not** been run before the signature (`SIGN-r16.md`, "Owed after signing"). Run after it by this recorder (2026-11-17, without `--previous`, Q204 a; on this branch, before the record commit): checks 1-16 pass except 4 (this record) and 5 (generated files not yet regenerated on this branch; they are regenerated on `reclass/o1117-r16sign`); check 12 N/A. With `--previous` r15, check 12 fails: "value lists changed (['core.stage_as_of_basis']) but label 2.7 -> 2.7 is 0 steps". Under Q204 a the label stays 2.7 and that change is owed as a C-007 contract step (integrator).
+- **What r16 changes from r15:** A8.1 a (`core.developer` coder derived -> quote_step, linkage pipeline -> extractor, one rule sentence), A8.5 a (`core.stage_as_of_basis` takes three codes `publication` / `stated` / `access`; its r2 five-value rule moved to `release.r16_dropped`), Q167 a (`core.developer` rules/1 lookup sentence dropped), the rules/0 trim ("from lookup or page" -> "stated on the page" in `core.contracting_party`, `core.developer`, `core.developer_basis`), Q185 a (`core.developer_basis` rules/2, rules/3; `core.stage_as_of_basis` rules/1), Q186 a and Q187 a (the "same five values" sentence dropped from `core.developer_basis` rules/1 and `vocabularies.provenance`). Changed item hashes: `core.contracting_party`, `core.developer`, `core.developer_basis`, `core.stage_as_of_basis`. `core.contracting_party` is on procurement's pipeline list, so the C-007 steps apply to it. Record `planning/t010/r16-provenance.json`.
+- Frozen CX items remain covered by the existing batch-signature form (RC-D-004); the list below is unchanged.
+
+## Superseded signature authorization (r15, `ca1bf616…`)
+
+| | |
+|---|---|
+| sha256 | `ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a` |
+| File | `codebook/codebook.yaml` |
+| Branch, commit | `codebook/r15-20261110`, `3acf01a` (committed blob; CRLF, `codebook/.gitattributes` `-text`; 12,226 lines) |
+| Release | `2.7` |
+| Approver | Simone Paci |
+| Date | 2026-11-10, in chat |
+| Recorder | G3O BUILD lane, plan integrator `20261110-claude-v2-43cab3e7a582d021` (Claude Code, claude-opus-5-5) (DEC-012 a) |
+
+- **Words, verbatim:** "signed & lock", the entire reply, given immediately after the integrator presented this exact sha256 and asked (1) for the signature of r15 and (2) for "lock" for RC-D-026. The hash itself was not pasted back (same practice as r14); this record takes the reply as the signature of the presented hash.
+- **What was put to her:** the r15 candidate above, its check results (checks 1-16 pass except 4, this record; check 12 N/A), and the one changed sentence (`core.source_credibility` rules/1 adds "or `not_asked` on an unreadable page" to the missing-type `low` list; `credibility_map` gains `not_asked: low`), traced to the PI quote in `planning/t010/r15-provenance.json`.
+- **What r15 changes from r14:** RC-D-026 10 a (PI 2026-11-10 chat "9a 10 a"): `core.source_credibility` credibility map missing keys gain `not_asked` -> `low`, and the rules/1 map sentence names it; record `planning/t010/r15-provenance.json`.
+- Frozen CX items remain covered by the existing batch-signature form (RC-D-004); the list below is unchanged.
+
+## Superseded signature authorization (r14, `7972b8c1…`)
+
+| | |
+|---|---|
+| sha256 | `7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b` |
+| File | `codebook/codebook.yaml` |
+| Branch, commit | `codebook/r14-20261110`, `a03ad72` (committed blob; CRLF, `codebook/.gitattributes` `-text`; 12,216 lines) |
+| Release | `2.7` |
+| Approver | Simone Paci |
+| Date | 2026-11-10, in chat |
+| Recorder | G3O BUILD lane, plan integrator `20261110-claude-v2-0da6eb1353858ba3` (Claude Code, claude-opus-5-5) (DEC-012 a) |
+
+- **Words, verbatim:** "Signed and approved!", the entire reply, given immediately after the integrator presented this exact sha256 with the instruction "send the SHA256 above in chat to sign r14". The hash itself was not pasted back; this record takes the reply as the signature of the presented hash and states that difference from the r13 practice.
+- **What was put to her:** the r14 candidate above, its check results (checks 1-16 pass except 4, this record; check 12 N/A), and the four agent- or integrator-drafted sentences quoted in full in chat (permanent_pilot same-part limit; credibility map sentence; C7 a phrase in `core.confidence` rules/1; C8 b `core.confidence` rules/2), with every other change traced to a PI quote in `planning/t010/r14-provenance.json`.
+- **What r14 changes from r13:** RC-D-025 A1 (source-confidence rule), A2 / B2 a / B3 / C1 / C2 (`core.permanent_pilot` support-checked classifier with labels and pilot/production-only override), C4 c (v25 permanent-pilot rule and its across-parts note retired from `core.adoption_stage`), C5 / C6 a (X22 credibility map; undated = low), C7 a, C8 b; record `planning/t010/r14-provenance.json`.
+- Frozen CX items remain covered by the existing batch-signature form (RC-D-004); the list below is unchanged.
+
+## Superseded signature authorization (r13, `07610cc9…`)
 
 | | |
 |---|---|

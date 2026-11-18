@@ -22,10 +22,17 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from g3o.common.contract import ConsolidatedInstitutionResponse
 from g3o.common.paths import iter_institution_dirs, require_layout
+from g3o.common.response_v27 import (
+    ConsolidatedInstitutionResponseV27,
+    check_storage_binding,
+    list_members,
+    parse_validate_payload,
+)
 
 # ---------------------------------------------------------------------------
 # Heuristic keyword screens (audit-only — see module docstring)
@@ -246,6 +253,61 @@ def qc_per_institution(
     }
 
 
+def _storage_view(response: ConsolidatedInstitutionResponseV27, data: dict[str, Any]) -> SimpleNamespace:
+    """The legacy QC surface read from 6_storage.json values (RC-D-028 4 a).
+
+    Only what the counts and the two audit screens read: identity and keys come
+    from the v2.7 response, every value from storage. ``genai_evidence`` is the
+    2.7 page verdict; list values (tools, flags) are their collected members.
+    """
+    acts = []
+    for a in response.activities:
+        v = data["activities"][a.activity_id]["values"]
+        flags = [f for f in list_members(v["core.uncertainty_flags"]) if f != "none"]
+        acts.append(SimpleNamespace(
+            activity_id=a.activity_id, adoption_stage=v["core.adoption_stage"],
+            confidence=v["core.confidence"], uncertainty_flags=";".join(flags) if flags else "none",
+            tools=[x for x in list_members(v["core.tool_name"]) if x != "unknown"]))
+    srcs = []
+    for s in response.sources:
+        v = data["sources"][s.source_id]["values"]
+        srcs.append(SimpleNamespace(
+            source_id=s.source_id, activity_id=s.activity_id, genai_evidence=v["core.page_verdict"],
+            source_snippet=v["core.source_snippet"], source_credibility=v["core.source_credibility"],
+            source_type=v["core.source_type"]))
+    return SimpleNamespace(activities=acts, sources=srcs, institution=response.institution,
+                           consolidation_metadata=response.consolidation_metadata,
+                           has_genai_activity=data["summary"]["values"]["core.has_genai_activity"])
+
+
+def qc_per_institution_v27(response: ConsolidatedInstitutionResponseV27, storage: dict[str, Any]) -> dict[str, Any]:
+    """:func:`qc_per_institution` for a v2.7 institution; values only from ``6_storage.json``.
+
+    ``storage`` is the validated envelope data (``StorageEnvelope.data``).
+    ``distinct_vendors`` is empty: the retired ``vendor`` has no v2.7 value.
+    """
+    check_storage_binding(response, storage)
+    view = _storage_view(response, storage)
+    acts, srcs = view.activities, view.sources
+    return {
+        "institution_id": response.institution.institution_id,
+        "has_genai_activity": view.has_genai_activity,
+        "n_input_pages": response.consolidation_metadata.n_input_pages,
+        "n_input_rows": response.consolidation_metadata.n_input_rows,
+        "n_activities": len(acts),
+        "n_sources": len(srcs),
+        "source_credibility": dict(Counter(s.source_credibility for s in srcs)),
+        "source_type": dict(Counter(s.source_type for s in srcs)),
+        "genai_evidence": dict(Counter(s.genai_evidence for s in srcs)),
+        "distinct_tools": sorted({t for a in acts for t in a.tools}),
+        "distinct_vendors": [],
+        "activities_with_uncertainty_flags": [a.activity_id for a in acts if a.uncertainty_flags != "none"],
+        "high_confidence_activities": [a.activity_id for a in acts if a.confidence == "high"],
+        "weak_generative_signal_activities": weak_generative_signal_activities(view),  # type: ignore[arg-type]
+        "speculative_adoption_activities": speculative_adoption_activities(view),  # type: ignore[arg-type]
+    }
+
+
 def _aggregate_credibility(per_inst: list[dict[str, Any]]) -> Counter[str]:
     out: Counter[str] = Counter()
     for q in per_inst:
@@ -292,12 +354,20 @@ def qc_per_run(run_dir: Path) -> dict[str, Any]:
             continue
         try:
             payload = json.loads(validate_path.read_text(encoding="utf-8"))
-            response = ConsolidatedInstitutionResponse.model_validate(payload)
+            response = parse_validate_payload(payload)
+            if isinstance(response, ConsolidatedInstitutionResponseV27):
+                from g3o.common.storage import StorageEnvelope
+
+                storage = StorageEnvelope.load(inst_dir / "6_storage.json", run_dir / "final" / "instruments",
+                                               artifact_root=run_dir)
+                qc = qc_per_institution_v27(response, storage.data)
+            else:
+                qc = qc_per_institution(response)
         except Exception:
             n_parse_failed += 1
             parse_failures.append(inst_dir.name)
             continue
-        per_inst.append(qc_per_institution(response))
+        per_inst.append(qc)
         n_consolidated += 1
 
     hga_counter: Counter[str] = Counter(q["has_genai_activity"] for q in per_inst)
@@ -354,5 +424,6 @@ __all__ = [
     "weak_generative_signal_activities",
     "speculative_adoption_activities",
     "qc_per_institution",
+    "qc_per_institution_v27",
     "qc_per_run",
 ]

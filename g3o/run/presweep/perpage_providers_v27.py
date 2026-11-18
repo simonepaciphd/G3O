@@ -1,0 +1,946 @@
+"""Provider adapters behind :class:`~g3o.run.presweep.stage_perpage_v27.PerPageProviders` (T-030).
+
+:func:`build_perpage_providers` composes the four per-page seams from the
+existing builders around two INJECTED calls; this module creates no client and
+makes no call of its own:
+
+- ``extract_fn(job) -> ExtractorResult`` - the C-001 extractor call for a
+  T-022 pass-1 job (:meth:`BoundRuntime.pass1_job`) or a T-032 pass-2 job
+  (:meth:`BoundRuntime.pass2_job`). Tests pass fakes.
+- ``entail_fn(question, text) -> Entailment`` - the X35 call. Its question is
+  :func:`~g3o.common.support_check.entailment_question` and its text the
+  RC-D-019 E3 window (:func:`~g3o.common.support_check.entailment_window`) on
+  the text the quote is matched against. The only non-fake entry today is
+  :func:`~g3o.common.support_check.run_entailment`, which still refuses with
+  :class:`~g3o.common.support_check.SupportGateError` (a per-page stage stop).
+
+The seams:
+
+- ``page_support`` - T-022 pass 1 for the page codes asked to be checked:
+  :func:`~g3o.classify.jev_page_code.to_pass1_page` (codes limited to those
+  records), :func:`~g3o.extract.request_v27.select_requests`,
+  ``pass1_job``, :func:`~g3o.extract.parser_v27.parse_pass1_result`,
+  :func:`~g3o.common.support_check.pass1_quotes`, X35 where T-024 needs it, and
+  :func:`~g3o.common.support_check.check_code`. The first call for a page asks
+  every pass-1 code: that is T-022's one page request, whose activity spans
+  ``activity_input`` uses. A later call (an RC-D-024 extra round) asks only the
+  quote tasks of the new codes (C1 a, PI 2026-11-11:
+  :func:`~g3o.extract.request_v27.quote_tasks_only`): no link, span or date
+  task, since those come from the stored page request; an extra round whose new
+  codes need no quote makes no call. An extra-round request has its own
+  ``custom_id`` (ruling 46 a, :func:`extra_round_custom_id`).
+  PI ruling 95 a: a readable residual page's ``source_type`` answers (asked by
+  the per-page stage before T-022 on the page's T-021 parts, handed over with
+  ``set_source_typing``) join that FIRST request as quote tasks (the item's
+  signed question and jev's answer, as every pass-1 quote task) and are checked
+  by T-024 on its quotes (``source_type_codes``). A page whose T-021 codes need
+  no request gets none for them: they are checked with no quote
+  (``downgraded_no_quote``) and no call is made.
+- ``activity_input`` - the spans of that page request. On resume (the page
+  checkpoint holds the support, so ``page_support`` is not called again) the
+  page request is rebuilt from the stored T-021 artifact; the per-page journal
+  replays its response. PI ruling 105 b (the 98 b check): when an earlier process
+  made that request (the stored result has pass-1 codes, so round 1 asked them, or
+  the page's :data:`~g3o.run.presweep.stage_perpage_v27.PASS1_FILE` exists) and the
+  journal holds no response for the rebuild,
+  :class:`~g3o.run.presweep.stage_perpage_v27.Pass1RequestNotJournaled` holds the
+  institution before any call; the same for an activity-only request the page's
+  ``PASS1_FILE`` names. PI ruling 113 b: when a PI release authorises one live
+  re-ask of such a held request (ruling 104 b), the page's activity-level state is
+  archived just before that call
+  (:func:`~g3o.run.presweep.stage_perpage_v27.archive_activity_state`), and a fresh ``PASS1_FILE`` naming it is
+  written (review H-1, :func:`~g3o.run.presweep.stage_perpage_v27.record_pass1_reask`). PI ruling 121 b: for the
+  page request (not the activity-only one) ``page.json`` is archived too, before the page's rounds
+  (:meth:`ExtractorPerPageProviders.prepare_pass1_reask`), so ``page_support`` makes the re-ask and checks the page
+  support on the new quotes; its first call carries the 105 b check too when a record names the request and
+  ``page.json`` is absent (that re-ask's state, or a crash after it). PI ruling 127 a (accepted): those rounds may
+  also make further X35, jev extra-round and extractor extra-round calls, all journaled. A key whose re-ask was
+  used up (PI ruling 114 b) with no response since is refused by the journal
+  (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`) and held as not journaled under the
+  stage of its kind, for pass 1, the activity-only request and pass 2 alike. PI ruling 87 c: when a halving in an extra round
+  flipped the verdict to ``confirms_activity`` from its first-round value
+  (:func:`~g3o.classify.question_rounds.verdict_flipped_to_confirms`, ruling 101
+  a), the stored first-round plan had no activity task (ruling 100 b) and the
+  page request returned no activity, ONE activity-only pass-1 request
+  (:func:`~g3o.extract.request_v27.activity_task_only`, its own ``custom_id``:
+  :func:`activity_only_custom_id`) gives the spans; it is journaled, priced and
+  replayed like every extractor call, and is the C4 a request for its
+  activities' names. A failed or unparsable response holds the institution and
+  is asked again (C3 a). PI ruling 99.1 a / 99.2: once that request reaches the
+  journal's rejection cap (:data:`ACTIVITY_ONLY_CAP`), or when it succeeds with
+  no activity (:data:`ACTIVITY_ONLY_EMPTY`), the page has no activity and its
+  final verdict's support is downgraded ``downgraded_no_quote``
+  (``verdict_downgrade``; applied by the per-page stage), so it never counts
+  as positive. PI ruling 109 a: the same downgrade (:data:`FIRST_PLAN_NO_ACTIVITY`)
+  for a page whose final verdict is ``confirms_activity`` and whose first-round
+  plan had an activity task, but whose page request gave no activity (e.g. an
+  ``ambiguous_genai`` first verdict that flipped to ``confirms_activity``).
+- ``activity_support`` / ``pair_support`` - T-032 pass 2:
+  :func:`~g3o.classify.jev_activity_code.to_pass2_page`,
+  :func:`~g3o.extract.pass2_support.select_requests`, ``pass2_job``,
+  :func:`~g3o.extract.pass2_support.parse_pass2_result`, X35, ``check_code``.
+  The first activity call sends every pass-2 code of the page, pair codes
+  included (DP-009: one request per page); the pair quotes are kept for
+  ``pair_support``, which on resume rebuilds that request from the stored T-023
+  artifact (journal replay). Any other activity call (an extra round) has its own
+  ``custom_id`` (ruling 49 a, :func:`pass2_extra_round_custom_id`).
+
+Failure semantics are the builders' own. A quote task with no usable quote
+(missing, empty, wrong part) is a record with no quote, so T-024 downgrades it
+(``downgraded_no_quote``) exactly as a fake that withholds a quote; a quote
+over the 200-character cap is kept whole and flagged by T-024. A failed
+extractor response (``success`` false, or no text) or an unparsable one (the
+parser's :class:`~g3o.extract.parser_v27.ExtractContractError`) raises
+:class:`~g3o.run.presweep.stage_perpage_v27.ExtractorResponseFailed` (C3 a, QA4
+M3): the per-page stage holds that institution as pending and goes on. The
+journal keeps a failed result (``extract_failed``) and rejects an unparsable one
+(``extract_rejected``) for accounting only, so the next run asks it again, up to
+three rejections of one request (ruling 34 b / 41 a): after that the journal makes
+no call and raises :class:`~g3o.run.presweep.stage_validate_v27.ExtractRejectCapReached`
+(this adapter names the pass on it) until the PI releases the request. An
+exception raised by the injected call itself is not a response and still leaves
+the stage.
+
+A pass-1 activity with no ``activity_name`` (the field absent, null, blank, or
+rejected by the parser) is a valid pass-1 answer, and nothing on the pass-1
+side changes. But where an activity-form X35 question for that activity is
+asked (it names the activity), the answer is treated as a bad pass-1 response
+(C4 a, same treatment as C3 a): ``ExtractorResponseFailed`` names the page's
+pass-1 request (the T-022 page request whose spans ``activity_input`` used), so
+the institution is held as pending and that response is rejected in the journal
+and asked again on the next run. The check is made before
+:func:`~g3o.common.support_check.entailment_question` is called; its own
+``ValueError`` is never caught. Page-form questions need no name and are
+unaffected. The error carries ``archive_page_state`` (ruling 33 a): the per-page
+stage moves that page's saved state, built on the rejected answer, to archive.
+
+Binding (QA3 F3). The adapter declares the extractor model and the X35 model it
+runs on; both must equal the instrument's ``extractor_configuration``
+(``model``, ``x35_model``; RC-D-033 C1 a) and the bound runtime's settings, and
+the pass-1/pass-2 system prompts must hash to the instrument's
+``prompt_hashes`` and to the PI-approved pins :data:`PASS1_SYSTEM_SHA256` /
+:data:`PASS2_SYSTEM_SHA256` (RC-D-021 P-1 a, P-2 a); any other text is refused,
+as the Stage 6 quote step refuses unapproved wording (RC-D-029 Q3 a). :func:`~g3o.run.presweep.stage_perpage_v27.run_perpage_v27`
+refuses providers not bound to its instrument, and per institution wraps both
+calls in its request journal (:meth:`ExtractorPerPageProviders.with_seams`), so
+extractor tokens and X35 calls reach ``PerPageMetrics.usage`` and a resumed run
+replays recorded responses.
+"""
+from __future__ import annotations
+
+import hashlib
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, replace
+from pathlib import Path
+from typing import Any
+
+from g3o.classify.jev_activity_code import (
+    PAIR_ITEMS,
+    ActivityPageInput,
+    PageActivityResult,
+    to_pass2_page,
+)
+from g3o.classify.jev_page_code import VERDICT, PageCodeResult, PageInput, to_pass1_page
+from g3o.classify.question_rounds import (
+    PageRoundResult,
+    extra_round_started,
+    verdict_flipped_to_confirms,
+)
+from g3o.common import source_fields as sf
+from g3o.common import support_check as sc
+from g3o.common.artifact_io import read_artifact
+from g3o.common.instrument import canonical_json, sha256_text
+from g3o.common.jev_record import CoderRecord
+from g3o.common.part_combine import NOT_COVERED
+from g3o.common.paths import institution_dir
+from g3o.common.support_check import CodeEvidence, Entailment, PageSources, SupportResult
+from g3o.extract import pass2_support, request_v27
+from g3o.extract.anthropic_client import ExtractorJob, ExtractorResult
+from g3o.extract.parser_v27 import ExtractContractError, Pass1Extraction, parse_pass1_result
+from g3o.run.presweep import stage_activity_code, stage_page_code
+from g3o.run.presweep.stage_perpage_v27 import (
+    ACTIVITY_DIR,
+    ACTIVITY_ONLY_NOT_JOURNALED,
+    PAIRS_FILE,
+    PASS1_NOT_JOURNALED,
+    PASS2_NOT_JOURNALED,
+    ExtractorResponseFailed,
+    Pass1RequestNotJournaled,
+    Pass2RequestNotJournaled,
+    PerPageProviders,
+    archive_activity_state,
+    archive_page_request_state,
+    page_state_dir,
+    read_pass1_requests,
+    record_pass1_reask,
+)
+from g3o.run.presweep.stage_validate_v27 import ExtractRejectCapReached, ReaskSpentUnanswered
+
+ExtractFn = Callable[[ExtractorJob], ExtractorResult]
+EntailFn = Callable[[str, str], Entailment]
+ACTIVITY_NAME = "core.activity_name"
+
+#: SHA256 (UTF-8) of the PI-approved pass-1 system prompt,
+#: ``request_v27.build_system_prompt()`` (RC-D-021 P-1 a).
+PASS1_SYSTEM_SHA256 = "393c9b4b17cb8284c311d44f326dc4137f59b0cf92262ef94da14e461d83b375"
+#: SHA256 (UTF-8) of the PI-approved pass-2 system prompt,
+#: ``pass2_support.build_system_prompt()`` (RC-D-021 P-2 a).
+PASS2_SYSTEM_SHA256 = "fdcd47f2fee649bd82de4a664bd5af4b28c3a73b481a036a50fb52bd1525d044"
+_APPROVED = {"pass1": ("P-1", PASS1_SYSTEM_SHA256), "pass2": ("P-2", PASS2_SYSTEM_SHA256)}
+#: SHA256 (UTF-8) of the PI-approved P-2c quote-task question for ``core.activity_segment``
+#: (RC-D-021 P-2c a, reply 2 "p2c draft ok"; the text quoted in that row). It reaches the
+#: pass-2 *user* message through ``pass2_support.QUESTION_OVERRIDES``, which the P-2
+#: system-prompt pin does not cover.
+P2C_QUESTION_SHA256 = "d2f274e0782ad75d77c06c23108eb37608ec5d64f2e39944e5db077665489e3d"
+#: The quote-task question overrides approved by text pin: item -> (ruling row, SHA256).
+_APPROVED_QUESTION_OVERRIDES = {"core.activity_segment": ("P-2c", P2C_QUESTION_SHA256)}
+
+
+def require_approved_quote_questions(rules: Any) -> None:
+    """Refuse pass-2 quote-task question overrides other than the PI-approved texts (RC-D-021 P-2c a).
+
+    ``rules`` is the :class:`~g3o.extract.pass2_support.Pass2Rules` the pass-2 jobs are built
+    with. Its overridden items must be exactly the pinned ones, each with the pinned text.
+    """
+    overridden = set(getattr(rules, "overridden", ()))
+    if overridden != set(_APPROVED_QUESTION_OVERRIDES):
+        raise ValueError(f"pass-2 quote-task question overrides {sorted(overridden)} differ from the "
+                         f"PI-approved set {sorted(_APPROVED_QUESTION_OVERRIDES)}: no extractor call is "
+                         "made with unapproved wording")
+    for item, (row, pinned) in _APPROVED_QUESTION_OVERRIDES.items():
+        text = rules.questions.get(item)
+        if not isinstance(text, str) or sha256_text(text) != pinned:
+            raise ValueError(f"pass-2 quote-task question for {item} differs from the PI-approved text "
+                             f"(RC-D-021 {row}, SHA256 {pinned}): no extractor call is made with "
+                             "unapproved wording")
+
+
+def require_approved_system(name: str, system: str) -> None:
+    """Refuse a pass-1/pass-2 system prompt whose UTF-8 SHA256 is not the approved pin."""
+    row, pinned = _APPROVED[name]
+    if not isinstance(system, str) or sha256_text(system) != pinned:
+        raise ValueError(f"{name} prompt differs from the PI-approved text (RC-D-021 {row}, SHA256 "
+                         f"{pinned}): no extractor call is made with unapproved wording")
+
+
+def _job_key(job: ExtractorJob) -> str:
+    return hashlib.sha256(canonical_json({"custom_id": job.custom_id, "params": job.params})
+                          .encode("utf-8")).hexdigest()
+
+
+def _spent(extract_fn: Any, job: ExtractorJob) -> bool:
+    """Review L-2: whether the journal reports ``job``'s PI-released re-ask as spent with no answer (the journaled
+    call's ``spent_unanswered``; False for an unjournaled call), so a 98 b / 105 b guard hold carries the spent
+    note (PI ruling 114 b: a new release is needed) as the journal's own refusal does."""
+    spent = getattr(extract_fn, "spent_unanswered", None)
+    return bool(spent is not None and spent(job))
+
+
+#: Ruling 46 a: marks an extra-round (C1 a) pass-1 ``custom_id`` (see :func:`extra_round_custom_id`).
+EXTRA_ROUND_MARK = "-x"
+
+
+def extra_round_custom_id(first_round: str, codes: Sequence[Any]) -> str:
+    """The ``custom_id`` of an extra-round pass-1 request (ruling 46 a).
+
+    The page's first-round ``custom_id`` plus :data:`EXTRA_ROUND_MARK` and 8 hex of the
+    SHA256 of the round's sorted ``(item_id, chunk_id, value)`` code set: distinct from the
+    first-round request, and the same on a resume, so the journal replays the same request.
+    The first-round ``custom_id`` (``x27-`` + 48 hex) is unchanged; the result is 62
+    characters, inside the Batches limit of 64."""
+    code_set = sorted([c.item_id, c.chunk_id, c.value] for c in codes)
+    digest = hashlib.sha256(canonical_json(code_set).encode("utf-8")).hexdigest()[:8]
+    return f"{first_round}{EXTRA_ROUND_MARK}{digest}"
+
+
+#: PI ruling 87 c: marks the activity-only pass-1 ``custom_id`` (see :func:`activity_only_custom_id`).
+ACTIVITY_ONLY_MARK = "-a"
+#: PI ruling 99.1 a: the activity-only request failed for good: the journal's rejection cap (ruling 34 b /
+#: 41 a, three unparsable responses) was reached, so no further call is made. A failed response (error,
+#: expired, refusal, ...) is not capped by the journal: it is retried on the next run (held, C3 a) first.
+ACTIVITY_ONLY_CAP = "activity_only_request_rejection_cap"
+#: PI ruling 99.2: the activity-only request succeeded with no activity (none returned, or every span
+#: rejected by the parser).
+ACTIVITY_ONLY_EMPTY = "activity_only_request_no_activity"
+#: PI ruling 109 a: the 99.2 downgrade of a page whose final verdict is ``confirms_activity`` and whose first-round
+#: (T-022 page request) plan had an activity task, but that request gave no activity (none returned, or every span
+#: rejected by the parser); no activity-only request is made for it (ruling 100 b)
+FIRST_PLAN_NO_ACTIVITY = "first_round_request_no_activity"
+
+
+def _final_confirms(page_round: PageRoundResult) -> bool:
+    """Whether the page's final verdict is a combined ``confirms_activity`` (the verdict the 99.2 downgrade takes)."""
+    verdict = page_round.final.items.get(VERDICT)
+    return verdict is not None and verdict.state == "combined" and verdict.value == "confirms_activity"
+
+
+def activity_only_custom_id(first_round: str, page: Any) -> str:
+    """The ``custom_id`` of a page's activity-only pass-1 request (PI ruling 87 c; the 46 a scheme).
+
+    The page's first-round ``custom_id`` plus :data:`ACTIVITY_ONLY_MARK` and 8 hex of the SHA256 of the
+    request's part layout (its ordered part ids, after the halving): distinct from the first-round and
+    extra-round requests, and the same on a resume (journal replay). 62 characters, inside the Batches
+    limit of 64."""
+    digest = hashlib.sha256(canonical_json([c.chunk_id for c in page.chunks]).encode("utf-8")).hexdigest()[:8]
+    return f"{first_round}{ACTIVITY_ONLY_MARK}{digest}"
+
+
+def pass2_extra_round_custom_id(first_round: str, page: Any) -> str:
+    """The ``custom_id`` of a pass-2 extra-round request (ruling 49 a, the 46 a scheme).
+
+    The page's first-round pass-2 ``custom_id`` plus :data:`EXTRA_ROUND_MARK` and 8 hex of
+    the SHA256 of the round's sorted code set, each code as ``(activity_id, item_id, part,
+    chunk_id, value, linked_activity)``: distinct from the first-round request and the same
+    on a resume. The first-round ``custom_id`` (``x27s-`` + 48 hex) is unchanged; the
+    result is 63 characters, inside the Batches limit of 64."""
+    code_set = sorted(canonical_json([a.activity_id, c.item_id, c.part, c.chunk_id, c.value, c.linked_activity])
+                      for a in page.activities for c in a.codes)
+    digest = hashlib.sha256(canonical_json(code_set).encode("utf-8")).hexdigest()[:8]
+    return f"{first_round}{EXTRA_ROUND_MARK}{digest}"
+
+
+class _Adapter:
+    """The four seams over one pair of calls. Caches are per institution (see ``with_seams``)."""
+
+    def __init__(self, bound: Any, run_dir: Path, extract_fn: ExtractFn, entail_fn: EntailFn) -> None:
+        self.bound, self.run_dir = bound, Path(run_dir)
+        self.extract_fn, self.entail_fn = extract_fn, entail_fn
+        self.rules = sc.default_rules()
+        self._responses: dict[str, ExtractorResult] = {}
+        self._page_request: dict[str, Pass1Extraction | None] = {}  # page id -> T-022 page request
+        #: page id -> the first-round (T-022 page request) plan, planned on the T-021 verdict (PI ruling 100 b)
+        self._page_plan: dict[str, request_v27.RequestPlan] = {}
+        #: page id -> why the final verdict's support is downgraded ``downgraded_no_quote`` (PI ruling 99.1 a /
+        #: 99.2): the activity-only request reached its rejection cap, or gave no activity
+        self._verdict_downgrade: dict[str, str] = {}
+        #: page id -> the residual source_type answers (PI ruling 95 a), and their checks (support, record)
+        self._source_typing: dict[str, sf.SourceTyping] = {}
+        self._source_type_codes: dict[str, tuple[tuple[SupportResult, CoderRecord], ...]] = {}
+        #: page id -> the journaled pass-1 request (custom_id, params) behind ``_page_request`` (C4 a)
+        self._page_pass1: dict[str, dict[str, Any] | None] = {}
+        #: page id -> the parsed activity-only pass-1 request of a page flipped to confirms_activity (87 c)
+        self._activity_only: dict[str, Pass1Extraction] = {}
+        self._activity_only_job: dict[str, dict[str, Any]] = {}  # its journaled request (custom_id, params)
+        #: page id -> the journaled pass-1 request whose activity spans ``activity_input`` used (C4 a): the
+        #: page request, or the activity-only request (PI ruling 87 c)
+        self._span_pass1: dict[str, dict[str, Any] | None] = {}
+        #: (page id, hold stage) whose PI-released re-ask had its state archived and its record written in this
+        #: process (PI rulings 113 b / 121 b; :meth:`_archive_for_reask`): never archived twice before that call
+        self._reask_prepared: set[tuple[str, str]] = set()
+        self._pair_quotes: dict[str, dict[tuple[Any, ...], Any]] = {}  # page id -> pair quotes
+        #: page id -> the parsed T-032 pass-2 page request (None: the plan needed no request); its field
+        #: tasks hold the open reported_* lists (PI ruling 73.1 b)
+        self._page_pass2: dict[str, pass2_support.Pass2Support | None] = {}
+        #: every parsed extractor answer, in call order (the page requests are also kept per page:
+        #: ``_page_request`` for pass 1, ``_page_pass2`` for pass 2)
+        self.extractions: list[Any] = []
+
+    # --- calls ---------------------------------------------------------------
+
+    def _call(self, job: ExtractorJob) -> ExtractorResult:
+        key = _job_key(job)
+        if key in self._responses:  # the same request in this process (e.g. a rebuilt page request)
+            return self._responses[key]
+        result = self.extract_fn(job)
+        if result.success:
+            self._responses[key] = result
+        return result
+
+    def _parsed(self, name: str, job: ExtractorJob, parse: Callable[[ExtractorResult], Any], *, page_id: str,
+                hold_stage: str) -> Any:
+        """The parsed answer to ``job``; a failed or unparsable response raises
+        :class:`ExtractorResponseFailed` (C3 a), never a bare parser error.
+
+        Review H-1 (PI ruling 114 b): when the journal refuses the call because the key's PI-released re-ask was
+        used up with no response recorded since (:class:`~g3o.run.presweep.stage_validate_v27.ReaskSpentUnanswered`),
+        the institution is held under the not-journaled stage of the request's kind, ``hold_stage``
+        (:data:`~g3o.run.presweep.stage_perpage_v27.PASS2_NOT_JOURNALED`, ``PASS1_NOT_JOURNALED`` or
+        ``ACTIVITY_ONLY_NOT_JOURNALED``), with its ``request_key``: a new ``pi_release.json`` naming it
+        authorises one more re-ask (PI ruling 104 b)."""
+        try:
+            result = self._call(job)
+        except ExtractRejectCapReached as exc:  # ruling 34 b / 41 a: name the pass in the hold
+            exc.pass_name = name
+            raise
+        except ReaskSpentUnanswered as exc:  # review H-1: no call was made
+            if hold_stage == PASS2_NOT_JOURNALED:
+                raise Pass2RequestNotJournaled(page_id, job.custom_id, exc.key, spent=True) from exc
+            raise Pass1RequestNotJournaled(page_id, job.custom_id, exc.key, hold_stage, spent=True) from exc
+        request = {"custom_id": job.custom_id, "params": job.params}
+        if not result.success or not result.text:
+            self._responses.pop(_job_key(job), None)
+            raise ExtractorResponseFailed(name, request, f"response {result.custom_id!r} failed: {result.error}")
+        try:
+            return parse(result)
+        except ExtractContractError as exc:
+            self._responses.pop(_job_key(job), None)  # never reused as an answer
+            raise ExtractorResponseFailed(name, request, f"ExtractContractError: {exc}") from exc
+
+    def _entailment(self, ev: CodeEvidence, sources: PageSources, activity_name: str | None,
+                    name_request: Mapping[str, Any] | None = None) -> Entailment | None:
+        """X35 only where :func:`check_code` reads it: a labelled item whose value needs a quote and
+        whose quote matches the text it may come from (R-042).
+
+        An activity-form question for an activity pass 1 gave no ``activity_name`` raises
+        :class:`ExtractorResponseFailed` for ``name_request``, the pass-1 request that produced the
+        activity (C4 a)."""
+        if ev.quote is None or not ev.quote.strip() or ev.item_id not in self.rules.entailment_labels:
+            return None
+        item = self.rules.items[ev.item_id]
+        if not sc._needs_quote(ev, item, self.rules):
+            return None
+        src = sc._quote_source(ev, item, sources)
+        if src is None or not sc.match_quote(ev.quote, src).matched:
+            return None
+        if (ev.activity_id is not None and self.rules.entailment_labels[ev.item_id]["frame"] != "page"
+                and (activity_name is None or not activity_name.strip())):
+            raise ExtractorResponseFailed(
+                "pass1", name_request, f"activity {ev.activity_id!r} has no activity_name, which the "
+                f"activity-form X35 question for {ev.item_id} needs (C4 a)",
+                archive_page_state=True)  # ruling 33 a: state built on this answer is moved to archive
+        question = sc.entailment_question(ev.item_id, ev.value, part=ev.part, activity_name=activity_name,
+                                          rules=self.rules)
+        window, _located = sc.entailment_window(ev.quote, src)
+        return self.entail_fn(question, window)
+
+    def _check(self, rec: CoderRecord, quote: Any, sources: PageSources, *, activity_id: str | None = None,
+               linked: str | None = None, activity_name: str | None = None,
+               name_request: Mapping[str, Any] | None = None) -> SupportResult:
+        text = quote.quote if quote is not None and quote.quote and quote.quote.strip() else None
+        ev = CodeEvidence(rec.item_id, str(rec.chosen_value), rec.chunk_id, part=rec.item_part,
+                          probability=rec.chosen_answer_probability, quote=text,
+                          quote_chunk_id=quote.chunk_id if text is not None else None,
+                          activity_id=activity_id, linked_activity=linked)
+        ent = self._entailment(ev, sources, activity_name, name_request)
+        return sc.check_code(replace(ev, entailment=ent) if ent is not None else ev, sources, self.rules)
+
+    # --- pass 1 --------------------------------------------------------------
+
+    def _pass1(self, p1: Any, *, extra_round: bool = False
+               ) -> tuple[Any, Pass1Extraction | None, dict[str, Any] | None]:
+        """The plan, the parsed answer and the journaled request (``custom_id``, ``params``)."""
+        plan = request_v27.select_requests(p1)
+        if extra_round:  # C1 a: only the quote tasks of the newly eligible codes
+            plan = request_v27.quote_tasks_only(plan)
+        if not plan.needs_request:
+            return plan, None, None
+        job = self.bound.pass1_job(p1, plan)
+        if extra_round:  # ruling 46 a: its own custom_id, never the page's first-round one
+            job = replace(job, custom_id=extra_round_custom_id(job.custom_id, p1.codes))
+        ext = self._parsed("pass1", job, lambda r: parse_pass1_result(r, p1, plan), page_id=p1.page_id,
+                           hold_stage=PASS1_NOT_JOURNALED)
+        self.extractions.append(ext)
+        return plan, ext, {"custom_id": job.custom_id, "params": job.params}
+
+    # --- residual source_type (PI ruling 95 a) --------------------------------
+
+    def set_source_typing(self, page_id: str, typing: sf.SourceTyping) -> None:
+        """The page's residual ``source_type`` answers (:func:`~g3o.common.source_fields.code_source_type`,
+        asked by the per-page stage before T-022 on the page's T-021 parts). Their quote tasks join the
+        page's first pass-1 request; set before that request is built (``page_support`` / ``activity_input``)."""
+        if typing.typed_by != "classifier" or typing.result is None:
+            raise TypeError(f"page {page_id}: only a classifier-typed (residual) source_type is set here")
+        if page_id in self._page_request and self._source_typing.get(page_id) != typing:
+            raise TypeError(f"page {page_id}: residual source_type set after its first pass-1 request was built")
+        self._source_typing[page_id] = typing
+
+    @staticmethod
+    def _type_records(typing: sf.SourceTyping) -> tuple[CoderRecord, ...]:
+        """The residual answers that are checked: every live classifier answer but the temporary part answer."""
+        return tuple(r for r in typing.result.records if r.coder_type == "classifier" and r.item_id == sf.SOURCE_TYPE
+                     and r.chosen_value != NOT_COVERED)
+
+    def _with_source_type(self, p1: Any) -> Any:
+        """``p1`` with the residual ``source_type`` answers as pass-1 codes, so the first request carries their
+        quote tasks (the signed question and jev's answer, as every pass-1 quote task; PI ruling 95 a). A page
+        whose T-021 codes need no request keeps none: no request is created for the quote (it is checked with
+        no quote, ``downgraded_no_quote``)."""
+        typing = self._source_typing.get(p1.page_id)
+        if typing is None or not request_v27.select_requests(p1).needs_request:
+            return p1
+        extra = tuple(request_v27.PageCode(r.item_id, r.chunk_id, str(r.chosen_value))
+                      for r in self._type_records(typing))
+        return replace(p1, codes=p1.codes + extra)
+
+    def _type_support(self, page_id: str, p1: Any, plan: Any, ext: Pass1Extraction | None) -> None:
+        """T-024 (with X35 where it reads it) of each residual answer, on the first request's quotes; no
+        request, or no usable quote: checked with no quote (``downgraded_no_quote``), no call made."""
+        typing = self._source_typing.get(page_id)
+        if typing is None:
+            return
+        quotes = sc.pass1_quotes(plan, ext) if ext is not None else {}
+        sources = PageSources.from_page(p1)
+        self._source_type_codes[page_id] = tuple(
+            (self._check(r, quotes.get((r.item_id, r.chunk_id)), sources), r) for r in self._type_records(typing))
+
+    def source_type_codes(self, page_id: str) -> tuple[tuple[SupportResult, CoderRecord], ...] | None:
+        """The checked residual ``source_type`` answers of the page (support, record), or None when the page
+        has no residual typing. Call after :meth:`activity_input` (which rebuilds the first request on a
+        resume)."""
+        if page_id not in self._source_typing:
+            return None
+        if page_id not in self._source_type_codes:
+            raise KeyError(f"no residual source_type check held for page {page_id!r} (activity_input not called)")
+        return self._source_type_codes[page_id]
+
+    def page_support(self, page: PageInput, result: PageCodeResult,
+                     records: Sequence[CoderRecord]) -> list[SupportResult]:
+        full = to_pass1_page(result, page)
+        wanted = {(r.item_id, r.chunk_id, r.chosen_value) for r in records}
+        codes = tuple(c for c in full.codes if (c.item_id, c.chunk_id, c.value) in wanted)
+        p1 = replace(full, codes=codes)
+        # every pass-1 code: T-022's page request (its spans feed activity_input); fewer codes: an
+        # RC-D-024 extra round, which asks only their quotes (C1 a). Once an extra round has started,
+        # every call is one, even when a halving left all live codes unchecked (ruling 46 a)
+        first = codes == full.codes and not extra_round_started(result)
+        if first:  # PI ruling 95 a: the residual source_type quote tasks ride in the first request
+            p1 = self._with_source_type(p1)
+            if (page.page_id not in self._page_request and not (page_state_dir(self.run_dir, page) / "page.json").exists()
+                    and read_pass1_requests(self.run_dir, page) is not None):
+                # PI ruling 121 b with 105 b: no page.json, yet an earlier process made this request (a released re-ask
+                # archived page.json and wrote this record; the C4 archive moves both): replayed, never sent live
+                # unless the journal holds it or the release still authorises it
+                first_plan = request_v27.select_requests(p1)
+                if first_plan.needs_request:
+                    self._require_journaled(page, self.bound.pass1_job(p1, first_plan), PASS1_NOT_JOURNALED)
+        plan, ext, request = self._pass1(p1, extra_round=not first)
+        if first and page.page_id not in self._page_request:
+            self._page_request[page.page_id], self._page_pass1[page.page_id] = ext, request
+            self._page_plan[page.page_id] = plan
+            self._type_support(page.page_id, p1, plan, ext)
+        quotes = sc.pass1_quotes(plan, ext) if ext is not None else {}
+        sources = PageSources.from_page(p1)
+        return [self._check(r, quotes.get((r.item_id, r.chunk_id)), sources) for r in records]
+
+    def _first_request(self, page: PageInput) -> tuple[Any, Any]:
+        """The page's first pass-1 request rebuilt from its stored T-021 result: ``(base, p1)``, ``base`` its T-021
+        pass-1 codes and ``p1`` those with the residual ``source_type`` quote tasks (PI ruling 95 a)."""
+        first = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(
+            self.run_dir, page.institution_id, page.url)))
+        base = to_pass1_page(first, page)
+        return base, self._with_source_type(base)
+
+    def prepare_pass1_reask(self, page: PageInput) -> bool:
+        """PI ruling 121 b: called by the per-page stage before the page's ``page.json`` is loaded (and after its
+        residual ``source_type`` answers are set). When the page's first pass-1 request, rebuilt from T-021 as
+        :meth:`activity_input` rebuilds it on a resume (PI ruling 105 b: an earlier process made it), is about to be
+        sent as the one live re-ask a PI release authorised (the journal's ``reask_live``), ``page.json`` and the
+        activity-level state are archived and a fresh ``pass1_requests.json`` names the request
+        (:meth:`_archive_for_reask`). The page's rounds then start again from the stored T-021 result, so
+        ``page_support`` makes the re-ask itself and checks the page-level support (with X35, journaled like every
+        X35 call) on the new response's quotes: the row's snippet and its provenance name one response. PI ruling
+        127 a (accepted, spend control): those rounds may also make further jev extra-round and extractor
+        extra-round calls, all journaled, so the re-ask costs the request plus its X35 calls and possibly extra
+        rounds. Returns whether it archived. An activity-only re-ask is not prepared here (page.json stays, 113 b)."""
+        pid = page.page_id
+        reask_live = getattr(self.extract_fn, "reask_live", None)
+        if reask_live is None or pid in self._page_request or (pid, PASS1_NOT_JOURNALED) in self._reask_prepared:
+            return False
+        base, p1 = self._first_request(page)
+        if not base.codes and read_pass1_requests(self.run_dir, page) is None:  # no earlier process made it
+            return False
+        plan = request_v27.select_requests(p1)
+        if not plan.needs_request:
+            return False
+        job = self.bound.pass1_job(p1, plan)
+        if not reask_live(job):
+            return False
+        self._archive_for_reask(page, job, PASS1_NOT_JOURNALED)
+        return True
+
+    def activity_input(self, page: PageInput, page_round: PageRoundResult) -> ActivityPageInput | None:
+        pid = page.page_id
+        if pid not in self._page_request:  # resume: rebuild the page request from T-021
+            base, p1 = self._first_request(page)
+            if base.codes or read_pass1_requests(self.run_dir, page) is not None:  # PI ruling 105 b: a resume
+                plan = request_v27.select_requests(p1)
+                if plan.needs_request:
+                    self._require_journaled(page, self.bound.pass1_job(p1, plan), PASS1_NOT_JOURNALED)
+            self._page_plan[pid], self._page_request[pid], self._page_pass1[pid] = self._pass1(p1)
+            self._type_support(pid, p1, self._page_plan[pid], self._page_request[pid])
+        ext = self._page_request[pid]
+        spans = ext.activities if ext is not None else ()
+        self._span_pass1[pid] = self._page_pass1[pid]
+        self._verdict_downgrade.pop(pid, None)
+        # PI ruling 87 c, sent only when the stored first-round plan had no activity task (ruling 100 b)
+        # and the verdict flipped to confirms_activity from its first-round value (101 a)
+        if not spans and not self._page_plan[pid].activity_task and verdict_flipped_to_confirms(page_round):
+            try:
+                spans = self._activity_only_request(page, page_round).activities
+            except ExtractRejectCapReached as exc:  # ruling 99.1 a: failed past the rejection cap
+                self._verdict_downgrade[pid] = (f"{ACTIVITY_ONLY_CAP}: request {exc.custom_id!r} rejected "
+                                                f"{exc.rejections} times")
+                return None
+            self._span_pass1[pid] = self._activity_only_job[pid]
+            if not spans:  # ruling 99.2: no activity (none returned, or every span rejected by the parser)
+                self._verdict_downgrade[pid] = ACTIVITY_ONLY_EMPTY
+        elif not spans and self._page_plan[pid].activity_task and _final_confirms(page_round):
+            # PI ruling 109 a: the first plan asked for activities and got none, yet the page confirms one
+            self._verdict_downgrade[pid] = FIRST_PLAN_NO_ACTIVITY
+        if not spans:
+            return None
+        return ActivityPageInput(to_pass1_page(page_round.result, page), page.country,
+                                 page.level_of_government, spans)
+
+    def _activity_only_request(self, page: PageInput, page_round: PageRoundResult) -> Pass1Extraction:
+        """PI ruling 87 c: ONE activity-only pass-1 request for a page a halving flipped to
+        ``confirms_activity`` whose first-round request returned no activity.
+
+        The activity task alone (:func:`~g3o.extract.request_v27.activity_task_only`; the signed task,
+        no new wording), on the page's current part layout, with its own ``custom_id``
+        (:func:`activity_only_custom_id`). It goes through ``extract_fn`` like every extractor call, so
+        the per-institution journal records, prices (rulings 130 a / 58 a / 67 a) and replays it on a
+        resume (the same layout gives the same request). A failed or unparsable response raises
+        :class:`ExtractorResponseFailed` (C3 a: the institution is held and the request asked again);
+        once the journal's rejection cap is reached it raises
+        :class:`~g3o.run.presweep.stage_validate_v27.ExtractRejectCapReached`, which :meth:`activity_input`
+        turns into the verdict downgrade (PI ruling 99.1 a)."""
+        pid = page.page_id
+        if pid not in self._activity_only:
+            p1 = replace(to_pass1_page(page_round.result, page), codes=())
+            plan = request_v27.activity_task_only(p1)
+            job = self.bound.pass1_job(p1, plan)
+            job = replace(job, custom_id=activity_only_custom_id(job.custom_id, p1))
+            made = read_pass1_requests(self.run_dir, page) or {}
+            if made.get("activity_only") == job.custom_id:  # PI ruling 105 b: an earlier process got its answer
+                self._require_journaled(page, job, ACTIVITY_ONLY_NOT_JOURNALED)
+            ext = self._parsed("pass1", job, lambda r: parse_pass1_result(r, p1, plan), page_id=pid,
+                               hold_stage=ACTIVITY_ONLY_NOT_JOURNALED)
+            self.extractions.append(ext)
+            self._activity_only[pid] = ext
+            self._activity_only_job[pid] = {"custom_id": job.custom_id, "params": job.params}
+        return self._activity_only[pid]
+
+    def _require_journaled(self, page: PageInput, job: ExtractorJob, stage: str) -> None:
+        """PI ruling 105 b (the 98 b check): a resumed pass-1 request must be replayed from the journal, never
+        sent live; with no recorded response :class:`~g3o.run.presweep.stage_perpage_v27.Pass1RequestNotJournaled`
+        (``stage``) holds the institution before any call. An extractor call that is not journaled (no
+        ``peek``, e.g. offline fakes) is not checked.
+
+        PI ruling 113 b: when the journal will send it as the one live re-ask a PI release authorised
+        (``reask_live``; PI ruling 104 b), the page's activity-level state is archived first
+        (:func:`~g3o.run.presweep.stage_perpage_v27.archive_activity_state`): ``activity_input`` makes the call
+        right after this, and the activity checkpoint, T-023 artifact and pair checkpoint are read (and
+        ``pass1_requests.json`` rewritten) only after ``activity_input`` returns, so the page's activity state is
+        built again from the new spans. An incomplete archive raises
+        :class:`~g3o.run.presweep.stage_perpage_v27.PageArchiveIncomplete` (the institution is held, no call).
+        Review H-1: right after the archive (which moved ``pass1_requests.json``, the only trigger of this check
+        for an activity-only request or a page with no pass-1 codes), a fresh record naming ``job`` is written
+        (:func:`~g3o.run.presweep.stage_perpage_v27.record_pass1_reask`) before the call, so a re-ask that dies
+        or fails is held by the next run's check; the journal refuses it as well (:meth:`_parsed`).
+        PI ruling 121 b: for a pass-1 page request ``page.json`` is archived too, and the stage does it before the
+        page's rounds (:meth:`prepare_pass1_reask`); a re-ask prepared that way is not archived again here
+        (:meth:`_archive_for_reask`)."""
+        peek = getattr(self.extract_fn, "peek", None)
+        if peek is None or _job_key(job) in self._responses:  # unjournaled, or answered in this process
+            return
+        key, recorded = peek(job)
+        if not recorded:
+            raise Pass1RequestNotJournaled(page.page_id, job.custom_id, key, stage, spent=_spent(self.extract_fn, job))
+        reask_live = getattr(self.extract_fn, "reask_live", None)
+        if reask_live is not None and reask_live(job) and (page.page_id, stage) not in self._reask_prepared:
+            self._archive_for_reask(page, job, stage)  # PI rulings 113 b / 121 b: before the authorised live call
+
+    def _archive_for_reask(self, page: PageInput, job: ExtractorJob, stage: str) -> None:
+        """PI rulings 113 b / 121 b, before the one live re-ask of ``job`` a PI release authorised: archive the page's
+        state (a pass-1 page request, :data:`PASS1_NOT_JOURNALED`: ``page.json`` too,
+        :func:`~g3o.run.presweep.stage_perpage_v27.archive_page_request_state`; an activity-only request: the
+        activity-level state only, :func:`~g3o.run.presweep.stage_perpage_v27.archive_activity_state`), then write a
+        fresh ``pass1_requests.json`` naming ``job`` (review H-1,
+        :func:`~g3o.run.presweep.stage_perpage_v27.record_pass1_reask`). Done once per page and stage in this process:
+        the stage prepares a pass-1 re-ask before the page's rounds (:meth:`prepare_pass1_reask`), and the 105 b
+        checks that meet the same release later in the run (``page_support``, :meth:`activity_input`) skip it."""
+        previous = read_pass1_requests(self.run_dir, page)  # read before the archive moves it
+        if stage == PASS1_NOT_JOURNALED:
+            archive_page_request_state(self.run_dir, page)
+        else:
+            archive_activity_state(self.run_dir, page)
+        # review H-1: name the request about to be sent, so the next run's 105 b check still sees it
+        record_pass1_reask(self.run_dir, page, previous, stage, job.custom_id)
+        self._reask_prepared.add((page.page_id, stage))
+
+    def activity_extraction(self, page_id: str) -> Pass1Extraction | None:
+        """The page's activity-only pass-1 request (PI ruling 87 c) when :meth:`activity_input` made one
+        (its spans are the page's activities; the T-015 assembler reads their fields from it), else None."""
+        return self._activity_only.get(page_id)
+
+    def verdict_downgrade(self, page_id: str) -> str | None:
+        """Why the page's final verdict support is downgraded ``downgraded_no_quote`` (PI ruling 99.1 a /
+        99.2: its activity-only request reached the rejection cap, :data:`ACTIVITY_ONLY_CAP`, or gave no
+        activity, :data:`ACTIVITY_ONLY_EMPTY`; PI ruling 109 a: a confirms_activity page whose first-round plan
+        had an activity task and gave none, :data:`FIRST_PLAN_NO_ACTIVITY`), as the last :meth:`activity_input`
+        for it decided; else None."""
+        return self._verdict_downgrade.get(page_id)
+
+    def page_extraction(self, page_id: str) -> Pass1Extraction | None:
+        """The page's T-022 pass-1 page request (its parsed answer with the actual response model and
+        request id), as :meth:`activity_input` holds it; None when the plan needed no request.
+
+        Call after :meth:`activity_input` for the page (which rebuilds it on a resume); the T-015
+        source-row assembler reads its activity fields and provenance (PI ruling 35 a)."""
+        if page_id not in self._page_request:
+            raise KeyError(f"no pass-1 page request held for page {page_id!r} (activity_input not called)")
+        return self._page_request[page_id]
+
+    # --- pass 2 --------------------------------------------------------------
+
+    @staticmethod
+    def _code_key(aid: str, code: Any) -> tuple[Any, ...]:
+        return (aid, code.item_id, code.part, code.chunk_id, code.value, code.linked_activity)
+
+    def _pass2(self, p2: Any, *, extra_round: bool = False) -> dict[tuple[Any, ...], Any]:
+        """The quotes of one pass-2 request; a page request (not ``extra_round``) is also kept whole for
+        :meth:`page_pass2` (its field tasks, PI ruling 73.1 b)."""
+        plan = pass2_support.select_requests(p2)
+        if not plan.needs_request:
+            if not extra_round:
+                self._page_pass2[p2.page_id] = None
+            return {}
+        # RC-D-021 P-2c a: the rules the job's user message is built from, checked before the call.
+        require_approved_quote_questions(pass2_support.default_rules())
+        job = self.bound.pass2_job(p2, plan)
+        if extra_round:  # ruling 49 a: its own custom_id, never the page's first-round one
+            job = replace(job, custom_id=pass2_extra_round_custom_id(job.custom_id, p2))
+        sup = self._parsed("pass2", job, lambda r: pass2_support.parse_pass2_result(r, p2, plan), page_id=p2.page_id,
+                           hold_stage=PASS2_NOT_JOURNALED)
+        self.extractions.append(sup)
+        if not extra_round:
+            self._page_pass2[p2.page_id] = sup
+        tasks = {t.task_id: t for t in plan.quote_tasks}
+        out: dict[tuple[Any, ...], Any] = {}
+        for q in sup.quotes:
+            t = tasks[q.task_id]
+            out[(t.activity_id, t.item_id, t.part, t.chunk_id, t.answer, t.linked_activity)] = q
+        return out
+
+    @staticmethod
+    def _names(inp: ActivityPageInput) -> dict[str, str]:
+        return {sp.activity_id: f.value for sp in inp.spans for f in sp.fields if f.item_id == ACTIVITY_NAME}
+
+    def activity_support(self, inp: ActivityPageInput, result: PageActivityResult,
+                         records: Sequence[tuple[str, CoderRecord]]) -> list[SupportResult]:
+        full = to_pass2_page(result, inp)
+        wanted = {(a, r.item_id, r.item_part, r.chunk_id, str(r.chosen_value), None) for a, r in records}
+        ordinary = {self._code_key(a.activity_id, c) for a in full.activities for c in a.codes
+                    if c.item_id not in PAIR_ITEMS}
+        # The first-round / extra-round choice is the same on a resume: ``wanted == ordinary`` holds
+        # only while no ordinary code of the page has saved support (complete_activity_rounds asks
+        # only codes missing from the activity checkpoint), and a page-request call that returns
+        # puts every ordinary code in that checkpoint. So a later round never has wanted == ordinary,
+        # and the ``_pair_quotes`` test (empty on a resume) never decides it: a returned page
+        # request makes every later call an extra round, and one that raised holds the institution,
+        # whose adapter is then discarded (with_seams is per institution and run).
+        if wanted == ordinary and inp.page.page_id not in self._pair_quotes:
+            # every ordinary code: the page request, pair codes included (DP-009)
+            quotes = self._pass2(full)
+            self._pair_quotes[inp.page.page_id] = {k: q for k, q in quotes.items() if k[1] in PAIR_ITEMS}
+        else:
+            acts = tuple(replace(a, codes=tuple(c for c in a.codes if self._code_key(a.activity_id, c) in wanted))
+                         for a in full.activities)
+            quotes = self._pass2(replace(full, activities=acts), extra_round=True)
+        sources = PageSources.from_page(inp.page)
+        names, name_request = self._names(inp), self._span_pass1.get(inp.page.page_id)
+        return [self._check(r, quotes.get((a, r.item_id, r.item_part, r.chunk_id, str(r.chosen_value), None)),
+                            sources, activity_id=a, activity_name=names.get(a), name_request=name_request)
+                for a, r in records]
+
+    def pair_support(self, inp: ActivityPageInput, result: PageActivityResult) -> list[SupportResult]:
+        pid = inp.page.page_id
+        # The rebuild below is the request the uninterrupted run made, or would make here. The
+        # page request is only ever made in round 1 of complete_activity_rounds, on the T-023
+        # result (the stored artifact, or the result run_stage just wrote to it): round 1 asks
+        # every classifier, non-not-covered ordinary record, which is ``ordinary``
+        # (``to_pass2_page`` keeps the same records; choice values are strings). If round 1 asks
+        # nothing, the page has no such record, so there is no support, finalize_activities
+        # re-combines the same votes in the same gate order as code_page (the permanent-pilot
+        # override needs a SUPPORTED part) and opens no gate, and a fresh T-023 result holds no
+        # extra-round note: no extra round runs and activity_support is never called. Then the
+        # uninterrupted run rebuilds here too, from the same artifact, so a resume gives the same
+        # custom_id and params (journal replay, no new call).
+        if pid not in self._pair_quotes:  # resume: rebuild the page request from the T-023 artifact
+            self._rebuild_page_request2(inp)
+        quotes = self._pair_quotes[pid]
+        sources = PageSources.from_page(inp.page)
+        names, name_request = self._names(inp), self._span_pass1.get(pid)
+        out = []
+        for pair in result.pairs:
+            for rec in pair.records:
+                if rec.chosen_value == NOT_COVERED:
+                    continue
+                key = (pair.activity_id, rec.item_id, rec.item_part, rec.chunk_id, str(rec.chosen_value),
+                       pair.linked_activity)
+                # the X35 activity form names the activity the pair code belongs to (its lhs)
+                out.append(self._check(rec, quotes.get(key), sources, activity_id=pair.activity_id,
+                                       linked=pair.linked_activity, activity_name=names.get(pair.activity_id),
+                                       name_request=name_request))
+        return out
+
+    def _rebuild_page_request2(self, inp: ActivityPageInput) -> None:
+        """The page's pass-2 page request rebuilt from the stored T-023 artifact (a resume: journal replay).
+
+        The page request is only ever made in round 1 of ``complete_activity_rounds`` on that same
+        artifact (see :meth:`pair_support`), so the rebuild gives the same ``custom_id`` and params.
+
+        PI ruling 98 b: the rebuild is a resume when an earlier process made this request. That is
+        known in two ways (:meth:`_resumed_request`): the stored result has ordinary (non-pair) codes
+        (round 1 made the request, so this process reaches the rebuild only on a resume), or the page's
+        pair checkpoint (:data:`~g3o.run.presweep.stage_perpage_v27.PAIRS_FILE`, written only after the
+        request was built by ``page_pass2`` / ``pair_support``) exists from an earlier process (a
+        pair-only page). On a resume, if the institution's request journal holds no response for it,
+        :class:`~g3o.run.presweep.stage_perpage_v27.Pass2RequestNotJournaled` holds the institution
+        before any call (no silent live paid call). Otherwise this is the request's first build
+        (a pair-only page reaching ``page_pass2`` / ``pair_support`` for the first time), unaffected.
+        Left open: a journal lost between the request's journaling and the pair checkpoint write. An
+        extractor call that is not journaled (no ``peek``, e.g. offline fakes) is not checked."""
+        pid = inp.page.page_id
+        art = stage_activity_code.artifact_path(
+            institution_dir(self.run_dir, inp.page.institution_id) / ACTIVITY_DIR, pid)
+        first = PageActivityResult.from_json(read_artifact(art))
+        p2 = to_pass2_page(first, inp)
+        if self._resumed_request(inp, p2):
+            self._require_journaled_pass2(p2)
+        self._pair_quotes[pid] = {k: q for k, q in self._pass2(p2).items() if k[1] in PAIR_ITEMS}
+
+    def _resumed_request(self, inp: ActivityPageInput, p2: Any) -> bool:
+        """PI ruling 98 b: whether an earlier process made this page's pass-2 page request (see
+        :meth:`_rebuild_page_request2`)."""
+        if any(c.item_id not in PAIR_ITEMS for a in p2.activities for c in a.codes):
+            return True
+        return (page_state_dir(self.run_dir, inp.page) / PAIRS_FILE).exists()
+
+    def _require_journaled_pass2(self, p2: Any) -> None:
+        """PI ruling 98 b: a resumed page request must be replayed from the journal, never sent live."""
+        peek = getattr(self.extract_fn, "peek", None)
+        plan = pass2_support.select_requests(p2)
+        if peek is None or not plan.needs_request:
+            return
+        require_approved_quote_questions(pass2_support.default_rules())
+        job = self.bound.pass2_job(p2, plan)
+        if _job_key(job) in self._responses:  # already answered in this process
+            return
+        key, recorded = peek(job)
+        if not recorded:
+            raise Pass2RequestNotJournaled(p2.page_id, job.custom_id, key, spent=_spent(self.extract_fn, job))
+
+    def page_pass2(self, inp: ActivityPageInput) -> pass2_support.Pass2Support | None:
+        """The page's T-032 pass-2 page request (its parsed answer with the actual response model and
+        request id; None when the plan needed no request), PI ruling 73.1 b: the T-015 assembler reads
+        its field tasks for an open reported_* gate. Call once the page's activity rounds are complete;
+        on a resume (the activity checkpoint holds the support, so no page request was made in this
+        process) it is rebuilt from the stored T-023 artifact and replayed from the journal."""
+        if inp.page.page_id not in self._page_pass2:
+            self._rebuild_page_request2(inp)
+        return self._page_pass2[inp.page.page_id]
+
+
+@dataclass(frozen=True)
+class ExtractorPerPageProviders(PerPageProviders):
+    """:class:`PerPageProviders` bound to one instrument, its extractor model and its X35 model."""
+
+    bound_instrument_id: str = ""
+    extractor_model: str = ""
+    x35_model: str = ""
+    adapter: Any = None
+
+    @property
+    def journal_prompt(self) -> dict[str, Any]:
+        """Extra journal key of the extractor and X35 calls (a response under other models is not replayed)."""
+        return {"extractor_model": self.extractor_model, "x35_model": self.x35_model,
+                "pass1_prompt_version": request_v27.PROMPT_VERSION,
+                "pass2_prompt_version": pass2_support.PROMPT_VERSION}
+
+    def page_extraction(self, page_id: str) -> Pass1Extraction | None:
+        """The page's T-022 pass-1 page request (:meth:`_Adapter.page_extraction`)."""
+        return self.adapter.page_extraction(page_id)
+
+    def page_pass2(self, inp: ActivityPageInput) -> pass2_support.Pass2Support | None:
+        """The page's T-032 pass-2 page request (:meth:`_Adapter.page_pass2`, PI ruling 73.1 b)."""
+        return self.adapter.page_pass2(inp)
+
+    def activity_extraction(self, page_id: str) -> Pass1Extraction | None:
+        """The page's activity-only pass-1 request, if any (:meth:`_Adapter.activity_extraction`, PI 87 c)."""
+        return self.adapter.activity_extraction(page_id)
+
+    def verdict_downgrade(self, page_id: str) -> str | None:
+        """Why the page's verdict support is downgraded, if it is (:meth:`_Adapter.verdict_downgrade`,
+        PI ruling 99.1 a / 99.2)."""
+        return self.adapter.verdict_downgrade(page_id)
+
+    def set_source_typing(self, page_id: str, typing: sf.SourceTyping) -> None:
+        """The page's residual ``source_type`` answers (:meth:`_Adapter.set_source_typing`, PI ruling 95 a)."""
+        self.adapter.set_source_typing(page_id, typing)
+
+    def prepare_pass1_reask(self, page: PageInput) -> bool:
+        """Archive ahead of a released pass-1 page request re-ask (:meth:`_Adapter.prepare_pass1_reask`, PI 121 b)."""
+        return self.adapter.prepare_pass1_reask(page)
+
+    def source_type_codes(self, page_id: str) -> tuple[tuple[SupportResult, CoderRecord], ...] | None:
+        """The checked residual ``source_type`` answers (:meth:`_Adapter.source_type_codes`, PI ruling 95 a)."""
+        return self.adapter.source_type_codes(page_id)
+
+    def with_seams(self, wrap_extract: Callable[[ExtractFn], ExtractFn],
+                   wrap_entail: Callable[[EntailFn], EntailFn]) -> ExtractorPerPageProviders:
+        """The same providers with both calls wrapped (the per-institution request journal) and fresh caches."""
+        a = self.adapter
+        return _providers(_Adapter(a.bound, a.run_dir, wrap_extract(a.extract_fn), wrap_entail(a.entail_fn)),
+                          self.bound_instrument_id, self.extractor_model, self.x35_model)
+
+
+def _providers(adapter: _Adapter, instrument_id: str, extractor_model: str,
+               x35_model: str) -> ExtractorPerPageProviders:
+    return ExtractorPerPageProviders(adapter.page_support, adapter.activity_input, adapter.activity_support,
+                                     adapter.pair_support, instrument_id, extractor_model, x35_model, adapter)
+
+
+def check_binding(bound: Any, instrument: Mapping[str, Any], *, extractor_model: str,
+                  x35_model: str) -> None:
+    """Refuse a per-page binding :func:`build_perpage_providers` would refuse; builds nothing.
+
+    ``extractor_model`` and ``x35_model`` must equal the instrument's pinned
+    ``extractor_configuration`` and the bound settings; the pass-1/pass-2 system
+    prompts must hash to the PI-approved pins (RC-D-021 P-1 a, P-2 a) and to the
+    instrument's ``prompt_hashes``. Needs no run directory, so a run can call it on
+    :func:`~g3o.run.presweep.instrument_binding.check_runtime`'s record before any
+    work (T-030 QA4 M2); :func:`build_perpage_providers` calls it again.
+    """
+    if instrument.get("instrument_id") != bound.instrument_id:
+        raise ValueError("bound runtime and instrument differ")
+    payload = instrument["payload"]
+    cfg = payload["extractor_configuration"]
+    for name, declared, pinned, setting in (
+            ("extractor_model", extractor_model, cfg.get("model"), bound.settings.extractor_model),
+            ("x35_model", x35_model, cfg.get("x35_model"), bound.settings.x35_model)):
+        if not isinstance(declared, str) or not declared.strip():
+            raise ValueError(f"{name} must be explicitly supplied")
+        if declared != pinned or declared != setting:
+            raise ValueError(f"{name} differs from the one pinned in the instrument")
+    hashes = payload.get("prompt_hashes", {})
+    for name, system in (("pass1", bound.pass1_system), ("pass2", bound.pass2_system)):
+        require_approved_system(name, system)
+        if not system or sha256_text(system) != hashes.get(name):
+            raise ValueError(f"{name} prompt differs from the one pinned in the instrument")
+    require_approved_quote_questions(pass2_support.default_rules())
+
+
+def build_perpage_providers(bound: Any, instrument: Mapping[str, Any], run_dir: Path, *,
+                            extract_fn: ExtractFn, entail_fn: EntailFn, extractor_model: str,
+                            x35_model: str) -> ExtractorPerPageProviders:
+    """Per-page providers over the injected ``extract_fn`` / ``entail_fn``, bound to ``instrument``.
+
+    Every argument is required; nothing defaults to a client. ``extractor_model`` and
+    ``x35_model`` name the models the two calls run on and must equal the instrument's
+    pinned ``extractor_configuration`` (and the bound settings); any other is refused, as
+    are system prompts that differ from the instrument's ``prompt_hashes`` or from the
+    PI-approved pins (RC-D-021 P-1 a, P-2 a). See :func:`check_binding`.
+    """
+    if not callable(extract_fn) or not callable(entail_fn):
+        raise ValueError("extract_fn and entail_fn must be supplied")
+    check_binding(bound, instrument, extractor_model=extractor_model, x35_model=x35_model)
+    return _providers(_Adapter(bound, run_dir, extract_fn, entail_fn), bound.instrument_id, extractor_model,
+                      x35_model)
+
+
+__all__ = ["ACTIVITY_ONLY_MARK", "EXTRA_ROUND_MARK", "P2C_QUESTION_SHA256", "PASS1_SYSTEM_SHA256", "PASS2_SYSTEM_SHA256",
+           "ExtractorPerPageProviders", "activity_only_custom_id", "build_perpage_providers", "check_binding",
+           "extra_round_custom_id",
+           "pass2_extra_round_custom_id", "require_approved_quote_questions", "require_approved_system"]

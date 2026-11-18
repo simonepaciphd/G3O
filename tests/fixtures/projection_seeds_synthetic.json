@@ -1,0 +1,27 @@
+{
+  "_about": "SYNTHETIC seeds for tests/test_run_projection.py: made-up round numbers, NOT any recorded figure. The real seeds file is private (PI ruling Q177 a).",
+  "seeds": {
+    "envelope_usd": {"value": 1000, "source": "synthetic:1", "note": "SYNTHETIC"},
+    "recorded_recompute_low_usd": {"value": 100, "source": "synthetic:2", "note": "SYNTHETIC"},
+    "recorded_recompute_high_usd": {"value": 120, "source": "synthetic:3", "note": "SYNTHETIC"},
+    "wave4_n": {"value": 1000, "source": "synthetic:4", "note": "SYNTHETIC"},
+    "wave4_wall_s": {"value": 36000, "source": "synthetic:5", "note": "SYNTHETIC: 100 institutions/h"},
+    "wave4_scraped_pages": {"value": 2000, "source": "synthetic:6", "note": "SYNTHETIC: 2 pages/institution"},
+    "wave4_serper_usd": {"value": 10, "source": "synthetic:7", "note": "SYNTHETIC"},
+    "wave4_unlocker_usd": {"value": 2, "source": "synthetic:8", "note": "SYNTHETIC"},
+    "wave4_unlocker_recompute_high_usd": {"value": 3, "source": "synthetic:9", "note": "SYNTHETIC"},
+    "wave4_typesafe_usd": {"value": 1, "source": "synthetic:10", "note": "SYNTHETIC"},
+    "wave4_peak_ram_mb": {"value": 1000, "source": "synthetic:11", "note": "SYNTHETIC"},
+    "wave4_peak_swap_mb": {"value": 500, "source": "synthetic:12", "note": "SYNTHETIC"},
+    "wave5_oom_swap_mb": {"value": 800, "source": "synthetic:13", "note": "SYNTHETIC"},
+    "spike_pages": {"value": 10, "source": "synthetic:14", "note": "SYNTHETIC"},
+    "spike_chunks": {"value": 20, "source": "synthetic:15", "note": "SYNTHETIC: 2 chunks/page"},
+    "spike_chunk_target_bytes": {"value": 100000, "source": "synthetic:16", "note": "SYNTHETIC"},
+    "spike_h_span_usd": {"value": 0.3, "source": "synthetic:17", "note": "SYNTHETIC"},
+    "spike_h_pq_usd": {"value": 0.5, "source": "synthetic:18", "note": "SYNTHETIC"},
+    "spike_h_aq_usd": {"value": 0.2, "source": "synthetic:19", "note": "SYNTHETIC: first-round share 0.8"},
+    "spike_jev_usd": {"value": 0.1, "source": "synthetic:20", "note": "SYNTHETIC"},
+    "spike_batch_round_s": {"value": 3600, "source": "synthetic:21", "note": "SYNTHETIC: 1 h"},
+    "spike_batch_requests": {"value": 10, "source": "synthetic:22", "note": "SYNTHETIC"}
+  }
+}

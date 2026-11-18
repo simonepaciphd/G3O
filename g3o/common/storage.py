@@ -9,12 +9,15 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter, defaultdict
+from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 from g3o.common.instrument import canonical_json, load_instrument, sha256_text, validate_instrument
+from g3o.common.jev_record import downgrade_source_original, residual_version_bound
 from g3o.common.storage_fields import FIELDS
+from g3o.common.support_check import match_quote
 
 CHANNELS = ("web_extract", "procurement", "ai_text")
 COMMON_COLUMNS = ["codebook_release", "setup_pointer", "evidence_channel", "item_support_json",
@@ -29,7 +32,26 @@ AVAILABILITY_REASONS = {"legacy_not_collected", "historical_provenance_unavailab
 SUPPORT_STATES = {"supported", "downgraded_no_quote", "downgraded_low_confidence",
                   "downgraded_quote_not_stating_value", "set_by_rule", "not_required"}
 METADATA_ITEMS = {"core.codebook_release", "core.setup_pointer", "core.evidence_channel"}
+#: The inverse of each directed relation code: a supplied reverse relation must be this inverse (codes not
+#: listed are their own inverse here). Module level so the T-041 fixture runner reads the same table
+#: (PI ruling Q206 b, 2026-11-17).
+RELATION_INVERSE = {"component_of_program": "has_component", "has_component": "component_of_program",
+                    "governs": "governed_by", "governed_by": "governs"}
 VERDICTS = tuple(FIELDS["core.page_verdict"]["codes"])
+#: PI ruling 102 a (2026-11-14, building 96 a / 79 b): the signed ``core.page_review_state`` codes other than
+#: ``reviewed`` (codebook ``items/core.page_review_state/rules/0``; pinned against the signed vocabulary by
+#: tests/test_storage.py). A source row carrying one is a page that was not reviewed: it may carry no page
+#: artifact (path and hash both null), it is not counted as a reviewed page in ``core.review_depth``, it is
+#: exempt from the single-row-per-page check, and the Stage 6 A8 pre-check and the A7 independence grouping
+#: skip it. Every other row (``reviewed``, or a value outside these codes) keeps the reviewed-row contract.
+REVIEW_STATE_ITEM = "core.page_review_state"
+UNREVIEWED_STATES = frozenset({"fetch_failed", "no_usable_text", "link_not_followed_cap", "link_not_followed_hops"})
+
+
+def unreviewed_source(row: Any) -> bool:
+    """Whether a source row's ``core.page_review_state`` is a signed non-``reviewed`` state (PI ruling 102 a)."""
+    values = row.get("values") if isinstance(row, Mapping) else None
+    return isinstance(values, Mapping) and values.get(REVIEW_STATE_ITEM) in UNREVIEWED_STATES
 
 
 def table_fields(table: str) -> dict[str, dict[str, Any]]:
@@ -157,6 +179,55 @@ def email_domain_counts(emails: list[str] | str) -> list[dict[str, Any]] | str:
     return [{"domain": domain, "count": counts[domain]} for domain in sorted(counts)]
 
 
+QUOTE_SEGMENT = "quote_segment"  # passage discriminator: the quote is checked by R-042 on a named segment
+QUOTE_SOURCE = "quote_source_id"  # pooled supports also name the input source claim the segment belongs to
+
+
+def _segment_text(record: dict[str, Any], page_text: str, *, pooled: bool) -> str | None:
+    """The page segment a segment-form passage names, or None when the record has no quote.
+
+    The segment is the producing part (``chunk_id``) or the page's chrome text
+    (``<page>#chrome``) for a ``main_plus_chrome`` item (R-042, R-044, r2#48);
+    its span locates it in the stored page artifact.
+    """
+    passage = record["passage"]
+    keys = {QUOTE_SEGMENT, "segment_span"} | ({QUOTE_SOURCE} if pooled else set())
+    if set(passage) != keys:
+        raise ValueError(f"segment passage requires exactly {sorted(keys)}")
+    if passage[QUOTE_SEGMENT] is None:
+        if passage["segment_span"] is not None or record["supporting_text"] or (pooled and passage[QUOTE_SOURCE] is not None):
+            raise ValueError("a support without a quote names no quote segment")
+        return None
+    _string(passage[QUOTE_SEGMENT], "quote segment")
+    if pooled:
+        _string(passage[QUOTE_SOURCE], "pooled quote source")
+    span = passage["segment_span"]
+    if (not isinstance(span, list) or len(span) != 2 or any(type(v) is not int for v in span)
+            or not 0 <= span[0] <= span[1] <= len(page_text)):
+        raise ValueError("invalid support quote segment span")
+    if not record["supporting_text"]:
+        raise ValueError("a quote segment without a quote")
+    return page_text[span[0]:span[1]]
+
+
+def _check_segment(record: dict[str, Any], producing_parts: set[str | None]) -> None:
+    segment = record["passage"][QUOTE_SEGMENT]
+    if segment in producing_parts:
+        return
+    if segment.endswith("#chrome"):
+        from g3o.common.support_check import default_rules
+
+        if default_rules().items[record["item_id"]].get("input_text") == "main_plus_chrome":
+            return
+    raise ValueError("support quote segment is neither the producing part nor allowed chrome")
+
+
+def _check_quote_match(record: dict[str, Any], segment_text: str) -> None:
+    """R-042 via the T-024 matcher (calibrated fuzzy match OR 80% word presence)."""
+    if not match_quote(record["supporting_text"], segment_text).matched:
+        raise ValueError("support quote fails the R-042 match on its named page segment")
+
+
 def support_id(run_id: str, institution_uid: str, record: dict[str, Any]) -> str:
     keys = ("item_id", "item_part", "value_json", "observation_id", "source_id", "chunk_id",
             "support_text_sha256", "passage")
@@ -219,9 +290,20 @@ class StorageEnvelope:
                 row["values"][item_id] = normalize_contact_emails(value)
         if table != "summary":
             _strings(row["observation_ids"], "observation_ids")
-            if not row["observation_ids"]:
+            # RC-D-030 Y2 a: the page-level source row of a reviewed page with no activity
+            # (activity_id _NA_) has no observation; every other row keeps its observations.
+            page_level = table == "sources" and row["activity_id"] == "_NA_"
+            if not row["observation_ids"] and not page_level:
                 raise ValueError("2.7 source/activity rows must retain original observations")
-        if table == "sources":
+        if table == "sources" and unreviewed_source(row) and \
+                row["page_artifact_path"] is None and row["page_content_sha256"] is None:
+            # PI ruling 102 a: a page that was not reviewed may carry no artifact; it names no observation
+            # and no quote can be located on it (its text is empty here).
+            if row["observation_ids"]:
+                raise ValueError("a source row with no page artifact (page not reviewed) names no observation")
+            row["_page_text"] = ""
+            row["_page_path"] = None
+        elif table == "sources":
             path = Path(row["page_artifact_path"])
             if not path.is_absolute():
                 path = self.artifact_root / path
@@ -315,7 +397,10 @@ class StorageEnvelope:
             for key in ("configured_model", "actual_response_model", "request_id"):
                 _string(record[key], key)
             expected_model = self._instrument["configured_jev_model"] if record["coder_type"] == "classifier" else self._instrument["extractor_model_id"]
-            if record["configured_model"] != expected_model or record["question_set_version"] != self._instrument["question_set_version"]:
+            version_ok = (record["question_set_version"] == self._instrument["question_set_version"]
+                          or residual_version_bound(record["item_id"], record["question_set_version"],
+                                                    self._instrument))  # PI ruling 95 a
+            if record["configured_model"] != expected_model or not version_ok:
                 raise ValueError("coder configuration does not match the actual instrument")
             p = record["chosen_answer_probability"]
             if p is not None and (type(p) not in (int, float) or not 0 <= p <= 1):
@@ -342,6 +427,19 @@ class StorageEnvelope:
                     raise ValueError("source observation is absent from its final activity")
             self.pages[sid] = (row["_page_path"], row["values"]["core.source_url"],
                                row["values"]["core.source_access_date"], row["page_content_sha256"])
+        # RC-D-030 Y2 a, the ruled case only: a source row with no observation is the page-level
+        # row of a reviewed page with no activity, so it is the only source row of its page (same
+        # stored artifact or same URL); X3 a (i) `_NA_` rows keep their observation ids.
+        # PI ruling 102 a: a row of a page that was not reviewed is exempt from this check, on either side.
+        for sid, row in sources.items():
+            if row["observation_ids"] or unreviewed_source(row):
+                continue
+            path, url = self.pages[sid][:2]
+            if any(other != sid and not unreviewed_source(sources[other])
+                   and (self.pages[other][0] == path or self.pages[other][1] == url)
+                   for other in sources):
+                raise ValueError("a page-level _NA_ source row (no observation) must be the only source row "
+                                 "of its page")
         for aid, row in activities.items():
             actual = sum(source["activity_id"] == aid for source in sources.values())
             if row["values"]["core.n_sources"] != actual:
@@ -394,8 +492,7 @@ class StorageEnvelope:
                 _string(result["combining_rule_ref"], "combining rule")
                 if any(s not in self.supports for s in result["input_support_ids"]) or any(s not in sources for s in result["source_ids"]) or any(o not in self.observation_sources for o in result["observation_ids"]):
                     raise ValueError("display rollup input does not resolve")
-        inverse = {"component_of_program": "has_component", "has_component": "component_of_program",
-                   "governs": "governed_by", "governed_by": "governs"}
+        inverse = RELATION_INVERSE
         for (scope, lhs, rhs), value in relation_pairs.items():
             other = relation_pairs.get((scope, rhs, lhs))
             if other is not None and other != inverse.get(value, value):
@@ -405,14 +502,22 @@ class StorageEnvelope:
                 raise ValueError("combined support input does not resolve")
             sid, oid = record["source_id"], record["observation_id"]
             if sid is not None:
-                if sid not in sources or oid not in sources[sid]["observation_ids"]:
+                # RC-D-030 Y2 a: a page-level _NA_ source row's supports carry no observation.
+                page_level = (sid in sources and oid is None and sources[sid]["activity_id"] == "_NA_"
+                              and not sources[sid]["observation_ids"])
+                if sid not in sources or (oid not in sources[sid]["observation_ids"] and not page_level):
                     raise ValueError("support source/observation endpoint does not resolve")
                 source = sources[sid]
                 if record["page_content_sha256"] != source["page_content_sha256"]:
                     raise ValueError("support is bound to a different page artifact")
-                if record["supporting_text"] and record["supporting_text"] not in source["_page_text"]:
-                    raise ValueError("support text is not verbatim in its actual page")
                 passage = record["passage"]
+                if QUOTE_SEGMENT in passage:
+                    segment_text = _segment_text(record, source["_page_text"], pooled=False)
+                    if segment_text is not None:
+                        _check_segment(record, {record["chunk_id"]})
+                        _check_quote_match(record, segment_text)
+                elif record["supporting_text"] and record["supporting_text"] not in source["_page_text"]:
+                    raise ValueError("support text is not verbatim in its actual page")
                 if "start" in passage or "end" in passage:
                     if set(passage) != {"start", "end"} or type(passage["start"]) is not int or type(passage["end"]) is not int or not 0 <= passage["start"] <= passage["end"] <= len(source["_page_text"]):
                         raise ValueError("invalid support passage span")
@@ -420,6 +525,33 @@ class StorageEnvelope:
                         raise ValueError("support passage span does not identify its quote")
             elif oid is not None and oid not in self.observation_sources:
                 raise ValueError("pooled support observation does not resolve")
+        all_rows = [self._data["summary"], *activities.values(), *sources.values()]
+        classifier_backed = {c["support_id"] for row in all_rows for c in row["coder_records"]
+                             if c["coder_type"] == "classifier"}
+
+        def downgrade_final(support: dict[str, Any]) -> bool:
+            """A mechanical FINAL node of a classifier downgrade (R-041, R-081).
+
+            Each input is the ORIGINAL classifier support of the same item, part
+            and context with the same ``downgraded_*`` status and the original
+            code; the original stays stored with its own classifier record.
+            """
+            inputs = support["input_support_ids"]
+            if not support["support_status"].startswith("downgraded_") or not inputs:
+                return False
+            if FIELDS[support["item_id"]]["coder"] != "classifier":
+                return False
+            context = ("item_id", "item_part", "observation_id", "source_id", "chunk_id", "support_status")
+            for prior in inputs:
+                original = self.supports[prior]
+                # RC-D-031 A1 a / RC-D-032 B5 a: a pooled original (its shown inputs) or a copied
+                # relation original (its one copied input) names inputs and may still be the source.
+                if (any(original[k] != support[k] for k in context)
+                        or (original["input_support_ids"] and not downgrade_source_original(original))
+                        or original["value_json"] == support["value_json"] or prior not in classifier_backed):
+                    return False
+            return True
+
         for table in ("activities", "sources", "summary"):
             rows = [self._data[table]] if table == "summary" else self._data[table].values()
             for row in rows:
@@ -429,7 +561,8 @@ class StorageEnvelope:
                     support = self.supports[coder["support_id"]]
                     if (coder["item_id"], coder["item_part"], coder["chosen_value"], coder["observation_id"], coder["chunk_id"]) != (support["item_id"], support["item_part"], support["value_json"], support["observation_id"], support["chunk_id"]):
                         raise ValueError("coder provenance does not match its support key")
-                    expected = "mechanical" if support["support_status"] == "set_by_rule" else FIELDS[support["item_id"]]["coder"]
+                    expected = ("mechanical" if support["support_status"] == "set_by_rule" or downgrade_final(support)
+                                else FIELDS[support["item_id"]]["coder"])
                     if coder["coder_type"] != expected:
                         raise ValueError("coder type does not match the actual rule/provider context")
                 for support in row["item_support"]:
@@ -448,7 +581,17 @@ class StorageEnvelope:
         # Traverse every record, including summary-only pooled provenance.
         for sid, support in self.supports.items():
             evidence = origins(sid)
-            if support["source_id"] is None and support["supporting_text"]:
+            if support["source_id"] is None and QUOTE_SEGMENT in support["passage"]:
+                quote_source = support["passage"].get(QUOTE_SOURCE)
+                named = isinstance(quote_source, str)
+                if named and quote_source not in {s for _, s in evidence}:
+                    raise ValueError("pooled quote source is not an input of this support")
+                page_text = sources[quote_source]["_page_text"] if named and quote_source in sources else ""
+                segment_text = _segment_text(support, page_text, pooled=True)
+                if segment_text is not None:
+                    _check_segment(support, self._input_parts(sid, quote_source))
+                    _check_quote_match(support, segment_text)
+            elif support["source_id"] is None and support["supporting_text"]:
                 if not any(source_id in sources and support["supporting_text"] in sources[source_id]["_page_text"] for _, source_id in evidence):
                     raise ValueError("pooled support quote is not verbatim in an input page")
         for table in ("activities", "sources"):
@@ -462,6 +605,21 @@ class StorageEnvelope:
                     if table == "activities" and any(oid not in row["observation_ids"] for oid, _ in evidence):
                         raise ValueError("activity borrowed another observation's pooled support")
         self._validate_review_depth()
+
+    def _input_parts(self, sid: str, source_id: str) -> set[str | None]:
+        """Producing parts of the source-bound supports a pooled support was built from."""
+        parts: set[str | None] = set()
+        pending, seen = list(self.supports[sid]["input_support_ids"]), set()
+        while pending:
+            prior = pending.pop()
+            if prior in seen:
+                continue
+            seen.add(prior)
+            record = self.supports[prior]
+            if record["source_id"] == source_id:
+                parts.add(record["chunk_id"])
+            pending.extend(record["input_support_ids"])
+        return parts
 
     def _validate_review_depth(self) -> None:
         depth = self._data["summary"]["values"]["core.review_depth"]
@@ -480,6 +638,8 @@ class StorageEnvelope:
             if channel == self._data["evidence_channel"]:
                 unique: dict[tuple[Any, ...], str] = {}
                 for sid, page in self.pages.items():
+                    if unreviewed_source(self._data["sources"][sid]):
+                        continue  # PI ruling 102 a: not a reviewed page
                     verdict = self._data["sources"][sid]["values"]["core.page_verdict"]
                     if page in unique and unique[page] != verdict:
                         raise ValueError("same actual page has conflicting page verdicts")

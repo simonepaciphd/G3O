@@ -1,0 +1,119 @@
+{
+  "r14_sha256": "7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b",
+  "r14_signature_record": "planning/t010/signoff-record.md",
+  "basis": "RC-D-026 item 10 a: PI 2026-11-10 chat \"9a 10 a\" (RC-D-026 item 10 a; item 9 a needs no codebook change)",
+  "wording_source": "planning/deltas/RC-D-026.md (governance worktree), item 10 a ruling and 'Applied to' cell; the rules/1 sentence change is the integrator's minimal wording of the ruling, approved only by the hash signature",
+  "text_changes": [
+    {
+      "id": "RC-D-026 10 a items.core.source_credibility.rules/1 (map rule text)",
+      "r14_lines": [
+        3183
+      ],
+      "copies": 1,
+      "before": "Credibility by `source_type`: official domain (typed from the web domain) `high`; `procurement_tender` `high`; `news_major` `medium`; `news_trade` `medium`; `policy_org` `medium`; `vendor` `medium`; `academic` `high`; `social_media` `low`; `other` `medium`; archive address (typed from the address) `medium`; `source_type` missing (`not_documented`, `unknown`) `low`.",
+      "after": "Credibility by `source_type`: official domain (typed from the web domain) `high`; `procurement_tender` `high`; `news_major` `medium`; `news_trade` `medium`; `policy_org` `medium`; `vendor` `medium`; `academic` `high`; `social_media` `low`; `other` `medium`; archive address (typed from the address) `medium`; `source_type` missing (`not_documented`, `unknown`, or `not_asked` on an unreadable page) `low`.",
+      "phrase_before": "`source_type` missing (`not_documented`, `unknown`) `low`.",
+      "phrase_after": "`source_type` missing (`not_documented`, `unknown`, or `not_asked` on an unreadable page) `low`.",
+      "origin_before": "PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\"; integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature (official_domain, procurement_tender, news_major, news_trade, policy_org); r14",
+      "origin_after": "PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\"; integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature (official_domain, procurement_tender, news_major, news_trade, policy_org); r14; PI 2026-11-10 chat \"9a 10 a\" (RC-D-026 item 10 a); r15",
+      "source_r15": "planning/deltas/RC-D-026.md item 10 a (unreadable page, `source_type` = `not_asked`, never typed; treat as missing type, `low`)"
+    }
+  ],
+  "field_changes": [
+    {
+      "item": "core.source_credibility",
+      "r14_lines": [
+        3200
+      ],
+      "field": "credibility_map.map",
+      "before": {
+        "official_domain": "high",
+        "procurement_tender": "high",
+        "news_major": "medium",
+        "news_trade": "medium",
+        "policy_org": "medium",
+        "vendor": "medium",
+        "academic": "high",
+        "social_media": "low",
+        "other": "medium",
+        "archive_address": "medium",
+        "not_documented": "low",
+        "unknown": "low"
+      },
+      "after": {
+        "official_domain": "high",
+        "procurement_tender": "high",
+        "news_major": "medium",
+        "news_trade": "medium",
+        "policy_org": "medium",
+        "vendor": "medium",
+        "academic": "high",
+        "social_media": "low",
+        "other": "medium",
+        "archive_address": "medium",
+        "not_documented": "low",
+        "unknown": "low",
+        "not_asked": "low"
+      }
+    },
+    {
+      "item": "core.source_credibility",
+      "r14_lines": [
+        3204
+      ],
+      "field": "credibility_map.missing_keys",
+      "before": [
+        "not_documented",
+        "unknown"
+      ],
+      "after": [
+        "not_documented",
+        "unknown",
+        "not_asked"
+      ]
+    },
+    {
+      "item": "core.source_credibility",
+      "field": "credibility_map.origin_by_cell.not_asked",
+      "before": null,
+      "after": "PI 2026-11-10 chat \"9a 10 a\" (RC-D-026 item 10 a)"
+    },
+    {
+      "item": "core.source_credibility",
+      "field": "refs",
+      "before": [
+        "X22",
+        "R-090",
+        "RC-D-025 C5",
+        "RC-D-025 C6 a"
+      ],
+      "after": [
+        "X22",
+        "R-090",
+        "RC-D-025 C5",
+        "RC-D-025 C6 a",
+        "RC-D-026 10 a"
+      ]
+    }
+  ],
+  "not_changed": {
+    "items/core.source_credibility/rules/0": "undated override (C6 a) unchanged",
+    "items/core.source_credibility/credibility_map/auto_keys": "unchanged; `not_asked` is a missing key, not an auto-typed key",
+    "RC-D-026 item 9 a": "no codebook change (T-015 `source_on_official_domain`, existing `other_official` code)"
+  },
+  "header_comment": {
+    "before": "# G3O codebook release 2.7, revision r14 — UNSIGNED candidate (RC-D-025), sign-off build (T-010). Byte edits to the signed r13 file, recorded in planning/t010/r14-provenance.json.",
+    "after": "# G3O codebook release 2.7, revision r15 — UNSIGNED candidate (RC-D-026), sign-off build (T-010). Byte edits to the signed r14 file, recorded in planning/t010/r15-provenance.json."
+  },
+  "folds_r15": "RC-D-026 item 10 a (PI 2026-11-10 chat \"9a 10 a\"): core.source_credibility credibility_map missing keys gain `not_asked` -> `low` (an unreadable page is never typed, so `source_type` = `not_asked`; treated as missing type); rules/1 map sentence names it; item 9 a needs no codebook change; provenance planning/t010/r15-provenance.json",
+  "provenance_fields": "the changed rule keeps its r14 text and origin in text_before_r15 / origin_before_r15 and gains source_r15; the new map cell carries its origin in credibility_map.origin_by_cell",
+  "item_hashes": {
+    "core.source_credibility": {
+      "before": "a82ef7f6f05bc053376e8bd4964d5e9b443140139afecefc1ce777e2cf7619d1",
+      "after": "c912c76f4ecb296c07dde7ed38e2e81a3512c1cda34dfc1f36315af16e8b1ffa"
+    }
+  },
+  "line_endings": "CRLF, preserved from r14 (codebook/.gitattributes: codebook.yaml -text)",
+  "status": "UNSIGNED candidate; signed only when planning/t010/signoff-record.md holds this sha256",
+  "r15_sha256_candidate": "ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a"
+}

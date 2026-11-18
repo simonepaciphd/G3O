@@ -620,6 +620,15 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         # the output sees them: these are the silent degradations (2026-10-02).
         for warning in summary.get("warnings") or []:
             sys.stderr.write(f"WARNING: {warning}\n")
+        # PI ruling 134: the per-mode estimates, readable at the tail too (v2.7 only; not a gate).
+        mode_est = summary.get("extractor_mode_estimates") or {}
+        if mode_est.get("table"):
+            sys.stderr.write(f"extractor modes (configured: {mode_est.get('configured_mode')}):\n"
+                             f"{mode_est['table']}\n")
+        elif mode_est.get("error"):
+            sys.stderr.write(f"WARNING: extractor-mode estimate failed (not a gate): {mode_est['error']}\n")
+        elif mode_est.get("note"):
+            sys.stderr.write(f"extractor modes: {mode_est['note']}\n")
 
         # Cost circuit breaker abort gate
         # If projected cost exceeds budget limit, abort before any batches are submitted

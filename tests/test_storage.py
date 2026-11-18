@@ -17,10 +17,14 @@ from g3o.common.schema import (
     SUMMARY_COLUMNS_V25,
 )
 from g3o.common.storage import (
+    METADATA_ITEMS,
+    UNREVIEWED_STATES,
     StorageEnvelope,
     email_domain_counts,
     public_projection,
     support_id,
+    table_fields,
+    unreviewed_source,
 )
 from g3o.common.storage_fields import FIELDS
 from g3o.persist.writer import (
@@ -148,6 +152,9 @@ def test_public_projection_hides_internal_extracted_fields(tmp_path):
     (lambda d: d["summary"]["values"]["core.review_depth"]["web_extract"]["n_pages_by_verdict"].pop("event_only"), "nine verdict"),
     (lambda d: d.update(evidence_channel="text_detection"), "canonical evidence"),
     (lambda d: d.update(codebook_release="v2.7"), "unsupported"),
+    # RC-D-030 Y2 a: only a page-level _NA_ source row may have no observation
+    (lambda d: d["sources"]["S1"].update(observation_ids=[]), "retain original observations"),
+    (lambda d: d["activities"]["A1"].update(observation_ids=[]), "retain original observations"),
 ])
 def test_incomplete_or_incompatible_new_storage_refuses(tmp_path, damage, match):
     data, record, _, _ = fixture_bundle(tmp_path)
@@ -481,3 +488,182 @@ def test_rcd011_unavailable_legacy_email_remains_null():
     assert row["content_contact_emails_json"] is None
     assert row["contact_email_domain_counts_json"] is None
     assert public_projection("sources", row)["contact_email_domain_counts_json"] is None
+
+
+# --- RC-D-030 Y2 a, narrowed (QA round 2 LOW-D): the page-level `_NA_` source row -------------------
+
+
+def _page_level_row(tmp_path, data, sid, *, page="page3.txt", url="https://example.gov/no-activity-page"):
+    """A copy of S1 as the page-level source row of a reviewed page with no activity."""
+    import copy
+
+    row = copy.deepcopy(data["sources"]["S1"])
+    text = (tmp_path / "page.txt").read_bytes()
+    (tmp_path / page).write_bytes(text)
+    row.update(activity_id="_NA_", observation_ids=[], page_artifact_path=page)
+    row["values"]["core.source_url"] = url
+    ids = {}
+    for support in row["item_support"]:
+        old = support["support_id"]
+        support.update(source_id=sid, observation_id=None)
+        support["support_id"] = support_id("R1", data["institution_uid"], support)
+        ids[old] = support["support_id"]
+    for coder in row["coder_records"]:
+        coder.update(support_id=ids[coder["support_id"]], observation_id=None)
+    data["sources"][sid] = row
+    return row
+
+
+def _count_page(data, n=1):
+    depth = data["summary"]["values"]["core.review_depth"]["web_extract"]
+    depth["n_pages_reviewed"] += n
+    depth["n_pages_by_verdict"]["confirms_activity"] += n
+
+
+def test_page_level_na_source_row_of_its_own_page_is_accepted(tmp_path):
+    data, record, _, _ = fixture_bundle(tmp_path)
+    _page_level_row(tmp_path, data, "S3")
+    _count_page(data)
+    StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_page_level_na_source_row_on_a_page_with_another_source_row_refuses(tmp_path):
+    data, record, _, _ = fixture_bundle(tmp_path)  # S1, S2 (activities) are on page.txt
+    _page_level_row(tmp_path, data, "S3", page="page.txt", url=data["sources"]["S1"]["values"]["core.source_url"])
+    with pytest.raises(ValueError, match="page-level"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_page_level_na_source_row_sharing_only_the_stored_artifact_refuses(tmp_path):
+    data, record, _, _ = fixture_bundle(tmp_path)  # same page artifact as S1/S2, its own URL
+    _page_level_row(tmp_path, data, "S3", page="page.txt")
+    assert data["sources"]["S3"]["values"]["core.source_url"] != data["sources"]["S1"]["values"]["core.source_url"]
+    _count_page(data)
+    with pytest.raises(ValueError, match="page-level"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_page_level_na_source_row_sharing_only_the_url_refuses(tmp_path):
+    data, record, _, _ = fixture_bundle(tmp_path)  # its own stored artifact, S1's URL
+    _page_level_row(tmp_path, data, "S3", url=data["sources"]["S1"]["values"]["core.source_url"])
+    assert data["sources"]["S3"]["page_artifact_path"] != data["sources"]["S1"]["page_artifact_path"]
+    _count_page(data)
+    with pytest.raises(ValueError, match="page-level"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_two_page_level_na_source_rows_on_one_page_refuse(tmp_path):
+    data, record, _, _ = fixture_bundle(tmp_path)
+    _page_level_row(tmp_path, data, "S3")
+    _page_level_row(tmp_path, data, "S4")
+    _count_page(data)
+    with pytest.raises(ValueError, match="page-level"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_na_source_row_of_an_unpublished_observation_keeps_its_observation_ids(tmp_path):
+    # X3 a (i) `_NA_` rows keep their observation ids; their supports cannot drop the observation
+    data, record, _, _ = fixture_bundle(tmp_path)
+    row = _page_level_row(tmp_path, data, "S3")
+    row["observation_ids"] = ["O9"]
+    _count_page(data)
+    with pytest.raises(ValueError, match="endpoint does not resolve"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+# --- PI ruling 102 a (building 96 a / 79 b): the source row of a page that was not reviewed --------------
+
+UNREAD_RULE = "follow_not_reviewed"
+MECHANICAL_NULLS = ("configured_model", "actual_response_model", "request_id", "chosen_answer_probability",
+                    "probability_distribution")
+
+
+def _unread_row(data, sid, *, url="https://example.gov/unread", state="fetch_failed"):
+    """An unread follow attempt's row as the per-page stage builds it: no artifact, no observation, the
+    verdict not_assessable and every other item not_asked, each coded value set by the named rule."""
+    values = {k: "not_asked" for k in table_fields("sources") if k not in METADATA_ITEMS}
+    values.update({"core.page_verdict": "not_assessable", "core.source_url": url, "core.page_review_state": state})
+    row = {"values": values, "item_support": [], "coder_records": [], "observation_ids": [], "activity_id": "_NA_",
+           "page_artifact_path": None, "page_content_sha256": None}
+    for item, value in sorted(values.items()):
+        if FIELDS[item]["coder"] not in ("classifier", "quote_step"):
+            continue
+        support = {"item_id": item, "item_part": None, "value_json": value, "observation_id": None,
+                   "source_id": sid, "chunk_id": None, "supporting_text": "", "support_status": "set_by_rule",
+                   "support_rule_name": UNREAD_RULE, "support_status_second_reason": "not_asked",
+                   "uncertainty_flags": [], "input_support_ids": [], "support_text_sha256": sha256_text(""),
+                   "page_content_sha256": None, "passage": {"quote_segment": None, "segment_span": None}}
+        support["support_id"] = support_id("R1", data["institution_uid"], support)
+        row["item_support"].append(support)
+        row["coder_records"].append({
+            "support_id": support["support_id"], "observation_id": None, "item_id": item, "item_part": None,
+            "coder_type": "mechanical", "coder_version": "fixture-v1", "configured_model": None,
+            "actual_response_model": None, "request_id": None, "question_set_version": "fixture-questions-r11",
+            "chunk_id": None, "chosen_value": value, "chosen_answer_probability": None,
+            "probability_distribution": None,
+            "field_availability": {k: "coder_not_applicable" for k in MECHANICAL_NULLS}})
+    data["sources"][sid] = row
+    return row
+
+
+def test_unreviewed_states_are_the_signed_non_reviewed_codes():
+    from g3o.common.source_fields import default_vocab
+
+    states = set(default_vocab().review_states)
+    assert "reviewed" in states and UNREVIEWED_STATES == states - {"reviewed"}
+
+
+@pytest.mark.parametrize("state", sorted(UNREVIEWED_STATES))
+def test_unread_row_without_artifact_is_accepted_and_not_counted_102a(tmp_path, state):
+    """No artifact, not counted in review_depth (the fixture's depth is unchanged), exempt from the
+    single-row-per-page check even on the URL of another row's page."""
+    data, record, _, _ = fixture_bundle(tmp_path)
+    _unread_row(data, "S3", state=state)
+    _unread_row(data, "S4", url=data["sources"]["S1"]["values"]["core.source_url"], state=state)
+    envelope = StorageEnvelope(data, record, artifact_root=tmp_path)
+    assert envelope.data["sources"]["S3"]["page_artifact_path"] is None
+    assert unreviewed_source(envelope.data["sources"]["S3"])
+
+
+def test_unread_row_counted_as_a_reviewed_page_refuses_102a(tmp_path):
+    data, record, _, _ = fixture_bundle(tmp_path)
+    _unread_row(data, "S3")
+    depth = data["summary"]["values"]["core.review_depth"]["web_extract"]
+    depth["n_pages_reviewed"] += 1
+    depth["n_pages_by_verdict"]["not_assessable"] += 1
+    with pytest.raises(ValueError, match="exactly count actual reviewed page artifacts"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+@pytest.mark.parametrize("state", ["reviewed", "not_documented", "not_asked"])
+def test_reviewed_rows_still_need_their_artifact_102a(tmp_path, state):
+    """Only a signed non-reviewed state relaxes the artifact: any other review state, and the fixture's
+    reviewed rows, still need the stored page (as before: the null path is refused)."""
+    data, record, _, _ = fixture_bundle(tmp_path)
+    _unread_row(data, "S3", state=state)
+    with pytest.raises(TypeError):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+    data, record, _, _ = fixture_bundle(tmp_path)
+    data["sources"]["S1"].update(page_artifact_path=None, page_content_sha256=None)
+    with pytest.raises(TypeError):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_unread_row_names_no_observation_102a(tmp_path):
+    data, record, _, _ = fixture_bundle(tmp_path)
+    _unread_row(data, "S3")["observation_ids"] = ["O1"]
+    data["sources"]["S3"]["activity_id"] = "A1"
+    with pytest.raises(ValueError, match="names no observation"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_unreviewed_row_with_an_artifact_is_not_counted_either_102a(tmp_path):
+    """A non-reviewed state with a stored page (e.g. no_usable_text) keeps its artifact checks and is
+    still not a reviewed page: the depth is unchanged and the single-row check skips it."""
+    data, record, _, _ = fixture_bundle(tmp_path)
+    row = _page_level_row(tmp_path, data, "S3", page="page.txt", url=data["sources"]["S1"]["values"]["core.source_url"])
+    row["values"]["core.page_review_state"] = "no_usable_text"
+    StorageEnvelope(data, record, artifact_root=tmp_path)
+    row["page_content_sha256"] = sha256_text("another page")
+    with pytest.raises(ValueError, match="hash mismatch"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)

@@ -29,6 +29,12 @@ Policy blocks (``policy_20000``) and dead-target 404s arrive as HTTP 200 from
 the unlocker API itself, with 0 bytes and the truth in headers. Never trust
 the transport status code alone.
 
+Size cap (PI-approved 2026-11-09): the body is streamed under the same
+``fetcher.MAX_RESPONSE_BYTES`` ceiling as a direct fetch, so one oversized
+unlocker response cannot buffer unbounded bytes per worker thread. An over-cap
+body is abandoned (response closed, no content returned) and is a FAILURE
+whose ``error`` starts with :data:`RESPONSE_TOO_LARGE_ERROR`.
+
 Credential hygiene: the Bearer token is a secret and must never appear in any
 artifact (ledger, log, manifest, exception message). Every string that reaches
 an artifact is passed through :func:`redact` before recording. The token is
@@ -64,6 +70,17 @@ logger = logging.getLogger(__name__)
 #:   through a jurisdiction where the page is reachable.
 UNLOCKER_TRIGGER_STATUSES: frozenset[int] = frozenset({403, 406, 401, 451})
 
+#: Prefix of ``UnlockerResult.error`` when the body exceeded
+#: ``fetcher.MAX_RESPONSE_BYTES`` and was abandoned (2026-11-10). Unlike every
+#: other ``error`` value this one is set by G3O, not by Bright Data's
+#: ``x-brd-error`` header; ``error_code`` stays None so the provider's code
+#: field never carries a G3O string.
+RESPONSE_TOO_LARGE_ERROR = "g3o_response_too_large"
+
+#: Read granularity for the capped stream; same value and rationale as
+#: ``fetcher._STREAM_CHUNK_BYTES`` (bounded overshoot past the cap).
+_STREAM_CHUNK_BYTES = 64 * 1024
+
 
 @dataclass(frozen=True)
 class UnlockerResult:
@@ -95,6 +112,10 @@ class UnlockerResult:
     #: discards, because Bright Data's notion of a successful request is a
     #: delivered response, not our stricter gate. The conservative reading for a
     #: spend ceiling. Zero for errors, empty bodies and transport failures.
+    #: For a body abandoned past the size cap (RC-D-025 B4 b, PI 2026-11-10)
+    #: it is the advertised ``Content-Length`` when that header is present and
+    #: parseable, otherwise the bytes actually read before abandoning (at most
+    #: cap + one chunk).
     billable_bytes: int = 0
 
 
@@ -117,8 +138,65 @@ def redact(text: str) -> str:
     return text.replace(token, "<unlocker-token redacted>")
 
 
+def _advertised_length(headers) -> int | None:
+    """Parsed non-negative ``Content-Length``, or None when absent/unparseable."""
+    raw = headers.get("content-length")
+    if raw is None:
+        return None
+    try:
+        value = int(raw)
+    except (ValueError, TypeError):
+        return None
+    return value if value >= 0 else None
+
+
+def _read_capped(resp: requests.Response) -> tuple[bytes, int, str | None]:
+    """Stream the body under ``fetcher.MAX_RESPONSE_BYTES``.
+
+    Returns ``(body, bytes_read, too_large)``. ``too_large`` is None when the
+    body fit, else a human-readable reason; the body is then ``b""`` and the
+    rest of the stream is left unread (the caller closes the response). Mirrors
+    ``fetcher._read_capped``: the advertised ``Content-Length`` is only an
+    early exit, the streamed count is the real enforcement, and a body of
+    exactly the cap is within it.
+    """
+    # Imported here, not at module top: fetcher imports this module.
+    from g3o.scrape.fetcher import MAX_RESPONSE_BYTES
+
+    advertised = resp.headers.get("content-length")
+    if advertised is not None:
+        try:
+            if int(advertised) > MAX_RESPONSE_BYTES:
+                return b"", 0, (
+                    f"{RESPONSE_TOO_LARGE_ERROR}: advertised Content-Length "
+                    f"{int(advertised):,} bytes is above the "
+                    f"{MAX_RESPONSE_BYTES:,}-byte cap; not read"
+                )
+        except ValueError:
+            pass  # unparseable header: fall through to the streaming check
+    chunks: list[bytes] = []
+    total = 0
+    for chunk in resp.iter_content(chunk_size=_STREAM_CHUNK_BYTES):
+        if not chunk:
+            continue
+        total += len(chunk)
+        if total > MAX_RESPONSE_BYTES:
+            return b"", total, (
+                f"{RESPONSE_TOO_LARGE_ERROR}: body exceeded the "
+                f"{MAX_RESPONSE_BYTES:,}-byte cap; abandoned after "
+                f"{total:,} bytes"
+            )
+        chunks.append(chunk)
+    return b"".join(chunks), total, None
+
+
 def _parse_response(
-    resp: requests.Response, elapsed_ms: int
+    resp: requests.Response,
+    elapsed_ms: int,
+    *,
+    body: bytes,
+    bytes_read: int | None = None,
+    too_large: str | None = None,
 ) -> UnlockerResult:
     """Apply the success gate to a raw unlocker API response.
 
@@ -130,6 +208,12 @@ def _parse_response(
         1. No ``x-brd-error`` / ``x-brd-error-code`` header
         2. ``x-brd-status-code`` == 200 (or absent, treated as success)
         3. Body is non-empty
+
+    ``body`` is the already-read (capped) body. ``too_large`` set means it was
+    abandoned past the size cap: a failure, checked after the header errors
+    (which keep their own fields) and before the inner status. Its billable
+    bytes follow the same rule as any delivered body, counted on
+    ``bytes_read`` (defaults to ``len(body)``).
     """
     headers = resp.headers
     error = headers.get("x-brd-error")
@@ -141,10 +225,10 @@ def _parse_response(
             inner_status = int(inner_status_str)
         except (ValueError, TypeError):
             pass
-    body = resp.content
+    n_read = len(body) if bytes_read is None else bytes_read
     billable = (
-        len(body)
-        if resp.status_code == 200 and not (error or error_code) and body
+        n_read
+        if resp.status_code == 200 and not (error or error_code) and n_read
         else 0
     )
     # The success gate: all three must hold.
@@ -152,6 +236,19 @@ def _parse_response(
         return UnlockerResult(
             success=False, content=b"", inner_status=inner_status,
             error=error, error_code=error_code, elapsed_ms=elapsed_ms,
+        )
+    if too_large is not None:
+        # RC-D-025 B4 b (PI 2026-11-10): an abandoned body is billed at the
+        # advertised Content-Length when the header is present and parseable,
+        # else at the bytes actually read. Same transport-200 / no-brd-error
+        # condition as any delivered body.
+        advertised = _advertised_length(headers)
+        if advertised is not None and resp.status_code == 200:
+            billable = advertised
+        return UnlockerResult(
+            success=False, content=b"", inner_status=inner_status,
+            error=too_large, error_code=None, elapsed_ms=elapsed_ms,
+            billable_bytes=billable,
         )
     if inner_status is not None and inner_status != 200:
         return UnlockerResult(
@@ -204,15 +301,30 @@ def fetch(url: str, *, timeout: int | None = None) -> UnlockerResult:
                 "format": "raw",
             },
             timeout=timeout_s,
+            # Streamed so the body is read under the size cap; the response
+            # is closed below whether or not it was read in full.
+            stream=True,
         )
     except requests.RequestException as exc:
         # Transport failure: the unlocker API was never reached. Redact the
         # token from the exception message before it reaches any artifact.
-        elapsed_ms = int((time.monotonic() - started) * 1000)
         safe_msg = redact(str(exc))
         raise requests.RequestException(safe_msg) from exc
+    try:
+        body, bytes_read, too_large = _read_capped(resp)
+    except requests.RequestException as exc:
+        # A mid-body transport failure: with stream=True it surfaces while
+        # reading, not from ``post``. Same redaction and raise as above.
+        safe_msg = redact(str(exc))
+        raise requests.RequestException(safe_msg) from exc
+    finally:
+        resp.close()
     elapsed_ms = int((time.monotonic() - started) * 1000)
-    result = _parse_response(resp, elapsed_ms)
+    if too_large is not None:
+        logger.warning("Web Unlocker response for %s: %s", url, too_large)
+    result = _parse_response(
+        resp, elapsed_ms, body=body, bytes_read=bytes_read, too_large=too_large,
+    )
     # Metered here, the one choke point every unlocker call passes, so both
     # triggers (block, empty) and any future caller are counted (2026-10-02).
     spend_meter.record(
@@ -235,6 +347,7 @@ def is_refusal_status(status: int | None) -> bool:
 
 
 __all__ = [
+    "RESPONSE_TOO_LARGE_ERROR",
     "UNLOCKER_TRIGGER_STATUSES",
     "UnlockerResult",
     "enabled",

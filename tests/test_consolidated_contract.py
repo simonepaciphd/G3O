@@ -277,6 +277,75 @@ def test_no_with_non_absence_source_rejected() -> None:
         )
 
 
+def _v27(payload: dict[str, Any]) -> ConsolidatedInstitutionResponse:
+    """Validate under the codebook-2.7 rules (RC-D-029 Q1 a: they apply only with V27_CONTEXT)."""
+    from g3o.common.contract import V27_CONTEXT
+
+    return ConsolidatedInstitutionResponse.model_validate(payload, context=V27_CONTEXT)
+
+
+def _no_response(*verdicts: str) -> dict[str, Any]:
+    return {
+        "consolidation_metadata": _meta(),
+        "institution": _institution(has_genai_activity="no"),
+        "activities": [],
+        "sources": [
+            _source(source_id=f"S{i + 1}", activity_id=NA, genai_evidence=v)
+            for i, v in enumerate(verdicts)
+        ],
+    }
+
+
+# RC-D-025 P9 (T-012): v2.7 `no` rests on any negative page verdict (R-041,
+# RC-D-005 8 b; background_only per R-005 S2 b) plus not_assessable (R-015 C1 a).
+@pytest.mark.parametrize(
+    "verdict",
+    ["confirms_absence", "no_genai", "background_only", "event_only", "other_body"],
+)
+def test_no_with_v27_negative_verdict_accepted(verdict: str) -> None:
+    r = _v27(_no_response(verdict))
+    assert r.institution.has_genai_activity == "no"
+
+
+def test_no_with_mixed_negatives_and_not_assessable_accepted() -> None:
+    _v27(
+        _no_response(
+            "no_genai", "confirms_absence", "background_only", "event_only",
+            "other_body", "not_assessable",
+        )
+    )
+
+
+def test_no_legacy_all_confirms_absence_still_accepted() -> None:
+    _v27(_no_response("confirms_absence", "confirms_absence"))
+    ConsolidatedInstitutionResponse.model_validate(
+        _no_response("confirms_absence", "confirms_absence")
+    )
+
+
+@pytest.mark.parametrize(
+    "verdict",
+    ["confirms_activity", "ambiguous_genai", "ambiguous_attribution", "ambiguous"],
+)
+def test_no_with_positive_or_ambiguous_source_rejected(verdict: str) -> None:
+    with pytest.raises(ValidationError, match="negative page verdict or not_assessable"):
+        _v27(_no_response("no_genai", verdict))
+
+
+def test_no_permitted_set_matches_codebook_vocabulary() -> None:
+    from g3o.common.contract import (
+        NEGATIVE_PAGE_VERDICTS,
+        NO_PERMITTED_EVIDENCE,
+        PAGE_VERDICT_V27,
+    )
+
+    assert NO_PERMITTED_EVIDENCE <= set(PAGE_VERDICT_V27)
+    assert set(PAGE_VERDICT_V27) - NO_PERMITTED_EVIDENCE == {
+        "confirms_activity", "ambiguous_genai", "ambiguous_attribution",
+    }
+    assert NO_PERMITTED_EVIDENCE - NEGATIVE_PAGE_VERDICTS == {"not_assessable"}
+
+
 def test_unclear_with_confirms_activity_rejected() -> None:
     with pytest.raises(
         ValidationError, match="unclear but a source has genai_evidence=confirms_activity"
@@ -289,6 +358,159 @@ def test_unclear_with_confirms_activity_rejected() -> None:
                 "sources": [_source(source_id="S1", activity_id=NA)],
             }
         )
+
+
+# PI 2026-11-10 (1 a): a `no` needs at least one negative verdict;
+# not_assessable alone does not suffice (consolidate_v27 `web_negative`).
+def test_no_with_only_not_assessable_rejected() -> None:
+    with pytest.raises(ValidationError, match="at least one source with a negative page verdict"):
+        _v27(_no_response("not_assessable", "not_assessable"))
+
+
+@pytest.mark.parametrize(
+    "verdict",
+    ["confirms_absence", "no_genai", "background_only", "event_only", "other_body"],
+)
+def test_no_with_one_negative_plus_not_assessable_accepted(verdict: str) -> None:
+    _v27(_no_response("not_assessable", verdict))
+
+
+# PI 2026-11-10 (2 a): `unclear` may carry confirms_activity only when that
+# source failed its support check (R-041; verdict kept, r2#40).
+def _unclear_with_confirms(**src: Any) -> dict[str, Any]:
+    return {
+        "consolidation_metadata": _meta(),
+        "institution": _institution(has_genai_activity="unclear"),
+        "activities": [],
+        "sources": [_source(source_id="S1", activity_id=NA, **src)],
+    }
+
+
+@pytest.mark.parametrize(
+    "status",
+    ["downgraded_no_quote", "downgraded_low_confidence", "downgraded_quote_not_stating_value"],
+)
+def test_unclear_with_downgraded_confirms_activity_accepted(status: str) -> None:
+    r = _v27(_unclear_with_confirms(support_status=status))
+    assert r.sources[0].genai_evidence == "confirms_activity"
+    assert r.sources[0].support_status == status
+
+
+@pytest.mark.parametrize("status", ["supported", "not_required", "set_by_rule", None])
+def test_unclear_with_undowngraded_confirms_activity_rejected(status: str | None) -> None:
+    with pytest.raises(
+        ValidationError, match="unclear but a source has genai_evidence=confirms_activity"
+    ):
+        _v27(_unclear_with_confirms(support_status=status))
+
+
+def test_unknown_support_status_rejected() -> None:
+    with pytest.raises(ValidationError, match="support_status='passed' not in"):
+        _v27(_unclear_with_confirms(support_status="passed"))
+
+
+# RC-D-027 follow-up O2 b (PI 2026-11-10, "1b"): `yes` needs a non-downgraded
+# confirms_activity; downgraded ones may go unlinked.
+def test_yes_with_supported_plus_downgraded_unlinked_accepted() -> None:
+    payload = _yes_response()
+    payload["sources"][0]["support_status"] = "supported"
+    payload["sources"].append(
+        _source(source_id="S2", activity_id=NA, support_status="downgraded_no_quote")
+    )
+    r = _v27(payload)
+    assert r.sources[1].activity_id == NA
+
+
+@pytest.mark.parametrize(
+    "status",
+    ["downgraded_no_quote", "downgraded_low_confidence", "downgraded_quote_not_stating_value"],
+)
+def test_yes_with_only_downgraded_confirms_activity_rejected(status: str) -> None:
+    payload = _yes_response()
+    payload["sources"][0]["support_status"] = status
+    with pytest.raises(ValidationError, match="every confirms_activity source has a downgraded"):
+        _v27(payload)
+
+
+@pytest.mark.parametrize("status", ["supported", "not_required", "set_by_rule", None])
+def test_undowngraded_confirms_activity_unlinked_still_rejected_on_yes(status: str | None) -> None:
+    payload = _yes_response()
+    payload["sources"].append(_source(source_id="S2", activity_id=NA, support_status=status))
+    with pytest.raises(ValidationError, match="activity_id=_NA_ but genai_evidence=confirms_activity"):
+        _v27(payload)
+
+
+def test_yes_legacy_unchecked_sources_unchanged() -> None:
+    ConsolidatedInstitutionResponse.model_validate(_yes_response())
+    _v27(_yes_response())
+
+
+# RC-D-029 Q1 a: without V27_CONTEXT (every v2.5/2.6 payload) validation is
+# exactly as at main 80a010a.
+@pytest.mark.parametrize(
+    "verdicts",
+    [("background_only",), ("no_genai",), ("not_assessable", "confirms_absence"),
+     ("not_assessable",), ("confirms_absence", "event_only")],
+)
+def test_legacy_no_still_needs_every_source_confirms_absence(verdicts: tuple[str, ...]) -> None:
+    with pytest.raises(ValidationError, match="requires every source to be confirms_absence; offenders"):
+        ConsolidatedInstitutionResponse.model_validate(_no_response(*verdicts))
+
+
+@pytest.mark.parametrize(
+    "status",
+    ["downgraded_no_quote", "downgraded_low_confidence", "downgraded_quote_not_stating_value",
+     "supported", "not_required", "set_by_rule", "passed"],
+)
+def test_legacy_payload_refuses_support_status(status: str) -> None:
+    with pytest.raises(ValidationError, match="support_status=.* on a legacy"):
+        ConsolidatedInstitutionResponse.model_validate(_unclear_with_confirms(support_status=status))
+    payload = _yes_response()
+    payload["sources"][0]["support_status"] = status
+    with pytest.raises(ValidationError, match="support_status=.* on a legacy"):
+        ConsolidatedInstitutionResponse.model_validate(payload)
+
+
+def test_legacy_unclear_and_unlinked_confirms_activity_rejected_as_at_main() -> None:
+    with pytest.raises(ValidationError, match="unclear but a source has genai_evidence=confirms_activity") as exc:
+        ConsolidatedInstitutionResponse.model_validate(_unclear_with_confirms())
+    assert "without a downgraded" not in str(exc.value)
+    payload = _yes_response()
+    payload["sources"].append(_source(source_id="S2", activity_id=NA))
+    with pytest.raises(ValidationError, match="activity_id=_NA_ but genai_evidence=confirms_activity"):
+        ConsolidatedInstitutionResponse.model_validate(payload)
+
+
+def test_v27_context_is_selected_only_by_release_2_7() -> None:
+    for context in (None, {}, {"codebook_release": "v2.5"}, {"codebook_release": "2.6"}):
+        with pytest.raises(ValidationError, match="confirms_absence; offenders"):
+            ConsolidatedInstitutionResponse.model_validate(_no_response("no_genai"), context=context)
+    _v27(_no_response("no_genai"))
+
+
+def test_support_status_is_internal() -> None:
+    from g3o.common.contract import SourceRecord
+
+    schema = ConsolidatedInstitutionResponse.model_json_schema()
+    assert "support_status" not in str(schema)
+    r = _v27(_unclear_with_confirms(support_status="downgraded_no_quote"))
+    assert "support_status" not in r.sources[0].model_dump()
+    assert SourceRecord.model_validate(_source()).support_status is None
+
+
+def test_support_status_vocabulary_matches_codebook_and_storage() -> None:
+    from g3o.codebook.loader import load_codebook
+    from g3o.common.contract import DOWNGRADED_SUPPORT_STATUS, SOURCE_SUPPORT_STATUS
+    from g3o.common.storage import SUPPORT_STATES
+
+    assert SOURCE_SUPPORT_STATUS == SUPPORT_STATES
+    assert SOURCE_SUPPORT_STATUS == set(
+        load_codebook().vocabularies["support_status"]["values"]
+    )
+    assert DOWNGRADED_SUPPORT_STATUS == {
+        "downgraded_no_quote", "downgraded_low_confidence",
+        "downgraded_quote_not_stating_value",
+    }
 
 
 def test_yes_without_confirms_activity_source_rejected() -> None:

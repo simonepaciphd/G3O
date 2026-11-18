@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extract_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: 07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527 -->
+<!-- codebook release: 2.7 | codebook sha256: 381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a -->
 
 # G3O output contract (extract), generated from the codebook
 
-Codebook release `2.7`, sha256 `07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527`. 99 items.
+Codebook release `2.7`, sha256 `381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a`. 99 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: 53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44 -->
@@ -1491,11 +1491,11 @@ Define `source_snippet` on v2.7 rows as the verbatim supporting text of the page
 Snippets are verbatim in every pipeline, no translations are stored, and procurement's rule is amended.
 
 ## `core.source_credibility`
-<!-- item: core.source_credibility sha256: 787c52481878e073a52393208c9c9b56aa66be14783486d1bc95367b043e8978 -->
+<!-- item: core.source_credibility sha256: c912c76f4ecb296c07dde7ed38e2e81a3512c1cda34dfc1f36315af16e8b1ffa -->
 
 | Field | Value |
 |---|---|
-| item hash | `787c52481878e073a52393208c9c9b56aa66be14783486d1bc95367b043e8978` |
+| item hash | `c912c76f4ecb296c07dde7ed38e2e81a3512c1cda34dfc1f36315af16e8b1ffa` |
 | family | `source` |
 | name | `source_credibility` |
 | level | `source` |
@@ -1523,7 +1523,11 @@ Snippets are verbatim in every pipeline, no translations are stored, and procure
 
 1. `items/core.source_credibility/rules/0`
 
-`source_credibility` = fixed map from `source_type` plus `low` when `source_publication_date` = unknown; drop the translation clause.
+`source_credibility` = fixed map from `source_type` plus `low` when `source_publication_date` = unknown or not_documented; drop the translation clause.
+
+2. `items/core.source_credibility/rules/1`
+
+Credibility by `source_type`: official domain (typed from the web domain) `high`; `procurement_tender` `high`; `news_major` `medium`; `news_trade` `medium`; `policy_org` `medium`; `vendor` `medium`; `academic` `high`; `social_media` `low`; `other` `medium`; archive address (typed from the address) `medium`; `source_type` missing (`not_documented`, `unknown`, or `not_asked` on an unreadable page) `low`.
 
 ## `core.activity_segment`
 <!-- item: core.activity_segment sha256: e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759 -->
@@ -2052,11 +2056,11 @@ A body that sets or oversees rules gets the governance questions.
 `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.
 
 ## `core.adoption_stage`
-<!-- item: core.adoption_stage sha256: 3c9a80bba2641f0192a3812d0281bb44469e5efffe698f13b8f7117dc6939c6f -->
+<!-- item: core.adoption_stage sha256: 4aa4962b9e5b24a8ae88c84a0603d337d835b5e894cda596ef242a4c7b97e4e6 -->
 
 | Field | Value |
 |---|---|
-| item hash | `3c9a80bba2641f0192a3812d0281bb44469e5efffe698f13b8f7117dc6939c6f` |
+| item hash | `4aa4962b9e5b24a8ae88c84a0603d337d835b5e894cda596ef242a4c7b97e4e6` |
 | family | `activity_typing` |
 | name | `adoption_stage` |
 | level | `activity` |
@@ -2131,10 +2135,6 @@ Purchase steps are coded in the purchase-status question, not here. A payment or
 Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.
 
 3. `items/core.adoption_stage/rules/2`
-
-**"Permanent pilot" rule:** If described as "pilot" but running >12 months AND serving the full intended user base, code `production`. Note in `scope_notes`: "Described as pilot but operational >12 months with full user base."
-
-4. `items/core.adoption_stage/rules/3`
 
 `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.
 
@@ -2971,11 +2971,11 @@ The quote step runs for every activity; skipped items are kept internally and pu
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.contracting_party`
-<!-- item: core.contracting_party sha256: 73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24 -->
+<!-- item: core.contracting_party sha256: fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24` |
+| item hash | `fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2` |
 | family | `tool` |
 | name | `contracting_party` |
 | level | `activity` |
@@ -3003,7 +3003,7 @@ The quote step runs for every activity; skipped items are kept internally and pu
 
 1. `items/core.contracting_party/rules/0`
 
-Developer (from lookup or page, with its basis recorded) and contracting party (page-stated only).
+Developer (stated on the page, with its basis recorded) and contracting party (page-stated only).
 
 2. `items/core.contracting_party/rules/1`
 
@@ -3014,17 +3014,17 @@ Vendor holds what the source names, which in purchase records is the contracting
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.developer`
-<!-- item: core.developer sha256: f9bf2b0188ea76b1cb9f68dd866d8a8022fd75dc530d7caed4b2a3227a393ccc -->
+<!-- item: core.developer sha256: 3b7fa3c4814ac318a061237a2bc87bf7d614afa9645d570dcb127a0869dac61d -->
 
 | Field | Value |
 |---|---|
-| item hash | `f9bf2b0188ea76b1cb9f68dd866d8a8022fd75dc530d7caed4b2a3227a393ccc` |
+| item hash | `3b7fa3c4814ac318a061237a2bc87bf7d614afa9645d570dcb127a0869dac61d` |
 | family | `tool` |
 | name | `developer` |
 | level | `activity` |
 | pipelines | `web_extract` |
-| linkage | `pipeline` |
-| coder | `derived` |
+| linkage | `extractor` |
+| coder | `quote_step` |
 | pass | `none` |
 | round | `none` |
 | answer_type | `text` |
@@ -3046,22 +3046,26 @@ The quote step runs for every activity; skipped items are kept internally and pu
 
 1. `items/core.developer/rules/0`
 
-Developer (from lookup or page, with its basis recorded) and contracting party (page-stated only).
+Developer (stated on the page, with its basis recorded) and contracting party (page-stated only).
 
 2. `items/core.developer/rules/1`
 
-vendor = the organisation the page names as supplying the GenAI product or service, verbatim. If none is named but tool_name matches a published lookup table (product -> developer, versioned), fill it deterministically and set `vendor_basis` = lookup, otherwise `stated`.
+vendor = the organisation the page names as supplying the GenAI product or service, verbatim.
 
 3. `items/core.developer/rules/2`
 
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
+4. `items/core.developer/rules/3`
+
+A developer stated on the page comes from the quote step, with its supporting quote; `developer_basis` = stated.
+
 ## `core.developer_basis`
-<!-- item: core.developer_basis sha256: b4da76c1b35bd2d108e8093c659e5917175046ffd66917ba2decf4d770a1a291 -->
+<!-- item: core.developer_basis sha256: d76e4097f154eab1ca16fc863f2dc1a11e713a074ae41ac5324b315ebc3d7194 -->
 
 | Field | Value |
 |---|---|
-| item hash | `b4da76c1b35bd2d108e8093c659e5917175046ffd66917ba2decf4d770a1a291` |
+| item hash | `d76e4097f154eab1ca16fc863f2dc1a11e713a074ae41ac5324b315ebc3d7194` |
 | family | `provenance` |
 | name | `developer_basis` |
 | level | `activity` |
@@ -3089,11 +3093,19 @@ The quote step runs for every activity; skipped items are kept internally and pu
 
 1. `items/core.developer_basis/rules/0`
 
-Developer (from lookup or page, with its basis recorded) and contracting party (page-stated only).
+Developer (stated on the page, with its basis recorded) and contracting party (page-stated only).
 
 2. `items/core.developer_basis/rules/1`
 
-Every 'how we know' field uses the same five values: stated, from metadata, looked up, derived, quoted by the quote step. The per-run version record also holds the codebook version, the channel tag stays on each row, and per-code coder details are stored internally and linked to that record.
+The per-run version record also holds the codebook version, the channel tag stays on each row, and per-code coder details are stored internally and linked to that record.
+
+3. `items/core.developer_basis/rules/2`
+
+When `developer` is a missing token (`not_asked`, `not_documented`, `unknown` or `_NA_`), `developer_basis` takes the same token.
+
+4. `items/core.developer_basis/rules/3`
+
+At Stage 6, a merged activity takes its `developer` as it takes `contracting_party`: from the observation with the highest source credibility, ties by pool order, a real value over a missing token. Its `developer_basis` is `stated` when that developer is a real value, else the developer's missing token.
 
 ## `core.deployment_mode`
 <!-- item: core.deployment_mode sha256: b98e0a21cf8e6214df70fb55b4d1c07d269ccb33edb7018f6d942abbb9a0602c -->
@@ -4998,11 +5010,11 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 stage_as_of = source_publication_date if supported, else the page's latest stated date for the activity, else the access date; plus `stage_as_of_basis`.
 
 ## `core.stage_as_of_basis`
-<!-- item: core.stage_as_of_basis sha256: d7088292a75ed257e9cc7e2ece470d33cdc3aaa19003815ed77979b23788b0a2 -->
+<!-- item: core.stage_as_of_basis sha256: c40ce46095c40201d4c252d58c6eaa6fa915a8ae19e1a4fe3abe01f314c3c953 -->
 
 | Field | Value |
 |---|---|
-| item hash | `d7088292a75ed257e9cc7e2ece470d33cdc3aaa19003815ed77979b23788b0a2` |
+| item hash | `c40ce46095c40201d4c252d58c6eaa6fa915a8ae19e1a4fe3abe01f314c3c953` |
 | family | `provenance` |
 | name | `stage_as_of_basis` |
 | level | `activity` |
@@ -5026,6 +5038,20 @@ stage_as_of = source_publication_date if supported, else the page's latest state
 | long_page_rule | `none` |
 | translation_v25 | `new` |
 
+### Values
+
+#### `publication`
+
+stage_as_of is the supported source_publication_date.
+
+#### `stated`
+
+stage_as_of is the page's latest stated date for the activity.
+
+#### `access`
+
+stage_as_of is the access date.
+
 ### Rules
 
 1. `items/core.stage_as_of_basis/rules/0`
@@ -5034,49 +5060,75 @@ stage_as_of = source_publication_date if supported, else the page's latest state
 
 2. `items/core.stage_as_of_basis/rules/1`
 
-Every 'how we know' field uses the same five values: stated, from metadata, looked up, derived, quoted by the quote step. The per-run version record also holds the codebook version, the channel tag stays on each row, and per-code coder details are stored internally and linked to that record.
+When the observations carrying a merged activity's `stage_as_of` reach that date by different steps, `stage_as_of_basis` takes the first of them in the order `publication`, `stated`, `access`.
 
 ## `core.permanent_pilot`
-<!-- item: core.permanent_pilot sha256: 300a332733fec4ee2d42e5288bc95dc722d2cc159d9ffcae19e7c98b26ec5452 -->
+<!-- item: core.permanent_pilot sha256: 152bbabb24b057f88773d735097cc0341ee6e95603be4597682f789458beedb2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `300a332733fec4ee2d42e5288bc95dc722d2cc159d9ffcae19e7c98b26ec5452` |
+| item hash | `152bbabb24b057f88773d735097cc0341ee6e95603be4597682f789458beedb2` |
 | family | `activity_typing` |
 | name | `permanent_pilot` |
 | level | `activity` |
 | pipelines | `web_extract` |
-| linkage | `deterministic` |
-| coder | `derived` |
-| pass | `none` |
-| round | `none` |
+| linkage | `jev_choice` |
+| coder | `classifier` |
+| pass | `2` |
+| round | `3` |
 | answer_type | `yes_no` |
-| order_tie_rule | `none` |
-| support_required | `False` |
-| downgrade_target | `none` |
-| threshold | `none` |
+| order_tie_rule | `first_in_order` |
+| support_required | `True` |
+| downgrade_target | `unknown` |
+| threshold | `{"metric": "chosen_answer_probability", "bar": 0.8}` |
 | missing_tokens | `not_asked`, `not_documented`, `unknown`, `_NA_` |
 | input_text | `main` |
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
 | status | `signed` |
-| gate | `none` |
-| long_page_rule | `none` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "same gate as core.adoption_stage (RC-D-025 A2): applicability.json cells[item=core.adoption_stage]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| long_page_rule | `{"rule": "any_yes"}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+Does the page describe this activity as a pilot that has run for more than 12 months and serves its full intended user base?
+
+### Entailment label
+
+status as a long-running pilot
+
+### Values
+
+#### `yes`
+
+The same passage describes it as a pilot, running for more than 12 months, and serving the full intended user base.
+
+Entailment label: a pilot running over 12 months for its full intended user base
+
+#### `no`
+
+The page gives evidence that the activity is not such a pilot (for example a pilot under 12 months old, or limited to part of its intended users).
+
+Entailment label: not such a long-running, full-scale pilot
 
 ### Rules
 
 1. `items/core.permanent_pilot/rules/0`
 
-Each item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.
+A supported `yes` sets the final `adoption_stage` to `production` only when the stage answer is `pilot` or `production`; for any other stage the classifier's stage answer is kept and this flag is kept as coded.
+
+2. `items/core.permanent_pilot/rules/1`
+
+The page does not let this be settled.
 
 ## `core.vendor_claim_only`
-<!-- item: core.vendor_claim_only sha256: 9dda40ba9ac691c619a8447340735430e6a657f4b40f3a80650f1801830249f7 -->
+<!-- item: core.vendor_claim_only sha256: 8d2d3e7b7d9864d230056eeab9d9c44d5cf51f4633e7aa5f1ebb7e571c372553 -->
 
 | Field | Value |
 |---|---|
-| item hash | `9dda40ba9ac691c619a8447340735430e6a657f4b40f3a80650f1801830249f7` |
+| item hash | `8d2d3e7b7d9864d230056eeab9d9c44d5cf51f4633e7aa5f1ebb7e571c372553` |
 | family | `quality` |
 | name | `vendor_claim_only` |
 | level | `activity` |
@@ -5332,11 +5384,11 @@ Supporting text is published with the code it supports. The API carries the full
 Published supporting quotes stay verbatim, with no masking.
 
 ## `core.confidence`
-<!-- item: core.confidence sha256: be718eed17df646c03fff6a7f335f7ea2b267c926236030d9bf91cb932dbd698 -->
+<!-- item: core.confidence sha256: e7c3cc4a6ef4f3d0aa4ab7e63a6e700f56f971175415070e02d4fcb3c9e8707b -->
 
 | Field | Value |
 |---|---|
-| item hash | `be718eed17df646c03fff6a7f335f7ea2b267c926236030d9bf91cb932dbd698` |
+| item hash | `e7c3cc4a6ef4f3d0aa4ab7e63a6e700f56f971175415070e02d4fcb3c9e8707b` |
 | family | `quality` |
 | name | `confidence` |
 | level | `source`, `activity` |
@@ -5365,6 +5417,14 @@ Published supporting quotes stay verbatim, with no masking.
 1. `items/core.confidence/rules/0`
 
 Each source's confidence uses only that source's credibility and quote support. At consolidation, an activity is 'high' if one source is high or two medium sources that are not copies of each other agree; otherwise it takes the highest source value.
+
+2. `items/core.confidence/rules/1`
+
+When all applicable evidence checks completed and none failed, source confidence = `source_credibility` (high/medium/low). Any `downgraded_no_quote`, `downgraded_quote_not_stating_value` or `downgraded_low_confidence` on any associated original code, including a `no` or negative value downgraded below the 0.8 bar, makes it `low`. `not_required` / `set_by_rule` neutral. Pending/unperformed checks leave it unfinished (not scored); unavailable credibility stays unknown unless a failed check sets low. Original failures survive the final-value downgrade.
+
+3. `items/core.confidence/rules/2`
+
+At consolidation, when an activity's confidence is aggregated from its sources, a source whose confidence is `unknown` counts as `low`.
 
 ## `core.codebook_release`
 <!-- item: core.codebook_release sha256: d19547278ff8587cfdd0f00fb38382c63b2b746d5a1671b44af5f14b0cf9edbc -->

@@ -42,6 +42,11 @@ per (page x activity) with the v2.7 activity question set (T-011 ``activity.json
    earlier page span is lhs; equal starts stop only that pair. Every part holding
    either span votes. Raw records name ``linked_activity``; pair support joins
    retain both activity identities. :func:`finalize_pairs` checks pair support.
+7. **Permanent pilot (RC-D-025 B2 a; codebook r15 ``core.permanent_pilot`` rules/0).**
+   After the support-checked re-combine, a supported combined ``yes`` sets the final
+   ``adoption_stage`` from ``pilot`` to ``production`` (rule
+   :data:`PERMANENT_PILOT_RULE`); ``production`` stays; any other stage and the flag
+   itself are kept as coded. Provisional outcomes never carry it.
 """
 
 from __future__ import annotations
@@ -54,8 +59,13 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any, Protocol
 
+from g3o.classify.permanent_pilot import (
+    PERMANENT_PILOT_ITEM,
+    PERMANENT_PILOT_RULE,
+    apply_permanent_pilot_override,
+)
 from g3o.classify.questions.v27 import choice_request, load_set
-from g3o.common.jev_client import JevAccountError, JevResult
+from g3o.common.jev_client import JevAccountError, JevResult, has_request_id
 from g3o.common.jev_record import ClassifierRule, CoderRecord
 from g3o.common.page_chunks import Chunk
 from g3o.extract.parser_v27 import ActivitySpan
@@ -75,9 +85,15 @@ GATE_RULE = "gated_out:"
 MISSING_REQUEST_ID = "jev_missing_request_id"
 REQUEST_FAILED = "jev_request_failed"
 ANSWER_MISSING = "jev_answer_missing"
+#: Reason of the failure an RC-D-024 extra round records when it holds a question pending
+#: (``question_rounds``). A hold, never a vote: on resume the part is asked again.
+EXTRA_ROUND_FAILED = "extra_round_failed"
 SPAN_UNRESOLVED = "activity_span_unresolved"
 PAIR_QUESTION_MISSING = "pair_question_missing"
 PAIR_DIRECTION_TIE = "pair_direction_tie"
+
+#: RC-D-025 B2 a (codebook r15 ``core.permanent_pilot`` rules/0): applied by
+#: :func:`finalize_activities` after the support check, via the helper shared with T-026.
 
 #: Extracted (nano) values the signed state names: state field -> T-022 field item.
 NANO_STATE_FIELDS: Mapping[str, str] = {
@@ -257,7 +273,7 @@ class PageActivityResult:
             "codebook_sha256": self.codebook_sha256, "coder_version": self.coder_version,
             "activities": [{
                 "activity_id": a.activity_id, "label": a.label, "start": a.start, "end": a.end,
-                "chunk_ids": list(a.chunk_ids),
+                "chunk_ids": list(a.chunk_ids), "part_indices": list(a.part_indices),
                 "outcomes": {k: _jsonable(asdict(o)) for k, o in a.outcomes.items()},
                 "records": [r.to_dict() for r in a.records],
                 "record_links": {str(k): v for k, v in a.record_links.items()},
@@ -271,6 +287,60 @@ class PageActivityResult:
             "notes": list(self.notes),
         }
 
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> PageActivityResult:
+        """Restore a durable checkpoint without inventing omitted part indices.
+
+        Older v1 artifacts omitted activity part_indices and cannot safely
+        resume. Refuse those artifacts explicitly; do not guess page positions.
+        """
+        if data.get("format") != "g3o-activity-code-v1":
+            raise ValueError("unsupported activity-code artifact format")
+
+        def outcome(raw: Mapping[str, Any]) -> ItemOutcome:
+            def tuples(value: Any) -> Any:
+                return tuple(tuples(v) for v in value) if isinstance(value, list) else value
+            return ItemOutcome(**{**raw, "value": tuples(raw["value"])})
+
+        def parts(raw: Mapping[str, Any]) -> tuple[tuple[str, ...], tuple[int, ...]]:
+            if "part_indices" not in raw:
+                raise ValueError("activity checkpoint lacks original part_indices; cannot resume")
+            chunks, indices = tuple(raw["chunk_ids"]), tuple(raw["part_indices"])
+            if (len(chunks) != len(indices) or len(set(chunks)) != len(chunks)
+                    or any(type(i) is not int or i < 1 for i in indices)
+                    or list(indices) != sorted(set(indices))):
+                raise ValueError("invalid original activity part indices")
+            return chunks, indices
+
+        activities = []
+        for raw in data["activities"]:
+            chunks, indices = parts(raw)
+            records = tuple(CoderRecord.from_dict(r) for r in raw["records"])
+            links = {int(k): v for k, v in raw["record_links"].items()}
+            if any(not 0 <= k < len(records) for k in links):
+                raise ValueError("activity checkpoint has invalid pair record index")
+            activities.append(ActivityResult(
+                raw["activity_id"], raw["label"], raw["start"], raw["end"], chunks, indices,
+                {k: outcome(v) for k, v in raw["outcomes"].items()}, records, links))
+        pairs = []
+        for raw in data["pairs"]:
+            chunks, indices = parts(raw)
+            pairs.append(PairResult(raw["activity_id"], raw["linked_activity"], chunks, indices,
+                                    outcome(raw["outcome"]),
+                                    tuple(CoderRecord.from_dict(r) for r in raw["records"])))
+        return cls(
+            page_id=data["page_id"], institution_id=data["institution_id"], activities=tuple(activities),
+            skipped_activities=tuple(tuple(s) for s in data["skipped_activities"]),
+            failures=tuple(PartFailure(**{**f, "question_ids": tuple(f["question_ids"])})
+                           for f in data["failures"]),
+            notes=tuple(data["notes"]), question_set_version=data["question_set_version"],
+            codebook_sha256=data["codebook_sha256"], coder_version=data["coder_version"], pairs=tuple(pairs),
+        )
+
+    @classmethod
+    def from_json(cls, text: str) -> PageActivityResult:
+        return cls.from_dict(json.loads(text))
 
 def _jsonable(v: Any) -> Any:
     if isinstance(v, tuple):
@@ -664,7 +734,7 @@ def code_page(inp: ActivityPageInput, ask_fn: AskFn, config: ActivityCoderConfig
                     raise
                 except Exception as exc:  # noqa: BLE001 - any other failure fails this part only
                     reason, detail = REQUEST_FAILED, f"{type(exc).__name__}: {exc}"
-                if result is not None and not (isinstance(result.request_id, str) and result.request_id.strip()):
+                if result is not None and not has_request_id(result.request_id):
                     reason, result = MISSING_REQUEST_ID, None
                 if result is None:
                     failures.append(PartFailure(reason, sp.activity_id, chunk.chunk_id, rnd, qids, detail))
@@ -731,7 +801,7 @@ def _code_pair(inp: ActivityPageInput, pair: ActivityPair, q: dict[str, Any], as
         except Exception as exc:  # noqa: BLE001 - a request failure is a failed part vote
             reason, detail = REQUEST_FAILED, f"{type(exc).__name__}: {exc}"
         if result is not None:
-            if not isinstance(result.request_id, str) or not result.request_id.strip():
+            if not has_request_id(result.request_id):
                 reason = MISSING_REQUEST_ID
             elif qid not in result.answers:
                 reason = ANSWER_MISSING
@@ -876,9 +946,16 @@ def finalize_activities(result: PageActivityResult, support: Sequence[Any], conf
                     down = st.startswith("downgraded_")
                     votes.append(_vote(rec, index[rec.chunk_id], failed=bar or down,
                                        cause=rec.downgrade_cause if bar else (st if down else None)))
+                # Retain the failure history, but a resumed answer replaces its
+                # failed vote. Each current part contributes at most one vote.
+                # An extra-round hold is not a vote (T-030 QA4 L3): a combined
+                # question's held part was answered or failed again on resume. No
+                # first-round failure carries that reason.
+                seen = {vote.part_id for vote in votes}
                 for f in fails:
-                    if qid in f.question_ids:
+                    if qid in f.question_ids and f.chunk_id not in seen and f.reason != EXTRA_ROUND_FAILED:
                         votes.append(PartVote(f.chunk_id, index[f.chunk_id], UNKNOWN, None, True, f.reason))
+                        seen.add(f.chunk_id)
                 final[qid] = _combine(q, votes, config.combiner, final, s.by_id)
             for q in rq:
                 if _gate_kind(q, s.by_id) == "part" and final.get(q["question_id"], None) is not None \
@@ -889,6 +966,11 @@ def finalize_activities(result: PageActivityResult, support: Sequence[Any], conf
                     elif not open_:
                         final[q["question_id"]] = _gated(q, "gate closed after the support check (PI Q2 b)")
                         regated.append(q["question_id"])
+            # Before later rounds read the stage (no gate does today; kept in order anyway).
+            apply_permanent_pilot_override(
+                final, s.by_id,
+                lambda _qid, part, aid=act.activity_id: status.get((aid, PERMANENT_PILOT_ITEM, None, part)),
+                scope="combined")
         out.append(FinalActivity(act.activity_id, final, tuple(regated), tuple(opened)))
     return tuple(out)
 
@@ -922,7 +1004,7 @@ def to_pass2_page(result: PageActivityResult, inp: ActivityPageInput) -> Pass2Pa
 
 __all__ = [
     "ANSWER_MISSING", "CODER_VERSION", "MISSING_REQUEST_ID", "NANO_STATE_FIELDS",
-    "PAIR_DIRECTION_TIE", "PAIR_QUESTION_MISSING", "REQUEST_FAILED", "SPAN_UNRESOLVED", "ActivityCoderConfig",
+    "PAIR_DIRECTION_TIE", "PAIR_QUESTION_MISSING", "PERMANENT_PILOT_RULE", "REQUEST_FAILED", "SPAN_UNRESOLVED", "ActivityCoderConfig",
     "ActivityPageInput", "ActivityPair", "ActivityResult", "PairResult", "Combined", "FinalActivity", "ItemOutcome",
     "PageActivityResult", "PartCombiner", "PartFailure", "PartVote", "build_questions",
     "build_state", "code_page", "finalize_activities", "finalize_pairs", "plan_pairs", "marked_pair_text", "gate_open", "marked_part_text",

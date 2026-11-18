@@ -763,3 +763,83 @@ def test_context_creation_failure_releases_browser_before_retry(monkeypatch):
     assert session._pw is session._browser is session._context is None
     assert session._context_obj() is second_browser.new_context.return_value
     session.close()
+
+
+# ---------------------------------------------------------------------------
+# P15 A1, PI ruling R3 b (2026-11-12): metadata dates measured on the
+# rendered DOM of the same page load
+# ---------------------------------------------------------------------------
+
+_RENDERED_HTML = """<html><head>
+<meta name="citation_publication_date" content="2024-03-12">
+<meta property="article:published_time" content="2024-03-10T09:00:00Z">
+<meta name="DC.date.issued" content="2024-03">
+<script type="application/ld+json">{"@type": "Article", "datePublished": "2024-03-11"}</script>
+</head><body>
+<div itemscope itemtype="https://schema.org/NewsArticle">
+<time itemprop="datePublished" datetime="2024-03-09">9 March</time></div>
+</body></html>"""
+
+
+class _HtmlStubPage(_StubPage):
+    def __init__(self, html: Any, **kw: Any) -> None:
+        super().__init__(**kw)
+        self._html = html
+        self.content_calls = 0
+
+    def content(self) -> str:
+        self.content_calls += 1
+        if isinstance(self._html, Exception):
+            raise self._html
+        return self._html
+
+
+def _render_with(monkeypatch: pytest.MonkeyPatch, html: Any) -> tuple[RenderedPage, _HtmlStubPage]:
+    factory, _page, _browser, chromium = _build_stub()
+    page = _HtmlStubPage(html)
+    chromium._browser._context._page = page
+    _patch_playwright(monkeypatch, factory)
+    monkeypatch.setattr(render.egress, "playwright_proxy", lambda: None)
+    return render_url("https://example.com/news"), page
+
+
+def test_render_measures_every_tag_type_on_the_rendered_dom(monkeypatch: pytest.MonkeyPatch):
+    rendered, page = _render_with(monkeypatch, _RENDERED_HTML)
+    got = [(c["tag"], c["found_as"].split(" ")[0], c["value"]) for c in rendered.metadata_dates]
+    assert got == [
+        ("citation_publication_date", "meta", "2024-03-12"),
+        ("article:published_time", "meta", "2024-03-10"),
+        ("DC.date.issued / dcterms.issued", "meta", "2024-03"),
+        ("schema.org datePublished", "json-ld", "2024-03-11"),
+        ("schema.org datePublished", "microdata", "2024-03-09"),
+    ]
+    assert page.content_calls == 1 and len(page.goto_calls) == 1  # same load, no extra navigation
+    dumped = rendered.model_dump()
+    assert dumped["metadata_dates"] == rendered.metadata_dates
+    assert "html" not in dumped and _RENDERED_HTML not in rendered.model_dump_json()
+    assert RenderedPage.model_validate_json(rendered.model_dump_json()) == rendered
+
+
+def test_render_dom_without_signals_is_measured_empty(monkeypatch: pytest.MonkeyPatch):
+    rendered, _ = _render_with(monkeypatch, "<html><body><p>no dates</p></body></html>")
+    assert rendered.metadata_dates == []
+
+
+@pytest.mark.parametrize("html", [RuntimeError("Target closed"), None])
+def test_render_dom_read_failure_leaves_not_measured(monkeypatch: pytest.MonkeyPatch, html: Any):
+    rendered, _ = _render_with(monkeypatch, html)
+    assert rendered.metadata_dates is None
+    assert rendered.text == "rendered body text"  # the render itself still succeeds
+    assert "metadata_dates" not in rendered.model_dump()
+
+
+def test_render_session_path_measures_dates(monkeypatch: pytest.MonkeyPatch):
+    page = _HtmlStubPage(_RENDERED_HTML)
+    page.close = lambda: None  # type: ignore[attr-defined]
+
+    class _Session:
+        def new_page(self) -> _HtmlStubPage:
+            return page
+
+    rendered = render_url("https://example.com/news", session=_Session())  # type: ignore[arg-type]
+    assert len(rendered.metadata_dates) == 5 and page.content_calls == 1

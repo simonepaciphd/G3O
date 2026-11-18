@@ -15,7 +15,10 @@ statuses:
                           the branch comment in
                           :func:`compute_institution_outcomes`. Measured at
                           23.8%-33.3% of every run's positives, all of which
-                          previously reported ``PROCESSING_FAILED``.
+                          previously reported ``PROCESSING_FAILED``. v2.5 only:
+                          a v2.7 ``yes`` with attrition failures is
+                          ``EVIDENCE_FOUND``, attrition named in the reason
+                          (ruling 53 b).
 - ``NO_EVIDENCE_FOUND`` — the run was configured to reach Stage 6 and this
                           institution was genuinely evaluated that far (or ran
                           out of legitimate upstream input, e.g. zero URLs
@@ -26,7 +29,18 @@ statuses:
 - ``PROCESSING_FAILED`` — a technical failure (an attrition-recorded parse /
                           scrape failure for this institution, or an
                           unreadable ``6_validate.json``) prevented a
-                          conclusion.
+                          conclusion. Also carries a v2.7 institution held as
+                          pending by the per-page stage or Stage 6 (ruling
+                          45 a): not concluded, and the reason names the hold
+                          — see :func:`_v27_hold_reason`. Also a v2.7
+                          institution whose verdict is ``unclear`` (ruling
+                          48.1 b) or whose ``6_validate.json`` has no
+                          ``6_storage.json`` (ruling 48.2 a). Also an
+                          institution in a 2.7 run whose ``6_storage.json``
+                          exists but does not load or does not match its
+                          ``6_validate.json``, or whose legacy
+                          ``6_validate.json`` has no storage (ruling 54 a; that
+                          institution only; a v2.5 run still raises).
 - ``RUN_TRUNCATED``     — the run itself was configured to stop before Stage 6
                           (``--stop-after``); this institution was never
                           evaluated for evidence, independent of what its
@@ -73,6 +87,17 @@ reconciliation at the ``run_state`` / ``batch_client`` layer and is a separate,
 unimplemented work item. So a clean report here means "no abort was visible on
 disk", not "nothing was lost".
 
+v2.7 runs
+---------
+
+A run is v2.7 when its manifest records ``config.pipeline_version == "v2.7"``
+or ``storage_contract.codebook_release == "2.7"`` (:func:`_is_v27_run`). An
+institution's ``6_validate.json`` is v2.7 when it parses as the v2.7 response
+(identity and row keys only); its verdict is then read from the
+``6_storage.json`` summary row, ``core.has_genai_activity`` (ruling 48.1 b).
+The v2.7 per-page stage and v2.7 Stage 6 replace Stages 5/6 and write their own
+markers (ruling 48.3 a), which stand in for ``extract`` and ``validate``.
+
 No network calls. Mirrors :mod:`g3o.report.health`'s disk-only-read
 convention.
 """
@@ -87,6 +112,7 @@ from g3o.common import attrition as _attrition
 from g3o.common.artifact_io import glob_artifacts, read_artifact
 from g3o.common.contract import BatchResponse
 from g3o.common.paths import institution_dir, institution_uid_map, require_layout
+from g3o.common.response_v27 import ConsolidatedInstitutionResponseV27
 from g3o.common.run_state import is_done, state_dir
 from g3o.common.timing import read_timing
 from g3o.persist.writer import load_consolidated_outputs
@@ -151,6 +177,56 @@ def _is_ignored_jev_failure(rec: dict[str, Any], inst_dir: Path) -> bool:
     return artifact is None or (inst_dir / artifact).exists()
 
 
+# v2.7 holds (ruling 45 a). The per-page stage and v2.7 Stage 6 hold an
+# institution as pending by writing ``<work dir>/held.json`` and delete that file
+# when the hold clears (after appending a ``*_held_released`` ledger record).
+# The file, not the ledger, is the authoritative signal: the ledger dedups on
+# (institution, stage, reason, url), so a second hold after a release is never
+# appended and the ledger's last word would read "released" for an institution
+# that is held again. Mirrors ``stage_perpage_v27.WORK_DIR`` / ``HELD_FILE`` and
+# ``stage_validate_v27.WORK_DIR`` / ``HELD_FILE`` (pinned by a test; not imported,
+# so this disk-only reader does not load the run stages).
+_V27_HOLDS: tuple[tuple[str, str], ...] = (
+    ("perpage_v27", "the v2.7 per-page stage"),
+    ("stage6_v27", "v2.7 Stage 6"),
+)
+_V27_HELD_FILE = "held.json"
+
+
+def _v27_hold_labels(work_dir: str, payload: dict[str, Any]) -> list[str]:
+    if work_dir == "perpage_v27":
+        return [
+            f"{h.get('page_id')}:{h.get('stage')}"
+            for h in payload.get("held", [])
+            if isinstance(h, dict)
+        ]
+    return [str(r) for r in payload.get("reasons", [])]
+
+
+def _v27_hold_reason(inst_dir: Path) -> str | None:
+    """Why a v2.7 institution is held as pending (ruling 45 a), or None if it is not.
+
+    One clause per stage whose ``held.json`` exists, naming the stage and the
+    hold labels it records (per-page: ``page_id:stage``; Stage 6: its hold
+    reasons). An unreadable ``held.json`` still holds the institution.
+    """
+    clauses: list[str] = []
+    for work_dir, stage_label in _V27_HOLDS:
+        path = inst_dir / work_dir / _V27_HELD_FILE
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_bytes().decode("utf-8"))
+            labels = _v27_hold_labels(work_dir, payload) if isinstance(payload, dict) else []
+            detail = ", ".join(labels) or "no hold label recorded"
+        except (OSError, ValueError) as exc:  # UnicodeDecodeError is a ValueError
+            detail = f"{work_dir}/{_V27_HELD_FILE} unreadable: {type(exc).__name__}"
+        clauses.append(f"held as pending at {stage_label} ({work_dir}: {detail})")
+    if not clauses:
+        return None
+    return "; ".join(clauses) + "; not concluded, a later run retries it"
+
+
 def _load_manifest(run_dir: Path) -> dict[str, Any]:
     p = run_dir / "manifest.json"
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
@@ -167,17 +243,46 @@ _STAGES_WITH_MARKERS: tuple[str, ...] = (
 )
 
 
-def _stage_completion(run_dir: Path) -> dict[str, bool] | None:
+# Ruling 48.3 a: the v2.7 per-page stage and v2.7 Stage 6 write their own
+# completion markers, named apart from v2.5's (v2.7 Stage 6's attrition stage is
+# ``validate``, so its marker could not reuse that name). In a v2.7 run they
+# stand in for ``extract`` and ``validate``. Mirrors
+# ``stage_perpage_v27.DONE_MARKER`` / ``stage_validate_v27.DONE_MARKER`` (pinned
+# by a test; not imported, as for the hold paths above).
+_V27_MARKERS: dict[str, str] = {
+    "extract": "perpage_v27",
+    "validate": "stage6_v27",
+}
+
+
+def _is_v27_run(manifest: dict[str, Any]) -> bool:
+    """True when the run folder's manifest records a v2.7 run.
+
+    ``config.pipeline_version`` is written when the run is planned;
+    ``storage_contract.codebook_release`` once the v2.7 stages bind the
+    instrument. Either is enough, so a v2.7 run that stopped before the
+    per-page stage still reads its (absent) v2.7 markers.
+    """
+    config = manifest.get("config") or {}
+    contract = manifest.get("storage_contract") or {}
+    return config.get("pipeline_version") == "v2.7" or contract.get("codebook_release") == "2.7"
+
+
+def _stage_completion(run_dir: Path, *, v27: bool = False) -> dict[str, bool] | None:
     """Which stages the *run* finished, per ``_state/.done/`` (Q3=e2).
 
     Returns ``None`` when the run carries no ``_state/`` directory at all —
     a run predating the state machinery, or a hand-built fixture. That is an
     absence of evidence, not evidence of an abort, so callers fall back to the
     permissive reading rather than manufacturing a failure.
+
+    With ``v27`` the ``extract`` and ``validate`` entries read the v2.7 stages'
+    markers (:data:`_V27_MARKERS`, ruling 48.3 a).
     """
     if not state_dir(run_dir).exists():
         return None
-    return {stage: is_done(run_dir, stage) for stage in _STAGES_WITH_MARKERS}
+    markers = _V27_MARKERS if v27 else {}
+    return {stage: is_done(run_dir, markers.get(stage, stage)) for stage in _STAGES_WITH_MARKERS}
 
 
 def _extracted_row_count(extract_dir: Path) -> int:
@@ -268,10 +373,33 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
         if rec.get("reason") in _FAILURE_REASONS:
             failures_by_inst.setdefault(rec.get("institution_id", ""), []).append(rec)
 
-    _, validate_parse_failures = load_consolidated_outputs(run_dir)
+    # Ruling 48.2 a: a v2.7 6_validate.json without its 6_storage.json is
+    # collected here (nothing recorded) and decided for that institution alone;
+    # Stage 7 passes no list and still refuses it.
+    missing_storage: list[str] = []
+    # Ruling 54 a (2.7 runs, or a v2.7 response in a run declaring no release; a v2.5
+    # response still raises): a 6_storage.json that
+    # exists but does not load (or does not match its 6_validate.json), or a legacy
+    # 6_validate.json without storage in a 2.7 run, is likewise collected (nothing recorded; the report is
+    # read-only) and fails that institution alone. Stage 7 still refuses it.
+    unreadable_storage: list[tuple[str, str]] = []
+    loaded, validate_parse_failures = load_consolidated_outputs(
+        run_dir, missing_storage=missing_storage, unreadable_storage=unreadable_storage
+    )
     validate_parse_failures = set(validate_parse_failures)
+    missing_storage_ids = set(missing_storage)
+    unreadable_storage_reasons: dict[str, str] = dict(unreadable_storage)
+    # Ruling 48.1 b: a v2.7 6_validate.json carries no verdict; it is the
+    # storage summary row's core.has_genai_activity. Only the verdicts are kept.
+    v27_verdicts: dict[str, str] = {
+        li.institution_id: li.storage.data["summary"]["values"]["core.has_genai_activity"]
+        for li in loaded
+        if isinstance(li.response, ConsolidatedInstitutionResponseV27) and li.storage is not None
+    }
+    del loaded
 
-    stage_completion = _stage_completion(run_dir)
+    v27_run = _is_v27_run(manifest)
+    stage_completion = _stage_completion(run_dir, v27=v27_run)
 
     records: list[dict[str, Any]] = []
     for inst_id in institution_ids:
@@ -285,9 +413,16 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
         validate_path = inst_dir / "6_validate.json"
         has_genai_activity: str | None = None
         consolidated_row_count = 0
-        if validate_path.exists() and inst_id not in validate_parse_failures:
+        if validate_path.exists() and inst_id in missing_storage_ids:
+            validation_status = "storage_missing"  # ruling 48.2 a
+        elif validate_path.exists() and inst_id in unreadable_storage_reasons:
+            validation_status = "storage_unreadable"  # ruling 54 a
+        elif validate_path.exists() and inst_id not in validate_parse_failures:
             payload = json.loads(validate_path.read_text(encoding="utf-8"))
-            has_genai_activity = payload.get("institution", {}).get("has_genai_activity")
+            if inst_id in v27_verdicts:  # ruling 48.1 b
+                has_genai_activity = v27_verdicts[inst_id]
+            else:
+                has_genai_activity = payload.get("institution", {}).get("has_genai_activity")
             consolidated_row_count = len(payload.get("activities", []))
             validation_status = "consolidated"
         elif validate_path.exists():
@@ -311,7 +446,43 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
             and has_genai_activity == "yes"
             and consolidated_row_count > 0
         )
-        if failures and concluded_positive:
+        # An institution that reached Stage 6 output but is not concluded
+        # (v2.7 rulings 48.1 b / 48.2 a; storage rulings 54 a).
+        v27_open: str | None = None
+        if validation_status == "storage_missing":  # ruling 48.2 a
+            v27_open = (
+                "v2.7 6_validate.json present but its 6_storage.json is missing; "
+                "verdict not read, not concluded"
+            )
+        elif validation_status == "storage_unreadable":  # ruling 54 a
+            v27_open = (
+                f"{unreadable_storage_reasons[inst_id]}; verdict not read, not "
+                "concluded; Stage 7 will not publish it"
+            )
+        elif inst_id in v27_verdicts and has_genai_activity == "unclear":  # ruling 48.1 b
+            v27_open = "has_genai_activity='unclear' (v2.7 verdict unclear; not concluded)"
+        held_reason = _v27_hold_reason(inst_dir)
+        if held_reason is not None:
+            # Ruling 45 a: a v2.7 institution held as pending is not concluded.
+            # Checked first: v2.7 writes no extract/ folder, and its stages write
+            # their .done markers once the whole pass finishes, held
+            # institutions included (ruling 48.3 a), so below it would read as
+            # finished with nothing found and publish as NO_EVIDENCE_FOUND, or
+            # as PROCESSING_FAILED with a false "run aborted" reason.
+            final_status = "PROCESSING_FAILED"
+            reason = held_reason + (f"; {attrition_detail}" if attrition_detail else "")
+            error = reason
+        elif failures and concluded_positive and inst_id in v27_verdicts:
+            # Ruling 53 b: a v2.7 yes verdict with attrition failures is
+            # EVIDENCE_FOUND, not EVIDENCE_FOUND_PARTIAL (v2.5 below is
+            # unchanged). The attrition stays visible in the reason; ``error``
+            # is None as for every EVIDENCE_FOUND.
+            final_status = "EVIDENCE_FOUND"
+            reason = (
+                f"has_genai_activity=yes with {consolidated_row_count} "
+                f"consolidated activity(ies); attrition: {attrition_detail}"
+            )
+        elif failures and concluded_positive:
             # EVIDENCE_FOUND_PARTIAL, 2026-08-31. Measured on five runs: this
             # branch is 23.8%–33.3% of every run's positives — 104 of 437 on
             # ``r20260830T114940Z-32ea``, 439 institutions across the five —
@@ -347,9 +518,14 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
                 f"{attrition_detail}"
             )
             error = attrition_detail
-        elif failures or validation_status == "failed_to_parse":
+        elif failures or validation_status == "failed_to_parse" or v27_open is not None:
             final_status = "PROCESSING_FAILED"
-            if failures:
+            if v27_open is not None:
+                # Rulings 48.1 b / 48.2 a: v2.7 only; an unclear verdict is not
+                # NO_EVIDENCE_FOUND as in v2.5. Attrition failures are kept.
+                reason = v27_open + (f"; {attrition_detail}" if attrition_detail else "")
+                error = reason
+            elif failures:
                 reason = attrition_detail
                 error = attrition_detail
             else:
@@ -387,6 +563,22 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
                     "scrape",
                     "no pages scraped from kept URLs",
                 )
+            elif v27_run:
+                # Ruling 48.3 a with 37 a: v2.7 leaves no extract rows, so the
+                # per-page marker stands in for extract and Stage 6's for
+                # validate. An unheld institution with pages is concluded only
+                # once both stages finished: one the per-page stage passed on
+                # can still be queued behind a Stage 6 stop.
+                if stage_completion is not None and not stage_completion["extract"]:
+                    blocking_stage, reason = (
+                        "extract",
+                        "pages scraped but the v2.7 per-page stage did not finish",
+                    )
+                else:
+                    blocking_stage, reason = (
+                        "validate",
+                        "pages scraped but no v2.7 Stage 6 output or hold for this institution",
+                    )
             elif extracted_row_count == 0:
                 blocking_stage, reason = (
                     "extract",
@@ -400,6 +592,8 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
 
             if stage_completion is not None and not stage_completion[blocking_stage]:
                 final_status = "PROCESSING_FAILED"
+                if v27_run:  # name the v2.7 stage whose marker is missing
+                    blocking_stage = _V27_MARKERS.get(blocking_stage, blocking_stage)
                 reason = (
                     f"run aborted before stage {blocking_stage!r} completed; this "
                     "institution was still queued and was never evaluated "
