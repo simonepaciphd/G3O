@@ -644,6 +644,16 @@ def _combine(q: Mapping[str, Any], votes: Sequence[PartVote], combiner: PartComb
         # codebook long_page_rule role_part: the role comes from the part that produced
         # the relationship.
         rel = outcomes.get(_first_part_id(q, by_id))
+        if (rel is not None and rel.state == "combined" and rel.part_id is None and not rel.failed
+                and all(x.value == NOT_COVERED for x in votes)):
+            # PI R5 a (2026-11-18): the relationship was set by the all-"not covered" rule (R-044), so no
+            # part produced it; the role's own answers, all "not covered" too, combine by the same rule.
+            try:
+                c = combiner.combine(item, votes)
+            except ValueError as exc:
+                return _stopped(q, str(exc))
+            return ItemOutcome(qid, item, part, "combined", c.value, bool(c.failed), c.cause, c.part_id,
+                               c.probability)
         if rel is None or rel.state != "combined" or rel.part_id is None:
             return _stopped(q, "relationship not combined")
         v = next((x for x in votes if x.part_id == rel.part_id), None)

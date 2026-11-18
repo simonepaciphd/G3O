@@ -796,6 +796,10 @@ class MetadataDate:
     tag: str | None = None
 
 
+#: The rule that sets a page-worded quote-step date to ``unknown`` (RC-D-042 Q-T1 a; PI R1 a).
+QUOTE_DATE_NOT_ISO_RULE = "quote_date_not_iso:RC-D-042"
+
+
 def _date_value(value: str) -> str:
     if not _DATE_RE.fullmatch(value):
         raise ValueError(f"date {value!r} is not YYYY-MM-DD / YYYY-MM / YYYY")
@@ -872,7 +876,8 @@ def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: 
     ``chunk_id``, ``supporting_text``) or None. A quote-step date that fails
     the check takes ``unknown`` (``downgrade_target``); so does one not written as
     ``YYYY-MM-DD`` / ``YYYY-MM`` / ``YYYY`` (PI Q-T1 a; original value in
-    ``detail["quote_date_unformatted"]``, no support check). Neither: ``not_documented``.
+    ``detail["quote_date_unformatted"]``; support ``set_by_rule`` naming
+    :data:`QUOTE_DATE_NOT_ISO_RULE`, PI R1 a). Neither: ``not_documented``.
     ``out_of_window``: candidate values left out of selection by ruling 18 b
     (``PageDateInputs.out_of_window``); when non-empty the result's ``detail``
     lists them, sorted, as ``out_of_window``.
@@ -905,8 +910,12 @@ def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: 
         # PI Q-T1 a (2026-11-17, T-041): a quote-step date written as on the page ("23 February
         # 2026", "30.06.2568") fails the format check and takes ``unknown``, as a date failing
         # R-042 does, instead of raising and holding the institution. The value is kept in detail.
-        return _fv(DATE, "unknown", "quote-step date not YYYY-MM-DD / YYYY-MM / YYYY", v,
-                   date_origin="unknown", detail={**detail, "quote_date_unformatted": quote_date.value})
+        # PI R1 a (2026-11-18): the support result names the rule that set ``unknown`` (set_by_rule).
+        res = check_code(CodeEvidence(item_id=DATE, value="unknown", chunk_id=None,
+                                      rule_name=QUOTE_DATE_NOT_ISO_RULE), sources)
+        return _fv(DATE, res.value, "quote-step date not YYYY-MM-DD / YYYY-MM / YYYY", v,
+                   date_origin="unknown", support=res,
+                   detail={**detail, "quote_date_unformatted": quote_date.value})
     ev = CodeEvidence(item_id=DATE, value=quote_date.value, chunk_id=quote_date.chunk_id,
                       quote=quote_date.supporting_text, quote_chunk_id=quote_date.chunk_id)
     res = check_code(ev, sources)

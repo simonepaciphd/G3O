@@ -948,6 +948,12 @@ def publication_date_value(page: Any, page_fields: Any, extraction: Any, sources
                                     ((sr, prov.quote_record(sf.DATE, fv.value, None)),)), fv)
     chunk = _known_part(sources, quote.chunk_id, sf.DATE)
     fv = sf.publication_date([], quote, sources)
+    if fv.support is not None and fv.support.support_rule_name == sf.QUOTE_DATE_NOT_ISO_RULE:
+        # PI R1 a (2026-11-18): a page-worded date set to unknown by rule: set_by_rule support and a
+        # mechanical record (R-045), as a deterministic date; the page's wording stays in the field detail.
+        return DateValue(QuoteValue(RowValue(sf.DATE, fv.value, fv.basis),
+                                    ((fv.support, prov.rule_record(sf.DATE, fv.value, sf.QUOTE_DATE_NOT_ISO_RULE)),)),
+                         fv)
     return DateValue(QuoteValue(RowValue(sf.DATE, fv.value, fv.basis),
                                 ((fv.support, prov.quote_record(sf.DATE, quote.value, chunk)),)), fv)
 

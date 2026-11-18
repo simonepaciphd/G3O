@@ -737,6 +737,23 @@ def test_quote_step_date_supported_failed_or_absent():
         srow.publication_date_value(_page(), FIELDS_P1, None, sources, PROV)
 
 
+
+@pytest.mark.parametrize("raw", ["30.06.2568", "23 February 2026"])
+def test_quote_step_date_not_iso_is_unknown_by_rule(raw):
+    """PI Q-T1 a, R1 a (2026-11-18; T-041 re-run crash on v27-real-04): set_by_rule support and a
+    mechanical record, no missing support."""
+    from g3o.extract.parser_v27 import FieldValue
+    text = f"Published {raw} by the council."
+    sources = sc.PageSources("p1", {PART: text}, None)
+    q = FieldValue(sf.DATE, raw, PART, f"Published {raw}")
+    dv = srow.publication_date_value(_page(), FIELDS_P1, _Extraction(date=q), sources, PROV)
+    (sr, rec), = dv.quote.codes
+    assert dv.quote.row.value == "unknown" and dv.field.detail["quote_date_unformatted"] == raw
+    assert sr.support_status == "set_by_rule" and sr.support_rule_name == rec.rule_reference == sf.QUOTE_DATE_NOT_ISO_RULE
+    assert rec.coder_type == "mechanical" and rec.chosen_value == "unknown"
+    assert sf.date_upper_bound(dv.field).rule_name
+
+
 # ---------------------------------------------------------------------------
 # content_tool_or_model / content_vendor (PI ruling 65 a)
 # ---------------------------------------------------------------------------

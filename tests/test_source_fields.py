@@ -272,6 +272,8 @@ def test_quote_step_date_not_iso_is_unknown(raw):
                             SOURCES)
     assert (d.value, d.date_origin) == ("unknown", "unknown")
     assert d.detail["quote_date_unformatted"] == raw
+    assert d.support is not None and d.support.support_status == "set_by_rule"  # PI R1 a
+    assert d.support.support_rule_name == sf.QUOTE_DATE_NOT_ISO_RULE and d.support.value == "unknown"
     assert sf.date_upper_bound(d).rule_name
 
 

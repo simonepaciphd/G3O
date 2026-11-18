@@ -579,6 +579,33 @@ def test_qt3_within_page_pair_whose_votes_all_fail_is_unknown_not_held(tmp_path)
     assert sorted(tuple(a["observation_ids"]) for a in acts.values()) == [("p1.a1", "p2.a1"), ("p3.a1",), ("p3.a2",)]
 
 
+def test_r4_confirming_page_with_no_supported_activity_is_unclear_not_held(tmp_path):
+    """PI R4 a (2026-11-18, T-041 re-run): c1's verdict confirms_activity passes its check but its only
+    activity's type fails (no quote), so no observation is supported (Y1): INST-0000003 is unclear and
+    written by Stage 6, not held by the RC-D-027 2 a check."""
+    run_dir = tmp_path / "run"
+    bound = bind_runtime(run_dir, SETTINGS)
+    instrument = load_instrument(run_dir / "final" / "instruments", bound.instrument_id)
+    world = World(run_dir, bound, instrument, _pages(), withhold=WITHHOLD | {("c1", "a1", "core.activity_type", "c1#p3")})
+    insts = [world.institution("INST-0000001", None), world.institution("INST-0000002"),
+             world.institution("INST-0000003")]
+    jev, ready, metrics, s6m = _full(run_dir, bound, instrument, world, insts)
+    assert not metrics.held and not s6m.held
+    assert "INST-0000003" in s6m.written
+
+
+def test_r5_role_part_follows_an_all_not_covered_relationship(tmp_path):
+    """PI R5 a (2026-11-18, T-041 re-run A021-02): every part of b2 answers "not covered" to the
+    relationship and its role part; the role combines by the same rule, so INST-0000002 is not held."""
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    rel = "core.observed_actor_relationship"
+    answers = {**ANSWERS, rel: _by_name({"Eval bot": {"1": NC, "2": NC, "3": NC}}),
+               rel + "#searched_institution_role": _by_name({"Eval bot": {"1": NC, "2": NC, "3": NC}})}
+    ready, metrics = _perpage(run_dir, bound, instrument, world, insts, FakeJev(answers, RELATIONS, _fail_verdict))
+    assert metrics.held == []
+    assert [i.institution_id for i in ready] == ["INST-0000001", "INST-0000002", "INST-0000003"]
+
+
 def test_e2e_pending_extra_round_holds_then_resume_publishes(tmp_path):
     run_dir, bound, instrument, world, insts = _setup(tmp_path)
     b = [i for i in insts if i.institution_id == "INST-0000002"]
