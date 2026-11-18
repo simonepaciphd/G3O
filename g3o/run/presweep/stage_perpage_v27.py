@@ -812,6 +812,24 @@ def _index(support: Iterable[SupportResult]) -> dict[tuple[Any, ...], SupportRes
     return out
 
 
+# PI Q-T3 (i) a (2026-11-18, T-041): a combined value set because every part gave the temporary
+# answer (R-044, codebook combining_conventions.not_covered_by_this_part: "the page is 'not
+# documented'") is carried by a rule node naming that signed slot, so it is stored, not held (Y3 b
+# then holds only a combined value no part and no rule carries).
+NOT_COVERED_RULE = "combining_conventions:not_covered_by_this_part"
+
+
+def _all_not_covered(records: Iterable[CoderRecord], item: str, part: str | None, value: Any,
+                     part_id: str | None) -> bool:
+    """True when ``value`` was set by the all-parts-not-covered rule: no deciding part, and every
+    classifier record for ``item``/``part`` gave the temporary answer."""
+    if part_id is not None or value == NOT_COVERED:
+        return False
+    answers = [r.chosen_value for r in records
+               if r.coder_type == "classifier" and r.item_id == item and r.item_part == part]
+    return bool(answers) and all(a == NOT_COVERED for a in answers)
+
+
 def _rule_support(rec: CoderRecord, activity_id: str | None, sources: PageSources) -> SupportResult:
     if not rec.rule_reference:
         raise ValueError(f"mechanical record for {rec.item_id} names no rule")
@@ -928,8 +946,11 @@ def within_page_decision(pair: PairResult, answered: Sequence[tuple[CoderRecord,
     that relation, the lowest chosen probability among the parts that chose it
     (None when one of them has none), ``supported`` only if all of those parts
     are (else the first other status). More than one value, a value outside the
-    relation vocabulary, an unfinished outcome, or a value no part chose (e.g.
-    ``unknown`` from failed votes): None, so the pair is held.
+    relation vocabulary, an unfinished outcome, or another value no part chose:
+    None, so the pair is held. PI Q-T3 (ii) a (2026-11-18, T-041): ``unknown``
+    because every answered part's vote failed its check is a decision, as a
+    failed cross-page vote is: ``unknown`` (never merges), the lowest answered
+    probability, the first non-supported status.
     """
     if pair.outcome.state != "combined":
         return None
@@ -940,7 +961,9 @@ def within_page_decision(pair: PairResult, answered: Sequence[tuple[CoderRecord,
     relation = values[0]
     chose = [(rec, sr) for rec, sr in answered if rec.chosen_value == relation]
     if not chose:
-        return None
+        if relation != "unknown" or not pair.outcome.failed or not answered:
+            return None
+        chose = list(answered)
     probs = [rec.chosen_answer_probability for rec, _ in chose]
     probability = None if any(p is None for p in probs) else min(probs)
     status = next((sr.support_status for _, sr in chose if sr.support_status != "supported"), "supported")
@@ -1093,6 +1116,13 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
             rec = _mechanical(iid, None, None, o.value, o.rule_reference, coder_version=page_config.coder_version,
                               qsv=qsv_page, setup_pointer=page_config.setup_pointer)
             codes.append((_rule_support(rec, None, sources), rec))
+        for iid, o in page_round.final.items.items():
+            if (o.state == "combined" and iid not in page_round.final.regated and not o.failed
+                    and _all_not_covered(result.records, iid, None, o.value, o.part_id)):
+                rec = _mechanical(iid, None, None, o.value, NOT_COVERED_RULE,
+                                  coder_version=page_config.coder_version, qsv=qsv_page,
+                                  setup_pointer=page_config.setup_pointer)
+                codes.append((_rule_support(rec, None, sources), rec))
         return codes
 
     def activity_codes(aid: str) -> list[tuple[SupportResult, CoderRecord]]:
@@ -1114,6 +1144,14 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                               coder_version=activity_config.coder_version, qsv=qsv_act,
                               setup_pointer=activity_config.setup_pointer)
             codes.append((_rule_support(rec, aid, sources), rec))
+        for qid, o in fin.outcomes.items():
+            if (o.state == "combined" and (qid, o) not in rule_set and not o.failed
+                    and o.item_id not in jac.PAIR_ITEMS
+                    and _all_not_covered(act.records, o.item_id, o.part, o.value, o.part_id)):
+                rec = _mechanical(o.item_id, o.part, qid, o.value, NOT_COVERED_RULE,
+                                  coder_version=activity_config.coder_version, qsv=qsv_act,
+                                  setup_pointer=activity_config.setup_pointer)
+                codes.append((_rule_support(rec, aid, sources), rec))
         return codes
 
     page_values = outcome_values(page_round.final.items)
