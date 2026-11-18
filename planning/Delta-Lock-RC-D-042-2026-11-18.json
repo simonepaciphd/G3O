@@ -1,0 +1,42 @@
+{
+ "format": "g3o-approved-delta-application-v1",
+ "delta": "RC-D-042",
+ "approval": "Simone Paci, 2026-11-18 chat: approve delta, lock (wording of the pass-1 sentence: \"a\")",
+ "recorded_by": "acting integrator, r16-finish session 20261117-claude-v2-279fc022e7bd48c7 (Claude Code, claude-opus-5-5), at PI request 2026-11-18 (\"can you take the alias?\"); DEC-012 a",
+ "recorded_at": "2026-11-18T15:33:32.521311+00:00",
+ "baseline": "RC-BL-001 retained",
+ "SPEC_version": "v001.31",
+ "RESOURCES_version": "unchanged by RC-D-042",
+ "preimages": "archive/2026-11-18-before-rcd042",
+ "superseded_lock": "archive/records/Delta-Lock-RC-D-041-2026-11-17.json",
+ "artifacts": {
+  "SPEC.md": "c21f4fd45885b7c9ba18acd2ddcc812ab7dc3d0802b35d3ca3d24448c2071f5a",
+  "PLAN.md": "f606da693d8d027dfee15072c6c62ca351adc6ab49a19494d42c3a35746d78be",
+  "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
+  "CHANGELOG.md": "75c644de5e508adbc5e0feb1c0067218a087750d450dcebcb10f1e35718d91fd",
+  "Plan-Labels.json": "bd4e890da95050fe4d036b12344d13cc0e71097b12f386ae7d5a1a934dbdd0ac",
+  "page/Plan-Visual.html": "827c160d147962b46d21bb3e07e5755fc26cbe1e57283bd4794337cfee221bc2",
+  "handoffs/D-007-interface-spec.md": "3440db665e5331697b0568f3cab51d54a5a964d74e80a8ac885f8e61ef212969",
+  "handoffs/D-007-field-map.json": "cf3ccf63283c7cd4fa52021a36ec8723c4a6e8223546acc520d7bccee996a478",
+  "deltas/RC-D-042.md": "5f59174a843755cbdf479594943fb1cfc6607859998db924ac86d6d7f118350b"
+ },
+ "checks": {
+  "plan_viewer": "0 errors; 10 existing untyped warnings (ok)",
+  "signed_codebook": "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a (r16, signed 2026-11-17; record codebook/r16-20261116 41695e7)",
+  "stage6_quote_instruction": "898194903d3a0c733bb4f59d9b420423388afda48eb740e666de578320f04483 (RC-D-029, unchanged)",
+  "x35_model": "claude-haiku-5-5 (RC-D-033 C1 a, RC-D-038 139 a)",
+  "x35_instruction": "6f048d6018bba9cb8ebc9027a45ece29a80b8b9de5ae19173d3f67580900861c (Q160; effort medium, max 4,000 tokens)",
+  "pass1_system_prompt": "48f7c2ed53e046aebe907724bea047b864dd09258ce56fec23f2ab23e5096eaa (RC-D-042 Q-T2 b; supersedes 393c9b4b…, Q203 b); request_v27.build_system_prompt() on reclass/o1117-t041-fixes 3b77dfb",
+  "residual_question_set": "source_type_residual (RC-D-037 95 a); hash 48d84faf184bc15dc68942e50a7f70bd832eb42250709f989dcebbf037650133 from g3o.common.source_fields.residual_set_sha256() on reclass/o1117-r16sign",
+  "d007_field_map": "cf3ccf63283c7cd4fa52021a36ec8723c4a6e8223546acc520d7bccee996a478 (code line 02b8ab3 bytes plus RC-D-034 B2 b)"
+ },
+ "notes": [
+  "Same session built the code and acted as integrator; the PI approval is the only review of RC-D-042.",
+  "T-071 task-graph row set to complete with its card (plan_viewer status sync); label source hashes refreshed, no label text changed."
+ ],
+ "pending": [
+  "Land reclass/o1117-t041-fixes 3b77dfb (PI, land-t071.ps1), deploy to g3o-run-01, post-deploy check",
+  "T-041 re-run of the affected fixtures (PI, paid, about $0.20); Q-T4 a page readings (PI)",
+  "Push of this governance branch (owner-run); no push/merge/paid calls by agent"
+ ]
+}

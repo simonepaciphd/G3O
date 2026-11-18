@@ -4,11 +4,11 @@
     "harness": "claude-code",
     "model": "claude-opus-5-5"
   },
-  "date": "2026-11-17",
+  "date": "2026-11-18",
   "sources": {
-    "SPEC.md": "0a21b38c8755ba76871696505cd75fee9c486298cdb7c97d99634de2eb61e30f",
+    "SPEC.md": "c21f4fd45885b7c9ba18acd2ddcc812ab7dc3d0802b35d3ca3d24448c2071f5a",
     "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
-    "PLAN.md": "2cf0cbfa65d5d4b9f467fe1f86e3df9ab27261f28767e65b2b2c09e673432934"
+    "PLAN.md": "f606da693d8d027dfee15072c6c62ca351adc6ab49a19494d42c3a35746d78be"
   },
   "labels": {
     "T-001": {

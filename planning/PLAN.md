@@ -1,6 +1,6 @@
 # PLAN: G3O pipeline reclassification
 
-Current ruling overlay (2026-11-17, RC-D-034..RC-D-041, APPROVED 2026-11-17 chat "approve deltas, lock, Q208–Q213 as rec"; texts `planning/deltas/RC-D-034.md` to `RC-D-041.md`; SPEC v001.30): build rulings 1-149 and the rulings of 2026-11-11 to 2026-11-17 recorded (SPEC sections RC-D-034..RC-D-038, RC-D-041); codebook r16 signed (`381e41f8…81b8a`); T-041 narrowed to the new-run path, new cards T-043 and T-042 (RC-D-040); fast path for waves 6/7 (138 a): T-031 and T-060 post-hoc, T-055 not a T-071 input, T-041 right before the T-075 smoke; agents build the g3o-api side, migration 028 (147 a); extractor batch modes (SPEC C-009).
+Current ruling overlay (2026-11-18, RC-D-042, APPROVED 2026-11-18 chat "approve delta, lock"; text `planning/deltas/RC-D-042.md`; SPEC v001.31): T-041 result fixes (Q-T1 a, Q-T2 b, Q-T3 a, a), pass-1 prompt pin 48f7c2ed…, T-041 on the droplet, T-071 complete. Previous overlay: (2026-11-17, RC-D-034..RC-D-041, APPROVED 2026-11-17 chat "approve deltas, lock, Q208–Q213 as rec"; texts `planning/deltas/RC-D-034.md` to `RC-D-041.md`; SPEC v001.30): build rulings 1-149 and the rulings of 2026-11-11 to 2026-11-17 recorded (SPEC sections RC-D-034..RC-D-038, RC-D-041); codebook r16 signed (`381e41f8…81b8a`); T-041 narrowed to the new-run path, new cards T-043 and T-042 (RC-D-040); fast path for waves 6/7 (138 a): T-031 and T-060 post-hoc, T-055 not a T-071 input, T-041 right before the T-075 smoke; agents build the g3o-api side, migration 028 (147 a); extractor batch modes (SPEC C-009).
 
 Current ruling overlay (2026-11-10, RC-D-025, APPROVED 2026-11-10 chats "1a 2a 3 wording ok 4b, accept all" and "5bp; go ahead!"; 11-07 rulings "sounds good, whats next"; 11-09 rulings in `agent-workspace/2026-11-09-plan/DECISIONS.md`; text `planning/deltas/RC-D-025.md`; SPEC v001.27): source confidence and `permanent_pilot` (classifier, support-checked; override only from pilot/production) go into codebook r14 (pending PI signature); new cards T-066 (unlocker cap, before T-071), T-075/T-076 (waves 6/7 right after T-071, before T-070/T-072; cost gate from own smoke inside the $3,500 envelope); waves after W17 renumbered +2 (W18 T-075 + T-062, W19 T-076, W20 T-070 ...); T-028 claim widened; quote-match provenance internal.
 
@@ -306,7 +306,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-064 | eng-c | W3 | complete | T-010 | none | T-024 | RS-008, RS-009 | none | `g3o/extract/years.py`†, `tests/test_years_v27.py`†, spikes folder `SPIKE-T064*` | push of the branch | none |
 | T-065 | eng-a | W3 | complete | T-014 | none | T-041, T-043 | none | none | `g3o/scrape/fetcher.py` (routing block only), `g3o/scrape/docx.py`†, `g3o/scrape/readability.py`†, `tests/test_scrape_binary_route.py`† | push of the branch (DP-065a/b ruled, RC-D-018) | none |
 | T-066 | eng-a | W16 | complete | none | none | T-071 | RS-016 | none | `g3o/scrape/unlocker.py`, `tests/test_unlocker.py`, the mock hunk of `tests/test_spend_all_apis.py` | push of the branch | none |
-| T-071 | eng-a | W17 | blocked | T-061, T-066 | T-031, T-060 | T-062, T-070, T-075 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
+| T-071 | eng-a | W17 | complete | T-061, T-066 | T-031, T-060 | T-062, T-070, T-075 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
 | T-075 | eng-a | W18 | blocked | T-041, T-071 | none | T-076 | RS-026, RS-030 | none | wave-6 frame, run dir and archive; re-pinned wave scripts† | PI approves the cost estimate (own 20-institution smoke projected to 92k, inside the $3,500 envelope; wave-5 resume spend recorded first) and runs the paid command via `! <command>` (red line 4); SSH authorisation; Serper balance; T-097 confirms an open wave window | none |
 | T-076 | eng-a | W19 | blocked | T-075 | none | T-070 | RS-026, RS-030 | none | wave-7 frame, run dir and archive† | as T-075; the T-072 per-92k figure gates T-076 if T-072 has run, else T-075 actuals; stop at the $3,500 envelope | none |
 | T-070 | eng-a | W20 | blocked | T-071, T-076 | none | T-072 | RS-026, RS-030 | none | freeze folder† | PI confirms the freeze date | none |
@@ -2519,6 +2519,7 @@ RC-D-014 (2026-11-04; rulings by Simone, approved): Fixture expected values come
 Status: blocked
 Progress (2026-11-05, integrator; RC-D-021): R-6 a: the report names two known limits of the calibrated quote match: a curly apostrophe on the page against a straight one in the quote, and a quote cut inside an unspaced CJK/Thai run (RC-D-017 1a).
 Progress (2026-11-17, integrator; RC-D-040: Q183 a, Q184 a, Q191 a-Q197 a, Q202 c, Q205 a-Q207 b): narrowed to the new-run entry point plus the X35 agreement check (Q184 a); the back-fill entry point, the transfer path and the real-id subset move to T-043, after T-035. T-041 runs first and the T-075 20-institution smoke right after (138 a, Q183 a). Fixture set for this scope: `synthetic.json` (66: 32 `pipeline`, 34 `injected`) and `real.json` (28), 94 fixtures and 160 label rows, approved as they stand (Q191 a); only the 60 pipeline-mode fixtures make paid calls; the 34 injected fixtures run at $0 in T-042, and the paid run does not wait for it (Q192 a). Runner: `scripts/t041_fixture_run.py` on the integration line (merged 17c34eb; readers merged b05a868, d286feb). Its rules: an A-ID passes only if every value of every fixture listed under it passes, is `partial` if some pass and the rest are unread, and fails if any value fails (Q195 a); run-telemetry values (`followed_urls`, `event_order`, `extractor_calls`, `cap_reached`, pair relations) are read from follow records, request journals and `activity_relations` (Q194 c); `extractor_calls` counts the page request only (Q205 a); a reversed pair is read through the storage inverse table (Q206 b); when the run produced exactly one activity for a fixture its activity values are compared with that activity whatever its name, with several activities by exact name only, and not by the single-activity fallback when the fixture names two or more distinct activities; the expected activity name is reported separately and not counted (Q202 c, Q207 b); pages no other fixture page links to count as searched and the searched page's host as the official site, so a source-type failure on a real fixture on a third-party host is read as caused by this default (Q196 a).
+Progress (2026-11-18, integrator; RC-D-042): first paid run 2026-11-18 on main 1001194, $0.48, 60/60 fixtures: pass 21, partial 4, fail 4, unresolved 31 (21 per-page holds, 2 Stage 6 holds, 8 not located). Fixes Q-T1 a, Q-T2 b, Q-T3 a, a on reclass/o1117-t041-fixes 3b77dfb (build 15 green); re-run of the affected fixtures after landing. Q-T4 a open. Not passed.
 Type: verify
 Priority: critical-path
 Spec refs: A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, R-084 (A-022 moves to T-043, RC-D-040)
@@ -2545,7 +2546,7 @@ A real run (jev classifier; Claude Haiku 5.5 extractor and X35) of the T-040 fix
 - Persona/role: engineer (lane eng-b)
 - Tools/connectors: Python; command prepared for Simone to run as `! <command>`
 - Skills/protocols: none beyond this plan
-- Working directory/environment: laptop, a lane worktree on the integration line (never the shared checkout); the PI runs the paid command (P6 a)
+- Working directory/environment: the droplet g3o-run-01 on the deployed main, page stores copied under /home/g3o/t041-drive (PI 2026-11-17 "lets run on droplet", replaces P6 a); the PI runs the paid command
 
 #### Dependencies
 - Requires: T-024, T-030, T-040, T-065 (T-030 code on the integration line, Cloud Build green; RC-D-040)
@@ -3711,9 +3712,10 @@ none
 
 ### T-071 — Deploy v2.7 pipeline to the droplet
 
-Status: blocked (gate: deploy)
+Status: complete
 RC-D-025: also requires T-066 (unlocker cap); enables T-075 (wave 6), which runs before T-070.
 Progress (2026-11-17, integrator; RC-D-038 138 a, Q153 a, Q182 a): T-031 (code review) and T-060 (D-008) are not blocking for T-071; they run post-hoc (T-031 before T-072, T-060 before T-095; Q210 b). T-055 is not an input: T-071 can deploy before T-055 and waves 6/7 run unloaded; T-055 gates only the ingest of wave 6/7 results and T-074. Before the merge the PI changes main's required checks to `test (3.12)`, `coverage`, `wheel-install` (`strict` unchanged).
+Progress (2026-11-18, integrator; RC-D-042): main 1001194 (PR #198; g3o-api PR #66 0566e43) deployed to g3o-run-01 2026-11-18T00:24Z; post-deploy RESULT: ALL PASS. Record: agent-workspace/2026-10-27-reclass-plan/deploy/DEPLOY.md.
 Type: operate
 Priority: critical-path
 Spec refs: D-002, R-070 (freeze = deploy date)
