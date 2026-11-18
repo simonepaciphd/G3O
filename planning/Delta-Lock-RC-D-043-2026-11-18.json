@@ -11,11 +11,11 @@
  "superseded_lock": "archive/records/Delta-Lock-RC-D-042-2026-11-18.json",
  "artifacts": {
   "SPEC.md": "c21f4fd45885b7c9ba18acd2ddcc812ab7dc3d0802b35d3ca3d24448c2071f5a",
-  "PLAN.md": "a454b76ff659d977cbfd3a47753c54cb59e63d2051a262583dbf980195ac28cb",
+  "PLAN.md": "cd938e02d0833fc4dd9367d6d6bd0353c2f30097b1023352762470936f4dafb0",
   "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
-  "CHANGELOG.md": "49819ee92c4417e06de7225031f3e6cc809f41865100e3f420bf798f388362bf",
-  "Plan-Labels.json": "2f0d7edac891c9ff03437699b5fa68f22f07aa5bee5063277da89cc2b1a813d8",
-  "page/Plan-Visual.html": "18a113d5cb9898e859110b504781b1f69f5dea0bee4aac77b23d024825cf74fb",
+  "CHANGELOG.md": "f929226fc9ce011062d347914f5ae71014dbaff8feb5b6d6cab1609f95b5977c",
+  "Plan-Labels.json": "d68d6df9046cd1a1fcca70b266cb6056e1c007da7c94dc2a9706ab1eaac632f1",
+  "page/Plan-Visual.html": "93f95a9fd34656026c4247b99cf33d052f0762236b394c0eac0eac3669533771",
   "handoffs/D-007-interface-spec.md": "3440db665e5331697b0568f3cab51d54a5a964d74e80a8ac885f8e61ef212969",
   "handoffs/D-007-field-map.json": "cf3ccf63283c7cd4fa52021a36ec8723c4a6e8223546acc520d7bccee996a478",
   "deltas/RC-D-042.md": "5f59174a843755cbdf479594943fb1cfc6607859998db924ac86d6d7f118350b",
@@ -34,7 +34,7 @@
  "notes": [
   "Lock refresh only: SPEC and every instrument pin as in RC-D-042; PLAN, CHANGELOG, labels and page hashes refreshed.",
   "Same session built the code (reclass/o1118-t041-fixes2 6aedb9a) and acted as integrator; the PI approval is the only review of RC-D-043.",
-  "Label source hash for PLAN.md refreshed, no label text changed. PLAN overlay line 3 still names RC-D-042 (not in the approved edits)."
+  "Label source hash for PLAN.md refreshed, no label text changed. PLAN overlay line 3 still names RC-D-042 (not in the approved edits). Follow-up 2026-11-18 (PI chat \"1 a\", mechanical): line 3 now names RC-D-043; PLAN, CHANGELOG, labels and page hashes refreshed again."
  ],
  "pending": [
   "Land reclass/o1118-t041-fixes2 6aedb9a (PI, land-t071.ps1), deploy to g3o-run-01, post-deploy check",
