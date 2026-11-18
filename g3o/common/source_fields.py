@@ -870,7 +870,9 @@ def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: 
     ``detail`` records ``metadata: not_measured``. ``quote_date``: the T-022
     ``Pass1Extraction.publication_date`` (a ``FieldValue`` with ``value``,
     ``chunk_id``, ``supporting_text``) or None. A quote-step date that fails
-    the check takes ``unknown`` (``downgrade_target``). Neither: ``not_documented``.
+    the check takes ``unknown`` (``downgrade_target``); so does one not written as
+    ``YYYY-MM-DD`` / ``YYYY-MM`` / ``YYYY`` (PI Q-T1 a; original value in
+    ``detail["quote_date_unformatted"]``, no support check). Neither: ``not_documented``.
     ``out_of_window``: candidate values left out of selection by ruling 18 b
     (``PageDateInputs.out_of_window``); when non-empty the result's ``detail``
     lists them, sorted, as ``out_of_window``.
@@ -899,7 +901,13 @@ def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: 
                    date_origin="unknown", detail=detail)
     if sources is None:
         raise MissingUpstreamError("stored page texts (PageSources) for the R-042 check", [DATE])
-    ev = CodeEvidence(item_id=DATE, value=_date_value(quote_date.value), chunk_id=quote_date.chunk_id,
+    if not _DATE_RE.fullmatch(quote_date.value):
+        # PI Q-T1 a (2026-11-17, T-041): a quote-step date written as on the page ("23 February
+        # 2026", "30.06.2568") fails the format check and takes ``unknown``, as a date failing
+        # R-042 does, instead of raising and holding the institution. The value is kept in detail.
+        return _fv(DATE, "unknown", "quote-step date not YYYY-MM-DD / YYYY-MM / YYYY", v,
+                   date_origin="unknown", detail={**detail, "quote_date_unformatted": quote_date.value})
+    ev = CodeEvidence(item_id=DATE, value=quote_date.value, chunk_id=quote_date.chunk_id,
                       quote=quote_date.supporting_text, quote_chunk_id=quote_date.chunk_id)
     res = check_code(ev, sources)
     if res.value != res.original_value:

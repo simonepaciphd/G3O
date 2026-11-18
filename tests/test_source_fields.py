@@ -265,6 +265,16 @@ def test_quote_step_date_failing_r042_is_unknown():
     assert d.support.original_value == "2019"
 
 
+@pytest.mark.parametrize("raw", ["23 February 2026", "30.06.2568", "12/03/2024"])
+def test_quote_step_date_not_iso_is_unknown(raw):
+    # PI Q-T1 a (2026-11-17): a page-worded quote-step date takes unknown, not a raise.
+    d = sf.publication_date([], ExtractedField(sf.DATE, raw, P1, "published its annual report on 12 March 2024"),
+                            SOURCES)
+    assert (d.value, d.date_origin) == ("unknown", "unknown")
+    assert d.detail["quote_date_unformatted"] == raw
+    assert sf.date_upper_bound(d).rule_name
+
+
 def test_no_date_anywhere():
     d = sf.publication_date([], None, SOURCES)
     assert d.value == "not_documented" and d.date_origin == "unknown"

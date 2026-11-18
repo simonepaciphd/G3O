@@ -20,6 +20,7 @@ import csv
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -558,6 +559,26 @@ def test_e2e_perpage_to_final_csvs(tmp_path):
     assert contact and "example.gov" in contact[0]["contact_email_domain_counts_json"]
 
 
+def test_qt3_within_page_pair_whose_votes_all_fail_is_unknown_not_held(tmp_path):
+    """PI Q-T3 (ii) a: no quote for the p3 pair (as real-24's distinct_action pairs) -> every vote
+    fails -> a within-page decision ``unknown`` that never merges; Stage 6 does not hold INST-0000001."""
+    run_dir = tmp_path / "run"
+    bound = bind_runtime(run_dir, SETTINGS)
+    instrument = load_instrument(run_dir / "final" / "instruments", bound.instrument_id)
+    pair_withhold = {("p3", aid, "core.activity_segment", c) for aid in ("a1", "a2") for c in ("p3#p0", "p3#p1")}
+    world = World(run_dir, bound, instrument, _pages(), withhold=WITHHOLD | pair_withhold)
+    insts = [world.institution("INST-0000001", None), world.institution("INST-0000002"),
+             world.institution("INST-0000003")]
+    jev, ready, metrics, s6m = _full(run_dir, bound, instrument, world, insts)
+    assert not metrics.held and not s6m.held
+    acts = _storage(run_dir, "INST-0000001")["activities"]
+    relations = {(r["lhs_observation_id"], r["rhs_observation_id"]): r for a in acts.values()
+                 for r in a["activity_relations"]}
+    assert relations[("p3.a1", "p3.a2")]["relation"] == "unknown"
+    assert relations[("p3.a1", "p3.a2")]["relation_scope"] == "within_page"
+    assert sorted(tuple(a["observation_ids"]) for a in acts.values()) == [("p1.a1", "p2.a1"), ("p3.a1",), ("p3.a2",)]
+
+
 def test_e2e_pending_extra_round_holds_then_resume_publishes(tmp_path):
     run_dir, bound, instrument, world, insts = _setup(tmp_path)
     b = [i for i in insts if i.institution_id == "INST-0000002"]
@@ -844,35 +865,46 @@ def test_y5_within_page_decision_rule():
                              support_status_second_reason=None, support_rule_name=None, supporting_text=None,
                              quote_chunk_id=None, match=None, chosen_answer_probability=None, entailment=None)
 
-    def pair(value, state="combined"):
+    def pair(value, state="combined", failed=False):
         return PairResult("a1", "a2", ("c0", "c1"), (1, 2),
-                          ItemOutcome("q", "core.activity_segment", None, state, value), ())
+                          ItemOutcome("q", "core.activity_segment", None, state, value, failed), ())
     both = [(rec("governs", 0.95), sr("governs", "supported")), (rec("governs", 0.85), sr("governs", "supported"))]
     assert pp.within_page_decision(pair(["governs"]), both) == ("governs", 0.85, "supported")
     assert pp.within_page_decision(pair("governs"), both) == ("governs", 0.85, "supported")
     mixed = [both[0], (rec("governs", 0.9), sr("governs", "downgraded_no_quote"))]
     assert pp.within_page_decision(pair(["governs"]), mixed) == ("governs", 0.9, "downgraded_no_quote")
     assert pp.within_page_decision(pair(["governs", "same_activity"]), both) is None
-    assert pp.within_page_decision(pair(["unknown"]), both) is None  # no part chose it
+    assert pp.within_page_decision(pair(["unknown"]), both) is None  # no part chose it, no failed vote
+    # PI Q-T3 (ii) a: every answered part's vote failed -> unknown, a decision that never merges
+    failed = [(rec("distinct_action", 0.63), sr("distinct_action", "downgraded_low_confidence")),
+              (rec("distinct_action", 0.91), sr("distinct_action", "downgraded_no_quote"))]
+    assert pp.within_page_decision(pair(["unknown"], failed=True), failed) == (
+        "unknown", 0.63, "downgraded_low_confidence")
+    assert pp.within_page_decision(pair(["unknown"], failed=True), []) is None
     assert pp.within_page_decision(pair(None, "stopped"), both) is None
 
 
-def test_y3_uncarried_combined_value_is_a_per_institution_hold(tmp_path):
-    """Y3 b: every part of b2 gives the temporary answer to adoption_stage, so the combined value
-    (not documented) is carried by no part node: INST-0000002 is held, not a crash; others go on."""
+def test_y3_all_not_covered_value_is_carried_by_the_rule_node(tmp_path):
+    """PI Q-T3 (i) a (clarifies Y3 b): every part of b2 gives the temporary answer to adoption_stage,
+    so the combined value (not documented, R-044) is carried by a rule node naming the signed
+    combining convention: INST-0000002 is not held."""
     run_dir, bound, instrument, world, insts = _setup(tmp_path)
     answers = {**ANSWERS, "core.adoption_stage": _by_name({"Copilot drafting": "pilot",
                                                             "Eval bot": {"1": NC, "2": NC, "3": NC}})}
     ready, metrics = _perpage(run_dir, bound, instrument, world, insts, FakeJev(answers, RELATIONS, _fail_verdict))
-    assert metrics.held == ["INST-0000002"]
-    assert [i.institution_id for i in ready] == ["INST-0000001", "INST-0000003"]
-    held = json.loads((institution_dir(run_dir, "INST-0000002") / pp.WORK_DIR / pp.HELD_FILE)
-                      .read_text(encoding="utf-8"))
-    (hold,) = held["held"]
-    assert hold["page_id"] == "b2" and hold["stage"] == pp.UNCARRIED_STAGE
-    assert any(i.startswith("core.adoption_stage/") for i in hold["items"])
-    assert any(r["reason"] == pp.HELD_REASON and r["detail"] == f"b2:{pp.UNCARRIED_STAGE}"
-               for r in attrition.read_records(run_dir))
+    assert metrics.held == []
+    assert [i.institution_id for i in ready] == ["INST-0000001", "INST-0000002", "INST-0000003"]
+    assert not any(r["reason"] == pp.HELD_REASON for r in attrition.read_records(run_dir))
+
+
+def test_all_not_covered_rule_unit():
+    def rec(item, value, part=None, coder="classifier"):
+        return SimpleNamespace(coder_type=coder, item_id=item, item_part=part, chosen_value=value)
+    recs = [rec("core.permanent_pilot", NC), rec("core.permanent_pilot", NC), rec("core.adoption_stage", "pilot")]
+    assert pp._all_not_covered(recs, "core.permanent_pilot", None, "not_documented", None)
+    assert not pp._all_not_covered(recs, "core.permanent_pilot", None, "not_documented", "c1")  # a part decided
+    assert not pp._all_not_covered(recs, "core.adoption_stage", None, "not_documented", None)  # a real answer
+    assert not pp._all_not_covered(recs, "core.tool_name", None, "not_documented", None)  # no record
 
 
 def test_y2_reviewed_page_with_no_activity_gets_a_page_level_na_source_row(tmp_path):

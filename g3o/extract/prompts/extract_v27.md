@@ -29,7 +29,7 @@ Mark each passage of the page that describes an activity, using the rules below.
 
 {{ACTIVITY_RULES}}
 
-For each activity, also fill in the fields listed under `fields` in the task. For each field, copy the value exactly as the page states it, give the `part_id` you copied from, and copy the passage that states it as `supporting_text`. If the page does not state the value for this activity, give `value` and `supporting_text` as `null`. The field rules are below.
+For each activity, also fill in the fields listed under `fields` in the task. For each field, copy the value exactly as the page states it, give the `part_id` you copied from, and copy the passage that states it as `supporting_text`. If the page does not state the value for this activity, give `value` and `supporting_text` as `null`. The one exception is `activity_name`, which is never `null`: if the page gives the activity no official name, write a short descriptive name in the page's own words, and give the `part_id` and `supporting_text` of the passage that describes the activity. The field rules are below.
 
 ### Publication date (`date_task`)
 
