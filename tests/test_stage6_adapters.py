@@ -284,6 +284,35 @@ def support_id_for(data, record):
     return support_id("R1", data["institution_uid"], record)
 
 
+def test_snippet_of_a_failed_verdict_quote_reaches_storage(tmp_path):
+    """Calibration cal-0265: the page verdict's quote fails R-042 (tag-only ``downgraded_no_quote``).
+
+    X25 then checks that quote as ``source_snippet`` (a quote_step item) and downgrades it to
+    ``unknown`` (R-041, downgrade_target unknown), which gives a FINAL node backed by a mechanical
+    record. That is the documented output of ``source_snippet``; storage must accept it.
+    """
+    from g3o.common.source_fields import SNIPPET, source_snippet
+
+    data, instrument, _, sources, artifact, ctx = _setup(tmp_path)
+    verdict = _check(sources, REJECTED, item="core.page_verdict", value="confirms_activity")
+    assert verdict.support_status == "downgraded_no_quote" and verdict.supporting_text == REJECTED
+    snippet = source_snippet(verdict, sources).support
+    assert (snippet.support_status, snippet.value, snippet.original_value) == ("downgraded_no_quote", "unknown",
+                                                                              REJECTED)
+    nodes = support_nodes(snippet, sources, artifact, ctx, instrument)
+    assert nodes.final is not None and nodes.final["value_json"] == "unknown"
+    record = CoderRecord(item_id=SNIPPET, item_part=None, question_id=None, support_id=nodes.original["support_id"],
+                         observation_id="O1", chunk_id="C1", coder_type="quote_step", coder_version="fake-v1",
+                         configured_model="fixture-extractor", actual_response_model="fake-response-model",
+                         request_id="fake-request", question_set_version="fixture-questions-r11",
+                         setup_pointer=instrument["instrument_id"], answer_type="extracted",
+                         chosen_value=REJECTED, confidence=None, probability_distribution=None)
+    original, final, _ = coder_nodes(record, nodes, instrument)
+    assert (original["coder_type"], final["coder_type"]) == ("quote_step", "mechanical")
+    stored = _envelope(tmp_path, data, instrument, nodes, [original, final], item=SNIPPET)
+    assert stored.data["sources"]["S1"]["values"][SNIPPET] == "unknown"
+
+
 def test_page_verdict_downgrade_is_tag_only_without_final_node(tmp_path):
     data, instrument, _, sources, artifact, ctx = _setup(tmp_path)
     result = _check(sources, EXACT, item="core.page_verdict", value="confirms_activity", probability=0.5)
