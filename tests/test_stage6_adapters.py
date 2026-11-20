@@ -130,14 +130,17 @@ def test_word_presence_quote_accepted_by_80_percent_rule(tmp_path):
     assert nodes.original["supporting_text"] == WORDS
 
 
-def test_rejected_quote_is_downgraded_and_retained_verbatim(tmp_path):
+def test_rejected_quote_is_downgraded_and_kept_only_in_provenance(tmp_path):
+    """Emitter-side option R8-a (PI ruling pending): reverses the former "retained verbatim" behaviour."""
     _, instrument, _, sources, artifact, ctx = _setup(tmp_path)
     quote = "The ministry cancelled every budget line for translation services."
     result = _check(sources, quote)
     assert result.support_status == "downgraded_no_quote"
     nodes = support_nodes(result, sources, artifact, ctx, instrument)
-    assert nodes.original["supporting_text"] == quote
+    assert nodes.original["supporting_text"] == ""
+    assert nodes.original["passage"] == {"quote_segment": None, "segment_span": None}
     assert nodes.original["support_status"] == "downgraded_no_quote"
+    assert nodes.provenance["rejected_quote"] == quote and nodes.provenance["quote_segment"] is None
     assert nodes.provenance["match"]["matched"] is False
     assert nodes.final["value_json"] == "unknown"
     assert nodes.final["supporting_text"] == ""  # no fabricated replacement quote
@@ -202,10 +205,6 @@ def test_storage_rejects_quote_segment_outside_producing_part_or_chrome(tmp_path
 REJECTED = "The ministry cancelled every budget line for translation services."
 
 
-@pytest.mark.xfail(strict=True, raises=ValueError,
-                   reason="calibration FN-TRACE defect 2 / T-041 real-26: storage re-runs R-042 on a support "
-                          "already downgraded downgraded_no_quote and raises; the policy (emitter or storage "
-                          "side) awaits a PI ruling")
 def test_no_quote_downgrade_with_its_kept_quote_reaches_storage(tmp_path):
     """A failed quote downgrades the value (R-041, R-042); it must not also hold the institution."""
     data, instrument, _, sources, artifact, ctx = _setup(tmp_path)
