@@ -34,6 +34,7 @@ from tests.test_e2e_perpage_v27 import (
     World,
     _fail_verdict,
     _pages,
+    _paragraph_layout,  # noqa: F401 - autouse fixture: the per-paragraph layout of that module
     _perpage,
 )
 
