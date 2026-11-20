@@ -305,6 +305,11 @@ FOLLOW_PRODUCER = "T-025 follow provenance (followed / attempted page)"
 UNCARRIED_STAGE = "combined_value_uncarried"  # RC-D-030 Y3 b: per-institution hold
 #: a per-page producer refused or failed for one page (held.json names the error): per-institution hold
 PRODUCER_FAILED = "page_producer_failed"
+#: every attempted page of the institution failed (T-021 wrote no artifact, or the page failed after
+#: halving) and no unread follow attempt gives it a row, so it has no source row for Stage 6 (whose
+#: response requires one). Held as pending, never concluded (ruling 45 a): held.json names each failed
+#: page and its reason; the next pass codes the pages again (calibration candidate C189).
+NO_PAGE_CODED = "no_page_coded"
 #: C3 a (QA4 M3): a pass-1/pass-2 extractor response failed or broke the answer contract (held.json
 #: names the pass, the request and the error): per-institution hold, asked again on the next run
 EXTRACT_RESPONSE_FAILED = "extract_response_failed"
@@ -2122,6 +2127,9 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                 raise
             except (ConsolidationError, ValueError, RuntimeError) as exc:  # review M-3: this institution only
                 broken = _producer_hold(inst.institution_id, exc)
+        if uncarried is None and broken is None and not any(isinstance(p, PageProduct) for p in products):
+            broken = {"page_id": inst.institution_id, "stage": NO_PAGE_CODED,
+                      "failed_pages": [{"page_id": st.spec.page.page_id, "reason": st.failure} for st in states]}
         if uncarried is not None or broken is not None:
             hold = broken if broken is not None else {
                 "page_id": uncarried.page_id, "stage": UNCARRIED_STAGE, "items": sorted(uncarried.values)}
@@ -2435,7 +2443,7 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 
 __all__ = [
-    "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS",
+    "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "NO_PAGE_CODED", "PRODUCER_FAILED", "STAGE_STOPS",
     "ROW_VALUE_REFUSED", "RowValueRefused", "quote_stage_as_of", "PASS2_NOT_JOURNALED", "Pass2RequestNotJournaled", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "FOLLOW_FAILED", "FollowWiringError", "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
     "ACTIVITY_STATE_FILES", "archive_activity_state", "PAGE_REQUEST_STATE_FILES", "archive_page_request_state",
