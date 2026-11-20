@@ -311,6 +311,12 @@ def test_snippet_of_a_failed_verdict_quote_reaches_storage(tmp_path):
     assert (original["coder_type"], final["coder_type"]) == ("quote_step", "mechanical")
     stored = _envelope(tmp_path, data, instrument, nodes, [original, final], item=SNIPPET)
     assert stored.data["sources"]["S1"]["values"][SNIPPET] == "unknown"
+    # Still refused: the final without the original's quote-step record, or a quote-step record on the final.
+    with pytest.raises(ValueError, match="coder type does not match|missing per-code coder"):
+        _envelope(tmp_path, data, instrument, nodes, [final], item=SNIPPET)
+    quote_final = dict(original, support_id=final["support_id"], chosen_value="unknown")
+    with pytest.raises(ValueError, match="coder type does not match"):
+        _envelope(tmp_path, data, instrument, nodes, [original, quote_final], item=SNIPPET)
 
 
 def test_page_verdict_downgrade_is_tag_only_without_final_node(tmp_path):
