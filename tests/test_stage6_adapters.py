@@ -199,6 +199,24 @@ def test_storage_rejects_quote_segment_outside_producing_part_or_chrome(tmp_path
         _restored(tmp_path, data, instrument, nodes, [original], lambda s: s["passage"].update(extra=1))
 
 
+REJECTED = "The ministry cancelled every budget line for translation services."
+
+
+@pytest.mark.xfail(strict=True, raises=ValueError,
+                   reason="calibration FN-TRACE defect 2 / T-041 real-26: storage re-runs R-042 on a support "
+                          "already downgraded downgraded_no_quote and raises; the policy (emitter or storage "
+                          "side) awaits a PI ruling")
+def test_no_quote_downgrade_with_its_kept_quote_reaches_storage(tmp_path):
+    """A failed quote downgrades the value (R-041, R-042); it must not also hold the institution."""
+    data, instrument, _, sources, artifact, ctx = _setup(tmp_path)
+    result = _check(sources, REJECTED)
+    assert result.support_status == "downgraded_no_quote"
+    nodes = support_nodes(result, sources, artifact, ctx, instrument)
+    original, final, _ = coder_nodes(_coder(nodes, instrument), nodes, instrument)
+    stored = _envelope(tmp_path, data, instrument, nodes, [original, final])
+    assert stored.data["sources"]["S1"]["values"][ITEM] == "unknown"
+
+
 # --- original vs final after a downgrade ----------------------------------------
 
 
