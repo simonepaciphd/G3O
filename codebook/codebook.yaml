@@ -43,12 +43,12 @@ release:
     r16: |-
       QUESTIONS-overnight A8.1 a and A8.5 a (PI 2026-11-11 chat "All recs accepted"; overnight rulings PI 2026-11-16 140 "all as rec"): core.developer derived -> quote_step (linkage pipeline -> extractor; a page-stated developer comes from the quote step; A8.2 a: no lookup table in the first run, so `looked_up` is never set); core.stage_as_of_basis takes three step codes (publication / stated / access) in place of the five provenance values (its r2 five-value rule moved to r16_dropped); provenance planning/t010/r16-provenance.json; Q167 a (PI 2026-11-16 chat "all as rec for the decisions" (QUESTIONS-overnight Q167 a)): items/core.developer/rules/1 lookup sentence moved to r16_dropped (text_before_r16 kept); rules/0 of core.contracting_party, core.developer and core.developer_basis: "from lookup or page" -> "stated on the page" (PI 2026-11-16 chat "on item 2, I agree with rec"; text_before_r16 kept); Q185 a (PI 2026-11-16 chat "all recs accepted, continue"): rule text for Q165 a / Q166 a (core.developer_basis rules/2, rules/3) and Q168 a (core.stage_as_of_basis rules/1); Q186 a: core.developer_basis rules/1 first sentence ("same five values") moved to r16_dropped (text_before_r16 kept); Q187 a (PI 2026-11-16 chat "a"): the same first sentence of vocabularies.provenance text moved to r16_dropped (text_before_r16 kept)
     r17: |-
-      Calibration rulings of 2026-11-21 (agent-workspace/2026-11-18-calibration/session5-r17/RULINGS-S5.md; PI 2026-11-21 chat "all as rec", PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)", PI 2026-11-21 chat "all as rec -- what is next? the g3o rollup is also working, should we implement and test?"; text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"): the measured construct becomes AI adoption (1.6 a, release.construct): any activity the institution's own page calls AI or machine learning counts, and generative AI is recorded as an attribute, not as a condition for counting (1.1 a-1.5 a); 71 slots by the stated swap rule (F1 a) and 40 slots drafted by hand, each with text_before_r17; core.genai_mechanism_basis gains the value `no_generative_signal` (1.7 a; enum change, C-007) with its place in the long-page order and `not_required` support status; staff training of public-sector staff the institution serves is a confirmed activity (2.2 a, S3 a); support-check labels follow the construct except the generative attribute's own (3 a); `ambiguous_genai` keeps its code and means AI mentioned with no specific activity (4.1 a); own AI-credited content counts as deployment (5.1 a-5.4 a); attribution 9.1, 9.4, 9.5 (9.2, 9.3, 9.6 deferred, 9.0 a); the title fallback is defined (7, D7-1 b); the attribute items stay as signed, a known limitation (S2 a); provenance planning/t010/r17-provenance.json
+      Calibration rulings of 2026-11-21 (agent-workspace/2026-11-18-calibration/session5-r17/RULINGS-S5.md; PI rulings 2026-11-21, RULINGS-S5 items 1.1-1.7, F1, 2.2, 3.1-3.3, 4.1, S1-S3, 5.1-5.4, 9.0-9.5, 6-8; text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1): the measured construct becomes AI adoption (1.6 a, release.construct): any activity the institution's own page calls AI or machine learning counts, and generative AI is recorded as an attribute, not as a condition for counting (1.1 a-1.5 a); 71 slots by the stated swap rule (F1 a) and 40 slots drafted by hand, each with text_before_r17; core.genai_mechanism_basis gains the value `no_generative_signal` (1.7 a; enum change, C-007) with its place in the long-page order and `not_required` support status; staff training of public-sector staff the institution serves is a confirmed activity (2.2 a, S3 a); support-check labels follow the construct except the generative attribute's own (3 a); `ambiguous_genai` keeps its code and means AI mentioned with no specific activity (4.1 a); own AI-credited content counts as deployment (5.1 a-5.4 a); attribution 9.1, 9.4, 9.5 (9.2, 9.3, 9.6 deferred, 9.0 a); the title fallback is defined (7, D7-1 b); the attribute items stay as signed, a known limitation (S2 a); provenance planning/t010/r17-provenance.json
   construct:
     text: |-
       Release 2.7 r17 measures AI adoption by public institutions: any activity that the institution's own page calls AI or machine learning. Generative AI is recorded as an attribute of each activity (`genai_mechanism_basis`), not as a condition for counting. Rows coded under r16 or earlier counted generative AI only.
     origin: |-
-      PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.6 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+      PI ruling 2026-11-21, RULINGS-S5 item 1.6 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
     source: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (new; ruling 1.6 a)
     placement: 'release block: read by no generator, so never sent to a model (integrator decision D5, 2026-11-21)'
   r4_dropped:
@@ -199,7 +199,7 @@ vocabularies:
       text_before_r17: |-
         Missing-value tokens: one reserved set of four: "not asked" (`not_applicable` renamed "not asked" everywhere, T2) when a rule skipped the question; "not documented"; "unknown"; and `_NA_` for items on a row that has no activity. The temporary part answer of R-044 is not a reserved token. Exception: on pages whose verdict shows no GenAI, the description items and `content_data` take `no`, not "not asked". New and non-frozen fields adopt it; frozen CX items keep their signed spellings with a mapping row.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: |-
         agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand (subagent proposal, checked); ruling 1.5 a)
     na_label:
@@ -518,7 +518,7 @@ shared_rules:
     text_before_r17: |-
       Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.
     by_r17: |-
-      PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.4 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+      PI ruling 2026-11-21, RULINGS-S5 item 1.4 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
     source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.4 a)
   core.rule.activity_unit:
   - text: |-
@@ -538,7 +538,7 @@ shared_rules:
     text_before_r17: |-
       A public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.
     by_r17: |-
-      PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 2.2 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+      PI ruling 2026-11-21, RULINGS-S5 items 1.5 (a), 2.2 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
     source_r17: |-
       agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.5 a, 2.2 a)
   core.rule.ws10_governance:
@@ -550,7 +550,7 @@ shared_rules:
     text_before_r17: |-
       WS10 D2: formal institution-issued GenAI governance qualifies whether it governs staff or external users; governance is recorded separately from deployment.
     by_r17: |-
-      PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+      PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
     source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
   core.rule.ws10_excluded_only:
   - text: |-
@@ -567,7 +567,7 @@ shared_rules:
     text_before_r9: 'WS10 D4: institution-specific, explicitly GenAI proposals remain a qualifying activity.'
     text_before_r17: Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.
     by_r17: |-
-      PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+      PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
     source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
   core.rule.attribution_grain:
   - text: |-
@@ -578,7 +578,7 @@ shared_rules:
     text_before_r17: |-
       An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.
     by_r17: |-
-      PI 2026-11-21 chat "all as rec -- what is next? the g3o rollup is also working, should we implement and test?" (RULINGS-S5 9.1); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+      PI ruling 2026-11-21, RULINGS-S5 item 9.1; text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
     source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 9.1)
   - text: A joint activity counts when the page names this institution as a participant.
     origin: r1
@@ -963,7 +963,7 @@ items:
       text_before_r17: |-
         Code this PAGE for the named institution only, using only what the page says. Does it document a generative-AI activity at this institution? If several values fit, take the first in this order.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item 1.1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.1 a)
     values:
     - code: confirms_activity
@@ -976,7 +976,7 @@ items:
         text_before_r17: |-
           The page documents a specific generative-AI activity AT THIS institution: its own GenAI tool, pilot, policy or guidance on GenAI, procurement, deployment, or institution-directed staff GenAI training. The text must be explicitly generative AI (LLMs, ChatGPT, Copilot, Gemini, AI chatbots, AI-generated content or equivalents) and tied to this institution, not only to a national programme or another body. The activity must be carried out or adopted by the named institution itself. Exclude activity by a parent, higher-level or neighbouring body (e.g. a district, county, regency, region, consortium or city department when the named institution is a village, ward or sub-unit), by a similarly named organisation or company, and pages by vendors that only use the place name. Generic 'AI', 'artificial intelligence', 'smart' systems, automation, analytics, prediction, transcription, translation, image or video recognition, or traditional machine-learning tools do not count unless the page says the tool generates text, images, audio, code or other content, or names a generative product or model (e.g. ChatGPT, Copilot, Gemini, Claude, an LLM, an AI chatbot or AI assistant).
         by_r17: |-
-          PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.1 a, 1.2 a, 1.3 a); PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 2.2 a); PI 2026-11-21 chat "all as rec -- what is next? the g3o rollup is also working, should we implement and test?" (RULINGS-S5 5.1-5.4 a, 9.4, 9.5); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 items 1.1 (a), 1.2 (a), 1.3 (a), 2.2 (a), 5.1-5.4 (a), 9.4, 9.5; text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: |-
           agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.1 a, 1.2 a, 1.3 a, 2.2 a, 5.1-5.4 a, 9.4, 9.5)
       entailment_label:
@@ -984,7 +984,7 @@ items:
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: a generative-AI activity at this institution
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 3 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 items 3.1-3.3 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 3 a)
     - code: ambiguous_genai
       definition:
@@ -996,14 +996,14 @@ items:
         text_before_r17: |-
           The page mentions AI at this institution, but it cannot be settled whether it is generative AI (e.g. a generic 'AI strategy', 'AI tools', analytics, traditional machine learning).
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 4.1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item 4.1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 4.1 a)
       entailment_label:
         text: a mention of AI at this institution with no specific activity
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: AI at this institution that may not be generative
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 4.1 a, 3 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 items 4.1 (a), 3.1-3.3 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: |-
           agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 4.1 a, 3 a)
     - code: ambiguous_attribution
@@ -1016,14 +1016,14 @@ items:
         text_before_r17: |-
           The page mentions generative AI, but it cannot be settled whether THIS institution is involved (e.g. a country-wide or regional GenAI initiative without confirmation that this institution takes part, or a page about a similarly named body).
         by_r17: |-
-          PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.5 a)
       entailment_label:
         text: AI that may not involve this institution
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: generative AI that may not involve this institution
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 3 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 items 3.1-3.3 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 3 a)
     - code: other_body
       definition:
@@ -1035,14 +1035,14 @@ items:
         text_before_r17: |-
           The page documents a generative-AI activity, but it clearly belongs to a different body, not the named institution: a parent, higher-level or neighbouring body (e.g. a district, county, regency, region, consortium or city department when the named institution is a village, ward or sub-unit), a similarly named organisation or company, or a vendor or marketing page that only uses the place name.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.5 a)
       entailment_label:
         text: an AI activity of another body
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: a generative-AI activity of another body
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 3 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 items 3.1-3.3 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 3 a)
     - code: event_only
       definition:
@@ -1057,7 +1057,7 @@ items:
         text_before_r17: |-
           The only GenAI content is a public-facing event, workshop, seminar, showcase or educational programme, with no documented adoption, procurement, deployment or governance by the institution itself (not a qualifying activity).
         by_r17: |-
-          PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 2.2 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 items 1.5 (a), 2.2 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: |-
           agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.5 a, 2.2 a)
       entailment_label:
@@ -1065,7 +1065,7 @@ items:
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: only a public GenAI event or educational programme
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 3 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 items 3.1-3.3 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 3 a)
     - code: background_only
       definition:
@@ -1077,7 +1077,7 @@ items:
         text_before_r17: |-
           The page gives only general context (national AI strategy, vendor overview, news about GenAI in general) and documents no activity at this institution.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.5 a)
       entailment_label:
         text: only general background on AI
@@ -1094,14 +1094,14 @@ items:
         text_before_r17: |-
           The page states that this institution has no generative-AI activity, for example that it does not use GenAI tools. Different from no_genai, where the page simply has no relevant content.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.5 a)
       entailment_label:
         text: a statement that this institution has no AI activity
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: a statement that this institution has no generative-AI activity
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 3 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 items 3.1-3.3 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 3 a)
     - code: no_genai
       definition:
@@ -1111,14 +1111,14 @@ items:
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I01 slot 9'
         text_before_r17: The page contains no generative-AI content relevant to this institution.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.5 a)
       entailment_label:
         text: nothing on AI at this institution
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: nothing on generative AI at this institution
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 3 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 items 3.1-3.3 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 3 a)
     - code: not_assessable
       definition:
@@ -1234,7 +1234,7 @@ items:
       origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
       text_before_r17: generative-AI content
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 3 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 items 3.1-3.3 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 3 a)
   core.disclosure_form:
     id: core.disclosure_form
@@ -1601,7 +1601,7 @@ items:
       text_before_r17: |-
         'Does the page refer the reader to another page or document for more information about a GenAI activity it mentions?'
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: 'yes'
@@ -1616,7 +1616,7 @@ items:
         text_before_r17: |-
           The page refers the reader to another page or document for more information about a GenAI activity it mentions, so the page is incomplete (see the note on the name).
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: given
@@ -1632,7 +1632,7 @@ items:
         text_before_r17: |-
           The page does not refer the reader elsewhere for more information about any GenAI activity it mentions.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: not given
@@ -1678,7 +1678,7 @@ items:
       origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
       text_before_r17: referral elsewhere for more on a GenAI activity
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
   core.source_type:
     id: core.source_type
@@ -1877,7 +1877,7 @@ items:
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I05 slot 1'
         text_before_r17: Gate on the five GenAI verdicts, as the data question; pages with no GenAI get 'no'.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     answer_type: yes_no
     instruction:
@@ -1889,7 +1889,7 @@ items:
       text_before_r17: |-
         Does the page name a person, office or unit as responsible for a GenAI activity it mentions, or for questions about it?
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: 'yes'
@@ -1916,7 +1916,7 @@ items:
         text_before_r17: |-
           The page names no person, office or unit as responsible for the activity or for questions about it. Pages whose verdict shows no GenAI also take this value.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: not given
@@ -1939,7 +1939,7 @@ items:
       text_before_r17: |-
         Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     order_tie_rule: first_in_order
     long_page_rule: any_yes
@@ -1969,7 +1969,7 @@ items:
       origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
       text_before_r17: named person, office or unit responsible for a GenAI activity
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
   core.content_contact_details:
     id: core.content_contact_details
@@ -1994,7 +1994,7 @@ items:
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I06 slot 1'
         text_before_r17: Gate on the five GenAI verdicts, as the data question; pages with no GenAI get 'no'.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     answer_type: yes_no
     instruction:
@@ -2028,7 +2028,7 @@ items:
         text_before_r17: |-
           No contact details appear anywhere on the page, including its header and footer. Pages whose verdict shows no GenAI also take this value.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: not given
@@ -2051,7 +2051,7 @@ items:
       text_before_r17: |-
         Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     order_tie_rule: first_in_order
     long_page_rule: any_yes
@@ -2113,7 +2113,7 @@ items:
       text_before_r17: |-
         Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     order_tie_rule: none
     long_page_rule: none
@@ -2235,7 +2235,7 @@ items:
       text_before_r17: |-
         Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - text: |-
         A page item is yes when any activity on the page has a stated value in the matching field, with no classifier question.
@@ -2319,7 +2319,7 @@ items:
       text_before_r17: |-
         Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - text: |-
         A page item is yes when any activity on the page has a stated value in the matching field, with no classifier question.
@@ -2404,7 +2404,7 @@ items:
       text_before_r17: |-
         Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - text: |-
         A page item is yes when any activity on the page has a stated value in the matching field, with no classifier question.
@@ -2479,7 +2479,7 @@ items:
       text_before_r17: |-
         Code the source PAGE. Does the page state this about any GenAI activity on the page: the data inputs or data handled are described? yes = stated on the page.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: 'yes'
@@ -2537,7 +2537,7 @@ items:
       text_before_r17: |-
         Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - text: One page question, asked on AI pages.
       origin: ruling-r3
@@ -2545,7 +2545,7 @@ items:
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I12 slot 6'
       text_before_r17: One page question, asked on GenAI pages.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - text: Description items and the data item are also "no" where the verdict shows no AI.
       origin: ruling-r3
@@ -2553,7 +2553,7 @@ items:
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I12 slot 7'
       text_before_r17: Description items and the data item are also "no" where the verdict shows no GenAI.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     order_tie_rule: first_in_order
     long_page_rule:
@@ -2599,7 +2599,7 @@ items:
       origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
       text_before_r17: description of the data a GenAI activity uses
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
   core.content_users:
     id: core.content_users
@@ -2647,7 +2647,7 @@ items:
       text_before_r17: |-
         Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - text: |-
         A page item is yes when any activity on the page has a stated value in the matching field, with no classifier question.
@@ -2739,7 +2739,7 @@ items:
       text_before_r17: |-
         Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - text: |-
         A page item is yes when any activity on the page has a stated value in the matching field, with no classifier question.
@@ -2808,7 +2808,7 @@ items:
       text_before_r17: |-
         Safeguard items included, as Kaser does: `content_human_oversight`, `content_risk_assessment`, `content_user_notification`. They are not asked on the page. Each is the page-level member of one safeguard family tagged by level, derived from that safeguard's shared four-answer question asked once per activity (`has_human_oversight`, `has_risk_assessment`, `has_transparency_notice`): `yes` if any activity on the page is `yes`, otherwise `no`. **`content_user_notification` = yes only if the page describes a notice or label telling users they are interacting with GenAI or that content is AI-generated**; a page announcing that the institution uses GenAI is not by itself a notice (CX-01.1, W1 = a). The shared activity question uses this definition. The overlap with governance G1, G3, G4 is reported under R-070.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: |-
         agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand (subagent proposal, checked); ruling 1.5 a)
     - text: |-
@@ -2876,7 +2876,7 @@ items:
       text_before_r17: |-
         Safeguard items included, as Kaser does: `content_human_oversight`, `content_risk_assessment`, `content_user_notification`. They are not asked on the page. Each is the page-level member of one safeguard family tagged by level, derived from that safeguard's shared four-answer question asked once per activity (`has_human_oversight`, `has_risk_assessment`, `has_transparency_notice`): `yes` if any activity on the page is `yes`, otherwise `no`. **`content_user_notification` = yes only if the page describes a notice or label telling users they are interacting with GenAI or that content is AI-generated**; a page announcing that the institution uses GenAI is not by itself a notice (CX-01.1, W1 = a). The shared activity question uses this definition. The overlap with governance G1, G3, G4 is reported under R-070.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: |-
         agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand (subagent proposal, checked); ruling 1.5 a)
     - text: |-
@@ -2944,7 +2944,7 @@ items:
       text_before_r17: |-
         Safeguard items included, as Kaser does: `content_human_oversight`, `content_risk_assessment`, `content_user_notification`. They are not asked on the page. Each is the page-level member of one safeguard family tagged by level, derived from that safeguard's shared four-answer question asked once per activity (`has_human_oversight`, `has_risk_assessment`, `has_transparency_notice`): `yes` if any activity on the page is `yes`, otherwise `no`. **`content_user_notification` = yes only if the page describes a notice or label telling users they are interacting with GenAI or that content is AI-generated**; a page announcing that the institution uses GenAI is not by itself a notice (CX-01.1, W1 = a). The shared activity question uses this definition. The overlap with governance G1, G3, G4 is reported under R-070.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: |-
         agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand (subagent proposal, checked); ruling 1.5 a)
     - text: |-
@@ -3008,15 +3008,15 @@ items:
       source: output_contract.md:119 col source_url
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page source card I02 slot 1'
     - text: |-
-        Take `source_title` from RenderedPage.title (fallback: first heading); never from a model. The first heading is the first h1 on the page, else the first h2 to h6, looked for in the main content before the rest of the page, leaving out navigation, sidebars and footers and any heading over 300 characters. For a PDF it is the first non-empty line of the extracted text of 300 characters or fewer; this applies to newly scraped PDFs only. Where no heading was looked for (a file type without one, a failed render, or a record stored before this rule), the fallback is not measured; that is different from a page that was measured and has no heading.
+        Take `source_title` from RenderedPage.title (fallback: first heading); never from a model. The first heading is looked for in the main content of the page first (its first h1, else its first h2 to h6) and only then in the whole page (again the first h1, else the first h2 to h6). Headings inside navigation, sidebars, footers, forms, embedded frames, graphics and script or style blocks are left out, and so is any heading over 300 characters. For a PDF it is the first non-empty line of the extracted text of 300 characters or fewer; when the first three non-empty lines are all longer, the PDF has no heading. This applies to newly scraped PDFs only. Where no heading was looked for (a file type without one, a failed render, or a record stored before this rule), the fallback is not measured; that is different from a page that was measured and has no heading.
       origin: r1
       source: codebook-rulings-round1.json X28.mechanism
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page source card I02 slot 2'
       text_before_r17: 'Take `source_title` from RenderedPage.title (fallback: first heading); never from a model.'
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- what is next? the g3o rollup is also working, should we implement and test?" (RULINGS-S5 7 (default), D7-1 b); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 items 7, D7-1 (b); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1; middle sentences corrected to follow the code and approved as drafted: PI ruling 2026-11-21, RULINGS-1121 items T1-T3 (a), T wording
       source_r17: |-
-        agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 7 (default), D7-1 b)
+        agent-workspace/2026-11-21-integrator/r17-candidate-slots-T.json (hand; ruling 7 (default), D7-1 b; title sentence corrected, ruling T (a), agent-workspace/2026-11-21-integrator/RULINGS-1121.md)
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -3053,15 +3053,15 @@ items:
     values: none
     rules:
     - text: |-
-        Take `source_title` from RenderedPage.title (fallback: first heading); never from a model. The first heading is the first h1 on the page, else the first h2 to h6, looked for in the main content before the rest of the page, leaving out navigation, sidebars and footers and any heading over 300 characters. For a PDF it is the first non-empty line of the extracted text of 300 characters or fewer; this applies to newly scraped PDFs only. Where no heading was looked for (a file type without one, a failed render, or a record stored before this rule), the fallback is not measured; that is different from a page that was measured and has no heading.
+        Take `source_title` from RenderedPage.title (fallback: first heading); never from a model. The first heading is looked for in the main content of the page first (its first h1, else its first h2 to h6) and only then in the whole page (again the first h1, else the first h2 to h6). Headings inside navigation, sidebars, footers, forms, embedded frames, graphics and script or style blocks are left out, and so is any heading over 300 characters. For a PDF it is the first non-empty line of the extracted text of 300 characters or fewer; when the first three non-empty lines are all longer, the PDF has no heading. This applies to newly scraped PDFs only. Where no heading was looked for (a file type without one, a failed render, or a record stored before this rule), the fallback is not measured; that is different from a page that was measured and has no heading.
       origin: r1
       source: codebook-rulings-round1.json X28.mechanism
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page source card I03 slot 1'
       text_before_r17: 'Take `source_title` from RenderedPage.title (fallback: first heading); never from a model.'
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- what is next? the g3o rollup is also working, should we implement and test?" (RULINGS-S5 7 (default), D7-1 b); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 items 7, D7-1 (b); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1; middle sentences corrected to follow the code and approved as drafted: PI ruling 2026-11-21, RULINGS-1121 items T1-T3 (a), T wording
       source_r17: |-
-        agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 7 (default), D7-1 b)
+        agent-workspace/2026-11-21-integrator/r17-candidate-slots-T.json (hand; ruling 7 (default), D7-1 b; title sentence corrected, ruling T (a), agent-workspace/2026-11-21-integrator/RULINGS-1121.md)
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -3104,15 +3104,15 @@ items:
       source: output_contract.md:122 col source_access_date
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page source card I04 slot 1'
     - text: |-
-        Take `source_title` from RenderedPage.title (fallback: first heading); never from a model. The first heading is the first h1 on the page, else the first h2 to h6, looked for in the main content before the rest of the page, leaving out navigation, sidebars and footers and any heading over 300 characters. For a PDF it is the first non-empty line of the extracted text of 300 characters or fewer; this applies to newly scraped PDFs only. Where no heading was looked for (a file type without one, a failed render, or a record stored before this rule), the fallback is not measured; that is different from a page that was measured and has no heading.
+        Take `source_title` from RenderedPage.title (fallback: first heading); never from a model. The first heading is looked for in the main content of the page first (its first h1, else its first h2 to h6) and only then in the whole page (again the first h1, else the first h2 to h6). Headings inside navigation, sidebars, footers, forms, embedded frames, graphics and script or style blocks are left out, and so is any heading over 300 characters. For a PDF it is the first non-empty line of the extracted text of 300 characters or fewer; when the first three non-empty lines are all longer, the PDF has no heading. This applies to newly scraped PDFs only. Where no heading was looked for (a file type without one, a failed render, or a record stored before this rule), the fallback is not measured; that is different from a page that was measured and has no heading.
       origin: r1
       source: codebook-rulings-round1.json X28.mechanism
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page source card I04 slot 2'
       text_before_r17: 'Take `source_title` from RenderedPage.title (fallback: first heading); never from a model.'
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- what is next? the g3o rollup is also working, should we implement and test?" (RULINGS-S5 7 (default), D7-1 b); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 items 7, D7-1 (b); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1; middle sentences corrected to follow the code and approved as drafted: PI ruling 2026-11-21, RULINGS-1121 items T1-T3 (a), T wording
       source_r17: |-
-        agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 7 (default), D7-1 b)
+        agent-workspace/2026-11-21-integrator/r17-candidate-slots-T.json (hand; ruling 7 (default), D7-1 b; title sentence corrected, ruling T (a), agent-workspace/2026-11-21-integrator/RULINGS-1121.md)
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -4217,7 +4217,7 @@ items:
         text_before_r17: |-
           Executive orders, agency memos, acceptable-use rules, procurement standards, internal guidance on permissible GenAI tools and data handling.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: a policy or guidance
@@ -4273,7 +4273,7 @@ items:
       text_before_r17: |-
         A GenAI policy and a pilot at the same institution are two separate activities; code only the activity in question.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - text: |-
         A national programme counts as this institution's activity only when the page confirms that this institution takes part.
@@ -4301,7 +4301,7 @@ items:
           text_before_r17: |-
             Evidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate from the available sources. Use only after the five kinds above have been considered and none is supportable -- never as a default.
           by_r17: |-
-            PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+            PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
           source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       origin_before_r9: PI 2026-10-30 "approved!"; fixes-r4 FX06
       text_before_r9: |-
@@ -4309,7 +4309,7 @@ items:
       text_before_r17: |-
         `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms a GenAI activity at this institution but does not let its kind be told; it is never a default.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     order_tie_rule: first_in_order
     long_page_rule:
@@ -4377,7 +4377,7 @@ items:
         text_before_r17: |-
           The institution puts a GenAI tool to use, or tries one out, for its own work or for the public. The stage and the purchase status are coded separately.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); PI 2026-11-21 chat "all as rec -- what is next? the g3o rollup is also working, should we implement and test?" (RULINGS-S5 5.1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 items F1 (a), 5.1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: |-
           agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling F1 a, 5.1 a)
       entailment_label:
@@ -4385,7 +4385,7 @@ items:
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: putting a GenAI tool to use
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - code: governance
       definition:
@@ -4399,14 +4399,14 @@ items:
         text_before_r17: |-
           The institution issues or applies a rule on GenAI use: a policy, guidance, approved-tool list, order or standard. A body that sets or oversees such rules also counts.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: a rule on AI use
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: a rule on GenAI use
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - code: staff_training
       definition:
@@ -4417,14 +4417,14 @@ items:
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-1 card I06 slot 3'
         text_before_r17: The institution trains its own staff to use GenAI.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 2.2 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item 2.2 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 2.2 a)
       entailment_label:
         text: training of public-sector staff by the institution
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: training of the institution's own staff
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 2.2 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item 2.2 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: |-
           agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand (label, r16 text from the slot note); ruling 2.2 a)
     - code: program
@@ -4551,7 +4551,7 @@ items:
         text_before_r17: |-
           Exploratory or hedged intent with no concrete commitment: "considering," "exploring," "studying feasibility," early discussions, unfunded or undated ideas. The text must still be explicitly generative-AI and tied to this institution. No named tool tied to a timeline, no signed MoU or contract, no budget line, no adopted policy.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item 1.1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.1 a)
       entailment_label:
         text: proposed or being explored
@@ -4623,14 +4623,14 @@ items:
           approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-1 card I07 slot 6'
           text_before_r17: Evidence confirms GenAI activity exists but stage is indeterminate.
           by_r17: |-
-            PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+            PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
           source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       origin_before_r9: PI 2026-10-30 "approved!"; fixes-r4 FX06
       text_before_r9: Evidence confirms GenAI activity exists but stage is indeterminate.
       text_before_r17: |-
         `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     order_tie_rule: first_in_order
     long_page_rule:
@@ -6529,7 +6529,7 @@ items:
         vendor = the organisation the page names as supplying the GenAI product or service, verbatim. If none is named but tool_name matches a published lookup table (product -> developer, versioned), fill it deterministically and set `vendor_basis` = lookup, otherwise `stated`.
       text_before_r17: vendor = the organisation the page names as supplying the GenAI product or service, verbatim.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - text: |-
         The quote step runs for every activity; skipped items are kept internally and published as "not asked".
@@ -6702,7 +6702,7 @@ items:
         text_before_r17: |-
           integrated: the GenAI feature works inside software or a service channel the institution already used (office suite, case system, existing website service).
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: built into software or a service already in use
@@ -6715,7 +6715,7 @@ items:
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I08 slot 3'
         text_before_r17: 'standalone: a separate application or site created for the GenAI tool.'
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: a separate application or site
@@ -6829,7 +6829,7 @@ items:
       text_before_r10: Who uses this activity's tool?
       text_before_r17: Who interacts with the GenAI system.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: internal_staff
@@ -6976,7 +6976,7 @@ items:
       source: drafts/rc-d-005-wording.json W27 (new)
       text_before_r17: Whom does this rule on GenAI use apply to?
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: internal_personnel
@@ -7111,7 +7111,7 @@ items:
       source: drafts/rc-d-005-wording.json W28 (new)
       text_before_r17: What form does this rule on GenAI use take? Choose all that apply.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: dedicated_genai_or_ai_policy_or_guideline
@@ -7125,7 +7125,7 @@ items:
         text_before_r17: |-
           A policy, guideline, code of practice or acceptable-use rule whose main subject is generative AI or AI.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: |-
           agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand (subagent proposal, checked); ruling 1.5 a)
       entailment_label:
@@ -7133,7 +7133,7 @@ items:
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: a policy or guideline mainly about generative AI or AI
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 3 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 items 3.1-3.3 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: |-
           agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand (subagent proposal, checked); ruling 3 a)
     - code: approved_tool_list_or_endorsement
@@ -7146,7 +7146,7 @@ items:
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I11 slot 2'
         text_before_r17: A list of approved or permitted GenAI tools, or an official endorsement of a named tool.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: a list of approved tools or an endorsement of a tool
@@ -7163,7 +7163,7 @@ items:
         text_before_r17: |-
           A clause on GenAI inside a rule, policy or guidance whose main subject is something else (for example IT security or records management).
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: a clause in a rule on another subject
@@ -7178,7 +7178,7 @@ items:
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I11 slot 4'
         text_before_r17: An order, decision or practice direction on GenAI use issued by a court or a regulator.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: an order of a court or regulator
@@ -7195,14 +7195,14 @@ items:
         text_before_r17: |-
           A standard or requirement for buying GenAI tools or services, such as purchasing criteria or contract terms.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: a standard for buying AI tools or services
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: a standard for buying GenAI tools or services
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     rules:
     - text: |-
@@ -7290,7 +7290,7 @@ items:
       source: drafts/rc-d-005-wording.json W29 (new)
       text_before_r17: Does this rule ban, limit, allow, require or encourage the GenAI use it covers?
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: prohibits
@@ -7303,7 +7303,7 @@ items:
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I12 slot 1'
         text_before_r17: The rule bans the GenAI use it covers, with no use allowed.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       code_source: |-
         value-lists.json core.governance_direction alternatives['Split requires and promotes'].values[0]; ruling activity-10
@@ -7347,7 +7347,7 @@ items:
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I12 slot 4'
         text_before_r17: The rule makes GenAI use mandatory for some task or for some staff.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       code_source: |-
         value-lists.json core.governance_direction alternatives['Split requires and promotes'].values[3]; ruling activity-10
@@ -7364,7 +7364,7 @@ items:
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I12 slot 5'
         text_before_r17: The rule encourages or supports GenAI use without making it mandatory.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       code_source: |-
         value-lists.json core.governance_direction alternatives['Split requires and promotes'].values[4]; ruling activity-10
@@ -7458,7 +7458,7 @@ items:
       origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
       text_before_r17: stance of the rule on GenAI use
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
   core.service_domain:
     id: core.service_domain
@@ -7610,7 +7610,7 @@ items:
         text_before_r17: |-
           Education at every level, from pre-primary to tertiary, education not tied to a level, and services that support it. Training an institution's own staff counts under that institution's area, not education.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- what is next? the g3o rollup is also working, should we implement and test?" (RULINGS-S5 S3 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item S3 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling S3 a)
       code_source: value-lists.json core.service_domain alternatives['Candidate B'].values[8]; ruling activity-12
       label: education
@@ -7741,7 +7741,7 @@ items:
       source: drafts/rc-d-005-wording.json W30 (new)
       text_before_r17: What on the page shows that this activity's tool is generative AI?
       by_r17: |-
-        PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.7 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item 1.7 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.7 a)
     values:
     - code: named_genai_product_or_model
@@ -7796,12 +7796,12 @@ items:
         text: |-
           The page calls the tool AI or machine learning but gives none of the other signs: no generative product or model is named, the tool is not called generative AI or a language model, no generated content is described, and it is not called an AI chatbot or AI assistant.
         origin: |-
-          PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.7 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item 1.7 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (new; ruling 1.7 a)
       entailment_label:
         text: no sign that the tool is generative AI
         origin: |-
-          PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.7 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item 1.7 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (new; ruling 1.7 a)
     rules:
     - text: |-
@@ -7815,7 +7815,7 @@ items:
       text_before_r17: |-
         Asked for every activity on a page that confirms a GenAI activity. The supporting quote is extracted separately.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand; ruling 1.5 a)
     - core.rule.genai_boundary
     order_tie_rule: first_in_order
@@ -8559,7 +8559,7 @@ items:
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I02 slot 1'
       text_before_r17: Is human review required before acting on GenAI outputs?
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: 'yes'
@@ -8664,7 +8664,7 @@ items:
       origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
       text_before_r17: human review of GenAI outputs
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
   core.has_transparency_notice:
     id: core.has_transparency_notice
@@ -8706,7 +8706,7 @@ items:
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I03 slot 1'
       text_before_r17: Are users/citizens notified that GenAI is involved?
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: 'yes'
@@ -8811,7 +8811,7 @@ items:
       origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
       text_before_r17: notice to users that GenAI is involved
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
   core.has_data_classification:
     id: core.has_data_classification
@@ -8853,7 +8853,7 @@ items:
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I04 slot 1'
       text_before_r17: Are there documented data-handling restrictions for GenAI use?
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: 'yes'
@@ -8958,7 +8958,7 @@ items:
       origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
       text_before_r17: restriction on the data GenAI may handle
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
   core.has_risk_assessment:
     id: core.has_risk_assessment
@@ -9613,7 +9613,7 @@ items:
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I10 slot 1'
       text_before_r17: Does this page document an evaluation of this GenAI activity?
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       draft_action_before_r17: no_change
     values:
@@ -9659,7 +9659,7 @@ items:
         text_before_r17: |-
           The page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy finding that requires evaluation of GenAI tools takes this value.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
         draft_action_before_r17: no_change
       entailment_label:
@@ -9682,7 +9682,7 @@ items:
         text_before_r17: |-
           The page makes an evaluative statement, but its subject, or whether it concerns this GenAI activity, cannot be settled. An evaluation clearly of a different tool or activity is `not_documented`, not `unclear`.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       entailment_label:
         text: mentioned, but not clearly about this activity
@@ -9712,7 +9712,7 @@ items:
       text_before_r17: |-
         A clause requiring periodic review of the GenAI policy itself is `not_documented`, unless it requires testing, monitoring or evaluation of GenAI tools or their outputs; then it counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy).
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - text: |-
         A required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as `required_or_planned`. A pure risk or impact assessment requirement stays under `has_risk_assessment`.
@@ -9784,7 +9784,7 @@ items:
       text_before_r17: |-
         (1) An agency blog: "after a three-month trial, 78% of staff said the assistant saved time" → `results_reported`. (2) Minutes: "the pilot is being reviewed by IT" → `conducted_no_results`. (3) A guidance memo: "all GenAI tools must be tested before deployment" → `required_or_planned` on the policy finding. (4) A press release: "the chatbot has answered 40,000 questions" → `not_documented` (a usage count with no evaluation described). (5) A vendor case study: "accuracy improved 30%" with no named evaluator → `not_documented`.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - text: |-
         The page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of AI tools takes this value. A clause requiring periodic review of the AI policy itself is NOT this value unless it requires testing, monitoring or evaluation of AI tools or their outputs. A requirement to carry out a risk or impact assessment is NOT this value.
@@ -9802,7 +9802,7 @@ items:
       text_before_r17: |-
         The page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value. A clause requiring periodic review of the GenAI policy itself is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs. A requirement to carry out a risk or impact assessment is NOT this value.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     - text: The page has no evaluation statement about this activity.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX06
@@ -9896,7 +9896,7 @@ items:
       text_before_r17: |-
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: testing before deployment? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: 'yes'
@@ -9993,7 +9993,7 @@ items:
       text_before_r17: |-
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: evaluation of a pilot or trial? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: 'yes'
@@ -10091,7 +10091,7 @@ items:
       text_before_r17: |-
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: an audit or evaluation by an independent body? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: 'yes'
@@ -10190,7 +10190,7 @@ items:
       text_before_r17: |-
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: ongoing monitoring of the tool in use? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: 'yes'
@@ -10289,7 +10289,7 @@ items:
       text_before_r17: |-
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: user feedback or satisfaction surveys? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: 'yes'
@@ -10388,7 +10388,7 @@ items:
       text_before_r17: |-
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: bias, fairness or safety testing? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     values:
     - code: 'yes'
@@ -11085,7 +11085,7 @@ items:
       text_before_r17: |-
         Institution-level consolidation (Stage 6) applies the v2.6 consolidation rules as jev questions or deterministic rules: explicit relations before merging observations; distinct/unresolved relations never merge; institution-level `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a low-confidence negative downgraded under R-081 counts as one). Stage 6 becomes the X29 truth table, with these ruled components: `background_only` pages may sit in the institution `no` set; any downgraded page counts as unresolved; the bar is the chosen answer's probability ≥ 0.8; `yes` can come from any pipeline, `no` from web pages only, and AI-text results never count; any supported GenAI purchase record can give `yes`, while the evidence tier still shows it as commitment; `not_assessable` is set mechanically only and does not block `no`. Also: X30 with the shared relation list incl. `governs`; X31 pooled evidence, split when too long; A06 per r2#21; A07 with 9 counts per pipeline; X23 replaced by r2#27; unit-credit flag. `unresolved` stays a coding value and is reported as `unknown` in published summaries; unresolved relations still never merge. Inside the institution-level rule both `unresolved` and `not_assessable` keep their current roles, and `not_assessable` stays out of the institution-rate base.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: |-
         agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand (subagent proposal, checked); ruling 1.5 a)
     - text: |-
@@ -12289,7 +12289,7 @@ items:
       text_before_r17: |-
         The yes/no/not-scored flag and its rule stay as an AI-text item, renamed so it cannot be confused with the main GenAI verdict. It never feeds the main verdict.
       by_r17: |-
-        PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.5 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+        PI ruling 2026-11-21, RULINGS-S5 item 1.5 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
       source_r17: |-
         agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand (subagent proposal, checked); ruling 1.5 a)
     order_tie_rule: none
@@ -12424,7 +12424,7 @@ items:
         text_before_r17: |-
           The actor speaks or presents about GenAI, for example at an event, without carrying out the activity.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       code_source: |-
         git 052fcb2:g3o/common/evidence_review.py ObservedActor.role (cited in value-lists.json core.observed_actor_relationship flags); ruling activity-15 a
@@ -12454,7 +12454,7 @@ items:
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I23 slot 6'
         text_before_r17: The actor hosts or organises an event about GenAI.
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
       code_source: |-
         git 052fcb2:g3o/common/evidence_review.py ObservedActor.role (cited in value-lists.json core.observed_actor_relationship flags); ruling activity-15 a
@@ -12463,7 +12463,7 @@ items:
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
         text_before_r17: the host of an event about GenAI
         by_r17: |-
-          PI 2026-11-21 chat "all as rec -- use a swarm of subagents as necessary (smaller models to be token-efficient)" (RULINGS-S5 F1 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+          PI ruling 2026-11-21, RULINGS-S5 item F1 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
         source_r17: agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (swap; ruling F1 a)
     rules:
     - text: This answer is kept for internal checks and not published.
@@ -12863,7 +12863,7 @@ shared:
     text_before_r17: |-
       You are a research coder for the Global Government GenAI Observatory (G3O), a public, auditable dataset that measures how government institutions worldwide adopt generative AI. You read one web page, or one part of one, about a named institution and answer coding questions about it. Use only what the text says: record what it states explicitly and never infer, guess or use outside knowledge. Give each answer in the form the question asks for and nothing else: for a question with listed answers, choose from those answers only; for an extraction, copy the exact words from the text.
     by_r17: |-
-      PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.6 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+      PI ruling 2026-11-21, RULINGS-S5 item 1.6 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
     source_r17: |-
       agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand (subagent proposal, checked); ruling 1.6 a)
   system_prompt_stage6:
@@ -12876,6 +12876,6 @@ shared:
     text_before_r17: |-
       You are a research coder for the Global Government GenAI Observatory (G3O), a public, auditable dataset that measures how government institutions worldwide adopt generative AI. You read two activity records, or a set of quotes about one activity gathered from several sources, about a named institution and answer coding questions about them. Use only what the text says: record what it states explicitly and never infer, guess or use outside knowledge. Give each answer in the form the question asks for and nothing else: for a question with listed answers, choose from those answers only; for an extraction, copy the exact words from the text.
     by_r17: |-
-      PI 2026-11-21 chat "all as rec" (RULINGS-S5 1.6 a); text approved as drafted: PI 2026-11-21 chat "1 approved, 2 as rec -- I will launch the lane"
+      PI ruling 2026-11-21, RULINGS-S5 item 1.6 (a); text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1
     source_r17: |-
       agent-workspace/2026-11-18-calibration/session5-r17/r17-candidate-slots.json (hand (subagent proposal, checked); ruling 1.6 a)

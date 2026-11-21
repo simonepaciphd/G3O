@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extractor_prompt_sections. -->
-<!-- codebook release: 2.7 | codebook sha256: 02ece40474bc78708df1451dad7e3c624549bfbafb5c1871afea8ac0bdec861b -->
+<!-- codebook release: 2.7 | codebook sha256: 71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4 -->
 
 # Extractor prompt sections
 
-Codebook release `2.7`, sha256 `02ece40474bc78708df1451dad7e3c624549bfbafb5c1871afea8ac0bdec861b`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
+Codebook release `2.7`, sha256 `71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
 
 ## `core.source_publication_date`
 <!-- item: core.source_publication_date sha256: 8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320 -->
@@ -198,9 +198,9 @@ Column `contracting_party`; item hash `fe369db14f8a663f0a0db13d2390583d34f0de935
 3. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.developer`
-<!-- item: core.developer sha256: c2213d4387837aa99be0c0d59d9d2a2fc2fd974d8704e6b75374d22a4dfba159 -->
+<!-- item: core.developer sha256: 947cd93228ce4c32c279ab6fa876967f2cc39e58f925019a4a438bb17de71f36 -->
 
-Column `developer`; item hash `c2213d4387837aa99be0c0d59d9d2a2fc2fd974d8704e6b75374d22a4dfba159`.
+Column `developer`; item hash `947cd93228ce4c32c279ab6fa876967f2cc39e58f925019a4a438bb17de71f36`.
 
 ### Rules
 

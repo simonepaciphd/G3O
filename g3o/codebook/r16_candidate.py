@@ -25,7 +25,7 @@ R16_CANDIDATE_SHA256 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0
 #: Codebook r17 (calibration rulings 2026-11-21: the construct is AI adoption; byte edits to the signed
 #: r16 file, ``planning/t010/r17-provenance.json``). It keeps every r16 field, so the r16 producers stay on under
 #: it. Signed when ``planning/t010/signoff-record.md`` holds this SHA256; the name keeps the word candidate.
-R17_CANDIDATE_SHA256 = "02ece40474bc78708df1451dad7e3c624549bfbafb5c1871afea8ac0bdec861b"
+R17_CANDIDATE_SHA256 = "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4"
 
 #: The releases that carry the r16 fields: r16 and the revisions built on it.
 R16_FIELD_RELEASES = (R16_CANDIDATE_SHA256, R17_CANDIDATE_SHA256)

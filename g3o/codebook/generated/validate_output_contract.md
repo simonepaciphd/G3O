@@ -1,16 +1,16 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.validate_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: 02ece40474bc78708df1451dad7e3c624549bfbafb5c1871afea8ac0bdec861b -->
+<!-- codebook release: 2.7 | codebook sha256: 71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4 -->
 
 # G3O output contract (validate, Stage 6), generated from the codebook
 
-Codebook release `2.7`, sha256 `02ece40474bc78708df1451dad7e3c624549bfbafb5c1871afea8ac0bdec861b`. 14 items.
+Codebook release `2.7`, sha256 `71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4`. 14 items.
 
 ## `core.has_genai_activity`
-<!-- item: core.has_genai_activity sha256: 760cb25ed7b9ed80f6c8c885b4dafcf9700ae989598a42685a12e29765768305 -->
+<!-- item: core.has_genai_activity sha256: 2a065c204abd2d675f3afa1153060386056e0c10bb27d933257ac43c107cc4d9 -->
 
 | Field | Value |
 |---|---|
-| item hash | `760cb25ed7b9ed80f6c8c885b4dafcf9700ae989598a42685a12e29765768305` |
+| item hash | `2a065c204abd2d675f3afa1153060386056e0c10bb27d933257ac43c107cc4d9` |
 | family | `verdict` |
 | name | `has_genai_activity` |
 | level | `institution` |

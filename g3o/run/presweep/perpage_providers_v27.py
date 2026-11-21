@@ -184,7 +184,7 @@ ACTIVITY_NAME = "core.activity_name"
 #: ``request_v27.build_system_prompt()`` (RC-D-021 P-1 a).
 #: Pin of the r17 candidate (the prompt under the r17 text). The prompt diff is approved with the r17 signature,
 #: recorded in ``planning/t010/signoff-record.md``. Under r16 the approved value was ``48f7c2ed...``.
-PASS1_SYSTEM_SHA256 = "d158da41852eb348806145f1a6656c7fc9af58e7d7b5b2b982c1790e1605728a"
+PASS1_SYSTEM_SHA256 = "2024c61dc6c1600c1f9b20b9acd4ff5fd3c02627f47579269b5ddd08055a6d2b"
 #: SHA256 (UTF-8) of the PI-approved pass-2 system prompt,
 #: ``pass2_support.build_system_prompt()`` (RC-D-021 P-2 a).
 #: Pin of the r17 candidate, covered by the same prompt diff; under r16 the approved value was ``fdcd47f2...``.
