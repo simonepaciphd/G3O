@@ -112,6 +112,7 @@ class PageInput:
     links: tuple[dict[str, Any], ...] | None = None  # passed to T-022 unchanged
     has_metadata_date: bool = False  # passed to T-022 unchanged
     email_links: tuple[str, ...] | None = None  # T-014 addresses, already normalized
+    first_heading: str | None = None  # Def7 RenderedPage.first_heading; None = not measured
 
 
 @dataclass(frozen=True)
