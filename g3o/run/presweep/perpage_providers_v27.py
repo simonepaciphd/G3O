@@ -182,12 +182,12 @@ ACTIVITY_NAME = "core.activity_name"
 
 #: SHA256 (UTF-8) of the PI-approved pass-1 system prompt,
 #: ``request_v27.build_system_prompt()`` (RC-D-021 P-1 a).
-#: UNSIGNED r17 candidate: the PI approved ``48f7c2ed...`` (r16 text); this value is that prompt under the r17
-#: candidate text and awaits his approval of the diff.
+#: Pin of the r17 candidate (the prompt under the r17 text). The prompt diff is approved with the r17 signature,
+#: recorded in ``planning/t010/signoff-record.md``. Under r16 the approved value was ``48f7c2ed...``.
 PASS1_SYSTEM_SHA256 = "d158da41852eb348806145f1a6656c7fc9af58e7d7b5b2b982c1790e1605728a"
 #: SHA256 (UTF-8) of the PI-approved pass-2 system prompt,
 #: ``pass2_support.build_system_prompt()`` (RC-D-021 P-2 a).
-#: UNSIGNED r17 candidate: the PI approved ``fdcd47f2...`` (r16 text); this value awaits his approval of the diff.
+#: Pin of the r17 candidate, covered by the same prompt diff; under r16 the approved value was ``fdcd47f2...``.
 PASS2_SYSTEM_SHA256 = "b96e903420aca2eb8b342da2128c9e44237fec533ba5be88d05046bcc3174bb9"
 _APPROVED = {"pass1": ("P-1", PASS1_SYSTEM_SHA256), "pass2": ("P-2", PASS2_SYSTEM_SHA256)}
 #: SHA256 (UTF-8) of the PI-approved P-2c quote-task question for ``core.activity_segment``

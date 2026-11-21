@@ -22,9 +22,9 @@ from __future__ import annotations
 #: values" sentence of core.developer_basis rules/1 and of vocabularies.provenance text moved to r16_dropped).
 R16_CANDIDATE_SHA256 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a"
 
-#: UNSIGNED r17 candidate (calibration rulings 2026-11-21: the construct is AI adoption; byte edits to the signed
+#: Codebook r17 (calibration rulings 2026-11-21: the construct is AI adoption; byte edits to the signed
 #: r16 file, ``planning/t010/r17-provenance.json``). It keeps every r16 field, so the r16 producers stay on under
-#: it. Built against, not signed: if the PI amends the candidate, its SHA256 changes and this pin must follow.
+#: it. Signed when ``planning/t010/signoff-record.md`` holds this SHA256; the name keeps the word candidate.
 R17_CANDIDATE_SHA256 = "02ece40474bc78708df1451dad7e3c624549bfbafb5c1871afea8ac0bdec861b"
 
 #: The releases that carry the r16 fields: r16 and the revisions built on it.

@@ -131,7 +131,7 @@ def test_word_presence_quote_accepted_by_80_percent_rule(tmp_path):
 
 
 def test_rejected_quote_is_downgraded_and_kept_only_in_provenance(tmp_path):
-    """Emitter-side option R8-a (PI ruling pending): reverses the former "retained verbatim" behaviour."""
+    """Emitter-side option (PI ruling 2026-11-20, defect report, Def2 R8-a; RC-D-044): reverses the former "retained verbatim" behaviour."""
     _, instrument, _, sources, artifact, ctx = _setup(tmp_path)
     quote = "The ministry cancelled every budget line for translation services."
     result = _check(sources, quote)

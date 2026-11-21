@@ -44,7 +44,7 @@ def test_candidate_fixture_bytes_match_the_pin():
 
 
 def test_the_codebook_in_use_is_the_r17_candidate_built_on_r16():
-    """The UNSIGNED r17 candidate (byte edits to the signed r16 file) is in use; the r16 fixture stays as r16."""
+    """Codebook r17 (byte edits to the signed r16 file) is in use; the r16 fixture stays as r16."""
     assert hashlib.sha256(CODEBOOK.read_bytes()).hexdigest() == r16.R17_CANDIDATE_SHA256
     assert r16.R16_FIELD_RELEASES == (r16.R16_CANDIDATE_SHA256, r16.R17_CANDIDATE_SHA256)
     live, base = yaml.safe_load(CODEBOOK.read_bytes())["items"], yaml.safe_load(FIXTURE.read_bytes())["items"]

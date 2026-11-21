@@ -202,7 +202,7 @@ def support_nodes(result: SupportResult, sources: PageSources, artifact: PageArt
             if match != result.match:
                 raise ValueError("T-024 match result is not reproduced on the stored artifact")
         if result.support_status == NO_QUOTE:
-            # Calibration FN-TRACE defect 2 / T-041 real-26 (emitter-side option, PI ruling pending): a quote
+            # Calibration FN-TRACE defect 2 / T-041 real-26 (emitter-side option; PI ruling 2026-11-20, defect report, Def2 R8-a; RC-D-044): a quote
             # that failed R-042 / R-044 is "no supporting text"; it is kept only in the provenance companion
             # (``rejected_quote``, beside its failed ``match``), as the pooled path already does.
             quote, rejected, segment, span = None, quote, None, None

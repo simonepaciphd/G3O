@@ -100,7 +100,7 @@ from g3o.common.support_check import (
 )
 from g3o.common.urlnorm import site_host
 
-#: Codebook r17 (UNSIGNED candidate, calibration rulings 2026-11-21; signed only when planning/t010/signoff-record.md holds this sha256).
+#: Codebook r17 (calibration rulings 2026-11-21), signed when planning/t010/signoff-record.md holds this sha256 (A-001).
 SIGNED_CODEBOOK_SHA256 = "02ece40474bc78708df1451dad7e3c624549bfbafb5c1871afea8ac0bdec861b"
 if SIGNED_CODEBOOK_SHA256 != SUPPORT_CHECK_CODEBOOK_SHA256:  # pragma: no cover - pin drift guard
     raise ImportError("source_fields and support_check pin different codebook releases")
