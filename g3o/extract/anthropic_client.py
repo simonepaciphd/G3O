@@ -46,6 +46,10 @@ EXTRACTOR_EFFORT = "medium"
 #: Output budget per extraction request (non-streaming; keeps sync calls under
 #: the SDK's HTTP timeout).
 DEFAULT_MAX_TOKENS = 16_000
+#: The largest ``max_tokens`` a non-streaming Messages call may ask for: anthropic 2.3.0 refuses a
+#: non-streaming request whose expected time (3600 s * max_tokens / 128,000) exceeds 600 s. No v2.7
+#: extractor call streams, so the runtime cap is refused above this at binding (Def6).
+SYNC_MAX_TOKENS = 21_333
 
 #: Message Batches limits (Anthropic docs: up to 100,000 requests or 256 MB
 #: per batch). The byte limit used for splitting keeps a margin below 256 MB.
@@ -286,6 +290,7 @@ __all__ = [
     "BATCH_MAX_REQUESTS",
     "DEFAULT_MAX_REQUEST_BYTES",
     "DEFAULT_MAX_TOKENS",
+    "SYNC_MAX_TOKENS",
     "EXTRACTOR_EFFORT",
     "EXTRACTOR_MODEL",
     "AnthropicExtractorClient",

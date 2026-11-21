@@ -21,7 +21,7 @@ from g3o.common.instrument import build_instrument, canonical_json, sha256_text,
 from g3o.common.jev_record import load_classifier_rules
 from g3o.common.storage_fields import CODEBOOK_SHA256, FIELDS
 from g3o.extract import pass2_support, request_v27
-from g3o.extract.anthropic_client import ExtractorJob, build_params
+from g3o.extract.anthropic_client import SYNC_MAX_TOKENS, ExtractorJob, build_params
 from g3o.persist import page_artifact
 
 
@@ -44,6 +44,11 @@ class RuntimeSettings:
                 raise ValueError(f"{name} must be explicitly supplied")
         if type(self.extractor_max_tokens) is not int or self.extractor_max_tokens <= 0:
             raise ValueError("extractor_max_tokens must be positive")
+        if self.extractor_max_tokens > SYNC_MAX_TOKENS:
+            # Def6: every v2.7 run makes live, non-streaming extractor calls with this one cap (per-page
+            # follow-ups and re-asks in every batch mode, the Stage 6 quote step); none streams.
+            raise ValueError(f"extractor_max_tokens {self.extractor_max_tokens} exceeds the non-streaming maximum "
+                             f"{SYNC_MAX_TOKENS}; no v2.7 extractor call path streams")
         if type(self.reserved_tokens) is not int or not 0 <= self.reserved_tokens < page_chunks.JEV_STATE_TOKEN_LIMIT:
             raise ValueError("reserved_tokens must leave room inside the approved budget")
         if type(self.reference_year) is not int or not 1000 <= self.reference_year <= 9999:
