@@ -84,7 +84,8 @@ class Builder:
                                      quote_chunk_id=chunk if quote else None, entailment=TRUE if quote else None,
                                      activity_id=oid, linked_activity=linked), self.page_sources[pid])
         nodes = support_nodes(sr, self.page_sources[pid], self.artifacts[sid],
-                              SupportContext(RUN_ID, self.uid, oid, sid, []), self.instrument)
+                              SupportContext(RUN_ID, self.uid, oid, sid, [], linked_observation_id=linked),
+                              self.instrument)  # here a pair's linked activity is its rhs observation (D3-A)
         self.n += 1
         context = dict(item_id=item, item_part=part, support_id=nodes.original["support_id"], observation_id=oid,
                        chunk_id=chunk, coder_version="fake-per-page-v1", question_set_version=QSV,
