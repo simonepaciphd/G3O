@@ -675,6 +675,7 @@ def _html_part_fields(parts: html_mod.HtmlParts | None) -> dict[str, Any]:
         "links": parts.links,
         "email_links": parts.email_links,
         "metadata_dates": parts.metadata_dates,
+        "first_heading": parts.first_heading,  # Def7
     }
 
 

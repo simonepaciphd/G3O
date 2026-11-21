@@ -148,6 +148,7 @@ def rendered_page_input(page: Any, *, institution_id: str, institution: str, cou
         has_metadata_date=sf.page_has_metadata_date(page.metadata_dates, page.url,
                                                     access_date=page.fetch_metadata.access_date),
         email_links=None if page.email_links is None else tuple(page.email_links),
+        first_heading=getattr(page, "first_heading", None),  # Def7; None on a pre-change record
     )
 
 

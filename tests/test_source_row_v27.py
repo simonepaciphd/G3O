@@ -963,3 +963,39 @@ def test_gated_out_contracting_party_still_counts_for_content_vendor_74a():
     assert rows.activities["p1#a001"]["core.contracting_party"].value == "not_asked"
     assert rows.source["core.content_vendor"].value == "yes"
     assert "65 a" in rows.source["core.content_vendor"].basis
+
+
+# ---------------------------------------------------------------------------
+# Def7 (PI: lift ruling 39 a; render-time first-heading producer; no back-fill)
+# ---------------------------------------------------------------------------
+
+
+def _headed(title, heading):
+    from dataclasses import replace
+    return replace(_page(title=title), first_heading=heading)
+
+
+def test_empty_title_falls_back_to_the_measured_first_heading():
+    for title in ("", "  ", None):
+        rows = srow.assemble(_headed(title, "Generative AI pilot"), FIELDS_P1, GENAI, {})
+        assert sf.TITLE not in rows.refused
+        assert rows.source[sf.TITLE].value == "Generative AI pilot"
+        assert rows.source[sf.TITLE].basis == "first heading (title empty)"
+
+
+def test_title_wins_over_the_first_heading():
+    rows = srow.assemble(_headed("AI pilot", "Other heading"), FIELDS_P1, GENAI, {})
+    assert rows.source[sf.TITLE].value == "AI pilot" and rows.source[sf.TITLE].basis == "RenderedPage.title"
+
+
+def test_empty_title_and_measured_empty_heading_is_not_documented():
+    rows = srow.assemble(_headed("", ""), FIELDS_P1, GENAI, {})
+    assert rows.source[sf.TITLE].value == "not_documented"
+
+
+def test_page_stored_before_the_producer_still_refuses_no_back_fill():
+    # first_heading None = not measured: every page rendered before the change.
+    rows = srow.assemble(_headed("", None), FIELDS_P1, GENAI, {})
+    assert sf.TITLE not in rows.source
+    assert "not measured" in rows.refused[sf.TITLE]
+    assert sf.TITLE not in rows.stops  # page data: a hold, as before (ruling 97 b)
