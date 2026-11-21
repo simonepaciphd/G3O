@@ -39,7 +39,8 @@ per (page x activity) with the v2.7 activity question set (T-011 ``activity.json
    A failed part enters combining as a failed answer.
 6. **Pairs (PI 2026-11-07 7b/8b).** The separately approved ``pair_questions``
    instrument codes each pair at round 1, before ordinary activity rounds. The
-   earlier page span is lhs; equal starts stop only that pair. Every part holding
+   earlier page span is lhs; on equal starts the lower activity id is lhs (calibration
+   Def4 D4-C, PI 2026-11-20) and the pair is noted as tie-broken. Every part holding
    either span votes. Raw records name ``linked_activity``; pair support joins
    retain both activity identities. :func:`finalize_pairs` checks pair support.
 7. **Permanent pilot (RC-D-025 B2 a; codebook r15 ``core.permanent_pilot`` rules/0).**
@@ -90,7 +91,9 @@ ANSWER_MISSING = "jev_answer_missing"
 EXTRA_ROUND_FAILED = "extra_round_failed"
 SPAN_UNRESOLVED = "activity_span_unresolved"
 PAIR_QUESTION_MISSING = "pair_question_missing"
-PAIR_DIRECTION_TIE = "pair_direction_tie"
+#: Note ``pair_direction_tie_break:<lhs>:<rhs>``: the two spans start at the same offset, so the
+#: pair's direction comes from the tie-break (activity id order), not from the page (D4-C).
+PAIR_DIRECTION_TIE_BREAK = "pair_direction_tie_break"
 
 #: RC-D-025 B2 a (codebook r15 ``core.permanent_pilot`` rules/0): applied by
 #: :func:`finalize_activities` after the support check, via the helper shared with T-026.
@@ -455,17 +458,22 @@ class ActivityPair:
 
 
 def plan_pairs(inp: ActivityPageInput) -> tuple[tuple[ActivityPair, ...], tuple[tuple[str, str], ...]]:
-    """Plan unique pairs; equal starts are explicitly unresolved, never tie-broken."""
+    """Plan unique pairs, the earlier span start as lhs.
+
+    Equal starts (D4-C, PI 2026-11-20, reversing RC-D-024 row 8): the lower ``activity_id`` is lhs
+    (one page's observation ids differ only in it, so this is observation-id order; activity ids are
+    unique, so the order is total). The pair is planned and asked like any other; the second value
+    lists those pairs as ``(lhs, rhs)`` so the caller can note that the direction is a tie-break.
+    """
     usable = [sp for sp in inp.spans if span_ok(inp.page, sp)]
     if len({sp.activity_id for sp in inp.spans}) != len(inp.spans):
         raise ValueError("duplicate activity_id")
     labels = {sp.activity_id: f"A{i}" for i, sp in enumerate(usable, start=1)}
     pairs, ties = [], []
     for first, second in combinations(usable, 2):
+        lhs, rhs = sorted((first, second), key=lambda sp: (sp.start, sp.activity_id))
         if first.start == second.start:
-            ties.append((first.activity_id, second.activity_id))
-            continue
-        lhs, rhs = sorted((first, second), key=lambda sp: sp.start)
+            ties.append((lhs.activity_id, rhs.activity_id))
         parts = tuple((i, c) for i, c in enumerate(inp.page.chunks, start=1)
                       if (c.start < lhs.end and lhs.start < c.end)
                       or (c.start < rhs.end and rhs.start < c.end))
@@ -698,7 +706,7 @@ def code_page(inp: ActivityPageInput, ask_fn: AskFn, config: ActivityCoderConfig
             raise ValueError("activity pair question requires explicit wording approval")
         pq = pair_questions[0]
         planned, ties = plan_pairs(inp)
-        notes.extend(f"{PAIR_DIRECTION_TIE}:{a}:{b}" for a, b in ties)
+        notes.extend(f"{PAIR_DIRECTION_TIE_BREAK}:{a}:{b}" for a, b in ties)
         for pair in planned:
             pr, pf = _code_pair(inp, pair, pq, ask_fn, config, s)
             pair_results.append(pr)
@@ -1014,7 +1022,7 @@ def to_pass2_page(result: PageActivityResult, inp: ActivityPageInput) -> Pass2Pa
 
 __all__ = [
     "ANSWER_MISSING", "CODER_VERSION", "MISSING_REQUEST_ID", "NANO_STATE_FIELDS",
-    "PAIR_DIRECTION_TIE", "PAIR_QUESTION_MISSING", "PERMANENT_PILOT_RULE", "REQUEST_FAILED", "SPAN_UNRESOLVED", "ActivityCoderConfig",
+    "PAIR_DIRECTION_TIE_BREAK", "PAIR_QUESTION_MISSING", "PERMANENT_PILOT_RULE", "REQUEST_FAILED", "SPAN_UNRESOLVED", "ActivityCoderConfig",
     "ActivityPageInput", "ActivityPair", "ActivityResult", "PairResult", "Combined", "FinalActivity", "ItemOutcome",
     "PageActivityResult", "PartCombiner", "PartFailure", "PartVote", "build_questions",
     "build_state", "code_page", "finalize_activities", "finalize_pairs", "plan_pairs", "marked_pair_text", "gate_open", "marked_part_text",
