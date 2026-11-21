@@ -22,6 +22,14 @@ from __future__ import annotations
 #: values" sentence of core.developer_basis rules/1 and of vocabularies.provenance text moved to r16_dropped).
 R16_CANDIDATE_SHA256 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a"
 
+#: UNSIGNED r17 candidate (calibration rulings 2026-11-21: the construct is AI adoption; byte edits to the signed
+#: r16 file, ``planning/t010/r17-provenance.json``). It keeps every r16 field, so the r16 producers stay on under
+#: it. Built against, not signed: if the PI amends the candidate, its SHA256 changes and this pin must follow.
+R17_CANDIDATE_SHA256 = "02ece40474bc78708df1451dad7e3c624549bfbafb5c1871afea8ac0bdec861b"
+
+#: The releases that carry the r16 fields: r16 and the revisions built on it.
+R16_FIELD_RELEASES = (R16_CANDIDATE_SHA256, R17_CANDIDATE_SHA256)
+
 #: The three ``core.stage_as_of_basis`` step codes of the candidate (``items/core.stage_as_of_basis/values``,
 #: A8.5 a), in candidate order. Equal to the step names of :mod:`g3o.validate.merged_activity_v27`.
 STAGE_AS_OF_BASIS_CODES = ("publication", "stated", "access")
@@ -46,9 +54,10 @@ def active_codebook_sha256() -> str:
 
 
 def r16_active() -> bool:
-    """True only when the codebook in use is the r16 candidate (:data:`R16_CANDIDATE_SHA256`). False under r15."""
-    return active_codebook_sha256() == R16_CANDIDATE_SHA256
+    """True only when the codebook in use carries the r16 fields (:data:`R16_FIELD_RELEASES`: r16 or the r17
+    candidate built on it). False under r15."""
+    return active_codebook_sha256() in R16_FIELD_RELEASES
 
 
-__all__ = ["DEVELOPER_BASIS_STATED", "R16_CANDIDATE_SHA256", "STAGE_AS_OF_BASIS_CODES", "active_codebook_sha256",
-           "r16_active"]
+__all__ = ["DEVELOPER_BASIS_STATED", "R16_CANDIDATE_SHA256", "R16_FIELD_RELEASES", "R17_CANDIDATE_SHA256",
+           "STAGE_AS_OF_BASIS_CODES", "active_codebook_sha256", "r16_active"]

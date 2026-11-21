@@ -182,10 +182,13 @@ ACTIVITY_NAME = "core.activity_name"
 
 #: SHA256 (UTF-8) of the PI-approved pass-1 system prompt,
 #: ``request_v27.build_system_prompt()`` (RC-D-021 P-1 a).
-PASS1_SYSTEM_SHA256 = "48f7c2ed53e046aebe907724bea047b864dd09258ce56fec23f2ab23e5096eaa"
+#: UNSIGNED r17 candidate: the PI approved ``48f7c2ed...`` (r16 text); this value is that prompt under the r17
+#: candidate text and awaits his approval of the diff.
+PASS1_SYSTEM_SHA256 = "d158da41852eb348806145f1a6656c7fc9af58e7d7b5b2b982c1790e1605728a"
 #: SHA256 (UTF-8) of the PI-approved pass-2 system prompt,
 #: ``pass2_support.build_system_prompt()`` (RC-D-021 P-2 a).
-PASS2_SYSTEM_SHA256 = "fdcd47f2fee649bd82de4a664bd5af4b28c3a73b481a036a50fb52bd1525d044"
+#: UNSIGNED r17 candidate: the PI approved ``fdcd47f2...`` (r16 text); this value awaits his approval of the diff.
+PASS2_SYSTEM_SHA256 = "b96e903420aca2eb8b342da2128c9e44237fec533ba5be88d05046bcc3174bb9"
 _APPROVED = {"pass1": ("P-1", PASS1_SYSTEM_SHA256), "pass2": ("P-2", PASS2_SYSTEM_SHA256)}
 #: SHA256 (UTF-8) of the PI-approved P-2c quote-task question for ``core.activity_segment``
 #: (RC-D-021 P-2c a, reply 2 "p2c draft ok"; the text quoted in that row). It reaches the

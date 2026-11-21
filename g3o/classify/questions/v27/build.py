@@ -42,9 +42,9 @@ from g3o.codebook.loader import REPO_ROOT, Codebook, load_codebook
 #: Version stamp for the three sets (pinned in goldens and stored with answers).
 JEV_QUESTION_SET_VERSION = "g3o.classify.questions.v27.jev.1"
 
-#: Codebook r16 (RC-D-034; signed only when planning/t010/signoff-record.md holds this sha256).
+#: Codebook r17 (UNSIGNED candidate, calibration rulings 2026-11-21; signed only when planning/t010/signoff-record.md holds this sha256).
 #: A different codebook is refused.
-SIGNED_CODEBOOK_SHA256 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a"
+SIGNED_CODEBOOK_SHA256 = "02ece40474bc78708df1451dad7e3c624549bfbafb5c1871afea8ac0bdec861b"
 
 SET_DIR = Path(__file__).resolve().parent
 SET_FILES = {"page": "page.json", "activity": "activity.json", "institution": "institution.json"}
@@ -239,7 +239,7 @@ POOLED_STATE = {
 # --------------------------------------------------------------------------- build
 def _require_signed(cb: Codebook) -> None:
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
-        raise ValueError(f"codebook sha256 {cb.sha256} is not the pinned r16 {SIGNED_CODEBOOK_SHA256}")
+        raise ValueError(f"codebook sha256 {cb.sha256} is not the pinned r17 {SIGNED_CODEBOOK_SHA256}")
 
 
 def _contract_section(q: dict[str, Any]) -> str:
@@ -423,7 +423,7 @@ def check_sets(cb: Codebook | None = None, set_dir: Path = SET_DIR) -> list[str]
     cb = cb or load_codebook()
     errors: list[str] = []
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
-        return [f"codebook sha256 {cb.sha256} is not the pinned r16"]
+        return [f"codebook sha256 {cb.sha256} is not the pinned r17"]
     gen = json.loads(gen_jev_questions(cb).content)
     signed = {q["question_id"]: q for q in gen["questions"]}
 

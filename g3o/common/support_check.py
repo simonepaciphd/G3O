@@ -92,8 +92,8 @@ from typing import Any
 
 from g3o.codebook.loader import Codebook, load_codebook
 
-#: Codebook r16 (RC-D-034; signed only when planning/t010/signoff-record.md holds this sha256). Another file is refused.
-SIGNED_CODEBOOK_SHA256 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a"
+#: Codebook r17 (UNSIGNED candidate, calibration rulings 2026-11-21; signed only when planning/t010/signoff-record.md holds this sha256). Another file is refused.
+SIGNED_CODEBOOK_SHA256 = "02ece40474bc78708df1451dad7e3c624549bfbafb5c1871afea8ac0bdec861b"
 
 PINNED_RAPIDFUZZ = "3.14.3"  # DEC-007 a; RC-D-017 1a. Change only with a re-calibration (T-003).
 MATCH_METRIC = "token_set_ratio_norm"  # RC-D-017 1a
