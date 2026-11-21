@@ -1,0 +1,2223 @@
+{
+ "parts": 315,
+ "confirms_activity_parts": 68,
+ "questions": {
+  "core.action_type": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.919,
+     "p_lt_0.6": 0.073,
+     "nc_multichunk": 0.94,
+     "dist": {
+      "not covered by this part": 237,
+      "deployment": 35,
+      "governance": 31,
+      "program": 10,
+      "staff_training": 2
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.922,
+     "p_lt_0.6": 0.073,
+     "nc_multichunk": 0.944,
+     "dist": {
+      "not covered by this part": 238,
+      "deployment": 37,
+      "governance": 30,
+      "program": 7,
+      "staff_training": 3
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.812,
+     "p_lt_0.6": 0.235,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "deployment": 35,
+      "governance": 23,
+      "program": 8,
+      "staff_training": 2
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.808,
+     "p_lt_0.6": 0.235,
+     "nc_multichunk": 0.2,
+     "dist": {
+      "deployment": 37,
+      "governance": 21,
+      "program": 6,
+      "staff_training": 3,
+      "not covered by this part": 1
+     }
+    }
+   }
+  },
+  "core.activity_type": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.919,
+     "p_lt_0.6": 0.079,
+     "nc_multichunk": 0.956,
+     "dist": {
+      "not covered by this part": 241,
+      "policy_guidance": 19,
+      "public_facing_service": 19,
+      "program_initiative": 17,
+      "pilot_experiment": 11,
+      "internal_operational": 8
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.933,
+     "p_lt_0.6": 0.057,
+     "nc_multichunk": 0.96,
+     "dist": {
+      "not covered by this part": 242,
+      "public_facing_service": 21,
+      "policy_guidance": 18,
+      "program_initiative": 17,
+      "pilot_experiment": 9,
+      "internal_operational": 8
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.8,
+     "p_lt_0.6": 0.221,
+     "nc_multichunk": 0.2,
+     "dist": {
+      "public_facing_service": 19,
+      "policy_guidance": 16,
+      "program_initiative": 14,
+      "pilot_experiment": 11,
+      "internal_operational": 7,
+      "not covered by this part": 1
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.819,
+     "p_lt_0.6": 0.147,
+     "nc_multichunk": 0.2,
+     "dist": {
+      "public_facing_service": 21,
+      "policy_guidance": 15,
+      "program_initiative": 14,
+      "pilot_experiment": 9,
+      "internal_operational": 8,
+      "not covered by this part": 1
+     }
+    }
+   }
+  },
+  "core.adoption_stage": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.906,
+     "p_lt_0.6": 0.102,
+     "nc_multichunk": 0.952,
+     "dist": {
+      "not covered by this part": 240,
+      "production": 36,
+      "announced": 16,
+      "pilot": 12,
+      "proposed": 10,
+      "discontinued": 1
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.911,
+     "p_lt_0.6": 0.098,
+     "nc_multichunk": 0.968,
+     "dist": {
+      "not covered by this part": 244,
+      "production": 32,
+      "announced": 17,
+      "pilot": 11,
+      "proposed": 10,
+      "discontinued": 1
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.748,
+     "p_lt_0.6": 0.294,
+     "nc_multichunk": 0.2,
+     "dist": {
+      "production": 34,
+      "announced": 13,
+      "pilot": 11,
+      "proposed": 8,
+      "not covered by this part": 1,
+      "discontinued": 1
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.738,
+     "p_lt_0.6": 0.309,
+     "nc_multichunk": 0.4,
+     "dist": {
+      "production": 32,
+      "announced": 15,
+      "pilot": 10,
+      "proposed": 8,
+      "not covered by this part": 2,
+      "discontinued": 1
+     }
+    }
+   }
+  },
+  "core.content_contact_details": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.817,
+     "p_lt_0.6": 0.219,
+     "nc_multichunk": 0.032,
+     "dist": {
+      "no": 201,
+      "yes": 106,
+      "not covered by this part": 8
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.795,
+     "p_lt_0.6": 0.229,
+     "nc_multichunk": 0.036,
+     "dist": {
+      "no": 200,
+      "yes": 106,
+      "not covered by this part": 9
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.894,
+     "p_lt_0.6": 0.074,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 49,
+      "yes": 19
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.827,
+     "p_lt_0.6": 0.147,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 49,
+      "yes": 19
+     }
+    }
+   }
+  },
+  "core.content_contact_named": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.766,
+     "p_lt_0.6": 0.241,
+     "nc_multichunk": 0.079,
+     "dist": {
+      "no": 237,
+      "yes": 58,
+      "not covered by this part": 20
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.766,
+     "p_lt_0.6": 0.244,
+     "nc_multichunk": 0.067,
+     "dist": {
+      "no": 236,
+      "yes": 62,
+      "not covered by this part": 17
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.815,
+     "p_lt_0.6": 0.147,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "yes": 49,
+      "no": 19
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.814,
+     "p_lt_0.6": 0.147,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "yes": 49,
+      "no": 19
+     }
+    }
+   }
+  },
+  "core.content_data": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.762,
+     "p_lt_0.6": 0.238,
+     "nc_multichunk": 0.087,
+     "dist": {
+      "no": 262,
+      "yes": 31,
+      "not covered by this part": 22
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.769,
+     "p_lt_0.6": 0.248,
+     "nc_multichunk": 0.071,
+     "dist": {
+      "no": 265,
+      "yes": 32,
+      "not covered by this part": 18
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.79,
+     "p_lt_0.6": 0.191,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 44,
+      "yes": 24
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.79,
+     "p_lt_0.6": 0.191,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 44,
+      "yes": 24
+     }
+    }
+   }
+  },
+  "core.deployment_mode": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.651,
+     "p_lt_0.6": 0.356,
+     "nc_multichunk": 0.008,
+     "dist": {
+      "not_documented": 289,
+      "integrated": 18,
+      "standalone": 6,
+      "not covered by this part": 2
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.573,
+     "p_lt_0.6": 0.676,
+     "nc_multichunk": 0.063,
+     "dist": {
+      "not_documented": 273,
+      "integrated": 18,
+      "not covered by this part": 16,
+      "standalone": 8
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.794,
+     "p_lt_0.6": 0.191,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 45,
+      "integrated": 17,
+      "standalone": 6
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.797,
+     "p_lt_0.6": 0.191,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 43,
+      "integrated": 18,
+      "standalone": 7
+     }
+    }
+   }
+  },
+  "core.disclosure_form": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.836,
+     "p_lt_0.6": 0.162,
+     "nc_multichunk": 0.119,
+     "dist": {
+      "formal_record": 207,
+      "informal_official": 52,
+      "not covered by this part": 30,
+      "third_party": 25,
+      "register_single_institution": 1
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.834,
+     "p_lt_0.6": 0.2,
+     "nc_multichunk": 0.111,
+     "dist": {
+      "formal_record": 208,
+      "informal_official": 51,
+      "not covered by this part": 28,
+      "third_party": 27,
+      "register_single_institution": 1
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.891,
+     "p_lt_0.6": 0.074,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "informal_official": 29,
+      "formal_record": 24,
+      "third_party": 14,
+      "register_single_institution": 1
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.89,
+     "p_lt_0.6": 0.118,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "informal_official": 28,
+      "formal_record": 24,
+      "third_party": 15,
+      "register_single_institution": 1
+     }
+    }
+   }
+  },
+  "core.disclosure_scope": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.647,
+     "p_lt_0.6": 0.352,
+     "nc_multichunk": 0.413,
+     "dist": {
+      "single_institution": 171,
+      "not covered by this part": 104,
+      "multi_institution": 33,
+      "whole_of_government": 7
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.643,
+     "p_lt_0.6": 0.365,
+     "nc_multichunk": 0.433,
+     "dist": {
+      "single_institution": 170,
+      "not covered by this part": 109,
+      "multi_institution": 31,
+      "whole_of_government": 5
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.776,
+     "p_lt_0.6": 0.147,
+     "nc_multichunk": 0.2,
+     "dist": {
+      "single_institution": 62,
+      "multi_institution": 5,
+      "not covered by this part": 1
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.775,
+     "p_lt_0.6": 0.162,
+     "nc_multichunk": 0.2,
+     "dist": {
+      "single_institution": 63,
+      "multi_institution": 4,
+      "not covered by this part": 1
+     }
+    }
+   }
+  },
+  "core.evaluation_documented": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.739,
+     "p_lt_0.6": 0.225,
+     "nc_multichunk": 0.218,
+     "dist": {
+      "not_documented": 248,
+      "not covered by this part": 55,
+      "required_or_planned": 6,
+      "conducted_no_results": 3,
+      "results_reported": 3
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.73,
+     "p_lt_0.6": 0.21,
+     "nc_multichunk": 0.226,
+     "dist": {
+      "not_documented": 245,
+      "not covered by this part": 57,
+      "required_or_planned": 7,
+      "conducted_no_results": 3,
+      "results_reported": 3
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.818,
+     "p_lt_0.6": 0.147,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 58,
+      "required_or_planned": 5,
+      "conducted_no_results": 3,
+      "results_reported": 2
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.809,
+     "p_lt_0.6": 0.176,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 57,
+      "required_or_planned": 6,
+      "conducted_no_results": 3,
+      "results_reported": 2
+     }
+    }
+   }
+  },
+  "core.evaluation_type_bias_or_safety_testing": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.681,
+     "p_lt_0.6": 0.365,
+     "nc_multichunk": 0.242,
+     "dist": {
+      "no": 253,
+      "not covered by this part": 61,
+      "yes": 1
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.687,
+     "p_lt_0.6": 0.371,
+     "nc_multichunk": 0.242,
+     "dist": {
+      "no": 253,
+      "not covered by this part": 61,
+      "yes": 1
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.967,
+     "p_lt_0.6": 0.015,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 68
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.964,
+     "p_lt_0.6": 0.044,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 68
+     }
+    }
+   }
+  },
+  "core.evaluation_type_independent_audit": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.635,
+     "p_lt_0.6": 0.457,
+     "nc_multichunk": 0.274,
+     "dist": {
+      "no": 245,
+      "not covered by this part": 69,
+      "yes": 1
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.649,
+     "p_lt_0.6": 0.444,
+     "nc_multichunk": 0.258,
+     "dist": {
+      "no": 249,
+      "not covered by this part": 65,
+      "yes": 1
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.985,
+     "p_lt_0.6": 0.0,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 68
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.985,
+     "p_lt_0.6": 0.0,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 68
+     }
+    }
+   }
+  },
+  "core.evaluation_type_ongoing_monitoring": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.651,
+     "p_lt_0.6": 0.403,
+     "nc_multichunk": 0.234,
+     "dist": {
+      "no": 252,
+      "not covered by this part": 59,
+      "yes": 4
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.652,
+     "p_lt_0.6": 0.422,
+     "nc_multichunk": 0.234,
+     "dist": {
+      "no": 252,
+      "not covered by this part": 59,
+      "yes": 4
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.918,
+     "p_lt_0.6": 0.059,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 65,
+      "yes": 3
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.917,
+     "p_lt_0.6": 0.074,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 65,
+      "yes": 3
+     }
+    }
+   }
+  },
+  "core.evaluation_type_pilot_evaluation": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.68,
+     "p_lt_0.6": 0.327,
+     "nc_multichunk": 0.238,
+     "dist": {
+      "no": 253,
+      "not covered by this part": 60,
+      "yes": 2
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.672,
+     "p_lt_0.6": 0.371,
+     "nc_multichunk": 0.234,
+     "dist": {
+      "no": 254,
+      "not covered by this part": 59,
+      "yes": 2
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.926,
+     "p_lt_0.6": 0.059,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 66,
+      "yes": 2
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.922,
+     "p_lt_0.6": 0.074,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 66,
+      "yes": 2
+     }
+    }
+   }
+  },
+  "core.evaluation_type_pre_deployment_testing": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.652,
+     "p_lt_0.6": 0.435,
+     "nc_multichunk": 0.254,
+     "dist": {
+      "no": 248,
+      "not covered by this part": 64,
+      "yes": 3
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.678,
+     "p_lt_0.6": 0.368,
+     "nc_multichunk": 0.254,
+     "dist": {
+      "no": 248,
+      "not covered by this part": 64,
+      "yes": 3
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.935,
+     "p_lt_0.6": 0.044,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 65,
+      "yes": 3
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.934,
+     "p_lt_0.6": 0.044,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 65,
+      "yes": 3
+     }
+    }
+   }
+  },
+  "core.evaluation_type_user_feedback": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.655,
+     "p_lt_0.6": 0.444,
+     "nc_multichunk": 0.234,
+     "dist": {
+      "no": 246,
+      "not covered by this part": 59,
+      "yes": 10
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.65,
+     "p_lt_0.6": 0.454,
+     "nc_multichunk": 0.242,
+     "dist": {
+      "no": 244,
+      "not covered by this part": 61,
+      "yes": 10
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.947,
+     "p_lt_0.6": 0.059,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 62,
+      "yes": 6
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.944,
+     "p_lt_0.6": 0.059,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 62,
+      "yes": 6
+     }
+    }
+   }
+  },
+  "core.function_analysis_recommendation": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.578,
+     "p_lt_0.6": 0.584,
+     "nc_multichunk": 0.317,
+     "dist": {
+      "no": 198,
+      "not covered by this part": 80,
+      "yes": 37
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.622,
+     "p_lt_0.6": 0.479,
+     "nc_multichunk": 0.254,
+     "dist": {
+      "no": 210,
+      "not covered by this part": 64,
+      "yes": 41
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.824,
+     "p_lt_0.6": 0.162,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 48,
+      "yes": 20
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.834,
+     "p_lt_0.6": 0.162,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 46,
+      "yes": 22
+     }
+    }
+   }
+  },
+  "core.function_code": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.822,
+     "p_lt_0.6": 0.13,
+     "nc_multichunk": 0.222,
+     "dist": {
+      "no": 255,
+      "not covered by this part": 56,
+      "yes": 4
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.818,
+     "p_lt_0.6": 0.181,
+     "nc_multichunk": 0.202,
+     "dist": {
+      "no": 260,
+      "not covered by this part": 51,
+      "yes": 4
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.965,
+     "p_lt_0.6": 0.029,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 64,
+      "yes": 4
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.961,
+     "p_lt_0.6": 0.029,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 64,
+      "yes": 4
+     }
+    }
+   }
+  },
+  "core.function_drafting_writing": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.7,
+     "p_lt_0.6": 0.203,
+     "nc_multichunk": 0.238,
+     "dist": {
+      "no": 232,
+      "not covered by this part": 60,
+      "yes": 23
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.713,
+     "p_lt_0.6": 0.206,
+     "nc_multichunk": 0.226,
+     "dist": {
+      "no": 233,
+      "not covered by this part": 57,
+      "yes": 25
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.88,
+     "p_lt_0.6": 0.088,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 52,
+      "yes": 16
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.877,
+     "p_lt_0.6": 0.103,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 52,
+      "yes": 16
+     }
+    }
+   }
+  },
+  "core.function_extraction_classification": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.724,
+     "p_lt_0.6": 0.159,
+     "nc_multichunk": 0.222,
+     "dist": {
+      "no": 256,
+      "not covered by this part": 56,
+      "yes": 3
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.745,
+     "p_lt_0.6": 0.162,
+     "nc_multichunk": 0.202,
+     "dist": {
+      "no": 260,
+      "not covered by this part": 51,
+      "yes": 4
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.964,
+     "p_lt_0.6": 0.015,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 66,
+      "yes": 2
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.963,
+     "p_lt_0.6": 0.015,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 66,
+      "yes": 2
+     }
+    }
+   }
+  },
+  "core.function_image_audio_video": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.769,
+     "p_lt_0.6": 0.089,
+     "nc_multichunk": 0.226,
+     "dist": {
+      "no": 244,
+      "not covered by this part": 57,
+      "yes": 14
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.75,
+     "p_lt_0.6": 0.222,
+     "nc_multichunk": 0.202,
+     "dist": {
+      "no": 247,
+      "not covered by this part": 51,
+      "yes": 17
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.895,
+     "p_lt_0.6": 0.088,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 62,
+      "yes": 6
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.898,
+     "p_lt_0.6": 0.103,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 60,
+      "yes": 8
+     }
+    }
+   }
+  },
+  "core.function_search_retrieval": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.649,
+     "p_lt_0.6": 0.403,
+     "nc_multichunk": 0.242,
+     "dist": {
+      "no": 223,
+      "not covered by this part": 61,
+      "yes": 31
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.687,
+     "p_lt_0.6": 0.19,
+     "nc_multichunk": 0.214,
+     "dist": {
+      "no": 228,
+      "not covered by this part": 54,
+      "yes": 33
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.834,
+     "p_lt_0.6": 0.162,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 47,
+      "yes": 21
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.825,
+     "p_lt_0.6": 0.176,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 45,
+      "yes": 23
+     }
+    }
+   }
+  },
+  "core.function_summarization": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.738,
+     "p_lt_0.6": 0.159,
+     "nc_multichunk": 0.218,
+     "dist": {
+      "no": 248,
+      "not covered by this part": 55,
+      "yes": 12
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.758,
+     "p_lt_0.6": 0.206,
+     "nc_multichunk": 0.202,
+     "dist": {
+      "no": 252,
+      "not covered by this part": 51,
+      "yes": 12
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.942,
+     "p_lt_0.6": 0.044,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 58,
+      "yes": 10
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.943,
+     "p_lt_0.6": 0.029,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 58,
+      "yes": 10
+     }
+    }
+   }
+  },
+  "core.function_translation": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.785,
+     "p_lt_0.6": 0.181,
+     "nc_multichunk": 0.202,
+     "dist": {
+      "no": 255,
+      "not covered by this part": 51,
+      "yes": 9
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.787,
+     "p_lt_0.6": 0.178,
+     "nc_multichunk": 0.155,
+     "dist": {
+      "no": 267,
+      "not covered by this part": 39,
+      "yes": 9
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.981,
+     "p_lt_0.6": 0.015,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 64,
+      "yes": 4
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.983,
+     "p_lt_0.6": 0.0,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "no": 64,
+      "yes": 4
+     }
+    }
+   }
+  },
+  "core.genai_mechanism_basis": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.912,
+     "p_lt_0.6": 0.089,
+     "nc_multichunk": 0.925,
+     "dist": {
+      "not covered by this part": 233,
+      "explicit_genai_label": 28,
+      "named_genai_product_or_model": 24,
+      "ai_chatbot_or_assistant_label_only": 19,
+      "generative_capability_described": 11
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.918,
+     "p_lt_0.6": 0.079,
+     "nc_multichunk": 0.925,
+     "dist": {
+      "not covered by this part": 233,
+      "explicit_genai_label": 28,
+      "named_genai_product_or_model": 23,
+      "ai_chatbot_or_assistant_label_only": 21,
+      "generative_capability_described": 10
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.746,
+     "p_lt_0.6": 0.279,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "explicit_genai_label": 22,
+      "named_genai_product_or_model": 18,
+      "ai_chatbot_or_assistant_label_only": 17,
+      "generative_capability_described": 11
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.757,
+     "p_lt_0.6": 0.294,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "explicit_genai_label": 23,
+      "ai_chatbot_or_assistant_label_only": 18,
+      "named_genai_product_or_model": 17,
+      "generative_capability_described": 10
+     }
+    }
+   }
+  },
+  "core.governance_form": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.674,
+     "p_lt_0.6": 0.384,
+     "nc_multichunk": 0.079,
+     "dist": {
+      "not_documented": 249,
+      "dedicated_genai_or_ai_policy_or_guideline": 29,
+      "not covered by this part": 20,
+      "clause_in_instrument_on_other_subject": 11,
+      "approved_tool_list_or_endorsement": 4,
+      "procurement_standard": 1,
+      "court_or_regulatory_order": 1
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.662,
+     "p_lt_0.6": 0.384,
+     "nc_multichunk": 0.083,
+     "dist": {
+      "not_documented": 250,
+      "dedicated_genai_or_ai_policy_or_guideline": 29,
+      "not covered by this part": 21,
+      "clause_in_instrument_on_other_subject": 11,
+      "approved_tool_list_or_endorsement": 2,
+      "procurement_standard": 1,
+      "court_or_regulatory_order": 1
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.765,
+     "p_lt_0.6": 0.25,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 33,
+      "dedicated_genai_or_ai_policy_or_guideline": 23,
+      "clause_in_instrument_on_other_subject": 6,
+      "approved_tool_list_or_endorsement": 4,
+      "procurement_standard": 1,
+      "court_or_regulatory_order": 1
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.77,
+     "p_lt_0.6": 0.221,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 35,
+      "dedicated_genai_or_ai_policy_or_guideline": 23,
+      "clause_in_instrument_on_other_subject": 6,
+      "approved_tool_list_or_endorsement": 2,
+      "procurement_standard": 1,
+      "court_or_regulatory_order": 1
+     }
+    }
+   }
+  },
+  "core.incident_kind": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.598,
+     "p_lt_0.6": 0.517,
+     "nc_multichunk": 0.369,
+     "dist": {
+      "none_reported": 188,
+      "not covered by this part": 93,
+      "qualitative": 30,
+      "quantified": 4
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.637,
+     "p_lt_0.6": 0.479,
+     "nc_multichunk": 0.31,
+     "dist": {
+      "none_reported": 197,
+      "not covered by this part": 78,
+      "qualitative": 37,
+      "quantified": 3
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.843,
+     "p_lt_0.6": 0.191,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "none_reported": 61,
+      "qualitative": 7
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.89,
+     "p_lt_0.6": 0.118,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "none_reported": 61,
+      "qualitative": 7
+     }
+    }
+   }
+  },
+  "core.interface": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.579,
+     "p_lt_0.6": 0.508,
+     "nc_multichunk": 0.02,
+     "dist": {
+      "not_documented": 273,
+      "conversational": 21,
+      "other_interface": 14,
+      "not covered by this part": 5,
+      "backend_or_api": 2
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.595,
+     "p_lt_0.6": 0.521,
+     "nc_multichunk": 0.095,
+     "dist": {
+      "not_documented": 245,
+      "conversational": 27,
+      "not covered by this part": 24,
+      "other_interface": 17,
+      "backend_or_api": 2
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.69,
+     "p_lt_0.6": 0.265,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 41,
+      "conversational": 20,
+      "other_interface": 5,
+      "backend_or_api": 2
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.769,
+     "p_lt_0.6": 0.191,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 39,
+      "conversational": 23,
+      "other_interface": 4,
+      "backend_or_api": 2
+     }
+    }
+   }
+  },
+  "core.observed_actor_relationship": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.511,
+     "p_lt_0.6": 0.657,
+     "nc_multichunk": 0.048,
+     "dist": {
+      "this_institution": 91,
+      "unit_of_institution": 87,
+      "not_documented": 73,
+      "other": 41,
+      "not covered by this part": 12,
+      "joint_participant": 11
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.54,
+     "p_lt_0.6": 0.578,
+     "nc_multichunk": 0.06,
+     "dist": {
+      "this_institution": 92,
+      "unit_of_institution": 90,
+      "not_documented": 63,
+      "other": 44,
+      "not covered by this part": 15,
+      "joint_participant": 11
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.681,
+     "p_lt_0.6": 0.397,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "this_institution": 34,
+      "unit_of_institution": 26,
+      "joint_participant": 7,
+      "not_documented": 1
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.694,
+     "p_lt_0.6": 0.368,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "this_institution": 34,
+      "unit_of_institution": 26,
+      "joint_participant": 7,
+      "not_documented": 1
+     }
+    }
+   }
+  },
+  "core.observed_actor_relationship#searched_institution_role": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.512,
+     "p_lt_0.6": 0.603,
+     "nc_multichunk": 0.079,
+     "dist": {
+      "not_documented": 176,
+      "unit": 60,
+      "contracting_authority": 37,
+      "not covered by this part": 20,
+      "joint": 19,
+      "beneficiary": 3
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.546,
+     "p_lt_0.6": 0.552,
+     "nc_multichunk": 0.044,
+     "dist": {
+      "not_documented": 201,
+      "contracting_authority": 64,
+      "joint": 25,
+      "not covered by this part": 11,
+      "unit": 10,
+      "beneficiary": 4
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.568,
+     "p_lt_0.6": 0.603,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "unit": 34,
+      "contracting_authority": 12,
+      "not_documented": 10,
+      "joint": 10,
+      "beneficiary": 2
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.544,
+     "p_lt_0.6": 0.632,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "contracting_authority": 21,
+      "not_documented": 20,
+      "joint": 17,
+      "unit": 7,
+      "beneficiary": 3
+     }
+    }
+   }
+  },
+  "core.observed_actor_role": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.532,
+     "p_lt_0.6": 0.698,
+     "nc_multichunk": 0.048,
+     "dist": {
+      "not_documented": 187,
+      "institutional_actor": 62,
+      "issuer": 47,
+      "not covered by this part": 12,
+      "participant": 7
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.6,
+     "p_lt_0.6": 0.533,
+     "nc_multichunk": 0.04,
+     "dist": {
+      "not_documented": 201,
+      "institutional_actor": 65,
+      "issuer": 34,
+      "not covered by this part": 10,
+      "participant": 5
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.742,
+     "p_lt_0.6": 0.265,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "institutional_actor": 47,
+      "issuer": 17,
+      "participant": 3,
+      "not_documented": 1
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.763,
+     "p_lt_0.6": 0.265,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "institutional_actor": 46,
+      "issuer": 18,
+      "participant": 3,
+      "not_documented": 1
+     }
+    }
+   }
+  },
+  "core.outcome_kind": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.469,
+     "p_lt_0.6": 0.708,
+     "nc_multichunk": 0.44,
+     "dist": {
+      "not covered by this part": 111,
+      "quantified": 109,
+      "none_reported": 69,
+      "qualitative": 26
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.489,
+     "p_lt_0.6": 0.644,
+     "nc_multichunk": 0.409,
+     "dist": {
+      "quantified": 111,
+      "not covered by this part": 103,
+      "none_reported": 90,
+      "qualitative": 11
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.627,
+     "p_lt_0.6": 0.441,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "none_reported": 38,
+      "quantified": 18,
+      "qualitative": 12
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.68,
+     "p_lt_0.6": 0.353,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "none_reported": 44,
+      "quantified": 17,
+      "qualitative": 7
+     }
+    }
+   }
+  },
+  "core.page_verdict": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.811,
+     "p_lt_0.6": 0.159,
+     "nc_multichunk": 0.21,
+     "dist": {
+      "no_genai": 179,
+      "confirms_activity": 68,
+      "not covered by this part": 53,
+      "ambiguous_genai": 7,
+      "other_body": 5,
+      "background_only": 3
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.81,
+     "p_lt_0.6": 0.171,
+     "nc_multichunk": 0.21,
+     "dist": {
+      "no_genai": 183,
+      "confirms_activity": 67,
+      "not covered by this part": 53,
+      "other_body": 6,
+      "ambiguous_genai": 3,
+      "background_only": 3
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.804,
+     "p_lt_0.6": 0.176,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "confirms_activity": 68
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.823,
+     "p_lt_0.6": 0.162,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "confirms_activity": 66,
+      "no_genai": 1,
+      "other_body": 1
+     }
+    }
+   }
+  },
+  "core.service_domain": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.716,
+     "p_lt_0.6": 0.276,
+     "nc_multichunk": 0.056,
+     "dist": {
+      "general_public_services": 102,
+      "not_documented": 51,
+      "education": 30,
+      "public_order_safety": 28,
+      "economic_affairs": 28,
+      "environmental_protection": 21,
+      "housing_community_amenities": 18,
+      "not covered by this part": 14,
+      "health": 11,
+      "recreation_culture_religion": 7,
+      "social_protection": 5
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.696,
+     "p_lt_0.6": 0.33,
+     "nc_multichunk": 0.044,
+     "dist": {
+      "general_public_services": 92,
+      "not_documented": 59,
+      "public_order_safety": 31,
+      "education": 30,
+      "economic_affairs": 29,
+      "environmental_protection": 24,
+      "housing_community_amenities": 18,
+      "not covered by this part": 11,
+      "health": 9,
+      "social_protection": 6,
+      "recreation_culture_religion": 6
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.847,
+     "p_lt_0.6": 0.132,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "general_public_services": 27,
+      "education": 17,
+      "economic_affairs": 9,
+      "recreation_culture_religion": 5,
+      "public_order_safety": 3,
+      "environmental_protection": 2,
+      "social_protection": 2,
+      "housing_community_amenities": 1,
+      "not_documented": 1,
+      "health": 1
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.844,
+     "p_lt_0.6": 0.162,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "general_public_services": 26,
+      "education": 17,
+      "economic_affairs": 9,
+      "public_order_safety": 4,
+      "recreation_culture_religion": 4,
+      "environmental_protection": 2,
+      "not_documented": 2,
+      "social_protection": 2,
+      "housing_community_amenities": 1,
+      "health": 1
+     }
+    }
+   }
+  },
+  "core.source_type": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.632,
+     "p_lt_0.6": 0.432,
+     "nc_multichunk": 0.008,
+     "dist": {
+      "other": 188,
+      "not_documented": 46,
+      "procurement_tender": 30,
+      "policy_org": 19,
+      "academic": 11,
+      "vendor": 10,
+      "news_major": 5,
+      "news_trade": 4,
+      "not covered by this part": 2
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.852,
+     "p_lt_0.6": 0.156,
+     "nc_multichunk": 0.008,
+     "dist": {
+      "other": 273,
+      "procurement_tender": 20,
+      "academic": 6,
+      "news_major": 5,
+      "vendor": 5,
+      "news_trade": 3,
+      "not covered by this part": 2,
+      "policy_org": 1
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.642,
+     "p_lt_0.6": 0.426,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "other": 40,
+      "policy_org": 8,
+      "vendor": 7,
+      "news_major": 5,
+      "news_trade": 4,
+      "procurement_tender": 2,
+      "academic": 2
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.907,
+     "p_lt_0.6": 0.088,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "other": 51,
+      "news_major": 5,
+      "vendor": 4,
+      "news_trade": 3,
+      "procurement_tender": 2,
+      "academic": 2,
+      "policy_org": 1
+     }
+    }
+   }
+  },
+  "core.target_users": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.729,
+     "p_lt_0.6": 0.181,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 252,
+      "public": 29,
+      "internal_staff": 26,
+      "both": 8
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.59,
+     "p_lt_0.6": 0.448,
+     "nc_multichunk": 0.004,
+     "dist": {
+      "not_documented": 216,
+      "public": 59,
+      "internal_staff": 24,
+      "both": 15,
+      "not covered by this part": 1
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.753,
+     "p_lt_0.6": 0.279,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "public": 27,
+      "internal_staff": 21,
+      "not_documented": 12,
+      "both": 8
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.659,
+     "p_lt_0.6": 0.397,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "public": 25,
+      "not_documented": 19,
+      "internal_staff": 17,
+      "both": 7
+     }
+    }
+   }
+  },
+  "core.year_announced": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.444,
+     "p_lt_0.6": 0.733,
+     "nc_multichunk": 0.087,
+     "dist": {
+      "not_documented": 227,
+      "not covered by this part": 22,
+      "2024": 16,
+      "2025": 9,
+      "2019": 7,
+      "2021": 7,
+      "2026": 5,
+      "2023": 5,
+      "2022": 4,
+      "2018": 4,
+      "2020": 3,
+      "2015": 3,
+      "2017": 2,
+      "2016": 1
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.419,
+     "p_lt_0.6": 0.781,
+     "nc_multichunk": 0.282,
+     "dist": {
+      "not_documented": 170,
+      "not covered by this part": 71,
+      "2024": 15,
+      "2025": 11,
+      "2019": 9,
+      "2021": 7,
+      "2026": 7,
+      "2023": 6,
+      "2020": 5,
+      "2022": 4,
+      "2018": 4,
+      "2015": 3,
+      "2017": 2,
+      "2016": 1
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.713,
+     "p_lt_0.6": 0.294,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 43,
+      "2024": 9,
+      "2025": 7,
+      "2026": 5,
+      "2022": 1,
+      "2021": 1,
+      "2023": 1,
+      "2019": 1
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.707,
+     "p_lt_0.6": 0.324,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 41,
+      "2024": 9,
+      "2025": 8,
+      "2026": 6,
+      "2022": 1,
+      "2021": 1,
+      "2023": 1,
+      "2019": 1
+     }
+    }
+   }
+  },
+  "core.year_pilot_start": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.626,
+     "p_lt_0.6": 0.359,
+     "nc_multichunk": 0.036,
+     "dist": {
+      "not_documented": 283,
+      "not covered by this part": 9,
+      "2025": 5,
+      "2024": 4,
+      "2020": 3,
+      "2019": 3,
+      "2026": 2,
+      "2018": 2,
+      "2022": 1,
+      "2021": 1,
+      "2017": 1,
+      "2023": 1
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.564,
+     "p_lt_0.6": 0.454,
+     "nc_multichunk": 0.147,
+     "dist": {
+      "not_documented": 250,
+      "not covered by this part": 37,
+      "2025": 5,
+      "2020": 5,
+      "2024": 5,
+      "2019": 3,
+      "2022": 3,
+      "2026": 2,
+      "2018": 2,
+      "2021": 1,
+      "2017": 1,
+      "2023": 1
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.874,
+     "p_lt_0.6": 0.118,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 60,
+      "2024": 3,
+      "2026": 2,
+      "2025": 2,
+      "2019": 1
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.866,
+     "p_lt_0.6": 0.132,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 59,
+      "2024": 3,
+      "2026": 2,
+      "2025": 2,
+      "2022": 1,
+      "2019": 1
+     }
+    }
+   }
+  },
+  "core.year_production_start": {
+   "all_parts": {
+    "t016": {
+     "n": 315,
+     "mean_p": 0.559,
+     "p_lt_0.6": 0.479,
+     "nc_multichunk": 0.115,
+     "dist": {
+      "not_documented": 279,
+      "not covered by this part": 29,
+      "2025": 3,
+      "2024": 2,
+      "2022": 1,
+      "2023": 1
+     }
+    },
+    "r9": {
+     "n": 315,
+     "mean_p": 0.527,
+     "p_lt_0.6": 0.552,
+     "nc_multichunk": 0.274,
+     "dist": {
+      "not_documented": 237,
+      "not covered by this part": 69,
+      "2025": 3,
+      "2024": 2,
+      "2022": 1,
+      "2023": 1,
+      "2020": 1,
+      "2017": 1
+     }
+    }
+   },
+   "confirms_activity": {
+    "t016": {
+     "n": 68,
+     "mean_p": 0.882,
+     "p_lt_0.6": 0.074,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 64,
+      "2025": 2,
+      "2024": 2
+     }
+    },
+    "r9": {
+     "n": 68,
+     "mean_p": 0.883,
+     "p_lt_0.6": 0.059,
+     "nc_multichunk": 0.0,
+     "dist": {
+      "not_documented": 64,
+      "2025": 2,
+      "2024": 2
+     }
+    }
+   }
+  }
+ },
+ "entailment": {
+  "activity_type": {
+   "t016": {
+    "false": 40
+   },
+   "r9": {
+    "false": 31,
+    "true": 9
+   }
+  },
+  "adoption_stage": {
+   "t016": {
+    "false": 33,
+    "true": 2
+   },
+   "r9": {
+    "true": 10,
+    "false": 25
+   }
+  },
+  "deployment_mode": {
+   "t016": {
+    "false": 30,
+    "true": 1
+   },
+   "r9": {
+    "false": 31
+   }
+  },
+  "has_data_classification": {
+   "t016": {
+    "false": 2
+   },
+   "r9": {
+    "false": 2
+   }
+  },
+  "has_human_oversight": {
+   "t016": {
+    "true": 2,
+    "false": 4
+   },
+   "r9": {
+    "true": 2,
+    "false": 4
+   }
+  },
+  "has_risk_assessment": {
+   "t016": {
+    "false": 4
+   },
+   "r9": {
+    "false": 4
+   }
+  },
+  "has_transparency_notice": {
+   "t016": {
+    "false": 5,
+    "true": 1
+   },
+   "r9": {
+    "false": 6
+   }
+  },
+  "target_users": {
+   "t016": {
+    "false": 37,
+    "true": 1
+   },
+   "r9": {
+    "false": 36,
+    "true": 2
+   }
+  },
+  "year_announced": {
+   "t016": {
+    "false": 18,
+    "true": 6
+   },
+   "r9": {
+    "false": 22,
+    "true": 2
+   }
+  }
+ }
+}
