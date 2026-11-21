@@ -385,11 +385,15 @@ def test_pair_parts_union_without_duplicates():
     assert "[[A2]]" in last and "[[A1]]" not in last
 
 
-def test_pair_same_start_is_unresolved_and_other_pairs_continue():
-    inp = make_page(TEXT, spans=[span("one", *A1), span("two", A1[0], A1[1]-1), span("three", *A2)])
-    pairs, ties = jac.plan_pairs(inp)
-    assert ties == (("one", "two"),)
-    assert {(p.lhs.activity_id, p.rhs.activity_id) for p in pairs} == {("one", "three"), ("two", "three")}
+def test_pair_same_start_is_tie_broken_by_activity_id_and_other_pairs_continue():
+    # PI ruling on the calibration defect report, Def4 D4-C: deterministic order, then ask once.
+    for order in (("one", "two", "three"), ("two", "three", "one")):
+        spans = {"one": span("one", *A1), "two": span("two", A1[0], A1[1]-1), "three": span("three", *A2)}
+        inp = make_page(TEXT, spans=[spans[a] for a in order])
+        pairs, ties = jac.plan_pairs(inp)
+        assert ties == (("one", "two"),)  # (lhs, rhs) of each pair ordered by the tie-break
+        assert {(p.lhs.activity_id, p.rhs.activity_id) for p in pairs} == {
+            ("one", "two"), ("one", "three"), ("two", "three")}
 
 
 def pair_config():
@@ -438,10 +442,10 @@ def test_pair_failure_and_tie_remain_local():
             return JevResult({}, "jev", None, 1, 1)
         return fake(state, questions)
     res = jac.code_page(inp, ask, pair_config())
-    assert jac.PAIR_DIRECTION_TIE + ":one:same_start" in res.notes
-    assert len(res.pairs) == 2
+    assert jac.PAIR_DIRECTION_TIE_BREAK + ":one:same_start" in res.notes
+    assert len(res.pairs) == 3
     assert all(p.outcome.failed for p in res.pairs)
-    assert all(f.linked_activity == "two" for f in res.failures)
+    assert {f.linked_activity for f in res.failures} == {"same_start", "two"}
     assert all(a.outcomes["core.activity_type"].state == "combined" for a in res.activities)
 
 

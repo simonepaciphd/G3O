@@ -319,7 +319,8 @@ def activity_pair_question(cb: Codebook) -> dict[str, Any]:
              approval="approved", approval_record='PI 2026-11-07 "Approve exact wording"',
              unit="unordered pair of resolved page activity spans; lhs starts earlier",
              state_fields={"activity": "lhs activity label", "linked_activity": "rhs activity label"},
-             same_start="stop affected pair: pair_direction_tie")
+             same_start="tie-break: the lower activity id is lhs, then the pair is asked once: "
+                        "pair_direction_tie_break")  # calibration Def4 D4-C, PI 2026-11-20
     return _entry(q)
 
 

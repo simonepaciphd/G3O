@@ -3823,7 +3823,7 @@
         "activity": "lhs activity label",
         "linked_activity": "rhs activity label"
       },
-      "same_start": "stop affected pair: pair_direction_tie",
+      "same_start": "tie-break: the lower activity id is lhs, then the pair is asked once: pair_direction_tie_break",
       "jev_type": "Choice"
     }
   ],

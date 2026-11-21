@@ -667,3 +667,37 @@ def test_unreviewed_row_with_an_artifact_is_not_counted_either_102a(tmp_path):
     row["page_content_sha256"] = sha256_text("another page")
     with pytest.raises(ValueError, match="hash mismatch"):
         StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def _date_upper_bound_support(data, date_target):
+    """A rule-set ``core.date_upper_bound`` support on source S1, which the storage validator accepts
+    only with its ``date_target`` (no producer emits one today; this is the D-007 record form)."""
+    support = {"item_id": "core.date_upper_bound", "item_part": None, "value_json": "no", "observation_id": "O1",
+               "source_id": "S1", "chunk_id": "C1", "supporting_text": "", "support_status": "set_by_rule",
+               "support_rule_name": "fixture-upper-bound-rule", "support_status_second_reason": "not_asked",
+               "uncertainty_flags": [], "input_support_ids": [], "support_text_sha256": sha256_text(""),
+               "page_content_sha256": data["sources"]["S1"]["page_content_sha256"],
+               "passage": {"start": 0, "end": 0}, "date_target": date_target}
+    support["support_id"] = support_id("R1", data["institution_uid"], support)
+    return support
+
+
+def test_date_target_is_part_of_the_support_key(tmp_path):
+    """Calibration session-3 spec conflict 9: two upper-bound supports that differ only in the date
+    they bound are two records, so they must not share one support id."""
+    data, record, _, _ = fixture_bundle(tmp_path)
+    one = _date_upper_bound_support(data, "core.source_publication_date")
+    two = _date_upper_bound_support(data, "core.stage_as_of")
+    assert one["support_id"] != two["support_id"]
+    data["sources"]["S1"]["item_support"].extend([one, two])
+    StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_support_key_without_date_target_is_unchanged():
+    """Records that carry no date_target keep the support ids they had before the date_target key."""
+    record = {"item_id": "core.tool_name", "item_part": None, "value_json": "Tool beta", "observation_id": "O2",
+              "source_id": "S2", "chunk_id": "C2", "support_text_sha256": sha256_text("Second quote: Tool beta."),
+              "passage": {"start": 29, "end": 53}}
+    keys = ("item_id", "item_part", "value_json", "observation_id", "source_id", "chunk_id",
+            "support_text_sha256", "passage")
+    assert support_id("R1", "U1", record) == sha256_text(canonical_json(["R1", "U1", *[record[k] for k in keys]]))

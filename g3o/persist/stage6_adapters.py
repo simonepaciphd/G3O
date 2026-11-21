@@ -58,6 +58,7 @@ from g3o.common.jev_record import CoderRecord
 from g3o.common.response_v27 import ConsolidatedInstitutionResponseV27, check_storage_binding
 from g3o.common.storage import (
     CHANNELS,
+    LINKED_OBSERVATION,
     METADATA_ITEMS,
     QUOTE_SEGMENT,
     StorageEnvelope,
@@ -158,6 +159,8 @@ class SupportContext:
     source_id: str | None
     # Scoped to this observation/code; None = the derived-flag producer has not run.
     uncertainty_flags: Sequence[str] | None
+    # A within-page pair node: the other (rhs) observation of the pair (D3-A, pair-keyed support).
+    linked_observation_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -184,6 +187,8 @@ def support_nodes(result: SupportResult, sources: PageSources, artifact: PageArt
     _instrument_matcher(instrument)
     if ctx.source_id is not None and artifact.source_id != ctx.source_id:
         raise ValueError("page artifact belongs to another source claim")
+    if (getattr(result, "linked_activity", None) is None) != (ctx.linked_observation_id is None):
+        raise ValueError("a pair support needs the linked observation of its pair, and only a pair support has one")
     artifact.verify(sources)
     quote, rejected = result.supporting_text, None
     segment = span = match = None
@@ -213,10 +218,12 @@ def support_nodes(result: SupportResult, sources: PageSources, artifact: PageArt
             "support_status_second_reason": second,
             "uncertainty_flags": list(ctx.uncertainty_flags),
             "page_content_sha256": artifact.sha256}
+    passage = {QUOTE_SEGMENT: segment, "segment_span": None if span is None else list(span)}
+    if ctx.linked_observation_id is not None:
+        passage[LINKED_OBSERVATION] = ctx.linked_observation_id
     original = {**base, "value_json": result.original_value, "supporting_text": quote or "",
                 "support_status": result.support_status, "input_support_ids": [],
-                "support_text_sha256": sha256_text(quote or ""),
-                "passage": {QUOTE_SEGMENT: segment, "segment_span": None if span is None else list(span)}}
+                "support_text_sha256": sha256_text(quote or ""), "passage": passage}
     original["support_id"] = support_id(ctx.run_id, ctx.institution_uid, original)
     final = None
     if result.value != result.original_value:
