@@ -23,6 +23,12 @@ logger = logging.getLogger(__name__)
 FIRST_LINE_MAX_LINES = 3
 
 
+class UnreadPdfText(str):
+    """What :func:`extract_text` returns when pdfplumber raised: the same characters
+    (whatever was read before the error), marked so :func:`first_line_heading` can
+    tell an unread document (not measured) from a read, empty one."""
+
+
 def first_line_heading(text: str) -> str | None:
     """A PDF's first heading (Def7, D7-1 (b), PI ruling 2026-11-20): the first non-empty line of ``text``.
 
@@ -31,9 +37,10 @@ def first_line_heading(text: str) -> str | None:
     :data:`~g3o.scrape.html.FIRST_HEADING_MAX_CHARS` characters is skipped, and
     only the first :data:`FIRST_LINE_MAX_LINES` non-empty lines are tried.
     ``""`` = measured, no heading (empty text, or every tried line too long);
-    ``None`` = not measured (pdfplumber missing).
+    ``None`` = not measured (pdfplumber missing, or it raised during extraction:
+    :class:`UnreadPdfText`).
     """
-    if not PDF_SUPPORT:
+    if not PDF_SUPPORT or isinstance(text, UnreadPdfText):
         return None
     tried = 0
     for raw in text.splitlines():
@@ -79,6 +86,7 @@ def extract_text(content: bytes) -> str:
                 page.get_textmap.cache_clear()
     except Exception as exc:
         logger.warning("PDF extraction error: %s", exc)
+        return UnreadPdfText("\n\n".join(parts))
     return "\n\n".join(parts)
 
 
