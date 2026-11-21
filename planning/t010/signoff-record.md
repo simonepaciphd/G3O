@@ -1,6 +1,24 @@
-# T-010 signature record: release 2.7, r16 (RC-D-034)
+# T-010 signature record: release 2.7, r17 (RC-D-045)
 
 ## Current signature authorization
+
+| | |
+|---|---|
+| sha256 | `71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4` |
+| File | `codebook/codebook.yaml` |
+| Branch, commit | `reclass/o1121-r17`, `3229e21` (committed blob `916bdf6e9bedb90e2ab66001a2eca9bf32045fff`; CRLF, `codebook/.gitattributes` `-text`; 12,881 lines); this record is on `codebook/r17-20261121` |
+| Release | `2.7` |
+| Approver | Simone Paci |
+| Date | 2026-11-21, in chat |
+| Recorder | G3O plan integrator `20261121-claude-v2-55bc915111fad15d` (Claude Code, claude-fable-5-2) (DEC-012 a; integrator by the PI's word of 2026-11-21) |
+
+- **Words, verbatim:** "signed, go ahead", the entire reply, given in the integrator session to the message that put this file to the PI for signature. That message showed this sha256, asked for the signature in words on it, and asked for approval of the prompt diff with it. The hash itself was not pasted back (same practice as r14, r15 and r16); this record takes "signed" as the signature of that hash and as the approval of the prompt diff (ruling P, 2026-11-21: "approve after the development check, together with the signature").
+- **What was put to the PI:** the rebuilt r17 file above; the table of every approval note before and after the rebuild; the prompt diff against signed r16, with the pins pass 1 `2024c61dc6c1600c1f9b20b9acd4ff5fd3c02627f47579269b5ddd08055a6d2b` and pass 2 `b96e903420aca2eb8b342da2128c9e44237fec533ba5be88d05046bcc3174bb9` (the Stage 6 quote instruction and the X35 instruction are unchanged from r16); the test results on commit `12569e3` (targeted unit batch of 32 files: 1,645 passed, 2 failed, both the two tests that read this record; end-to-end batch of 14 files: 396 passed); and what stands behind the text: a development check on 59 already-read pages, which is a check and not evidence, and no test on unread pages. The codebook checks were run before the signature on the candidate: 1 to 16 pass except 4 (this record). With `--previous` r16, check 12 flags `core.genai_mechanism_basis` (the value-list change below; C-007).
+- **What r17 changes from r16:** the construct is AI adoption: any activity the institution's own page calls AI or machine learning counts, and generative AI is recorded as an attribute (`release.construct`; `core.page_verdict` and the other verdict values, labels and support-check labels follow; the generative attribute's own labels are unchanged). Staff training that the institution directs at public-sector staff is a confirmed activity. Content the institution publishes and credits to an AI tool counts. A rule the institution issues for others it regulates counts; a vendor page naming the institution as client counts; a ministry or department of a named government counts for that government. `ambiguous_genai` keeps its code and means that AI is mentioned at the institution but no specific activity can be made out. `core.genai_mechanism_basis` gains the value `no_generative_signal` (support status `not_required`; after the four generative signs in the long-page order): a value-list change that rides release 2.7's own two contract steps, label unchanged (C-007, as r16). `core.rule.genai_boundary`: the translation slot is rewritten. The title rule (`core.source_url`, `core.source_title`, `core.source_access_date`) defines the first heading and the PDF first line as the code produces them. 113 slot texts change in all; each keeps its r16 text beside it. Every change is traced to a ruling in `planning/t010/r17-provenance.json`.
+- **Known limits recorded with the signature:** discovery, URL triage, the official-site prompt and the eligibility screen still search for generative AI (decided after the second confirmation run); the attribute items were written for generative tools and are left as signed; five explanatory `jev_missing_choice` strings still quote r16 text and are not sent to a model.
+- Frozen CX items remain covered by the existing batch-signature form (RC-D-004); the list below is unchanged.
+
+## Superseded signature authorization (r16, `381e41f8…`)
 
 | | |
 |---|---|

@@ -1,7 +1,7 @@
 {
   "format": "g3o-d007-field-map-v1",
   "state": "PI_APPROVED_LOCAL_IMPLEMENTATION",
-  "codebook_sha256": "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a",
+  "codebook_sha256": "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4",
   "rows": [
     {
       "item_id": "core.page_verdict",
@@ -2023,7 +2023,8 @@
         "named_genai_product_or_model",
         "explicit_genai_label",
         "generative_capability_described",
-        "ai_chatbot_or_assistant_label_only"
+        "ai_chatbot_or_assistant_label_only",
+        "no_generative_signal"
       ],
       "missing_tokens": [
         "not_asked",
@@ -2165,7 +2166,7 @@
       "level": [
         "activity"
       ],
-      "answer_type": "number",
+      "answer_type": "text",
       "visibility": "public",
       "coder": "quote_step",
       "storage_targets": [
