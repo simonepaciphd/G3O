@@ -181,6 +181,11 @@ def email_domain_counts(emails: list[str] | str) -> list[dict[str, Any]] | str:
 
 QUOTE_SEGMENT = "quote_segment"  # passage discriminator: the quote is checked by R-042 on a named segment
 QUOTE_SOURCE = "quote_source_id"  # pooled supports also name the input source claim the segment belongs to
+#: The within-page pair item (activity_relation_within_page). Its stored node is pair-keyed (RC-D-024
+#: "pair-keyed support provenance"; calibration Def3 D3-A, PI 2026-11-20): the passage names the other
+#: observation of the pair, so two pairs that share the lhs observation never share a support id.
+PAIR_ITEM = "core.activity_segment"
+LINKED_OBSERVATION = "linked_observation_id"
 
 
 def _segment_text(record: dict[str, Any], page_text: str, *, pooled: bool) -> str | None:
@@ -191,7 +196,8 @@ def _segment_text(record: dict[str, Any], page_text: str, *, pooled: bool) -> st
     its span locates it in the stored page artifact.
     """
     passage = record["passage"]
-    keys = {QUOTE_SEGMENT, "segment_span"} | ({QUOTE_SOURCE} if pooled else set())
+    keys = ({QUOTE_SEGMENT, "segment_span"} | ({QUOTE_SOURCE} if pooled else set())
+            | ({LINKED_OBSERVATION} if LINKED_OBSERVATION in passage else set()))  # checked in _validate_support
     if set(passage) != keys:
         raise ValueError(f"segment passage requires exactly {sorted(keys)}")
     if passage[QUOTE_SEGMENT] is None:
@@ -367,6 +373,16 @@ class StorageEnvelope:
         _strings(record["input_support_ids"], "input_support_ids")
         if not isinstance(record["passage"], dict) or not record["passage"]:
             raise ValueError("an explicit passage/span discriminator is required")
+        passage = record["passage"]
+        if item == PAIR_ITEM and QUOTE_SEGMENT in passage:
+            linked = passage.get(LINKED_OBSERVATION)
+            if linked is None:
+                raise ValueError("a within-page pair support names its linked observation")
+            _string(linked, "linked observation")
+            if linked == record["observation_id"]:
+                raise ValueError("a within-page pair support cannot link its own observation")
+        elif LINKED_OBSERVATION in passage:
+            raise ValueError("only a within-page pair support names a linked observation")
         expected = support_id(self._data["run_id"], self._data["institution_uid"], record)
         if record["support_id"] != expected:
             raise ValueError("support identity does not match complete support key")
@@ -478,6 +494,11 @@ class StorageEnvelope:
                     raise ValueError("distinct/unresolved observations must not be merged")
                 if any(s not in sources for s in rel["source_refs"]) or any(s not in self.supports for s in rel["support_ids"]):
                     raise ValueError("relation evidence endpoint does not resolve")
+                endpoints = {rel["lhs_observation_id"], rel["rhs_observation_id"]}
+                for s in rel["support_ids"]:
+                    linked = self.supports[s]["passage"].get(LINKED_OBSERVATION)
+                    if linked is not None and {self.supports[s]["observation_id"], linked} != endpoints:
+                        raise ValueError("a relation's pair support names another pair")
                 if rel["relation_scope"] == "within_page":
                     left = {self.pages[s] for s in self.observation_sources[rel["lhs_observation_id"]]}
                     right = {self.pages[s] for s in self.observation_sources[rel["rhs_observation_id"]]}
@@ -501,6 +522,9 @@ class StorageEnvelope:
             if any(key not in self.supports for key in record["input_support_ids"]):
                 raise ValueError("combined support input does not resolve")
             sid, oid = record["source_id"], record["observation_id"]
+            linked = record["passage"].get(LINKED_OBSERVATION)
+            if linked is not None and linked not in self.observation_sources:
+                raise ValueError("pair support linked observation does not resolve")
             if sid is not None:
                 # RC-D-030 Y2 a: a page-level _NA_ source row's supports carry no observation.
                 page_level = (sid in sources and oid is None and sources[sid]["activity_id"] == "_NA_"

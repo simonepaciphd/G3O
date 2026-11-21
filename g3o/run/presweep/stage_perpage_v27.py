@@ -1240,7 +1240,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         if lhs not in acts or rhs not in acts:
             raise ConsolidationError("pair names an activity that was not coded")
         frag = out.observation_inputs[oids[lhs]].row
-        ctx = SupportContext(run_id, institution_uid, oids[lhs], sids[lhs], None)
+        ctx = SupportContext(run_id, institution_uid, oids[lhs], sids[lhs], None, linked_observation_id=oids[rhs])
         checked: list[tuple[SupportResult, list[str]]] = []
         answered: list[tuple[CoderRecord, SupportResult]] = []
         records: list[dict[str, Any]] = []
