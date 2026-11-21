@@ -515,7 +515,7 @@ def test_v27_dispatch_runs_through_stage6_and_writes_the_outputs(tmp_path):
                                                                           inputs=inputs))
     usage = out.pop(orch.V27_USAGE_KEY)
     assert out == {"pipeline_version": PIPELINE_V27, "instrument_id": bound.instrument_id,
-                   "n_perpage_ready": 3, "n_perpage_held": 0, "n_perpage_failed_pages": 1,
+                   "n_perpage_ready": 3, "n_perpage_held": 0, "n_perpage_failed": 0, "n_perpage_failed_pages": 1,
                    "n_stage6_written": 3, "n_stage6_held": 0, "n_stage6_failed": 0, "n_stage6_skipped": 0}
     # Raw usage of both v2.7 stages (QA4 M1): summed journal totals, no prices.
     assert set(usage) == {orch.V27_PERPAGE_SPAN, orch.V27_STAGE6_SPAN}
