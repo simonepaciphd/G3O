@@ -1,7 +1,7 @@
 """Def7 (PI ruling, calibration session 3: lift ruling 39 a): a render-time first-heading producer.
 
 ``RenderedPage.first_heading`` follows the T-014 / P15 A1 convention: ``None`` = not
-measured (PDF and DOCX pages, a render whose DOM could not be read, and every page
+measured (DOCX pages, a PDF read without pdfplumber, a render whose DOM could not be read, and every page
 stored before the change: no back-fill), ``""`` = measured, no heading on the page.
 An absent field is left out of the serialised record, so pages stored before the
 change re-serialise byte for byte.
@@ -171,11 +171,13 @@ def test_unlocker_html_path_measures_first_heading(_tmp_cache):
     assert page.first_heading == "Generative AI pilot"
 
 
-def test_pdf_path_leaves_heading_unmeasured(_tmp_cache, monkeypatch):
+def test_pdf_path_measures_first_line_heading(_tmp_cache, monkeypatch):
+    # D7-1 (b), PI ruling 2026-11-20: a newly scraped PDF measures its first non-empty text line.
     _serve(monkeypatch, b"%PDF-fake", "application/pdf")
     monkeypatch.setattr(fetcher.pdf_mod, "extract_text", lambda c: "PDF TEXT long enough")
     page = _scrape("https://x.example/a.pdf")
-    assert page.first_heading is None and "first_heading" not in page.model_dump_json()
+    assert page.content_type == "pdf" and page.first_heading == "PDF TEXT long enough"
+    assert fetcher._load(page.url) == page
 
 
 def test_docx_path_leaves_heading_unmeasured(_tmp_cache, monkeypatch):
@@ -201,3 +203,176 @@ def test_page_input_carries_the_stored_heading():
 
 def test_page_input_of_an_old_record_has_no_heading():
     assert _input(RenderedPage.model_validate_json(STORED_AT_BASE)).first_heading is None
+
+
+# ---------------------------------------------------------------------------
+# D7-1 (b) (PI ruling 2026-11-20, "2 b"): a PDF's first heading is the first
+# non-empty line of its extracted text, length-bounded; newly scraped PDFs only
+# ---------------------------------------------------------------------------
+
+from g3o.common import source_fields as sf  # noqa: E402
+from g3o.run.presweep import source_row_v27 as srow  # noqa: E402
+from g3o.scrape import pdf as pdf_mod  # noqa: E402
+
+# First text lines of the three study units (fix-def7 report); the following
+# lines are invented fixture text, not the recorded documents.
+STUDY_PDF_TEXTS = [
+    ("Policy Committee Meeting\nNovember 17, 2025\nAgenda", "Policy Committee Meeting"),
+    ("Greene County Tourist Promotion Agency\nBoard Meeting Minutes\n",
+     "Greene County Tourist Promotion Agency"),
+    ("Notice of Use of Artificial Intelligence in Employment Decisions\nThe city uses",
+     "Notice of Use of Artificial Intelligence in Employment Decisions"),
+]
+
+# A PDF record exactly as stored before the change: untitled, no first_heading key.
+STORED_PDF_AT_BASE = (
+    '{"url":"https://www.agency.gov.example/a.pdf","text":"Policy Committee Meeting\\nAgenda",'
+    '"title":"","content_type":"pdf","fetch_metadata":'
+    '{"access_date":"2026-10-01","http_status":200,"final_url":null,'
+    '"fetch_method":"pdf","elapsed_ms":120,"wait_for":null}}'
+)
+
+
+@pytest.mark.parametrize("text,expected", STUDY_PDF_TEXTS)
+def test_pdf_first_line_of_the_study_texts(text, expected):
+    assert pdf_mod.first_line_heading(text) == expected
+
+
+def test_pdf_leading_blank_lines_and_whitespace_are_normalised():
+    text = "\n\n   \n\t Policy   Committee\tMeeting  \r\nAgenda"
+    assert pdf_mod.first_line_heading(text) == "Policy Committee Meeting"
+
+
+def test_pdf_long_first_line_is_skipped_for_the_next_non_empty_line():
+    bound = html_mod.FIRST_HEADING_MAX_CHARS
+    assert pdf_mod.first_line_heading("x" * (bound + 1) + "\n\nBoard Meeting Minutes") \
+        == "Board Meeting Minutes"
+    assert pdf_mod.first_line_heading("y" * bound + "\nnext") == "y" * bound
+
+
+def test_pdf_line_search_stops_after_a_fixed_number_of_non_empty_lines():
+    long = "z" * (html_mod.FIRST_HEADING_MAX_CHARS + 1)
+    n = pdf_mod.FIRST_LINE_MAX_LINES
+    assert pdf_mod.first_line_heading("\n".join([long] * n + ["Too late"])) == ""
+    assert pdf_mod.first_line_heading("\n".join([long] * (n - 1) + ["In time"])) == "In time"
+
+
+@pytest.mark.parametrize("text", ["", "   ", "\n\n \t\n"])
+def test_pdf_empty_text_is_measured_empty(text):
+    assert pdf_mod.first_line_heading(text) == ""
+
+
+def test_pdf_without_pdf_support_is_not_measured(monkeypatch):
+    monkeypatch.setattr(pdf_mod, "PDF_SUPPORT", False)
+    assert pdf_mod.first_line_heading("Policy Committee Meeting") is None
+
+
+@pytest.mark.parametrize("text,expected", STUDY_PDF_TEXTS)
+def test_untitled_study_pdf_gets_source_title_from_first_line(_tmp_cache, monkeypatch, text, expected):
+    _serve(monkeypatch, b"%PDF-fake", "application/pdf")
+    monkeypatch.setattr(fetcher.pdf_mod, "extract_text", lambda c: text)
+    monkeypatch.setattr(fetcher, "_pdf_title_and_dates", lambda c: ("", None))
+    page = _scrape("https://x.example/a.pdf")
+    assert page.title == "" and page.first_heading == expected
+    rv = srow.source_title(_input(page))
+    assert rv.value == expected and rv.basis == "first heading (title empty)"
+
+
+def test_titled_pdf_keeps_its_metadata_title(_tmp_cache, monkeypatch):
+    _serve(monkeypatch, b"%PDF-fake", "application/pdf")
+    monkeypatch.setattr(fetcher.pdf_mod, "extract_text", lambda c: "First line\nmore")
+    monkeypatch.setattr(fetcher, "_pdf_title_and_dates", lambda c: ("Doc Title", None))
+    page = _scrape("https://x.example/a.pdf")
+    assert page.first_heading == "First line"
+    rv = srow.source_title(_input(page))
+    assert rv.value == "Doc Title" and rv.basis == "RenderedPage.title"
+
+
+def test_pdf_with_empty_text_is_measured_empty_and_not_documented(_tmp_cache, monkeypatch):
+    _serve(monkeypatch, b"%PDF-fake", "application/pdf")
+    monkeypatch.setattr(fetcher.pdf_mod, "extract_text", lambda c: "")
+    monkeypatch.setattr(fetcher, "_pdf_title_and_dates", lambda c: ("", None))
+    page = _scrape("https://x.example/a.pdf")
+    assert page.first_heading == ""
+    assert srow.source_title(_input(page)).value == "not_documented"
+
+
+def test_unlocker_pdf_path_measures_first_line_heading(_tmp_cache, monkeypatch):
+    monkeypatch.setattr(fetcher.pdf_mod, "extract_text", lambda c: "\nGreene County Tourist Promotion Agency\n")
+    monkeypatch.setattr(fetcher, "_pdf_title_and_dates", lambda c: ("", None))
+    result = unlocker.UnlockerResult(success=True, content=b"%PDF-fake", inner_status=200,
+                                     error=None, error_code=None, elapsed_ms=5)
+    page = fetcher._unlocker_page("https://x.example/a.pdf", result, cache_floor=1)
+    assert page.content_type == "pdf" and page.first_heading == "Greene County Tourist Promotion Agency"
+
+
+def test_stored_pre_change_pdf_record_round_trips_and_still_refuses(_tmp_cache):
+    page = RenderedPage.model_validate_json(STORED_PDF_AT_BASE)
+    assert page.first_heading is None  # no back-fill from the stored text
+    assert page.model_dump_json() == STORED_PDF_AT_BASE
+    fetcher._save(page)
+    cached = fetcher._load(page.url)
+    assert cached.model_dump_json() == STORED_PDF_AT_BASE and cached.first_heading is None
+    with pytest.raises(sf.MissingUpstreamError, match="not measured"):
+        srow.source_title(_input(cached))
+
+
+# Orchestrator follow-up: "" means the text was read and is empty; a pdfplumber
+# error during extraction is "not measured" (None), like a missing pdfplumber.
+# The recorded text itself is unchanged.
+
+
+def _raising_open(*_a, **_kw):
+    raise ValueError("broken xref")
+
+
+class _OnePageThenRaise:
+    def __init__(self, *_a, **_kw):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    @property
+    def pages(self):
+        class _Page:
+            def extract_text(self):
+                return "Policy Committee Meeting\nAgenda"
+
+            def flush_cache(self):
+                pass
+
+            class get_textmap:  # noqa: N801
+                @staticmethod
+                def cache_clear():
+                    pass
+
+        yield _Page()
+        raise ValueError("page 2 unreadable")
+
+
+def test_pdf_extraction_error_is_not_measured(monkeypatch):
+    monkeypatch.setattr(pdf_mod.pdfplumber, "open", _raising_open)
+    text = pdf_mod.extract_text(b"%PDF-fake")
+    assert text == ""  # recorded text unchanged
+    assert pdf_mod.first_line_heading(text) is None
+
+
+def test_pdf_error_after_some_text_keeps_text_but_is_not_measured(monkeypatch):
+    monkeypatch.setattr(pdf_mod.pdfplumber, "open", _OnePageThenRaise)
+    text = pdf_mod.extract_text(b"%PDF-fake")
+    assert text == "Policy Committee Meeting\nAgenda"
+    assert pdf_mod.first_line_heading(text) is None
+
+
+def test_scraped_pdf_with_extraction_error_is_not_measured_and_refuses(_tmp_cache, monkeypatch):
+    _serve(monkeypatch, b"%PDF-fake", "application/pdf")
+    monkeypatch.setattr(pdf_mod.pdfplumber, "open", _raising_open)
+    page = _scrape("https://x.example/a.pdf")
+    assert page.text == "" and page.first_heading is None
+    assert "first_heading" not in page.model_dump_json()
+    with pytest.raises(sf.MissingUpstreamError, match="not measured"):
+        srow.source_title(_input(page))
