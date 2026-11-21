@@ -156,6 +156,51 @@ def test_word_rule_alone_supports_a_code(monkeypatch):
     assert r.support_status == SUPPORTED and r.match.decided_by == sc.WORD_RULE
 
 
+# Verbatim quotes in scripts written without word spaces (calibration FN-TRACE defect 1).
+# The word tokenizer cuts unsegmented Japanese only at punctuation, so a verbatim quote that
+# starts or ends inside such a run shares no "word" with the page and failed both rules.
+# Excerpts: two real calibration pages (a city page; a city news item), one sentence each.
+JA_PAGE_1 = ("本市では生成AIを適切に利用しながらどのように活用できるか、令和6年2月から3月にかけて"
+             "各部署の代表や幹部職員など、約150人で検証を行いました。")
+JA_QUOTE_1 = "各部署の代表や幹部職員など、約150人で検証を行いました。"  # recorded 66.67 / presence 0.5
+JA_PAGE_2 = ("秋田県仙北市は27日、生成AI（人工知能）の業務活用を目指すと発表した。"
+             "2024年1月から職員を対象にセミナーを開くなどして、基礎知識や活用法、注意点を学ぶ。")
+JA_QUOTE_2 = "2024年1月から職員を対象にセミナーを開く"  # recorded 9.36 / presence 0.0
+
+
+@pytest.mark.parametrize("quote,page", [(JA_QUOTE_1, JA_PAGE_1), (JA_QUOTE_2, JA_PAGE_2)], ids=["cal-0033", "cal-0356"])
+def test_verbatim_cjk_quote_matches(quote, page):
+    assert quote in page  # verbatim: the quote step copied it exactly
+    m = match_quote(quote, page)
+    assert m.matched and m.presence_word == 1.0 and m.rule_80 is True
+    r = check_code(ev(item="core.target_users", value="internal_staff", quote=quote),
+                   PageSources("P1", {P: page}))
+    assert r.support_status == SUPPORTED and r.value == "internal_staff"
+
+
+def test_cjk_quote_not_on_the_page_still_fails():
+    for quote in ("職員を対象に研修を実施した", "各部署の代表など約300人で検証を行いました"):
+        assert not match_quote(quote, JA_PAGE_1 + JA_PAGE_2).matched
+
+
+def test_verbatim_short_circuit_keeps_word_boundaries_in_spaced_scripts():
+    # A quote cut inside a Latin word is not verbatim at word level: it still fails.
+    m = match_quote("uncil launched", TEXT)
+    assert not m.matched and m.presence_word == 0.5
+    # A Latin word glued to unsegmented text is a word of that text.
+    assert sc.word_presence("AI", "本市では生成AIを適切に利用") == 1.0
+    # Korean is written with spaces: no short-circuit inside a Hangul word.
+    assert sc.word_presence("시청", "서울시청은 생성형 AI를 도입했다") == 0.0
+
+
+@pytest.mark.parametrize("s", [SAMPLES[0], SAMPLES[1], SAMPLES[4], QUOTE, "uncil launched the", "council launched"])
+def test_spaced_script_presence_is_unchanged(s):
+    """The short-circuit fires only across a no-space-script edge: spaced-script presence is the T-003 value."""
+    wp = _spike("word_presence")
+    for src in (TEXT, TEXT + " " + s, "x" + s + "y"):
+        assert sc.word_presence(s, src) == wp.presence(wp.word_tokens(s), wp.word_tokens(src))
+
+
 def test_entailment_window_200_each_side_clipped_to_part():
     pre, post = "a" * 300, "b" * 300
     text = pre + QUOTE + post

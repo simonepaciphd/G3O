@@ -130,14 +130,17 @@ def test_word_presence_quote_accepted_by_80_percent_rule(tmp_path):
     assert nodes.original["supporting_text"] == WORDS
 
 
-def test_rejected_quote_is_downgraded_and_retained_verbatim(tmp_path):
+def test_rejected_quote_is_downgraded_and_kept_only_in_provenance(tmp_path):
+    """Emitter-side option R8-a (PI ruling pending): reverses the former "retained verbatim" behaviour."""
     _, instrument, _, sources, artifact, ctx = _setup(tmp_path)
     quote = "The ministry cancelled every budget line for translation services."
     result = _check(sources, quote)
     assert result.support_status == "downgraded_no_quote"
     nodes = support_nodes(result, sources, artifact, ctx, instrument)
-    assert nodes.original["supporting_text"] == quote
+    assert nodes.original["supporting_text"] == ""
+    assert nodes.original["passage"] == {"quote_segment": None, "segment_span": None}
     assert nodes.original["support_status"] == "downgraded_no_quote"
+    assert nodes.provenance["rejected_quote"] == quote and nodes.provenance["quote_segment"] is None
     assert nodes.provenance["match"]["matched"] is False
     assert nodes.final["value_json"] == "unknown"
     assert nodes.final["supporting_text"] == ""  # no fabricated replacement quote
@@ -197,6 +200,20 @@ def test_storage_rejects_quote_segment_outside_producing_part_or_chrome(tmp_path
                   lambda s: s["passage"].update(quote_segment="P1#chrome"))
     with pytest.raises(ValueError, match="segment passage requires"):
         _restored(tmp_path, data, instrument, nodes, [original], lambda s: s["passage"].update(extra=1))
+
+
+REJECTED = "The ministry cancelled every budget line for translation services."
+
+
+def test_no_quote_downgrade_with_its_kept_quote_reaches_storage(tmp_path):
+    """A failed quote downgrades the value (R-041, R-042); it must not also hold the institution."""
+    data, instrument, _, sources, artifact, ctx = _setup(tmp_path)
+    result = _check(sources, REJECTED)
+    assert result.support_status == "downgraded_no_quote"
+    nodes = support_nodes(result, sources, artifact, ctx, instrument)
+    original, final, _ = coder_nodes(_coder(nodes, instrument), nodes, instrument)
+    stored = _envelope(tmp_path, data, instrument, nodes, [original, final])
+    assert stored.data["sources"]["S1"]["values"][ITEM] == "unknown"
 
 
 # --- original vs final after a downgrade ----------------------------------------
@@ -265,6 +282,41 @@ def test_mechanical_final_requires_a_linked_original_classifier_support(tmp_path
 
 def support_id_for(data, record):
     return support_id("R1", data["institution_uid"], record)
+
+
+def test_snippet_of_a_failed_verdict_quote_reaches_storage(tmp_path):
+    """Calibration cal-0265: the page verdict's quote fails R-042 (tag-only ``downgraded_no_quote``).
+
+    X25 then checks that quote as ``source_snippet`` (a quote_step item) and downgrades it to
+    ``unknown`` (R-041, downgrade_target unknown), which gives a FINAL node backed by a mechanical
+    record. That is the documented output of ``source_snippet``; storage must accept it.
+    """
+    from g3o.common.source_fields import SNIPPET, source_snippet
+
+    data, instrument, _, sources, artifact, ctx = _setup(tmp_path)
+    verdict = _check(sources, REJECTED, item="core.page_verdict", value="confirms_activity")
+    assert verdict.support_status == "downgraded_no_quote" and verdict.supporting_text == REJECTED
+    snippet = source_snippet(verdict, sources).support
+    assert (snippet.support_status, snippet.value, snippet.original_value) == ("downgraded_no_quote", "unknown",
+                                                                              REJECTED)
+    nodes = support_nodes(snippet, sources, artifact, ctx, instrument)
+    assert nodes.final is not None and nodes.final["value_json"] == "unknown"
+    record = CoderRecord(item_id=SNIPPET, item_part=None, question_id=None, support_id=nodes.original["support_id"],
+                         observation_id="O1", chunk_id="C1", coder_type="quote_step", coder_version="fake-v1",
+                         configured_model="fixture-extractor", actual_response_model="fake-response-model",
+                         request_id="fake-request", question_set_version="fixture-questions-r11",
+                         setup_pointer=instrument["instrument_id"], answer_type="extracted",
+                         chosen_value=REJECTED, confidence=None, probability_distribution=None)
+    original, final, _ = coder_nodes(record, nodes, instrument)
+    assert (original["coder_type"], final["coder_type"]) == ("quote_step", "mechanical")
+    stored = _envelope(tmp_path, data, instrument, nodes, [original, final], item=SNIPPET)
+    assert stored.data["sources"]["S1"]["values"][SNIPPET] == "unknown"
+    # Still refused: the final without the original's quote-step record, or a quote-step record on the final.
+    with pytest.raises(ValueError, match="coder type does not match|missing per-code coder"):
+        _envelope(tmp_path, data, instrument, nodes, [final], item=SNIPPET)
+    quote_final = dict(original, support_id=final["support_id"], chosen_value="unknown")
+    with pytest.raises(ValueError, match="coder type does not match"):
+        _envelope(tmp_path, data, instrument, nodes, [original, quote_final], item=SNIPPET)
 
 
 def test_page_verdict_downgrade_is_tag_only_without_final_node(tmp_path):

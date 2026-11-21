@@ -38,6 +38,8 @@ METADATA_ITEMS = {"core.codebook_release", "core.setup_pointer", "core.evidence_
 RELATION_INVERSE = {"component_of_program": "has_component", "has_component": "component_of_program",
                     "governs": "governed_by", "governed_by": "governs"}
 VERDICTS = tuple(FIELDS["core.page_verdict"]["codes"])
+#: Item coders whose ORIGINAL code a support-check downgrade can replace by a mechanical FINAL node.
+DOWNGRADED_CODERS = frozenset({"classifier", "quote_step"})
 #: PI ruling 102 a (2026-11-14, building 96 a / 79 b): the signed ``core.page_review_state`` codes other than
 #: ``reviewed`` (codebook ``items/core.page_review_state/rules/0``; pinned against the signed vocabulary by
 #: tests/test_storage.py). A source row carrying one is a page that was not reviewed: it may carry no page
@@ -526,20 +528,23 @@ class StorageEnvelope:
             elif oid is not None and oid not in self.observation_sources:
                 raise ValueError("pooled support observation does not resolve")
         all_rows = [self._data["summary"], *activities.values(), *sources.values()]
-        classifier_backed = {c["support_id"] for row in all_rows for c in row["coder_records"]
-                             if c["coder_type"] == "classifier"}
+        provider_backed = {(c["support_id"], c["coder_type"]) for row in all_rows for c in row["coder_records"]
+                           if c["coder_type"] in DOWNGRADED_CODERS}
 
         def downgrade_final(support: dict[str, Any]) -> bool:
-            """A mechanical FINAL node of a classifier downgrade (R-041, R-081).
+            """A mechanical FINAL node of a downgrade (R-041, R-081).
 
-            Each input is the ORIGINAL classifier support of the same item, part
-            and context with the same ``downgraded_*`` status and the original
-            code; the original stays stored with its own classifier record.
+            Each input is the ORIGINAL support of the same item, part and context
+            with the same ``downgraded_*`` status and the original code; the
+            original stays stored with its own record of the item's coder: a
+            classifier, or a quote step whose quote failed R-042 / R-044 (R-041
+            applies to every positive code; calibration C265: ``source_snippet``).
             """
             inputs = support["input_support_ids"]
             if not support["support_status"].startswith("downgraded_") or not inputs:
                 return False
-            if FIELDS[support["item_id"]]["coder"] != "classifier":
+            coder = FIELDS[support["item_id"]]["coder"]
+            if coder not in DOWNGRADED_CODERS:
                 return False
             context = ("item_id", "item_part", "observation_id", "source_id", "chunk_id", "support_status")
             for prior in inputs:
@@ -548,7 +553,7 @@ class StorageEnvelope:
                 # relation original (its one copied input) names inputs and may still be the source.
                 if (any(original[k] != support[k] for k in context)
                         or (original["input_support_ids"] and not downgrade_source_original(original))
-                        or original["value_json"] == support["value_json"] or prior not in classifier_backed):
+                        or original["value_json"] == support["value_json"] or (prior, coder) not in provider_backed):
                     return False
             return True
 
