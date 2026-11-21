@@ -130,13 +130,15 @@ class RenderedPage(BaseModel):
     # first heading (g3o.scrape.html.extract_first_heading), the
     # core.source_title fallback. Same convention: measured on the HTML and
     # unlocker-HTML paths and on the render path (the rendered DOM of the same
-    # page load). ``None`` = not measured: PDF pages (the document info Title
-    # is already the title; there is no honest heading signal), DOCX pages, a
+    # page load). PDF pages (D7-1 (b), PI ruling 2026-11-20): the first
+    # non-empty line of the extracted text (g3o.scrape.pdf.first_line_heading).
+    # ``None`` = not measured: DOCX pages, a PDF read without pdfplumber, a
     # render whose DOM HTML could not be read, and every record stored before
     # the change (no back-fill). ``""`` = measured, no heading on the page.
     first_heading: str | None = Field(
         default=None,
-        description="First heading of the page (h1, else h2-h6), whitespace-normalised.",
+        description="First heading of the page (h1, else h2-h6; PDF: first non-empty text line), "
+        "whitespace-normalised.",
     )
 
     @model_serializer(mode="wrap")
