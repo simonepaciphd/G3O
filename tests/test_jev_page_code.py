@@ -486,3 +486,42 @@ def test_pending_gate_propagates_to_its_descendants(monkeypatch, rules):
     assert final.items["core.content_data"].state == "pending"
     assert final.items["core.content_data"].value is None
     assert final.gate_opened == ("core.disclosure_scope",)
+
+
+# -- the failed part's error detail in PageFailed (calibration C189) ---------------------
+
+
+def test_page_failed_keeps_the_first_failed_parts_error_detail(monkeypatch, rules):
+    """C189: ``PageFailed`` names the first failed verdict part and its error (type and message), so a
+    failed page can be diagnosed from the attrition ledger without a paid re-ask."""
+    _fixed_layout(monkeypatch, ["FAIL a.", "FAIL b.", "FAIL c.", "OK text."])
+    fake = FakeJev(dict(DEFAULTS), fail=lambda s, q: ValueError(f"bad response for {s['page_text']}")
+                   if jpc.VERDICT in q and s["page_text"].startswith("FAIL") else None)
+    with pytest.raises(jpc.PageFailed) as e:
+        jpc.code_page(page(text="FAIL a.FAIL b.FAIL c.OK text."), fake, cfg(rules))
+    assert e.value.reason == jpc.REQUEST_FAILED
+    assert e.value.detail == ("3/4 verdict parts failed (at least 75%); first failed part inst1:u1#p001 "
+                              f"({jpc.REQUEST_FAILED}): ValueError: bad response for FAIL a.")
+
+
+def test_page_failed_detail_is_bounded_and_carries_no_credentials(monkeypatch, rules):
+    secret = "sk-fake-NOTAREALKEY000"
+    msg = (f"Error code: 401 Authorization: Bearer tok123456 x-api-key: {secret} api_key={secret} "
+           + "x" * 2000)
+    _fixed_layout(monkeypatch, ["FAIL only."])
+    fake = FakeJev(dict(DEFAULTS), fail=lambda s, q: RuntimeError(msg) if jpc.VERDICT in q else None)
+    with pytest.raises(jpc.PageFailed) as e:
+        jpc.code_page(page(text="FAIL only."), fake, cfg(rules))
+    detail = e.value.detail
+    assert detail.startswith("1/1 verdict parts failed (at least 75%); first failed part inst1:u1#p001 "
+                             f"({jpc.REQUEST_FAILED}): RuntimeError: Error code: 401 ")
+    assert "sk-fake" not in detail and "NOTAREALKEY" not in detail and "tok123456" not in detail
+    assert "[redacted]" in detail
+    assert len(detail) <= 400 and detail.endswith("...")
+
+
+def test_page_failed_detail_names_a_missing_request_id(rules):
+    with pytest.raises(jpc.PageFailed) as e:
+        jpc.code_page(page(), FakeJev(dict(DEFAULTS), request_id=None), cfg(rules))
+    assert e.value.detail == ("1/1 verdict parts failed (at least 75%); first failed part inst1:u1#p001 "
+                              f"({jpc.MISSING_REQUEST_ID}): jev returned no request id")
