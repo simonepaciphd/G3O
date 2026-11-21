@@ -28,3 +28,6 @@ Original baseline archives remain immutable. 2026-11-01-before-d007-approval/ pr
 - records/Delta-Lock-RC-D-041-2026-11-17.json: superseded by Delta-Lock-RC-D-042-2026-11-18.json (2026-11-18).
 - 2026-11-18-before-rcd043/: exact preimages of PLAN, CHANGELOG and labels before the RC-D-043 application (SPEC unchanged).
 - records/Delta-Lock-RC-D-042-2026-11-18.json: superseded by Delta-Lock-RC-D-043-2026-11-18.json (2026-11-18).
+
+- 2026-11-21-before-rcd044-045/: exact preimages of SPEC, PLAN, CHANGELOG, labels and the two D-007 files before the RC-D-044 and RC-D-045 application.
+- records/Delta-Lock-RC-D-043-2026-11-18.json: superseded by Delta-Lock-RC-D-045-2026-11-21.json (2026-11-21).
