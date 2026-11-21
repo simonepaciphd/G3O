@@ -315,3 +315,64 @@ def test_stored_pre_change_pdf_record_round_trips_and_still_refuses(_tmp_cache):
     assert cached.model_dump_json() == STORED_PDF_AT_BASE and cached.first_heading is None
     with pytest.raises(sf.MissingUpstreamError, match="not measured"):
         srow.source_title(_input(cached))
+
+
+# Orchestrator follow-up: "" means the text was read and is empty; a pdfplumber
+# error during extraction is "not measured" (None), like a missing pdfplumber.
+# The recorded text itself is unchanged.
+
+
+def _raising_open(*_a, **_kw):
+    raise ValueError("broken xref")
+
+
+class _OnePageThenRaise:
+    def __init__(self, *_a, **_kw):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    @property
+    def pages(self):
+        class _Page:
+            def extract_text(self):
+                return "Policy Committee Meeting\nAgenda"
+
+            def flush_cache(self):
+                pass
+
+            class get_textmap:  # noqa: N801
+                @staticmethod
+                def cache_clear():
+                    pass
+
+        yield _Page()
+        raise ValueError("page 2 unreadable")
+
+
+def test_pdf_extraction_error_is_not_measured(monkeypatch):
+    monkeypatch.setattr(pdf_mod.pdfplumber, "open", _raising_open)
+    text = pdf_mod.extract_text(b"%PDF-fake")
+    assert text == ""  # recorded text unchanged
+    assert pdf_mod.first_line_heading(text) is None
+
+
+def test_pdf_error_after_some_text_keeps_text_but_is_not_measured(monkeypatch):
+    monkeypatch.setattr(pdf_mod.pdfplumber, "open", _OnePageThenRaise)
+    text = pdf_mod.extract_text(b"%PDF-fake")
+    assert text == "Policy Committee Meeting\nAgenda"
+    assert pdf_mod.first_line_heading(text) is None
+
+
+def test_scraped_pdf_with_extraction_error_is_not_measured_and_refuses(_tmp_cache, monkeypatch):
+    _serve(monkeypatch, b"%PDF-fake", "application/pdf")
+    monkeypatch.setattr(pdf_mod.pdfplumber, "open", _raising_open)
+    page = _scrape("https://x.example/a.pdf")
+    assert page.text == "" and page.first_heading is None
+    assert "first_heading" not in page.model_dump_json()
+    with pytest.raises(sf.MissingUpstreamError, match="not measured"):
+        srow.source_title(_input(page))
