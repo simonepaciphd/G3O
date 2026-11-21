@@ -27,9 +27,9 @@ from dataclasses import replace
 import pytest
 
 from g3o.classify import jev_activity_code as jac
+from g3o.common.instrument import load_instrument
 from g3o.common.jev_client import JevAnswer
 from g3o.common.paths import institution_dir
-from g3o.common.instrument import load_instrument
 from g3o.common.storage import StorageEnvelope
 from g3o.run.presweep import stage_perpage_v27 as pp
 from g3o.run.presweep import stage_validate_v27 as rt
