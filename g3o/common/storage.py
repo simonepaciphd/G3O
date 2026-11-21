@@ -237,7 +237,10 @@ def _check_quote_match(record: dict[str, Any], segment_text: str) -> None:
 def support_id(run_id: str, institution_uid: str, record: dict[str, Any]) -> str:
     keys = ("item_id", "item_part", "value_json", "observation_id", "source_id", "chunk_id",
             "support_text_sha256", "passage")
-    return sha256_text(canonical_json([run_id, institution_uid, *[record[k] for k in keys]]))
+    key = [run_id, institution_uid, *[record[k] for k in keys]]
+    if "date_target" in record:  # the date a core.date_upper_bound support bounds is part of its key;
+        key.append({"date_target": record["date_target"]})  # records without it keep their ids
+    return sha256_text(canonical_json(key))
 
 
 class StorageEnvelope:
