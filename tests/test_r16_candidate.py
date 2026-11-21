@@ -43,9 +43,16 @@ def test_candidate_fixture_bytes_match_the_pin():
     assert hashlib.sha256(FIXTURE.read_bytes()).hexdigest() == r16.R16_CANDIDATE_SHA256
 
 
-def test_the_codebook_in_use_is_the_r16_fixture_bytes():
-    assert CODEBOOK.read_bytes() == FIXTURE.read_bytes()
-    assert hashlib.sha256(CODEBOOK.read_bytes()).hexdigest() == r16.R16_CANDIDATE_SHA256
+def test_the_codebook_in_use_is_the_r17_candidate_built_on_r16():
+    """The UNSIGNED r17 candidate (byte edits to the signed r16 file) is in use; the r16 fixture stays as r16."""
+    assert hashlib.sha256(CODEBOOK.read_bytes()).hexdigest() == r16.R17_CANDIDATE_SHA256
+    assert r16.R16_FIELD_RELEASES == (r16.R16_CANDIDATE_SHA256, r16.R17_CANDIDATE_SHA256)
+    live, base = yaml.safe_load(CODEBOOK.read_bytes())["items"], yaml.safe_load(FIXTURE.read_bytes())["items"]
+    for item in ("core.developer", "core.developer_basis", "core.stage_as_of_basis"):  # the r16 fields keep their shape
+        for key in ("coder", "linkage", "pass", "round", "gate", "answer_type"):
+            assert live[item][key] == base[item][key], (item, key)
+        codes = lambda it: [v["code"] for v in it["values"]] if isinstance(it.get("values"), list) else it.get("values")  # noqa: E731
+        assert codes(live[item]) == codes(base[item]), item
 
 
 def test_candidate_codes_and_coder_match_the_producers():
@@ -61,7 +68,7 @@ def test_r16_pin_turns_r16_on_and_lifts_the_refusals():
     """Codebook r16 in use (signing commit): the generated pins are the r16 SHA, pass 1 asks the developer
     (``items/core.developer``: quote_step, every applicability cell ``ask``), and every r16 list is active
     at import."""
-    assert enums.CODEBOOK_SHA256 == r16.R16_CANDIDATE_SHA256
+    assert enums.CODEBOOK_SHA256 == r16.R17_CANDIDATE_SHA256  # r17 candidate: carries the r16 fields
     assert r16.r16_active() is True
     assert "core.developer" in srow.pass1_activity_fields()
     assert srow.REFUSED_ACTIVITY_ITEMS == {}

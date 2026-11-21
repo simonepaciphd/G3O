@@ -197,7 +197,8 @@ def test_multi_part_combination_and_part_prompt(rules):
 
 def test_every_part_not_covered_gives_not_assessable(rules):
     fake = FakeJev({**DEFAULTS, "core.page_verdict": (NOT_COVERED, 0.9), "core.disclosure_form": (NOT_COVERED, 0.9)})
-    res = jpc.code_page(page(text=long_text(["A", "B"])), fake, cfg(rules, limit_tokens=20000))
+    # 18000: the r17 candidate's questions are shorter, so the two-marker text is one part at 20000
+    res = jpc.code_page(page(text=long_text(["A", "B"])), fake, cfg(rules, limit_tokens=18000))
     assert res.verdict.value == "not_assessable"
     assert res.items["core.disclosure_form"].value == "not_documented"
 
@@ -339,7 +340,7 @@ def test_finalize_recombines_and_regates(rules):
     text = long_text(["AAA", "BBB"])
     fake = FakeJev({**DEFAULTS, "core.page_verdict": ("background_only", 0.9)},
                    by_marker={"AAA": {"core.page_verdict": (GENAI, 0.9)}})
-    c = cfg(rules, limit_tokens=20000)
+    c = cfg(rules, limit_tokens=18000)  # two parts under the r17 candidate too (one part at 20000)
     res = jpc.code_page(page(text=text), fake, c)
     assert res.verdict.value == GENAI
     first = res.chunks[0].chunk_id

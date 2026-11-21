@@ -440,7 +440,7 @@ def test_runtime_pins_and_models_are_refused_before_planning(tmp_path, monkeypat
     _no_planning(monkeypatch)
     with monkeypatch.context() as m:
         m.setattr(binding, "CODEBOOK_SHA256", "0" * 64)
-        with pytest.raises(ValueError, match="signed r16"):
+        with pytest.raises(ValueError, match="signed r17"):
             orch.run_presweep(_v27_config(tmp_path), v27=_stub_dispatch())
     with monkeypatch.context() as m:
         m.setattr(binding, "version", lambda _: "0.0")

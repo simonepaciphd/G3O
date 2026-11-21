@@ -64,7 +64,8 @@ def test_signed_codebook_and_pins():
     rules = sc.default_rules()
     assert rules.bar("core.activity_type") == 0.8 and rules.entailment_bar == 0.8
     assert rules.not_required_values == {"not_documented", "unknown", "no", "none_reported", "none_documented",
-                                         "none", "unclear", "unresolved", "not_an_activity"}
+                                         "none", "unclear", "unresolved", "not_an_activity",
+                                         "no_generative_signal"}  # r17 candidate: the absence value of 1.7 a
     assert rules.rule_values == {"not_asked", "_NA_"}
     assert rules.negative_verdicts == {"confirms_absence", "no_genai", "background_only", "event_only",
                                        "other_body"}
@@ -489,7 +490,8 @@ def test_entailment_question_forms():
     assert q == 'Does this text state or clearly show that the kind of activity of the activity "CivicBot" ' \
                 'is "a pilot or trial"?'
     q = sc.entailment_question("core.page_verdict", "confirms_activity")
-    assert q.startswith("Does this text state or clearly show that the generative-AI content of the page is")
+    assert q == ('Does this text state or clearly show that the AI content of the page is '
+                 '"an AI activity at this institution"?')  # r17 candidate labels (RULINGS-S5 3 a)
     q = sc.entailment_question("core.year_pilot_start", "2024", activity_name="CivicBot")
     assert q.endswith('is "2024"?')
     # codebook r13: four ASCII digits after conversion (lane B F4)
