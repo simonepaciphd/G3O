@@ -201,6 +201,29 @@ STAGE_STOPS = STAGE6_STOPS
 ENVELOPE_HOLDS = (ConsolidationError, ValueError, RuntimeError, OSError)
 
 
+class ScaleUnitConflict(ConsolidationError):
+    """Def5b: a published activity carries several distinct ``core.deployment_scale_unit`` codes.
+
+    Raised by :func:`build_envelope` before storage is assembled; :func:`run_stage6_v27` holds the
+    institution under :data:`SCALE_UNIT_CONFLICT` (``conflicts``: one ``observation_ids`` / ``units``
+    entry per activity). Any other malformed unit value keeps the generic storage refusal.
+    """
+
+    def __init__(self, conflicts: Sequence[Mapping[str, Any]]):
+        self.conflicts = [dict(c) for c in conflicts]
+        super().__init__(f"several distinct {SCALE_UNIT_ITEM} units on one activity: "
+                         + "; ".join(f"{'+'.join(c['observation_ids'])}: {', '.join(c['units'])}"
+                                     for c in self.conflicts))
+
+
+def scale_unit_conflict(value: Any) -> list[str] | None:
+    """The distinct units of a Def5b value (a list of two or more distinct strings), else None."""
+    if (isinstance(value, (list, tuple)) and all(isinstance(v, str) for v in value)
+            and len(set(value)) > 1):
+        return list(dict.fromkeys(value))
+    return None
+
+
 class UpstreamRowMalformed(Exception):  # noqa: N818 - names the wiring defect, as MissingUpstreamError does
     """Ruling 32 b: a malformed upstream row reached Stage 6 (a wiring error, not institution data).
 
@@ -264,6 +287,13 @@ CONFLICTING_GROUPS = "conflicting_relation_groups"
 POOLED_STOPPED = "pooled_question_stopped"  # combiner refused, or its gate item stopped
 POOLED_PENDING = "pooled_question_pending"  # e.g. its gate item is pending
 NOT_READY = "stage6_not_ready"  # defensive: not ready for no reason named above
+#: Def5b (PI ruling 2026-11-20): the parts of a long page gave several distinct units for the one-value
+#: ``core.deployment_scale_unit`` (signed long-page rule ``combined_list``, activity-24 b; D-007 stores one
+#: code). No single-value form is ruled, so the institution stays held, under this reason (attrition
+#: ``stage6_held:scale_unit_conflict``) rather than the generic storage refusal, so the case is countable;
+#: held.json names the observations and units. Revisit on first occurrence.
+SCALE_UNIT_CONFLICT = "scale_unit_conflict"
+SCALE_UNIT_ITEM = "core.deployment_scale_unit"
 EVIDENCE_CHANNEL = "web_extract"
 ACTIVITY_ITEMS = frozenset(table_fields("activities"))
 
@@ -1544,6 +1574,7 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
     # An injected mapping is used as given (14).
     groups = independence_groups_of(inst)
     activities: dict[str, dict[str, Any]] = {}
+    unit_conflicts: list[dict[str, Any]] = []
     for group in published:
         aid = final_of[group[0]]
         fragments = [inst.observation_inputs[k].row for k in group]
@@ -1583,6 +1614,11 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
             claims, {s: sources[s]["values"]["core.confidence"] for s in claims}, groups)
         activities[aid] = {"values": values, "item_support": list(support.values()), "coder_records": coders,
                            "observation_ids": list(group), "activity_relations": []}
+        units = scale_unit_conflict(values.get(SCALE_UNIT_ITEM))
+        if units is not None:
+            unit_conflicts.append({"observation_ids": list(group), "units": units})
+    if unit_conflicts:  # Def5b: held under its own reason, before storage refuses the value
+        raise ScaleUnitConflict(unit_conflicts)
     obs_sources: dict[str, list[str]] = {}
     for sid, row in sources.items():
         for o in row["observation_ids"]:
@@ -1783,6 +1819,12 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
         except ma.MalformedA8Value as exc:  # ruling 32 b (A8 review M1): a malformed stored value stops the stage
             raise UpstreamRowMalformed(inst.institution_id, exc.item, f"A8 values, {exc.where}",
                                        problem=f"is malformed ({exc.detail})") from exc
+        except ScaleUnitConflict as exc:  # Def5b: a ruled hold under its own countable reason
+            _hold(run_dir, inst_dir, inst.institution_id, [SCALE_UNIT_CONFLICT],
+                  {"error": str(exc), "item_id": SCALE_UNIT_ITEM, "conflicts": exc.conflicts},
+                  {SCALE_UNIT_CONFLICT: str(exc)})
+            metrics.held.append(inst.institution_id)
+            continue
         except KeyError as exc:  # ruling 32 b: a malformed upstream row is a wiring error: the stage stops
             raise UpstreamRowMalformed(inst.institution_id, repr(exc.args[0]) if exc.args else "a key",
                                        "storage envelope build") from exc
@@ -1806,7 +1848,7 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 
 
 __all__ = [
-    "ENVELOPE_FAILED", "ENVELOPE_HOLDS", "EXECUTOR_FAILED", "MISSING_UPSTREAM", "HELD_REASON", "STAGE_STOPS", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
+    "ENVELOPE_FAILED", "ENVELOPE_HOLDS", "SCALE_UNIT_CONFLICT", "ScaleUnitConflict", "EXECUTOR_FAILED", "MISSING_UPSTREAM", "HELD_REASON", "STAGE_STOPS", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
     "MERGE_BASIS", "MERGE_CREDIBLE", "MERGE_CREDIBLE_R15", "MERGE_INPUT_ITEMS", "MERGE_PRODUCED_A8", "MERGE_REFUSED_R1", "MERGE_REFUSED_R1_R15",
     "MERGE_UNION", "MERGE_UNRULED", "merge_basis", "merge_credible", "merge_refused_r1",
     "merged_developer_basis",
