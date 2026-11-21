@@ -153,3 +153,38 @@ def test_unpinned_installed_lingua_refuses_before_writing(tmp_path, monkeypatch)
     with pytest.raises(ValueError, match="lingua"):
         binding.bind_runtime(tmp_path, settings())
     assert not list(tmp_path.iterdir())
+
+
+# --- Def6 (calibration defect 6, PI ruling B 2026-11-20): the extractor cap stays under the sync maximum ---
+# Every v2.7 run makes non-streaming Messages calls with this one cap (the per-page stage's live calls in every
+# extractor mode: follow-ups, PI-released re-asks, requests over the batch byte guard; and the Stage 6 quote
+# step), and anthropic 2.3.0 refuses a non-streaming call whose max_tokens implies more than 10 minutes
+# (3600 s * max_tokens / 128,000 > 600 s, i.e. above 21,333). A cap above that is refused at binding,
+# before any call, rather than by the SDK on the first long page.
+
+
+@pytest.mark.parametrize("cap", [16_000, 21_000, 21_333])
+def test_extractor_cap_up_to_the_non_streaming_maximum_binds(cap):
+    assert replace(settings(), extractor_max_tokens=cap).extractor_max_tokens == cap
+
+
+@pytest.mark.parametrize("cap", [21_334, 32_000, 64_000])
+def test_extractor_cap_above_the_non_streaming_maximum_is_refused(cap):
+    with pytest.raises(ValueError, match="non-streaming maximum"):
+        replace(settings(), extractor_max_tokens=cap)
+
+
+def test_non_streaming_maximum_is_the_sdk_ten_minute_bound():
+    from g3o.extract import anthropic_client
+
+    assert anthropic_client.SYNC_MAX_TOKENS == 21_333 == int(600 * 128_000 / 3600)
+
+
+def test_non_streaming_maximum_matches_the_installed_sdk():
+    anthropic = pytest.importorskip("anthropic")
+    from g3o.extract import anthropic_client
+
+    client = anthropic.Anthropic(api_key="offline-test-not-a-key")  # never sends: the check is local
+    client._calculate_nonstreaming_timeout(anthropic_client.SYNC_MAX_TOKENS, None)
+    with pytest.raises(ValueError, match="Streaming is required"):
+        client._calculate_nonstreaming_timeout(anthropic_client.SYNC_MAX_TOKENS + 1, None)
