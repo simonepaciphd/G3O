@@ -202,6 +202,7 @@ from g3o.classify.jev_activity_code import (
 from g3o.classify.jev_page_code import PageCoderConfig, PageCodeResult, PageInput, contact_text
 from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE
 from g3o.classify.question_rounds import (
+    HALVING_PAGE_FAILED,
     REASK_SEAM,
     ActivityRoundResult,
     PageRoundResult,
@@ -308,8 +309,15 @@ PRODUCER_FAILED = "page_producer_failed"
 #: every attempted page of the institution failed (T-021 wrote no artifact, or the page failed after
 #: halving) and no unread follow attempt gives it a row, so it has no source row for Stage 6 (whose
 #: response requires one). Held as pending, never concluded (ruling 45 a): held.json names each failed
-#: page and its reason; the next pass codes the pages again (calibration candidate C189).
+#: page and its reason; the next pass codes the pages again (calibration candidate C189). At least one
+#: page must be retryable (a T-021 failure): when every page failed after halving, see NO_PAGE_CODED_FAILED.
 NO_PAGE_CODED = "no_page_coded"
+#: attrition reason (no hold): every attempted page of the institution failed after halving in an extra round
+#: (PI ruling 69 b), which is never asked again, and no unread follow attempt gives it a row. A terminal failure,
+#: not a pending hold (a :data:`NO_PAGE_CODED` hold would never clear): the institution is not passed to Stage 6,
+#: any earlier hold is released, and the run report counts this reason as a failure (PROCESSING_FAILED, never
+#: NO_EVIDENCE_FOUND: rulings 45 a, E2 a). The detail names each page and its reason (calibration C189).
+NO_PAGE_CODED_FAILED = "no_page_coded_failed"
 #: C3 a (QA4 M3): a pass-1/pass-2 extractor response failed or broke the answer contract (held.json
 #: names the pass, the request and the error): per-institution hold, asked again on the next run
 EXTRACT_RESPONSE_FAILED = "extract_response_failed"
@@ -789,6 +797,8 @@ class PerPageProviders:
 class PerPageMetrics:
     ready: list[str] = field(default_factory=list)
     held: list[str] = field(default_factory=list)
+    #: institutions that are a terminal failure (:data:`NO_PAGE_CODED_FAILED`): neither ready nor held
+    failed: list[str] = field(default_factory=list)
     failed_pages: list[str] = field(default_factory=list)
     live_requests: int = 0
     replayed_requests: int = 0
@@ -2128,8 +2138,15 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             except (ConsolidationError, ValueError, RuntimeError) as exc:  # review M-3: this institution only
                 broken = _producer_hold(inst.institution_id, exc)
         if uncarried is None and broken is None and not any(isinstance(p, PageProduct) for p in products):
-            broken = {"page_id": inst.institution_id, "stage": NO_PAGE_CODED,
-                      "failed_pages": [{"page_id": st.spec.page.page_id, "reason": st.failure} for st in states]}
+            failed_pages = [{"page_id": st.spec.page.page_id, "reason": st.failure} for st in states]
+            if states and all(st.failure == HALVING_PAGE_FAILED for st in states):  # ruling 69 b: terminal
+                _clear_held(run_dir, inst.institution_id, held_path)
+                attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE,
+                                 reason=NO_PAGE_CODED_FAILED,
+                                 detail=", ".join(f"{p['page_id']}:{p['reason']}" for p in failed_pages))
+                metrics.failed.append(inst.institution_id)
+                continue
+            broken = {"page_id": inst.institution_id, "stage": NO_PAGE_CODED, "failed_pages": failed_pages}
         if uncarried is not None or broken is not None:
             hold = broken if broken is not None else {
                 "page_id": uncarried.page_id, "stage": UNCARRIED_STAGE, "items": sorted(uncarried.values)}
@@ -2141,11 +2158,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                              detail=detail)
             metrics.held.append(inst.institution_id)
             continue
-        if held_path.exists():
-            previous = json.loads(held_path.read_bytes().decode("utf-8")).get("held", [])
-            attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_RELEASED,
-                             detail=", ".join(f"{h['page_id']}:{h['stage']}" for h in previous))
-            held_path.unlink()
+        _clear_held(run_dir, inst.institution_id, held_path)
         ready.append(_institution(inst, products))
         metrics.ready.append(inst.institution_id)
     # Ruling 48.3 a: the pass finished (a stage stop raised above and never gets here); held
@@ -2153,6 +2166,15 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
     # Marker only: the stage does not skip on it, a resume runs the pass again.
     mark_done(run_dir, DONE_MARKER, no_batch=True)
     return ready, metrics
+
+
+def _clear_held(run_dir: Path, institution_id: str, held_path: Path) -> None:
+    """Clear an earlier pass's hold of this institution (a ``HELD_RELEASED`` row naming it), if any."""
+    if held_path.exists():
+        previous = json.loads(held_path.read_bytes().decode("utf-8")).get("held", [])
+        attrition.record(run_dir, institution_id=institution_id, stage=STAGE, reason=HELD_RELEASED,
+                         detail=", ".join(f"{h['page_id']}:{h['stage']}" for h in previous))
+        held_path.unlink()
 
 
 def _producer_hold(page_id: str, exc: BaseException) -> dict[str, Any]:
@@ -2443,7 +2465,7 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 
 __all__ = [
-    "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "NO_PAGE_CODED", "PRODUCER_FAILED", "STAGE_STOPS",
+    "EXTRACT_RESPONSE_FAILED", "ExtractorResponseFailed", "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "NO_PAGE_CODED", "NO_PAGE_CODED_FAILED", "PRODUCER_FAILED", "STAGE_STOPS",
     "ROW_VALUE_REFUSED", "RowValueRefused", "quote_stage_as_of", "PASS2_NOT_JOURNALED", "Pass2RequestNotJournaled", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "FOLLOW_FAILED", "FollowWiringError", "ARCHIVE_FAILED", "PAGE_ARCHIVE_DIR", "PAGE_ARCHIVE_PENDING", "PAGE_STATE_FILES", "PageArchiveIncomplete",
     "ACTIVITY_STATE_FILES", "archive_activity_state", "PAGE_REQUEST_STATE_FILES", "archive_page_request_state",
