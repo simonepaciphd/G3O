@@ -367,6 +367,29 @@ class PageFailed(RuntimeError):
         self.detail = detail
 
 
+#: Longest error detail a part failure contributes to a page failure message (calibration C189).
+DETAIL_MAX_CHARS = 200
+_SECRET_FIELD = re.compile(
+    r"(?i)\b(authorization|proxy-authorization|x-api-key|api[-_]?key|access[-_]?token|token|secret|password"
+    r"|cookie|set-cookie)\b(['\"]?\s*[:=]\s*['\"]?)(bearer\s+)?[^\s,;'\"}]+")
+_BEARER = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
+_KEY_LIKE = re.compile(r"\bsk-[A-Za-z0-9_-]{6,}")
+
+
+def bounded_error_detail(text: str, limit: int = DETAIL_MAX_CHARS) -> str:
+    """A part's error detail for a failure message: credentials (header/key fields, bearer tokens,
+    ``sk-`` keys) redacted, whitespace collapsed, at most ``limit`` characters (then ``...``)."""
+    out = _SECRET_FIELD.sub(lambda m: f"{m.group(1)}{m.group(2)}[redacted]", str(text))
+    out = _KEY_LIKE.sub("[redacted]", _BEARER.sub("Bearer [redacted]", out))
+    out = " ".join(out.split())
+    return out if len(out) <= limit else out[:limit].rstrip() + "..."
+
+
+def first_failure_note(chunk_id: str, reason: str, detail: str | None) -> str:
+    """``; first failed part <chunk> (<reason>): <bounded detail>`` (calibration C189)."""
+    return f"; first failed part {chunk_id} ({reason}): {bounded_error_detail(detail or 'no detail recorded')}"
+
+
 class _OverLimit(Exception):
     def __init__(self, chunk: Chunk) -> None:
         self.chunk = chunk
@@ -590,7 +613,7 @@ def _rounds(layout: list[Chunk], s: _Setup, page: PageInput, config: PageCoderCo
         if not asked:
             continue
         answers: dict[str, list[pc.PartAnswer]] = {q["item_id"]: [] for q in asked}
-        verdict_failures: list[tuple[str, str]] = []
+        verdict_failures: list[tuple[str, str, str | None]] = []
         for index, chunk in enumerate(layout, start=1):
             for group, qs in _groups(asked, s, page):
                 entry = send(chunk, index, n, rnd, group, qs)
@@ -600,15 +623,17 @@ def _rounds(layout: list[Chunk], s: _Setup, page: PageInput, config: PageCoderCo
                     if isinstance(rec, CoderRecord):
                         answers[q["item_id"]].append(part_answer(rec, index))
                         continue
-                    cause = (entry["failure"] or rec or {}).get("reason", REQUEST_FAILED)
+                    failure = entry["failure"] or rec or {}
+                    cause = failure.get("reason", REQUEST_FAILED)
                     if q["item_id"] == VERDICT:
-                        verdict_failures.append((chunk.chunk_id, cause))
+                        verdict_failures.append((chunk.chunk_id, cause, failure.get("detail")))
                         continue
                     answers[q["item_id"]].append(pc.PartAnswer(chunk.chunk_id, index, pc.UNKNOWN, None,
                                                                failed=True, cause=cause))
         if 4 * len(verdict_failures) >= 3 * n:
             raise PageFailed(verdict_failures[0][1],
-                             f"{len(verdict_failures)}/{n} verdict parts failed (at least 75%)")
+                             f"{len(verdict_failures)}/{n} verdict parts failed (at least 75%)"
+                             + first_failure_note(*verdict_failures[0]))
         for q in asked:
             items[q["item_id"]] = _combine(s.combine_rules[q["item_id"]], answers[q["item_id"]])
     return items, used
@@ -753,7 +778,7 @@ def to_pass1_page(result: PageCodeResult, page: PageInput) -> Any:
 
 __all__ = [
     "CHROME_STATE_FIELD", "CODER_VERSION", "SKIPPED_QUESTIONS", "FinalPage", "ItemOutcome", "LayoutPartOverLimit",
-    "PageCodeResult", "PageCoderConfig", "PageFailed", "PageInput", "build_questions", "build_state",
+    "PageCodeResult", "PageCoderConfig", "PageFailed", "bounded_error_detail", "first_failure_note", "PageInput", "build_questions", "build_state",
     "code_page", "finalize_page", "gate_open", "gated_out_value", "part_answer", "plan_layout",
     "serialize_request", "to_pass1_page",
 ]

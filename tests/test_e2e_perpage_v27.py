@@ -508,7 +508,8 @@ def test_e2e_perpage_to_final_csvs(tmp_path):
     ledger = attrition.read_records(run_dir)
     c2_ledger = [r for r in ledger if r.get("url", "").endswith("/c2")]
     assert [(r["stage"], r["detail"]) for r in c2_ledger] == [
-        (stage_page_code.STAGE, "3/4 verdict parts failed (at least 75%)")]
+        (stage_page_code.STAGE, "3/4 verdict parts failed (at least 75%); first failed part c2#p0 "
+                                f"({jpc.REQUEST_FAILED}): RuntimeError: simulated part failure")]
     assert [r["reason"] for r in ledger if r.get("url", "").endswith("/c1")] == [stage_page_code.PART_FAILURES]
     c1 = jpc.PageCodeResult.from_dict(json.loads((institution_dir(run_dir, "INST-0000003") / pp.WORK_DIR /
                                                   pp.url_hash(world.pages["c1"].url) / "page.json")
