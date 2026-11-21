@@ -843,3 +843,41 @@ def test_render_session_path_measures_dates(monkeypatch: pytest.MonkeyPatch):
 
     rendered = render_url("https://example.com/news", session=_Session())  # type: ignore[arg-type]
     assert len(rendered.metadata_dates) == 5 and page.content_calls == 1
+
+
+# ---------------------------------------------------------------------------
+# Def7 (lift ruling 39 a): the first heading, measured on the rendered DOM of
+# the same page load as the dates
+# ---------------------------------------------------------------------------
+
+
+def test_render_measures_first_heading_on_the_rendered_dom(monkeypatch: pytest.MonkeyPatch):
+    html = "<html><body><nav><h1>Menu</h1></nav><main><h1>Generative AI pilot</h1></main></body></html>"
+    rendered, page = _render_with(monkeypatch, html)
+    assert rendered.first_heading == "Generative AI pilot"
+    assert page.content_calls == 1 and len(page.goto_calls) == 1  # one DOM read for dates and heading
+    assert RenderedPage.model_validate_json(rendered.model_dump_json()) == rendered
+
+
+def test_render_dom_without_heading_is_measured_empty(monkeypatch: pytest.MonkeyPatch):
+    rendered, _ = _render_with(monkeypatch, "<html><body><p>no heading</p></body></html>")
+    assert rendered.first_heading == ""
+
+
+@pytest.mark.parametrize("html", [RuntimeError("Target closed"), None])
+def test_render_dom_read_failure_leaves_heading_unmeasured(monkeypatch: pytest.MonkeyPatch, html: Any):
+    rendered, _ = _render_with(monkeypatch, html)
+    assert rendered.first_heading is None
+    assert "first_heading" not in rendered.model_dump()
+
+
+def test_render_session_path_measures_first_heading(monkeypatch: pytest.MonkeyPatch):
+    page = _HtmlStubPage("<html><body><h2>Session heading</h2></body></html>")
+    page.close = lambda: None  # type: ignore[attr-defined]
+
+    class _Session:
+        def new_page(self) -> _HtmlStubPage:
+            return page
+
+    rendered = render_url("https://example.com/news", session=_Session())  # type: ignore[arg-type]
+    assert rendered.first_heading == "Session heading" and page.content_calls == 1
