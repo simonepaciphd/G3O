@@ -32,8 +32,11 @@ Produced here (source row, page-level, the same on every source row of a page):
   ``followed_hop_<n>`` with the hop the T-025 follow leg
   (:mod:`g3o.run.presweep.follow_v27`) gives it, and is refused without one.
 - ``source_title``: ``RenderedPage.title`` when it is not empty
-  (``items/core.source_title/rules/0``); an empty title is refused, since the
-  first-heading fallback stays unproduced (PI ruling 39 a).
+  (``items/core.source_title/rules/0``), else the page's measured first heading
+  (``RenderedPage.first_heading``, Def7: ruling 39 a lifted), else
+  ``not_documented`` when that heading was measured and is empty. A page with an
+  empty title and no heading measurement (stored before the producer; no
+  back-fill) is refused.
 - ``page_review_state``: ``reviewed``. A page reaches the assembler only after
   T-021 coded it; the signed non-``reviewed`` codes are fetch failures and
   links not followed (``rules/1``: "the review status keeps only failed
@@ -371,7 +374,8 @@ SUPERSEDED = "a quote or value at a part the coded page no longer has (supersede
 #: per-page stage), unless its cause is a missing wiring input (:data:`WIRING_PRODUCERS`), which stops the stage;
 #: they are no longer in :func:`entry_refused_items`.
 CONDITIONAL_ITEMS_R15: Mapping[str, str] = {
-    sf.TITLE: "refused when RenderedPage.title is empty (the first-heading fallback is unproduced, PI ruling 39 a)",
+    sf.TITLE: ("refused when RenderedPage.title is empty and the page has no first-heading measurement (a page "
+               "stored before the Def7 producer; no back-fill)"),
     sc.CONTACT_ITEM: ("refused when a final content_contact_named / content_contact_details value is absent or is "
                       "neither yes, no nor a signed missing token"),
     sc.CONTACT_EMAILS_ITEM: f"reads {sc.CONTACT_ITEM} (refused on some pages)",
@@ -508,11 +512,16 @@ def _field(fv: sf.FieldValue | None, item: str) -> RowValue:
 
 
 def source_title(page: Any) -> RowValue:
-    """``RenderedPage.title`` when not empty; the heading fallback stays unproduced (PI ruling 39 a)."""
-    if page.title is None or not page.title.strip():
-        raise sf.MissingUpstreamError("source_title first-heading fallback (unproduced, PI ruling 39 a)",
+    """``RenderedPage.title`` when not empty, else the measured first heading (Def7, ruling 39 a lifted).
+
+    A first heading of ``None`` (not measured: the page was stored before the producer) with an empty title
+    is refused, as before the change (no back-fill); a measured empty heading gives ``not_documented``."""
+    heading = getattr(page, "first_heading", None)
+    if (page.title is None or not page.title.strip()) and heading is None:
+        raise sf.MissingUpstreamError("source_title first-heading fallback (heading not measured on this page: "
+                                      "stored before the Def7 producer, no back-fill; ruling 39 a lifted)",
                                       [sf.TITLE])
-    fv = sf.source_title(page.title, None)
+    fv = sf.source_title(page.title, heading)
     return RowValue(sf.TITLE, fv.value, fv.basis)
 
 

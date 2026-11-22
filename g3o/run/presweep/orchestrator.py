@@ -689,6 +689,7 @@ def run_v27_dispatch(
     pm.batched_requests = sum(w.batched_requests for w in waves)
     out["n_perpage_ready"] = len(pm.ready)
     out["n_perpage_held"] = len(pm.held)
+    out["n_perpage_failed"] = len(pm.failed)  # terminal: every page failed after halving (C189, ruling 69 b)
     out["n_perpage_failed_pages"] = len(pm.failed_pages)
     usage[V27_PERPAGE_SPAN] = _usage_totals(pm)
     out[V27_USAGE_KEY] = usage

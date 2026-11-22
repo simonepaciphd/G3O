@@ -81,6 +81,44 @@ class HtmlParts:
     links: list[dict] = field(default_factory=list)
     email_links: list[str] = field(default_factory=list)
     metadata_dates: list[dict] = field(default_factory=list)  # P15 A1 date candidates
+    first_heading: str = ""  # Def7: extract_first_heading; "" = measured, none
+
+
+#: Def7: a longer "heading" is a container misused as one and is skipped.
+FIRST_HEADING_MAX_CHARS = 300
+_SUBHEADINGS = ["h2", "h3", "h4", "h5", "h6"]
+#: Headings inside these are page furniture, not the page's heading (``header`` is
+#: kept: an ``<article><header><h1>`` is the article's title).
+_NOT_PAGE_HEADING = NOISE_TAGS + ["nav", "aside", "footer"]
+
+
+def _first_heading_in(scope, names: list[str]) -> str:
+    for tag in scope.find_all(names):
+        if tag.find_parent(_NOT_PAGE_HEADING) is not None:
+            continue
+        text = " ".join(tag.get_text(" ", strip=True).split())
+        if text and len(text) <= FIRST_HEADING_MAX_CHARS:
+            return text
+    return ""
+
+
+def extract_first_heading(soup: BeautifulSoup) -> str:
+    """The page's first heading (Def7: the ``core.source_title`` fallback), ``""`` when none.
+
+    Rule: the first non-empty ``h1``, else the first non-empty ``h2``-``h6`` in
+    document order, read first in the main region :func:`extract_text` uses
+    (``main`` / ``article`` / ``role=main``) and, when that region has none,
+    in the whole document. Headings inside noise tags or ``nav`` / ``aside`` /
+    ``footer`` are skipped; text is whitespace-normalised, and a heading over
+    :data:`FIRST_HEADING_MAX_CHARS` characters is skipped. Never mutates ``soup``.
+    """
+    main = soup.find("main") or soup.find("article") or soup.find(role="main")
+    for scope in ([main] if main is not None else []) + [soup]:
+        for names in (["h1"], _SUBHEADINGS):
+            text = _first_heading_in(scope, names)
+            if text:
+                return text
+    return ""
 
 
 def extract_parts(soup: BeautifulSoup, base_url: str) -> HtmlParts:
@@ -97,10 +135,11 @@ def extract_parts(soup: BeautifulSoup, base_url: str) -> HtmlParts:
     email_links = extract_email_links(soup)
     # P15 A1: read before extract_text, which removes the JSON-LD <script>s.
     metadata_dates = html_date_candidates(soup)
+    first_heading = extract_first_heading(soup)  # Def7: before extract_text strips the chrome
     text = extract_text(soup)
     return HtmlParts(
         text=text, chrome_text=chrome_text, links=links, email_links=email_links,
-        metadata_dates=metadata_dates,
+        metadata_dates=metadata_dates, first_heading=first_heading,
     )
 
 

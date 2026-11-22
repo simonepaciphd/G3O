@@ -29,6 +29,7 @@ from pydantic import (
 from g3o.common import config
 from g3o.common.date_signals import html_date_candidates
 from g3o.scrape import egress
+from g3o.scrape import html as html_mod
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,20 @@ class RenderedPage(BaseModel):
         description="Published-date candidates {tag, found_as, raw, value} "
         "(g3o.common.date_signals); value None = raw not an accepted date form.",
     )
+    # Def7 (PI ruling, calibration session 3: lift ruling 39 a): the page's
+    # first heading (g3o.scrape.html.extract_first_heading), the
+    # core.source_title fallback. Same convention: measured on the HTML and
+    # unlocker-HTML paths and on the render path (the rendered DOM of the same
+    # page load). PDF pages (D7-1 (b), PI ruling 2026-11-20): the first
+    # non-empty line of the extracted text (g3o.scrape.pdf.first_line_heading).
+    # ``None`` = not measured: DOCX pages, a PDF read without pdfplumber, a
+    # render whose DOM HTML could not be read, and every record stored before
+    # the change (no back-fill). ``""`` = measured, no heading on the page.
+    first_heading: str | None = Field(
+        default=None,
+        description="First heading of the page (h1, else h2-h6; PDF: first non-empty text line), "
+        "whitespace-normalised.",
+    )
 
     @model_serializer(mode="wrap")
     def _omit_unmeasured(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -142,7 +157,7 @@ class RenderedPage(BaseModel):
         return data
 
 
-_OPTIONAL_PAGE_FIELDS = ("chrome_text", "links", "email_links", "metadata_dates")
+_OPTIONAL_PAGE_FIELDS = ("chrome_text", "links", "email_links", "metadata_dates", "first_heading")
 
 
 def _import_sync_playwright():
@@ -152,35 +167,44 @@ def _import_sync_playwright():
     return sync_playwright
 
 
-def _rendered_date_candidates(page: object) -> list[dict[str, Any]] | None:
-    """P15 A1 date candidates of the rendered DOM (PI ruling R3 b, 2026-11-12).
+def _rendered_dom_signals(page: object) -> tuple[list[dict[str, Any]] | None, str | None]:
+    """P15 A1 date candidates and the Def7 first heading of the rendered DOM.
 
     Reads the serialised DOM of the already-loaded page (playwright
-    ``page.content()``: no navigation, no request) and runs
-    :func:`g3o.common.date_signals.html_date_candidates` on it, as the HTML
-    path does. Only the candidates are kept, never the HTML. ``None`` (not
-    measured) when the DOM cannot be read or parsed; the render itself still
-    succeeds.
+    ``page.content()``: no navigation, no request) once and runs
+    :func:`g3o.common.date_signals.html_date_candidates` (PI ruling R3 b,
+    2026-11-12) and :func:`g3o.scrape.html.extract_first_heading` on it, as
+    the HTML path does. Only the signals are kept, never the HTML. ``None``
+    (not measured) when the DOM cannot be read or parsed; the render itself
+    still succeeds.
     """
     try:
         html = page.content()  # type: ignore[attr-defined]
         if not isinstance(html, str):
             raise TypeError(f"page.content() returned {type(html).__name__}, not str")
-        return html_date_candidates(BeautifulSoup(html, "html.parser"))
+        soup = BeautifulSoup(html, "html.parser")
+        dates = html_date_candidates(soup)
     except Exception as exc:
         logger.warning("render: rendered HTML not read, metadata dates not measured: %s", exc)
-        return None
+        return None, None
+    try:
+        heading: str | None = html_mod.extract_first_heading(soup)
+    except Exception as exc:
+        logger.warning("render: first heading not measured: %s", exc)
+        heading = None
+    return dates, heading
 
 
 def _drive_page(
     page: object, url: str, *, timeout: int, wait_for: str | None
-) -> tuple[str, str, str | None, int | None, list[dict[str, Any]] | None]:
-    """Navigate ``page`` to ``url`` and read out (text, title, final_url, status, metadata_dates).
+) -> tuple[str, str, str | None, int | None, list[dict[str, Any]] | None, str | None]:
+    """Navigate ``page`` to ``url`` and read out (text, title, final_url, status, metadata_dates,
+    first_heading).
 
     The single point that drives a playwright page, shared by the ephemeral
     per-call browser path and the reusable :class:`RenderSession` path so both
     behave identically. ``metadata_dates`` is measured on the same page load
-    (:func:`_rendered_date_candidates`).
+    with the first heading (:func:`_rendered_dom_signals`).
     """
     response = page.goto(url, timeout=timeout, wait_until="domcontentloaded")
     if wait_for:
@@ -192,11 +216,11 @@ def _drive_page(
             # networkidle is best-effort; some pages keep long-poll connections open.
             pass
     text = page.inner_text("body")
-    metadata_dates = _rendered_date_candidates(page)
+    metadata_dates, first_heading = _rendered_dom_signals(page)
     title = page.title()
     final_url = page.url
     status = response.status if response is not None else None
-    return text, title, final_url, status, metadata_dates
+    return text, title, final_url, status, metadata_dates, first_heading
 
 
 class RenderSession:
@@ -355,7 +379,7 @@ def render_url(
     if session is not None:
         page = session.new_page()
         try:
-            text, title, final_url, status, metadata_dates = _drive_page(
+            text, title, final_url, status, metadata_dates, first_heading = _drive_page(
                 page, url, timeout=timeout, wait_for=wait_for
             )
         finally:
@@ -376,7 +400,7 @@ def render_url(
             try:
                 context = browser.new_context()
                 page = context.new_page()
-                text, title, final_url, status, metadata_dates = _drive_page(
+                text, title, final_url, status, metadata_dates, first_heading = _drive_page(
                     page, url, timeout=timeout, wait_for=wait_for
                 )
             finally:
@@ -388,6 +412,7 @@ def render_url(
         title=title,
         content_type="render",
         metadata_dates=metadata_dates,
+        first_heading=first_heading,
         fetch_metadata=FetchMetadata(
             access_date=utc_today_iso(),
             http_status=status,

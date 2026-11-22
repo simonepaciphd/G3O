@@ -1,29 +1,29 @@
 # GENERATED FILE - do not edit. Built from codebook/codebook.yaml by
 # g3o.codebook.generators.enums.
-# codebook release: 2.7 | codebook sha256: 381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a
+# codebook release: 2.7 | codebook sha256: 71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4
 # Intended target: T-012 enum constants (g3o/common/contract.py or a module T-012 names).
 """Codebook value lists as constants; each carries its item id and item hash."""
 
 from __future__ import annotations
 
 CODEBOOK_RELEASE = '2.7'
-CODEBOOK_SHA256 = '381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a'
+CODEBOOK_SHA256 = '71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4'
 
 #: item id -> (item hash, value codes in codebook order)
 ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
-    'core.page_verdict': ('53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44', ('confirms_activity', 'ambiguous_genai', 'ambiguous_attribution', 'other_body', 'event_only', 'background_only', 'confirms_absence', 'no_genai', 'not_assessable',)),
+    'core.page_verdict': ('9df075bee06243aa33703279c998ffefc1413c9aa599b873e23a63fc642654c7', ('confirms_activity', 'ambiguous_genai', 'ambiguous_attribution', 'other_body', 'event_only', 'background_only', 'confirms_absence', 'no_genai', 'not_assessable',)),
     'core.disclosure_form': ('6d5ce44a18eea9599e585257ed852f2bf73a412c1de68bd3c8ef7ec1dde80256', ('register_cross_institution', 'register_single_institution', 'mandated_report', 'formal_record', 'informal_official', 'third_party',)),
     'core.disclosure_scope': ('089514643eaca8c94b06d0d617c2082f6604ef19a8f6c3680be56860fe8143b2', ('whole_of_government', 'multi_institution', 'single_institution',)),
-    'core.page_complete': ('0125217cda0f3b064a80821fd9ae31c1fa5fb158dc73ead1c3d95be09379f503', ('yes', 'no',)),
+    'core.page_complete': ('51ca906f401a602a318eafdc8bca73eeabd5de58da3e0cdec44c9c2f7841333a', ('yes', 'no',)),
     'core.source_type': ('eeec6e92b28743e0e64973fc7847010727a12a4b47d0cefcb38ab7ada9a7e5c0', ('news_major', 'news_trade', 'vendor', 'academic', 'policy_org', 'social_media', 'procurement_tender', 'other',)),
-    'core.content_contact_named': ('b4589c821abd21e0a49357bf82144bcd2b8cf3d855cfef37b73dcf9e68455312', ('yes', 'no',)),
-    'core.content_contact_details': ('f48276daef2a6c61dab279f0cc18134ae65dce1710dd788428c3fe85282df5af', ('yes', 'no',)),
-    'core.content_data': ('873afed104d45718bd358c1d669cfafa141d7f93933ccb9eebfa61098d5811cb', ('yes', 'no',)),
+    'core.content_contact_named': ('3e327f7b4ad6a742e2d7d7c655b8b25f50302d223b1df2100286192abd22f138', ('yes', 'no',)),
+    'core.content_contact_details': ('fc7ef02ed1ceea6bb837c625ea62bf0b83476213e30ff90785b7b89e7391a804', ('yes', 'no',)),
+    'core.content_data': ('861eaa4fb096f613b15b17416a5f16106f231f0cb0015554dcb5de27000cfeb4', ('yes', 'no',)),
     'core.activity_segment': ('e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759', ('same_activity', 'component_of_program', 'has_component', 'shared_participation', 'governs', 'governed_by', 'distinct_action', 'unresolved', 'not_an_activity',)),
     'core.observed_actor_relationship': ('eb128ea7cd4da3523104479bb645e543c69c729fa6164d14f6cce3607ed271b7', ('this_institution', 'unit_of_institution', 'joint_participant', 'other', 'unresolved',)),
-    'core.activity_type': ('5c28210b54b5c1510bff389b9e4949d8b009be0e4ad6623263f248c567d424db', ('policy_guidance', 'pilot_experiment', 'program_initiative', 'internal_operational', 'public_facing_service',)),
-    'core.action_type': ('bfe28f4947f246600468c1a6587f739518ef7a5e6771733389a6fbbcfb5b81ce', ('deployment', 'governance', 'staff_training', 'program',)),
-    'core.adoption_stage': ('4aa4962b9e5b24a8ae88c84a0603d337d835b5e894cda596ef242a4c7b97e4e6', ('proposed', 'announced', 'pilot', 'production', 'discontinued',)),
+    'core.activity_type': ('9ab6d6db8652f2aa46c2b9652e86594bb411b52cd20b3b41bc338b8e3466abf0', ('policy_guidance', 'pilot_experiment', 'program_initiative', 'internal_operational', 'public_facing_service',)),
+    'core.action_type': ('ece42341264b8bebbd0599788bc5dc0606c3d10a7652299c2248acb4785db3b6', ('deployment', 'governance', 'staff_training', 'program',)),
+    'core.adoption_stage': ('c2c162b7663483a48c5364418a9887c3f2204fa1d706f9b0b25a6b52865e4bb4', ('proposed', 'announced', 'pilot', 'production', 'discontinued',)),
     'core.procurement_status': ('069cac4eae165dba976c259f3d778a07c2a07fe9ff5d88f60f780c501519af39', ('none_documented', 'tender_or_rfp', 'award_or_contract', 'payment_or_subscription',)),
     'core.model_origin': ('604814a8eeb44403f59c7eb1c3dd321e8618344ef2c7492918e0dfb91e38084f', ('commercial', 'open_weight', 'government_developed',)),
     'core.build_arrangement': ('26747e9b192f65d107fefbb46c7423d785b554a37936e2dd775eee596ecfc205', ('off_the_shelf_product', 'custom_application_on_external_model', 'model_trained_or_fine_tuned_by_institution',)),
@@ -36,32 +36,32 @@ ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
     'core.function_image_audio_video': ('538dff367d93a589aa7561b3306a2bb3fddded3f6655ae9478ecc57e42b2c242', ('yes', 'no',)),
     'core.function_extraction_classification': ('c6b8d591da62fc1af2e39bd85f12bc2a27e423a2e24ff8f4441bdeef4c03fc6f', ('yes', 'no',)),
     'core.function_analysis_recommendation': ('46e598ead1d140774354594de96cc8e910dc942454798338b0535efc6c39dc4b', ('yes', 'no',)),
-    'core.deployment_mode': ('b98e0a21cf8e6214df70fb55b4d1c07d269ccb33edb7018f6d942abbb9a0602c', ('integrated', 'standalone',)),
-    'core.target_users': ('34d84236cf9dff00347f35585a18556f9861c83aa4578d8104e9d84821514d94', ('internal_staff', 'public', 'both',)),
-    'core.governed_population': ('a786dcbf8d250e7bd267a110a2fb65ae851fe1f5c33c863002e96563dd3ed430', ('internal_personnel', 'external_users', 'both',)),
-    'core.governance_form': ('49492f6cc3240e7b05bb438a5869d24e4e30904ac281d54ddf0ffbb235cc3717', ('dedicated_genai_or_ai_policy_or_guideline', 'approved_tool_list_or_endorsement', 'clause_in_instrument_on_other_subject', 'court_or_regulatory_order', 'procurement_standard',)),
-    'core.governance_direction': ('447d9f41a426d6b143bd16c4149cb67d7b94321a1cf583c7563f7f07958d3d54', ('prohibits', 'restricts_with_conditions', 'permits', 'requires', 'promotes',)),
-    'core.service_domain': ('6d4627193be4485e52d5ceaa662c7d109d39035a481c91c4da0440bb560ba7a3', ('general_public_services', 'defence', 'public_order_safety', 'economic_affairs', 'environmental_protection', 'housing_community_amenities', 'health', 'recreation_culture_religion', 'education', 'social_protection', 'other',)),
-    'core.genai_mechanism_basis': ('de94ee8e9e42e7a6d0ed45e30260dad5d3be1c15b4b7b07b5bef3ca54331c837', ('named_genai_product_or_model', 'explicit_genai_label', 'generative_capability_described', 'ai_chatbot_or_assistant_label_only',)),
+    'core.deployment_mode': ('7da7a90e15a99e1ecdfe1290a318e2a76862a48ea53d5d8b79b26865658406b3', ('integrated', 'standalone',)),
+    'core.target_users': ('8d985ade4cec6acc88a59524a2421739f44f5974d43c091cd810661c8e878675', ('internal_staff', 'public', 'both',)),
+    'core.governed_population': ('0e318135188e3d9cad0912b2b6a4982b06c931ce3f329645c9c565bfa7ffb971', ('internal_personnel', 'external_users', 'both',)),
+    'core.governance_form': ('ae8c86617f21eb2e92365dcaa0a538361f271d3904a56162178c17dfc4bdde44', ('dedicated_genai_or_ai_policy_or_guideline', 'approved_tool_list_or_endorsement', 'clause_in_instrument_on_other_subject', 'court_or_regulatory_order', 'procurement_standard',)),
+    'core.governance_direction': ('a802ccf621f35fa12cac0de1f625aaa4b8ebecf47e1491bc6515c5dbc89816eb', ('prohibits', 'restricts_with_conditions', 'permits', 'requires', 'promotes',)),
+    'core.service_domain': ('38acc164fd9dcc80757e5c7edfb714d20cb99448be913a6bb74fb56426302960', ('general_public_services', 'defence', 'public_order_safety', 'economic_affairs', 'environmental_protection', 'housing_community_amenities', 'health', 'recreation_culture_religion', 'education', 'social_protection', 'other',)),
+    'core.genai_mechanism_basis': ('0f2f4e390483f9d70e2e8ed578a0a71d6ebfcc5b0874d7436e72ad424c9aeb7f', ('named_genai_product_or_model', 'explicit_genai_label', 'generative_capability_described', 'ai_chatbot_or_assistant_label_only', 'no_generative_signal',)),
     'core.deployment_scale_unit': ('c4359e7dd8e604b19a00b999b3d14d2407d5b6c8f398a8f759a417693852e7eb', ('licences_or_seats', 'users', 'interactions', 'units_or_departments', 'none',)),
-    'core.has_human_oversight': ('2baab3c1c2c4a87916acd613ef01aa56ccbaddeb739f920c793a649e9b2b839f', ('yes', 'no', 'unclear',)),
-    'core.has_transparency_notice': ('bcefdc276e698be877c13588df80ffcddac8e3542453155ea2e770133a865883', ('yes', 'no', 'unclear',)),
-    'core.has_data_classification': ('ba98b2d241f40f7137c626e7e7c0ad41c0b87581fc538d6f4caf1813bcd3cd59', ('yes', 'no', 'unclear',)),
+    'core.has_human_oversight': ('d295f72c1b7d9084ba2aaa7175f0d072bd1847acd66828f5764b3109c9406d40', ('yes', 'no', 'unclear',)),
+    'core.has_transparency_notice': ('8b67314da88223d5cb70d2f9a20264670f1db2aacdc58287238d97c3161b1f0c', ('yes', 'no', 'unclear',)),
+    'core.has_data_classification': ('c87240d8603e964e338ee2429213041510bf66932774798e63a0063945a4fdfc', ('yes', 'no', 'unclear',)),
     'core.has_risk_assessment': ('4b340b3af9416bb9713e92e6558919763d64617c523fb4bbc5e633f149358ea4', ('yes', 'no', 'unclear',)),
     'core.outcome_kind': ('7215b6b2576b8a967c86362ed2a3d4dbcb740b84a4f23d2de05a4ef817091e12', ('quantified', 'qualitative', 'none_reported',)),
     'core.incident_kind': ('9d7ab9101539f801ee5098e8df2c46e9f0b6fcc27fdf679eaf88cf502f395d32', ('quantified', 'qualitative', 'none_reported', 'discontinuation_uncertain',)),
-    'core.evaluation_documented': ('8d878b747de11b7e8f8888b27a5c568da0cbb4c47c235026f47bf282eb59dd0b', ('results_reported', 'conducted_no_results', 'required_or_planned', 'unclear',)),
-    'core.evaluation_type_pre_deployment_testing': ('83fe066236badf19503226e47cfee3450cbf0f9ea98bab20181cf402c9bd14c1', ('yes', 'no',)),
-    'core.evaluation_type_pilot_evaluation': ('b9cb25ae00b051454b71beb3432e939a4bcd4e43afb84ab0a6ec5527ae2d4888', ('yes', 'no',)),
-    'core.evaluation_type_independent_audit': ('bc119729ff3f2dd1d7c6bff2fc113863860f1fdf2c8f6d337f53b518644cb864', ('yes', 'no',)),
-    'core.evaluation_type_ongoing_monitoring': ('e7866831b2329fc016fb0018765cf5e4d16e3b44f872f693a0993f6e09e6c0cf', ('yes', 'no',)),
-    'core.evaluation_type_user_feedback': ('036e7caa5b9aab26435a359d33ecaa4a209693b802f4541772cf7122b3c5a65a', ('yes', 'no',)),
-    'core.evaluation_type_bias_or_safety_testing': ('21268a987d8ea93b84d5bd166774219636358e77538014241ebf4aac7f679e70', ('yes', 'no',)),
+    'core.evaluation_documented': ('72612246f3249a9de830061aaea503805790864a71a345b04c7cc9cd94afa366', ('results_reported', 'conducted_no_results', 'required_or_planned', 'unclear',)),
+    'core.evaluation_type_pre_deployment_testing': ('56f266691b0a497adc3ae6c663c7c888f3af1cea40395e6c164da02b6059182a', ('yes', 'no',)),
+    'core.evaluation_type_pilot_evaluation': ('908c2704cf1af68a2036806c821a047e91bbf3135830238a2e7546037a05f3cd', ('yes', 'no',)),
+    'core.evaluation_type_independent_audit': ('1f17899a3484b6ac7bc35b61cf459bd84e0c0cc5efe52a1f33facd11eab0c5b7', ('yes', 'no',)),
+    'core.evaluation_type_ongoing_monitoring': ('781f24c150accde0fd605d3066e4f8cb79dc91b971b656669a75abc26a9092d8', ('yes', 'no',)),
+    'core.evaluation_type_user_feedback': ('f6254ba80055d4ba6ff7051f9c1fda8436849aa1abaa9cce14741863912b63b1', ('yes', 'no',)),
+    'core.evaluation_type_bias_or_safety_testing': ('c0ae0fc3fbd69f6159a885ad4f9638f66cde52f394cd20a36b2ee7ca896a466e', ('yes', 'no',)),
     'core.stage_as_of_basis': ('c40ce46095c40201d4c252d58c6eaa6fa915a8ae19e1a4fe3abe01f314c3c953', ('publication', 'stated', 'access',)),
     'core.permanent_pilot': ('152bbabb24b057f88773d735097cc0341ee6e95603be4597682f789458beedb2', ('yes', 'no',)),
     'core.support_entailment': ('c5b4622acfca3d8d78dffb98f55c0693dc122be59dbe75e77cfaafa7b186af8b', ('true', 'false',)),
     'core.activity_relation_cross_page': ('ace0da2bc93b3c6a70f0a97873b123abea5906bba93b238f926feff086ed6e5c', ('same_activity', 'component_of_program', 'has_component', 'shared_participation', 'governs', 'governed_by', 'distinct_action', 'unresolved',)),
-    'core.observed_actor_role': ('47c6b173d8d672bffc766f9603b797b24a136c418aebb5be2c4a0a0c236d93fc', ('institutional_actor', 'issuer', 'participant', 'external_speaker', 'service_provider', 'event_host',)),
+    'core.observed_actor_role': ('49db2543e6a85f2373dcd89d14185927a46b9f9eea29ecebb4c686d8d89faf66', ('institutional_actor', 'issuer', 'participant', 'external_speaker', 'service_provider', 'event_host',)),
     'core.support_status_second_reason': ('15278c373296fcd2164444cc29b816e0d773a02d940a21b28f78a49c701fc90d', ('downgraded_no_quote', 'downgraded_low_confidence', 'downgraded_quote_not_stating_value',)),
 }
 

@@ -675,6 +675,7 @@ def _html_part_fields(parts: html_mod.HtmlParts | None) -> dict[str, Any]:
         "links": parts.links,
         "email_links": parts.email_links,
         "metadata_dates": parts.metadata_dates,
+        "first_heading": parts.first_heading,  # Def7
     }
 
 
@@ -747,6 +748,7 @@ def _unlocker_page(
         utitle, updf_dates = _pdf_title_and_dates(ucontent)
         if updf_dates is not None:
             udates["metadata_dates"] = updf_dates
+        udates["first_heading"] = pdf_mod.first_line_heading(utext)  # Def7, D7-1 (b)
         umethod = "unlocker_pdf"
         uctype = "pdf"
     elif ukind == "docx":
@@ -996,6 +998,7 @@ def scrape_url(
         title, measured_dates = _pdf_title_and_dates(content)
         if measured_dates is not None:
             pdf_dates["metadata_dates"] = measured_dates
+        pdf_dates["first_heading"] = pdf_mod.first_line_heading(text)  # Def7, D7-1 (b)
         method = "pdf"
         content_type = "pdf"
     elif kind == "docx":

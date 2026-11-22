@@ -336,8 +336,9 @@ def _storage_checks(check: Checks, run_root: Path, fixture_ids: list[str]) -> No
 
 
 def _r16() -> str:
-    from g3o.codebook.r16_candidate import R16_CANDIDATE_SHA256
-    return R16_CANDIDATE_SHA256
+    """The codebook the generated tree is built from: r16, or a later revision that carries the r16 fields."""
+    from g3o.codebook.r16_candidate import active_codebook_sha256
+    return active_codebook_sha256()
 
 
 def _instrument_codebook(record: Any) -> str | None:

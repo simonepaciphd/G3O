@@ -447,6 +447,9 @@ def test_page_extra_round_over_limit_everywhere_halves_to_depth_then_fails(monke
     assert "halved in an extra round" in done.failure["detail"]
     over = {f["chunk_id"] for f in done.result.failures if f["reason"] == pc.OVER_LIMIT and SCOPE in f["question_ids"]}
     assert over == {"p:0.1", "p:0.2", "p:1.1", "p:1.2"}
+    # C189: the failure detail names the first failed leaf part and its error
+    assert done.failure["detail"].endswith(
+        f"after the page was coded; first failed part p:0.1 ({pc.OVER_LIMIT}): part cannot be halved further")
 
 
 # --- page halving in extra rounds (RC-D-023 B-Q6, RC-D-024 item 6; tests owed per RC-D-024 l.39) ---

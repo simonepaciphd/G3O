@@ -96,7 +96,8 @@ def test_pass1_fields_follow_codebook_coder_column():
 def test_no_support_values_from_codebook():
     rules = default_rules()
     assert rules.no_support_values == {"no", "unknown", "not_documented", "not_asked", "_NA_", "none_reported",
-                                       "none_documented", "none", "unclear", "unresolved", "not_an_activity"}
+                                       "none_documented", "none", "unclear", "unresolved", "not_an_activity",
+                                       "no_generative_signal"}  # r17 candidate: the absence value of 1.7 a
     assert rules.negative_verdicts == {"confirms_absence", "no_genai", "background_only",
                                        "event_only", "other_body"}
 

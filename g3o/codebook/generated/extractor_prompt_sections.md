@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extractor_prompt_sections. -->
-<!-- codebook release: 2.7 | codebook sha256: 381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a -->
+<!-- codebook release: 2.7 | codebook sha256: 71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4 -->
 
 # Extractor prompt sections
 
-Codebook release `2.7`, sha256 `381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
+Codebook release `2.7`, sha256 `71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
 
 ## `core.source_publication_date`
 <!-- item: core.source_publication_date sha256: 8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320 -->
@@ -198,14 +198,14 @@ Column `contracting_party`; item hash `fe369db14f8a663f0a0db13d2390583d34f0de935
 3. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.developer`
-<!-- item: core.developer sha256: 3b7fa3c4814ac318a061237a2bc87bf7d614afa9645d570dcb127a0869dac61d -->
+<!-- item: core.developer sha256: 947cd93228ce4c32c279ab6fa876967f2cc39e58f925019a4a438bb17de71f36 -->
 
-Column `developer`; item hash `3b7fa3c4814ac318a061237a2bc87bf7d614afa9645d570dcb127a0869dac61d`.
+Column `developer`; item hash `947cd93228ce4c32c279ab6fa876967f2cc39e58f925019a4a438bb17de71f36`.
 
 ### Rules
 
 1. Developer (stated on the page, with its basis recorded) and contracting party (page-stated only).
-2. vendor = the organisation the page names as supplying the GenAI product or service, verbatim.
+2. vendor = the organisation the page names as supplying the AI product or service, verbatim.
 3. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 4. A developer stated on the page comes from the quote step, with its supporting quote; `developer_basis` = stated.
 

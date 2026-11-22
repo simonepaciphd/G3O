@@ -43,7 +43,7 @@ from g3o.validate.consolidate_v27 import ActivityObservation, RelationDecision, 
 from tests._layout import uid_for, write_manifest
 from tests._storage_fixture import _values
 
-R16 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a"
+R16 = "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4"
 RUN_ID = "R-T030-E2E"
 TRUE = Entailment("true", 0.95)
 CLOCK = lambda: datetime(2026, 11, 10, 12, 0, tzinfo=timezone.utc)  # noqa: E731
@@ -84,7 +84,8 @@ class Builder:
                                      quote_chunk_id=chunk if quote else None, entailment=TRUE if quote else None,
                                      activity_id=oid, linked_activity=linked), self.page_sources[pid])
         nodes = support_nodes(sr, self.page_sources[pid], self.artifacts[sid],
-                              SupportContext(RUN_ID, self.uid, oid, sid, []), self.instrument)
+                              SupportContext(RUN_ID, self.uid, oid, sid, [], linked_observation_id=linked),
+                              self.instrument)  # here a pair's linked activity is its rhs observation (D3-A)
         self.n += 1
         context = dict(item_id=item, item_part=part, support_id=nodes.original["support_id"], observation_id=oid,
                        chunk_id=chunk, coder_version="fake-per-page-v1", question_set_version=QSV,

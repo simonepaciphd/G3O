@@ -58,6 +58,7 @@ from g3o.common.jev_record import CoderRecord
 from g3o.common.response_v27 import ConsolidatedInstitutionResponseV27, check_storage_binding
 from g3o.common.storage import (
     CHANNELS,
+    LINKED_OBSERVATION,
     METADATA_ITEMS,
     QUOTE_SEGMENT,
     StorageEnvelope,
@@ -70,6 +71,7 @@ from g3o.common.support_check import (
     MATCH_DECISION,
     MATCH_METRIC,
     MATCH_THRESHOLD,
+    NO_QUOTE,
     PINNED_RAPIDFUZZ,
     SET_BY_RULE,
     WORD_RULE_CUTOFF,
@@ -157,6 +159,8 @@ class SupportContext:
     source_id: str | None
     # Scoped to this observation/code; None = the derived-flag producer has not run.
     uncertainty_flags: Sequence[str] | None
+    # A within-page pair node: the other (rhs) observation of the pair (D3-A, pair-keyed support).
+    linked_observation_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -183,8 +187,10 @@ def support_nodes(result: SupportResult, sources: PageSources, artifact: PageArt
     _instrument_matcher(instrument)
     if ctx.source_id is not None and artifact.source_id != ctx.source_id:
         raise ValueError("page artifact belongs to another source claim")
+    if (getattr(result, "linked_activity", None) is None) != (ctx.linked_observation_id is None):
+        raise ValueError("a pair support needs the linked observation of its pair, and only a pair support has one")
     artifact.verify(sources)
-    quote = result.supporting_text
+    quote, rejected = result.supporting_text, None
     segment = span = match = None
     if quote is not None:
         segment = result.quote_chunk_id
@@ -195,6 +201,11 @@ def support_nodes(result: SupportResult, sources: PageSources, artifact: PageArt
             match = match_quote(quote, artifact.segment_text(segment))
             if match != result.match:
                 raise ValueError("T-024 match result is not reproduced on the stored artifact")
+        if result.support_status == NO_QUOTE:
+            # Calibration FN-TRACE defect 2 / T-041 real-26 (emitter-side option; PI ruling 2026-11-20, defect report, Def2 R8-a; RC-D-044): a quote
+            # that failed R-042 / R-044 is "no supporting text"; it is kept only in the provenance companion
+            # (``rejected_quote``, beside its failed ``match``), as the pooled path already does.
+            quote, rejected, segment, span = None, quote, None, None
     elif result.match is not None:
         raise ValueError("a match result without a quote")
     if result.support_status == "supported" and (match is None or not match.matched):
@@ -207,10 +218,12 @@ def support_nodes(result: SupportResult, sources: PageSources, artifact: PageArt
             "support_status_second_reason": second,
             "uncertainty_flags": list(ctx.uncertainty_flags),
             "page_content_sha256": artifact.sha256}
+    passage = {QUOTE_SEGMENT: segment, "segment_span": None if span is None else list(span)}
+    if ctx.linked_observation_id is not None:
+        passage[LINKED_OBSERVATION] = ctx.linked_observation_id
     original = {**base, "value_json": result.original_value, "supporting_text": quote or "",
                 "support_status": result.support_status, "input_support_ids": [],
-                "support_text_sha256": sha256_text(quote or ""),
-                "passage": {QUOTE_SEGMENT: segment, "segment_span": None if span is None else list(span)}}
+                "support_text_sha256": sha256_text(quote or ""), "passage": passage}
     original["support_id"] = support_id(ctx.run_id, ctx.institution_uid, original)
     final = None
     if result.value != result.original_value:
@@ -232,6 +245,7 @@ def support_nodes(result: SupportResult, sources: PageSources, artifact: PageArt
         "check_flags": list(result.flags),
         "chosen_answer_probability": result.chosen_answer_probability,
         "final_support_id": None if final is None else final["support_id"],
+        "rejected_quote": rejected,
     }
     return SupportNodes(original, final, provenance)
 
@@ -309,6 +323,10 @@ def combined_support_nodes(result: SupportResult, *, run_id: str, institution_ui
                 match = match_quote(quote, copied.artifact.segment_text(segment))
                 if match != result.match:
                     raise ValueError("T-024 match result is not reproduced on the stored input artifact")
+            if result.support_status == NO_QUOTE:
+                # Emitter-side option (see support_nodes): a quote that failed its match on the named input
+                # is handled like one copied from outside the request part.
+                quote, rejected, segment, span, copied = None, result.supporting_text, None, None, None
     if result.support_status == "supported" and (match is None or not match.matched):
         raise ValueError("supported value lacks a reproduced R-042 match")
     if copied is not None:

@@ -591,13 +591,16 @@ def _verdict_failed_after_halving(result: page_code.PageCodeResult) -> str | Non
     live = {c.chunk_id for c in result.chunks}
     verdict_records = {r.chunk_id for r in result.records
                        if r.coder_type == "classifier" and r.item_id == page_code.VERDICT}
-    failed = {f["chunk_id"] for f in result.failures
-              if f["reason"] in _FINAL_FAILURES and f["chunk_id"] in live and f["chunk_id"] not in verdict_records
-              and page_code.VERDICT in f["question_ids"]}
+    entries = [f for f in result.failures
+               if f["reason"] in _FINAL_FAILURES and f["chunk_id"] in live and f["chunk_id"] not in verdict_records
+               and page_code.VERDICT in f["question_ids"]]
+    failed = {f["chunk_id"] for f in entries}
     if 4 * len(failed) < 3 * n:
         return None
+    first_id = next(c.chunk_id for c in result.chunks if c.chunk_id in failed)  # layout order (C189)
+    first = next(f for f in entries if f["chunk_id"] == first_id)
     return (f"{len(failed)}/{n} verdict parts failed (at least 75%) on the layout halved in an extra round, "
-            "after the page was coded")
+            "after the page was coded" + page_code.first_failure_note(first_id, first["reason"], first.get("detail")))
 
 
 def _recombine_after_halving(result: page_code.PageCodeResult, setup: Any,

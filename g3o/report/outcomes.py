@@ -156,6 +156,12 @@ _FAILURE_REASONS: frozenset[str] = frozenset(
         # (Stage 2 jev failures keep their prior meaning) and NOT sticky
         # across a resume: see _JEV_STAGE_ARTIFACTS.
         "jev_request_failed",
+        # Calibration C189 (PI ruling 69 b): every page of a v2.7 institution
+        # failed after halving in an extra round and is never asked again, so
+        # the per-page stage records this terminal failure instead of a hold.
+        # Mirrors ``stage_perpage_v27.NO_PAGE_CODED_FAILED`` (pinned by a test;
+        # not imported). Outside this set it published as NO_EVIDENCE_FOUND.
+        "no_page_coded_failed",
     }
 )
 

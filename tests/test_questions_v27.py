@@ -214,7 +214,8 @@ def test_approved_activity_pair_instrument_is_separate_from_pooled_questions():
     assert pair["question_id"] == "core.activity_segment"
     assert pair["instructions"] == ACTIVITY_PAIR_TEXT
     assert pair["approval"] == "approved"
-    assert pair["same_start"] == "stop affected pair: pair_direction_tie"
+    assert pair["same_start"] == ("tie-break: the lower activity id is lhs, then the pair is asked once: "
+                                  "pair_direction_tie_break")
     assert len(pair["criteria"]) == 9
     assert {v["code"] for v in pair["criteria"]} >= {"governs", "governed_by", "has_component"}
     assert pair["question_id"] not in load_set("institution")["pooled"]["question_ids"]

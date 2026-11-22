@@ -38,6 +38,8 @@ METADATA_ITEMS = {"core.codebook_release", "core.setup_pointer", "core.evidence_
 RELATION_INVERSE = {"component_of_program": "has_component", "has_component": "component_of_program",
                     "governs": "governed_by", "governed_by": "governs"}
 VERDICTS = tuple(FIELDS["core.page_verdict"]["codes"])
+#: Item coders whose ORIGINAL code a support-check downgrade can replace by a mechanical FINAL node.
+DOWNGRADED_CODERS = frozenset({"classifier", "quote_step"})
 #: PI ruling 102 a (2026-11-14, building 96 a / 79 b): the signed ``core.page_review_state`` codes other than
 #: ``reviewed`` (codebook ``items/core.page_review_state/rules/0``; pinned against the signed vocabulary by
 #: tests/test_storage.py). A source row carrying one is a page that was not reviewed: it may carry no page
@@ -181,6 +183,11 @@ def email_domain_counts(emails: list[str] | str) -> list[dict[str, Any]] | str:
 
 QUOTE_SEGMENT = "quote_segment"  # passage discriminator: the quote is checked by R-042 on a named segment
 QUOTE_SOURCE = "quote_source_id"  # pooled supports also name the input source claim the segment belongs to
+#: The within-page pair item (activity_relation_within_page). Its stored node is pair-keyed (RC-D-024
+#: "pair-keyed support provenance"; calibration Def3 D3-A, PI 2026-11-20): the passage names the other
+#: observation of the pair, so two pairs that share the lhs observation never share a support id.
+PAIR_ITEM = "core.activity_segment"
+LINKED_OBSERVATION = "linked_observation_id"
 
 
 def _segment_text(record: dict[str, Any], page_text: str, *, pooled: bool) -> str | None:
@@ -191,7 +198,8 @@ def _segment_text(record: dict[str, Any], page_text: str, *, pooled: bool) -> st
     its span locates it in the stored page artifact.
     """
     passage = record["passage"]
-    keys = {QUOTE_SEGMENT, "segment_span"} | ({QUOTE_SOURCE} if pooled else set())
+    keys = ({QUOTE_SEGMENT, "segment_span"} | ({QUOTE_SOURCE} if pooled else set())
+            | ({LINKED_OBSERVATION} if LINKED_OBSERVATION in passage else set()))  # checked in _validate_support
     if set(passage) != keys:
         raise ValueError(f"segment passage requires exactly {sorted(keys)}")
     if passage[QUOTE_SEGMENT] is None:
@@ -231,7 +239,10 @@ def _check_quote_match(record: dict[str, Any], segment_text: str) -> None:
 def support_id(run_id: str, institution_uid: str, record: dict[str, Any]) -> str:
     keys = ("item_id", "item_part", "value_json", "observation_id", "source_id", "chunk_id",
             "support_text_sha256", "passage")
-    return sha256_text(canonical_json([run_id, institution_uid, *[record[k] for k in keys]]))
+    key = [run_id, institution_uid, *[record[k] for k in keys]]
+    if "date_target" in record:  # the date a core.date_upper_bound support bounds is part of its key;
+        key.append({"date_target": record["date_target"]})  # records without it keep their ids
+    return sha256_text(canonical_json(key))
 
 
 class StorageEnvelope:
@@ -367,6 +378,16 @@ class StorageEnvelope:
         _strings(record["input_support_ids"], "input_support_ids")
         if not isinstance(record["passage"], dict) or not record["passage"]:
             raise ValueError("an explicit passage/span discriminator is required")
+        passage = record["passage"]
+        if item == PAIR_ITEM and QUOTE_SEGMENT in passage:
+            linked = passage.get(LINKED_OBSERVATION)
+            if linked is None:
+                raise ValueError("a within-page pair support names its linked observation")
+            _string(linked, "linked observation")
+            if linked == record["observation_id"]:
+                raise ValueError("a within-page pair support cannot link its own observation")
+        elif LINKED_OBSERVATION in passage:
+            raise ValueError("only a within-page pair support names a linked observation")
         expected = support_id(self._data["run_id"], self._data["institution_uid"], record)
         if record["support_id"] != expected:
             raise ValueError("support identity does not match complete support key")
@@ -478,6 +499,11 @@ class StorageEnvelope:
                     raise ValueError("distinct/unresolved observations must not be merged")
                 if any(s not in sources for s in rel["source_refs"]) or any(s not in self.supports for s in rel["support_ids"]):
                     raise ValueError("relation evidence endpoint does not resolve")
+                endpoints = {rel["lhs_observation_id"], rel["rhs_observation_id"]}
+                for s in rel["support_ids"]:
+                    linked = self.supports[s]["passage"].get(LINKED_OBSERVATION)
+                    if linked is not None and {self.supports[s]["observation_id"], linked} != endpoints:
+                        raise ValueError("a relation's pair support names another pair")
                 if rel["relation_scope"] == "within_page":
                     left = {self.pages[s] for s in self.observation_sources[rel["lhs_observation_id"]]}
                     right = {self.pages[s] for s in self.observation_sources[rel["rhs_observation_id"]]}
@@ -501,6 +527,9 @@ class StorageEnvelope:
             if any(key not in self.supports for key in record["input_support_ids"]):
                 raise ValueError("combined support input does not resolve")
             sid, oid = record["source_id"], record["observation_id"]
+            linked = record["passage"].get(LINKED_OBSERVATION)
+            if linked is not None and linked not in self.observation_sources:
+                raise ValueError("pair support linked observation does not resolve")
             if sid is not None:
                 # RC-D-030 Y2 a: a page-level _NA_ source row's supports carry no observation.
                 page_level = (sid in sources and oid is None and sources[sid]["activity_id"] == "_NA_"
@@ -526,20 +555,23 @@ class StorageEnvelope:
             elif oid is not None and oid not in self.observation_sources:
                 raise ValueError("pooled support observation does not resolve")
         all_rows = [self._data["summary"], *activities.values(), *sources.values()]
-        classifier_backed = {c["support_id"] for row in all_rows for c in row["coder_records"]
-                             if c["coder_type"] == "classifier"}
+        provider_backed = {(c["support_id"], c["coder_type"]) for row in all_rows for c in row["coder_records"]
+                           if c["coder_type"] in DOWNGRADED_CODERS}
 
         def downgrade_final(support: dict[str, Any]) -> bool:
-            """A mechanical FINAL node of a classifier downgrade (R-041, R-081).
+            """A mechanical FINAL node of a downgrade (R-041, R-081).
 
-            Each input is the ORIGINAL classifier support of the same item, part
-            and context with the same ``downgraded_*`` status and the original
-            code; the original stays stored with its own classifier record.
+            Each input is the ORIGINAL support of the same item, part and context
+            with the same ``downgraded_*`` status and the original code; the
+            original stays stored with its own record of the item's coder: a
+            classifier, or a quote step whose quote failed R-042 / R-044 (R-041
+            applies to every positive code; calibration C265: ``source_snippet``).
             """
             inputs = support["input_support_ids"]
             if not support["support_status"].startswith("downgraded_") or not inputs:
                 return False
-            if FIELDS[support["item_id"]]["coder"] != "classifier":
+            coder = FIELDS[support["item_id"]]["coder"]
+            if coder not in DOWNGRADED_CODERS:
                 return False
             context = ("item_id", "item_part", "observation_id", "source_id", "chunk_id", "support_status")
             for prior in inputs:
@@ -548,7 +580,7 @@ class StorageEnvelope:
                 # relation original (its one copied input) names inputs and may still be the source.
                 if (any(original[k] != support[k] for k in context)
                         or (original["input_support_ids"] and not downgrade_source_original(original))
-                        or original["value_json"] == support["value_json"] or prior not in classifier_backed):
+                        or original["value_json"] == support["value_json"] or (prior, coder) not in provider_backed):
                     return False
             return True
 

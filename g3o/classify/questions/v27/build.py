@@ -42,9 +42,9 @@ from g3o.codebook.loader import REPO_ROOT, Codebook, load_codebook
 #: Version stamp for the three sets (pinned in goldens and stored with answers).
 JEV_QUESTION_SET_VERSION = "g3o.classify.questions.v27.jev.1"
 
-#: Codebook r16 (RC-D-034; signed only when planning/t010/signoff-record.md holds this sha256).
+#: Codebook r17 (calibration rulings 2026-11-21), signed when planning/t010/signoff-record.md holds this sha256 (A-001).
 #: A different codebook is refused.
-SIGNED_CODEBOOK_SHA256 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a"
+SIGNED_CODEBOOK_SHA256 = "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4"
 
 SET_DIR = Path(__file__).resolve().parent
 SET_FILES = {"page": "page.json", "activity": "activity.json", "institution": "institution.json"}
@@ -239,7 +239,7 @@ POOLED_STATE = {
 # --------------------------------------------------------------------------- build
 def _require_signed(cb: Codebook) -> None:
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
-        raise ValueError(f"codebook sha256 {cb.sha256} is not the pinned r16 {SIGNED_CODEBOOK_SHA256}")
+        raise ValueError(f"codebook sha256 {cb.sha256} is not the pinned r17 {SIGNED_CODEBOOK_SHA256}")
 
 
 def _contract_section(q: dict[str, Any]) -> str:
@@ -319,7 +319,8 @@ def activity_pair_question(cb: Codebook) -> dict[str, Any]:
              approval="approved", approval_record='PI 2026-11-07 "Approve exact wording"',
              unit="unordered pair of resolved page activity spans; lhs starts earlier",
              state_fields={"activity": "lhs activity label", "linked_activity": "rhs activity label"},
-             same_start="stop affected pair: pair_direction_tie")
+             same_start="tie-break: the lower activity id is lhs, then the pair is asked once: "
+                        "pair_direction_tie_break")  # calibration Def4 D4-C, PI 2026-11-20
     return _entry(q)
 
 
@@ -422,7 +423,7 @@ def check_sets(cb: Codebook | None = None, set_dir: Path = SET_DIR) -> list[str]
     cb = cb or load_codebook()
     errors: list[str] = []
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
-        return [f"codebook sha256 {cb.sha256} is not the pinned r16"]
+        return [f"codebook sha256 {cb.sha256} is not the pinned r17"]
     gen = json.loads(gen_jev_questions(cb).content)
     signed = {q["question_id"]: q for q in gen["questions"]}
 

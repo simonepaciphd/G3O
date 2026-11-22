@@ -17,7 +17,10 @@ Rules applied, each as SPEC v001.20 / codebook r13 states it:
   rule decided (``QuoteMatch.decided_by``). Normalization is the T-003
   calibration's: NFKC, casefold, punctuation dropped, word runs joined by one
   space. A quote failing both counts as no supporting text. Presence only, not
-  entailment.
+  entailment. A quote found verbatim in the normalized source at word edges
+  has all its words present (presence 1.0, :func:`verbatim_in`); this matters
+  only in scripts written without word spaces, where the word runs are cut at
+  punctuation alone (calibration FN-TRACE defect 1).
 - **Source surface (R-044, r2#48, RC-D-017 P3).** A quote is matched in the
   part that produced the code; for ``main_plus_chrome`` items it may instead
   come from the page's chrome text (``<page>#chrome``). A quote from any other
@@ -89,8 +92,8 @@ from typing import Any
 
 from g3o.codebook.loader import Codebook, load_codebook
 
-#: Codebook r16 (RC-D-034; signed only when planning/t010/signoff-record.md holds this sha256). Another file is refused.
-SIGNED_CODEBOOK_SHA256 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a"
+#: Codebook r17 (calibration rulings 2026-11-21), signed when planning/t010/signoff-record.md holds this sha256 (A-001). Another file is refused.
+SIGNED_CODEBOOK_SHA256 = "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4"
 
 PINNED_RAPIDFUZZ = "3.14.3"  # DEC-007 a; RC-D-017 1a. Change only with a re-calibration (T-003).
 MATCH_METRIC = "token_set_ratio_norm"  # RC-D-017 1a
@@ -169,11 +172,45 @@ def norm_text(text: str) -> str:
     return " ".join(word_tokens(text))
 
 
+#: Scripts written without spaces between words: Thai, Lao, Myanmar, Khmer, Han, kana (Hangul is spaced).
+_NO_SPACE = re.compile("[฀-໿က-႟ក-៿々-〇぀-ヿㇰ-ㇿ"
+                       "㐀-䶿一-鿿豈-﫿\U00020000-\U0003ffff]")
+
+
+def _edge_ok(left: str, right: str) -> bool:
+    """May a quote edge fall between these two normalized characters? At a space, or where either is unsegmented."""
+    return left == " " or right == " " or bool(_NO_SPACE.match(left) or _NO_SPACE.match(right))
+
+
+def verbatim_in(quote: str, source: str) -> bool:
+    """The normalized quote occurs in the normalized source, starting and ending at word edges.
+
+    Calibration FN-TRACE defect 1: the word tokens of unsegmented scripts are punctuation-delimited runs,
+    so a verbatim quote that starts or ends inside such a run shares no token with the page. In spaced
+    scripts both edges must fall at a space (or the text's end), so there the result equals the token rule.
+    """
+    q, s = norm_text(quote), norm_text(source)
+    if not q:
+        return False
+    i = s.find(q)
+    while i != -1:
+        j = i + len(q)
+        if (i == 0 or _edge_ok(s[i - 1], q[0])) and (j == len(s) or _edge_ok(q[-1], s[j])):
+            return True
+        i = s.find(q, i + 1)
+    return False
+
+
 def word_presence(quote: str, source: str) -> float | None:
-    """Share of the quote's words (with repetition) present in the source. None if no words."""
+    """Share of the quote's words (with repetition) present in the source. None if no words.
+
+    A quote found verbatim at word edges (:func:`verbatim_in`) has every word present (1.0).
+    """
     q = word_tokens(quote)
     if not q:
         return None
+    if verbatim_in(quote, source):
+        return 1.0
     page = set(word_tokens(source))
     return sum(t in page for t in q) / len(q)
 
@@ -734,6 +771,7 @@ __all__ = [
     "pass2_quotes",
     "rules_from_codebook",
     "run_entailment",
+    "verbatim_in",
     "word_presence",
     "word_tokens",
 ]

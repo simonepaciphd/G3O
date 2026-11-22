@@ -137,11 +137,27 @@ class ConsolidationPlan:
         return not self.missing_pairs and not self.conflicting_groups
 
 
+def single_value(item: str, value: Any) -> Any:
+    """The stored form of a ``single`` item's combined answer (D-007: one lexical value).
+
+    A ``combined_list`` long-page rule returns a tuple (JSON list after a checkpoint round trip). For a
+    ``single`` item without a mapping step, ``core.deployment_scale_unit`` (ruling activity-24 b), a list
+    holding exactly one value is that value: one part, or every part giving the same unit. Several distinct
+    values are returned unchanged (their single-value form is not ruled), so storage still refuses them and
+    the institution is held as before. Other answer types and non-list values pass through unchanged.
+    """
+    if (isinstance(value, (list, tuple)) and len(value) == 1 and isinstance(value[0], str)
+            and FIELDS.get(item, {}).get("answer_type") == "single"):
+        return value[0]
+    return value
+
+
 def outcome_values(outcomes: Mapping[str, Any]) -> dict[str, Any]:
     """Project real FinalActivity/FinalPage outcomes, refusing unfinished gates.
 
     Multipart answers retain their part names. This deliberately does not fill
-    any items absent from the finalized artifact.
+    any items absent from the finalized artifact. A one-value list of a ``single``
+    item is stored as that value (:func:`single_value`).
     """
     values: dict[str, Any] = {}
     for outcome in outcomes.values():
@@ -152,7 +168,7 @@ def outcome_values(outcomes: Mapping[str, Any]) -> dict[str, Any]:
         if part is None:
             if item in values:
                 raise ConsolidationError(f"duplicate outcome for {item}")
-            values[item] = outcome.value
+            values[item] = single_value(item, outcome.value)
         else:
             parts = values.setdefault(item, {})
             if not isinstance(parts, dict) or part in parts:
