@@ -319,7 +319,7 @@ def test_rollup_applies_to_a_quote_failure_with_a_supported_observation(status):
      "an unreviewed page"),
     (failed_verdict(pipeline="ai_text"), [observation(page_id="r")], "AI-text evidence never counts"),
     *[(replace(failed_verdict(), page_verdict=v), [observation(page_id="r")], f"verdict {v}")
-      for v in sorted(VERDICTS - {"confirms_activity"})],
+      for v in sorted(set(VERDICTS) - {"confirms_activity"})],
 ])
 def test_rollup_does_not_apply(candidate, observations, why):
     from g3o.validate.consolidate_v27 import rollup_applies
