@@ -65,7 +65,7 @@ def test_selection_never_includes_transfers_and_rejects_unknown_groups():
 
 def test_every_synthetic_fixture_validates():
     synthetic = fr.select_fixtures(fr.load_fixtures(FIX), [fr.GROUP_PIPELINE, fr.GROUP_INJECTED])
-    assert len(synthetic) == 66
+    assert len(synthetic) == 79
     assert {f["fixture_id"]: fr.validate_fixture(f) for f in synthetic if fr.validate_fixture(f)} == {}
 
 
@@ -151,9 +151,9 @@ def test_dry_run_is_the_default_and_makes_no_call(tmp_path, monkeypatch, capsys)
     out = fr.output_paths(tmp_path, fr.MODE_DRY)
     doc = json.loads(out["results"].read_text(encoding="utf-8"))
     assert doc["mode"] == "dry-run" and doc["options"]["extractor_mode"] == "no_batch"
-    assert len(doc["results"]) == 66 and {r["status"] for r in doc["results"]} == {fr.NOT_RUN}
+    assert len(doc["results"]) == 79 and {r["status"] for r in doc["results"]} == {fr.NOT_RUN}
     plan = json.loads(out["plan"].read_text(encoding="utf-8"))
-    assert len(plan["plans"]) == 66 and plan["estimate"]["fixtures_runnable"] == 32
+    assert len(plan["plans"]) == 79 and plan["estimate"]["fixtures_runnable"] == 45
     report = out["report"].read_text(encoding="utf-8")
     assert fr.F6C_LINE in report
     assert fr.existing_live_outputs(tmp_path) == []  # review M2: a dry run never writes live files
