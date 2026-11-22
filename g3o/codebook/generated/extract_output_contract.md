@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extract_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: ee448cedcb2ab6fed52cc3edd52f28ff8d76f91c7eaf8b2960e60dcf98570117 -->
+<!-- codebook release: 2.7 | codebook sha256: 2ad76ee7df9da3e70fda3fe6d20fcef7b35483594b038d5446e89b1e6cce6aa7 -->
 
 # G3O output contract (extract), generated from the codebook
 
-Codebook release `2.7`, sha256 `ee448cedcb2ab6fed52cc3edd52f28ff8d76f91c7eaf8b2960e60dcf98570117`. 99 items.
+Codebook release `2.7`, sha256 `2ad76ee7df9da3e70fda3fe6d20fcef7b35483594b038d5446e89b1e6cce6aa7`. 99 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: 9df075bee06243aa33703279c998ffefc1413c9aa599b873e23a63fc642654c7 -->
@@ -5243,11 +5243,11 @@ Retire flags that just mirror a column; keep 'identity unresolved' and 'stage am
 AI-text flags fold into the main list, the language-barrier flag is dropped everywhere, and language coverage is carried by the multilingual subproject's item.
 
 ## `core.support_entailment`
-<!-- item: core.support_entailment sha256: bd2e0ba6d16a724599a8d278c69e7a2b88f7c66d900688d0f5be7142d0136fd7 -->
+<!-- item: core.support_entailment sha256: adde7fa704c82447caec3af45cd3330e8942dc90b2da70c56fad0a0f76954d0d -->
 
 | Field | Value |
 |---|---|
-| item hash | `bd2e0ba6d16a724599a8d278c69e7a2b88f7c66d900688d0f5be7142d0136fd7` |
+| item hash | `adde7fa704c82447caec3af45cd3330e8942dc90b2da70c56fad0a0f76954d0d` |
 | family | `support` |
 | name | `support_entailment` |
 | level | `row` |

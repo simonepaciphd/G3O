@@ -1,16 +1,16 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.validate_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: ee448cedcb2ab6fed52cc3edd52f28ff8d76f91c7eaf8b2960e60dcf98570117 -->
+<!-- codebook release: 2.7 | codebook sha256: 2ad76ee7df9da3e70fda3fe6d20fcef7b35483594b038d5446e89b1e6cce6aa7 -->
 
 # G3O output contract (validate, Stage 6), generated from the codebook
 
-Codebook release `2.7`, sha256 `ee448cedcb2ab6fed52cc3edd52f28ff8d76f91c7eaf8b2960e60dcf98570117`. 14 items.
+Codebook release `2.7`, sha256 `2ad76ee7df9da3e70fda3fe6d20fcef7b35483594b038d5446e89b1e6cce6aa7`. 14 items.
 
 ## `core.has_genai_activity`
-<!-- item: core.has_genai_activity sha256: 2a065c204abd2d675f3afa1153060386056e0c10bb27d933257ac43c107cc4d9 -->
+<!-- item: core.has_genai_activity sha256: e05006c84e4f6c056adbf06c7a71aa866df2b8047ed331d90c455326df99b3c3 -->
 
 | Field | Value |
 |---|---|
-| item hash | `2a065c204abd2d675f3afa1153060386056e0c10bb27d933257ac43c107cc4d9` |
+| item hash | `e05006c84e4f6c056adbf06c7a71aa866df2b8047ed331d90c455326df99b3c3` |
 | family | `verdict` |
 | name | `has_genai_activity` |
 | level | `institution` |
@@ -43,6 +43,10 @@ Institution-level consolidation (Stage 6) applies the v2.6 consolidation rules a
 2. `items/core.has_genai_activity/rules/1`
 
 Codebook table: `yes` if >= 1 supported `confirms_activity` page with a supported activity; `no` if every attempted page (incl. failed fetches and unfollowed links) ends in {no_genai, confirms_absence, event_only, other_body} at confidence >= 0.8 and no page is ambiguous, background_only or failed; otherwise `unclear`. Variant for PI: allow background_only in `no`.
+
+3. `items/core.has_genai_activity/rules/2`
+
+Page-verdict roll-up: a reviewed, unfailed web page whose final verdict is `confirms_activity`, whose verdict support status is `downgraded_quote_not_stating_value` or `downgraded_no_quote`, whose chosen probability passes the classifier verdict bar, and which has at least one supported activity observation on the same page, counts as a supported `confirms_activity` page. `downgraded_low_confidence` is never rescued and a page with no supported activity is never rescued. The verdict is never rewritten and keeps its support status; the source row's `confidence` stays `low`.
 
 ## `core.verdict_rule`
 <!-- item: core.verdict_rule sha256: beba0bea88ea30453204e005e89d0dfb23d80d5624e8a0656b0e1aa6c45a7607 -->

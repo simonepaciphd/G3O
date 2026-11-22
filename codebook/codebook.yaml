@@ -1,4 +1,4 @@
-# G3O codebook release 2.7, revision r18 — UNSIGNED candidate (setting F: the support check's bar per checked item), sign-off build (T-010). Byte edits to the signed r17 file, recorded in planning/t010/r18-provenance.json.
+# G3O codebook release 2.7, revision r18 — UNSIGNED candidate (setting F: the support check's bar per checked item; the page-verdict roll-up), sign-off build (T-010). Byte edits to the signed r17 file, recorded in planning/t010/r18-provenance.json.
 # Every slot text is copied verbatim from its `source`; `origin` records who approved it.
 # Signed only if planning/t010/signoff-record.md holds this file's sha256 (A-001).
 release:
@@ -45,7 +45,7 @@ release:
     r17: |-
       Calibration rulings of 2026-11-21 (agent-workspace/2026-11-18-calibration/session5-r17/RULINGS-S5.md; PI rulings 2026-11-21, RULINGS-S5 items 1.1-1.7, F1, 2.2, 3.1-3.3, 4.1, S1-S3, 5.1-5.4, 9.0-9.5, 6-8; text approved as drafted: PI ruling 2026-11-21, RULINGS-S5 text approval, item 1): the measured construct becomes AI adoption (1.6 a, release.construct): any activity the institution's own page calls AI or machine learning counts, and generative AI is recorded as an attribute, not as a condition for counting (1.1 a-1.5 a); 71 slots by the stated swap rule (F1 a) and 40 slots drafted by hand, each with text_before_r17; core.genai_mechanism_basis gains the value `no_generative_signal` (1.7 a; enum change, C-007) with its place in the long-page order and `not_required` support status; staff training of public-sector staff the institution serves is a confirmed activity (2.2 a, S3 a); support-check labels follow the construct except the generative attribute's own (3 a); `ambiguous_genai` keeps its code and means AI mentioned with no specific activity (4.1 a); own AI-credited content counts as deployment (5.1 a-5.4 a); attribution 9.1, 9.4, 9.5 (9.2, 9.3, 9.6 deferred, 9.0 a); the title fallback is defined (7, D7-1 b); the attribute items stay as signed, a known limitation (S2 a); provenance planning/t010/r17-provenance.json
     r18: |-
-      Setting F of the calibration study (agent-workspace/2026-11-18-calibration/tune/selection-frozen.json, `selected_config`), support-check half: core.support_entailment gains `threshold_by_checked_item`. The bar of the support check (X35) is 0.6 when the checked item is core.page_verdict or core.action_type, and 0.8 for core.activity_type and every other checked item (the item's own `threshold`, unchanged). The classifier's chosen-answer bar stays 0.8 on every item. No slot text, value, label or other item changes. The bars are stated in the codebook by PI ruling 2026-11-22, RULINGS-1122 item 9 (1 a). The other half of setting F (an activity observation is supported when its activity type or its action type is supported) is a pipeline rule and is not codebook text. In force only when planning/t010/signoff-record.md holds this file's sha256 (A-001); provenance planning/t010/r18-provenance.json
+      Setting F (RC-D-048) and the page-verdict roll-up (RC-D-049); study log PREREG A34, A38. Setting F, support-check half: core.support_entailment gains `threshold_by_checked_item`. The bar of the support check (X35) is 0.6 when the checked item is core.page_verdict or core.action_type, and 0.8 for core.activity_type and every other checked item (the item's own `threshold`, unchanged). The classifier's chosen-answer bar stays 0.8 on every item. The other half of setting F (an activity observation is supported when its activity type or its action type is supported) is a pipeline rule and is not codebook text. Roll-up: core.has_genai_activity gains one rule (rules/2). No other slot text, value, label or item changes, and no text sent to a model changes. In force only when planning/t010/signoff-record.md holds this file's sha256 (A-001); provenance planning/t010/r18-provenance.json
   construct:
     text: |-
       Release 2.7 r17 measures AI adoption by public institutions: any activity that the institution's own page calls AI or machine learning. Generative AI is recorded as an attribute of each activity (`genai_mechanism_basis`), not as a condition for counting. Rows coded under r16 or earlier counted generative AI only.
@@ -10891,8 +10891,8 @@ items:
         core.page_verdict: 0.6
         core.activity_type: 0.8
         core.action_type: 0.6
-      exception_to: 'R-081 (RC-D-002 row 24: one 0.8 bar, the X35 check included)'
-      source: 'agent-workspace/2026-11-18-calibration/tune/selection-frozen.json `selected_config` (setting F): x35_verdict, x35_type, x35_action; x35_other is `threshold`'
+      exception_to: 'R-081 (RC-D-002 row 24: one 0.8 bar, the X35 check included), by RC-D-048'
+      source: 'RC-D-048 (setting F; PREREG A34, A38): x35_verdict, x35_type, x35_action; x35_other is `threshold`'
     missing_tokens: *id003
     input_text: main
     visibility: internal
@@ -11102,6 +11102,11 @@ items:
       origin: r1
       source: codebook-rulings-round1.json X29.mechanism
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page institution card I01 slot 2'
+    - text: |-
+        Page-verdict roll-up: a reviewed, unfailed web page whose final verdict is `confirms_activity`, whose verdict support status is `downgraded_quote_not_stating_value` or `downgraded_no_quote`, whose chosen probability passes the classifier verdict bar, and which has at least one supported activity observation on the same page, counts as a supported `confirms_activity` page. `downgraded_low_confidence` is never rescued and a page with no supported activity is never rescued. The verdict is never rewritten and keeps its support status; the source row's `confidence` stays `low`.
+      origin: 'PI 2026-11-22 chat "all as rec" (rulings R1 b, R2, R3 for RC-D-049); r18'
+      source: RC-D-049; PREREG A34, A38
+      role: page-verdict roll-up
     order_tie_rule: none
     long_page_rule: none
     support_required: false

@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.item_schemas",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "ee448cedcb2ab6fed52cc3edd52f28ff8d76f91c7eaf8b2960e60dcf98570117",
+  "codebook_sha256": "2ad76ee7df9da3e70fda3fe6d20fcef7b35483594b038d5446e89b1e6cce6aa7",
   "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)",
   "$defs": {
     "page_verdict": {
@@ -1057,7 +1057,7 @@
     },
     "support_entailment": {
       "x-item-id": "core.support_entailment",
-      "x-item-hash": "bd2e0ba6d16a724599a8d278c69e7a2b88f7c66d900688d0f5be7142d0136fd7",
+      "x-item-hash": "adde7fa704c82447caec3af45cd3330e8942dc90b2da70c56fad0a0f76954d0d",
       "x-answer-type": "yes_no",
       "enum": [
         "true",
@@ -1081,7 +1081,7 @@
     },
     "has_genai_activity": {
       "x-item-id": "core.has_genai_activity",
-      "x-item-hash": "2a065c204abd2d675f3afa1153060386056e0c10bb27d933257ac43c107cc4d9",
+      "x-item-hash": "e05006c84e4f6c056adbf06c7a71aa866df2b8047ed331d90c455326df99b3c3",
       "x-answer-type": "single",
       "type": "string"
     },

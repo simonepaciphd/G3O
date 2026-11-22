@@ -3,7 +3,7 @@ Definitions remain in the signed codebook; no questionnaire decisions live here.
 """
 
 MAP_SOURCE_SHA256 = 'b41cf514aa2e398df5646fe580b4c830dd5a7d7ddb61355c250c74c47063bd89'
-CODEBOOK_SHA256 = 'ee448cedcb2ab6fed52cc3edd52f28ff8d76f91c7eaf8b2960e60dcf98570117'
+CODEBOOK_SHA256 = '2ad76ee7df9da3e70fda3fe6d20fcef7b35483594b038d5446e89b1e6cce6aa7'
 FIELDS = {'core.page_verdict': {'name': 'page_verdict',
                        'storage_targets': ['sources'],
                        'column_or_member': 'page_verdict',
@@ -1608,7 +1608,7 @@ FIELDS = {'core.page_verdict': {'name': 'page_verdict',
                              'state': 'approved',
                              'coder': 'classifier',
                              'schema': {'x-item-id': 'core.support_entailment',
-                                        'x-item-hash': 'bd2e0ba6d16a724599a8d278c69e7a2b88f7c66d900688d0f5be7142d0136fd7',
+                                        'x-item-hash': 'adde7fa704c82447caec3af45cd3330e8942dc90b2da70c56fad0a0f76954d0d',
                                         'x-answer-type': 'yes_no',
                                         'enum': ['true',
                                                  'false',
@@ -1651,7 +1651,7 @@ FIELDS = {'core.page_verdict': {'name': 'page_verdict',
                              'state': 'approved',
                              'coder': 'derived',
                              'schema': {'x-item-id': 'core.has_genai_activity',
-                                        'x-item-hash': '2a065c204abd2d675f3afa1153060386056e0c10bb27d933257ac43c107cc4d9',
+                                        'x-item-hash': 'e05006c84e4f6c056adbf06c7a71aa866df2b8047ed331d90c455326df99b3c3',
                                         'x-answer-type': 'single',
                                         'type': 'string'},
                              'codes': []},
