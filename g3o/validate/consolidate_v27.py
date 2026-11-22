@@ -9,7 +9,7 @@ remain explicit until those upstream operations complete.
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from itertools import combinations
 from math import isfinite
@@ -33,6 +33,9 @@ MERGES = frozenset({"same_activity", "shared_participation"})
 CHANNELS = frozenset({"web_extract", "procurement", "ai_text"})
 MISSING = frozenset({"not_documented", "not_asked", "unknown", "_NA_"})
 PASSED = frozenset({"supported", "not_required", "set_by_rule"})
+#: Page-verdict roll-up (RC-D-049): the verdict support statuses it rescues, the two failures on the
+#: quote. ``downgraded_low_confidence`` (the classifier bar) is never rescued.
+ROLLUP_STATUSES = frozenset({"downgraded_quote_not_stating_value", "downgraded_no_quote"})
 
 
 class ConsolidationError(ValueError):
@@ -59,6 +62,10 @@ class ReviewedPage:
     ``page_id`` is the caller's deduplicated actual page identity. A failed fetch
     or unfollowed link has ``reviewed=False`` and a real failure reason. An
     unreadable but reviewed page has ``not_assessable`` and its rule provenance.
+
+    ``verdict_rollup`` marks a page the roll-up rescued (:func:`rollup_applies`). The
+    page keeps its verdict and its failed ``support_status``; the mark alone makes it
+    count (PI ruling 2026-11-22, R1 b).
     """
     page_id: str
     pipeline: str
@@ -72,6 +79,7 @@ class ReviewedPage:
     raw_records: tuple[Any, ...]
     support_records: tuple[Any, ...]
     failure_reason: str | None = None
+    verdict_rollup: bool = False
 
 
 @dataclass(frozen=True)
@@ -296,12 +304,38 @@ def _pages(pages: Sequence[ReviewedPage]) -> dict[str, ReviewedPage]:
             raise ConsolidationError("unreviewed page must retain its attempted/unfollowed reason")
         if page.failed and not page.failure_reason:
             raise ConsolidationError("failed page must retain its failure reason")
+        if page.verdict_rollup and not _rollup_page(page):
+            raise ConsolidationError(f"page {page.page_id} carries the roll-up mark but is not a page the "
+                                     "roll-up covers")
     return indexed
+
+
+def _rollup_page(page: ReviewedPage) -> bool:
+    """The page-side conditions of the roll-up (the observation condition is in :func:`rollup_applies`)."""
+    return (page.pipeline != "ai_text" and page.reviewed and not page.failed
+            and page.page_verdict == "confirms_activity" and page.support_status in ROLLUP_STATUSES
+            and _probability(page.chosen_probability))
+
+
+def rollup_applies(page: ReviewedPage, observations: Iterable[ActivityObservation]) -> bool:
+    """Page-verdict roll-up (RC-D-049; tested as arm F_r of the second confirmation run).
+
+    True when all hold: the page is reviewed, unfailed and not AI-text evidence; its final
+    verdict is ``confirms_activity``; the verdict's own support check failed on the quote
+    (:data:`ROLLUP_STATUSES`); its chosen probability passes the classifier verdict bar; and
+    at least one activity observation of the same page is supported. The bar and the
+    supported-observation rule are the ones in force (``_probability``,
+    ``ActivityObservation.supported``); the rule holds no value of its own (PI ruling
+    2026-11-22, R4). Nothing is asked and no value or support record changes: the caller
+    sets ``ReviewedPage.verdict_rollup``.
+    """
+    return _rollup_page(page) and any(o.supported and o.page_id == page.page_id for o in observations)
 
 
 def _positive(page: ReviewedPage) -> bool:
     return (page.pipeline != "ai_text" and page.reviewed and not page.failed
-            and page.page_verdict == "confirms_activity" and page.support_status == "supported"
+            and page.page_verdict == "confirms_activity"
+            and (page.support_status == "supported" or page.verdict_rollup)
             and _probability(page.chosen_probability))
 
 
@@ -320,6 +354,10 @@ def summary_values(pages: Sequence[ReviewedPage], observations: Sequence[Activit
         outcome_values(o.final_outcomes)
         if o.supported and (not o.raw_records or not o.support_records):
             raise ConsolidationError("supported observation lost coder/support records")
+    for p in pages:  # RC-D-049: the mark is only ever the rule's own result
+        if p.verdict_rollup and not rollup_applies(p, observations):
+            raise ConsolidationError(f"page {p.page_id} carries the roll-up mark but has no supported "
+                                     "activity observation")
     positive = any(o.supported and _positive(page_map[o.page_id]) for o in observations)
     if positive != bool(published_activity_values):
         raise ConsolidationError("published activity presence disagrees with supported confirmed evidence")
@@ -337,6 +375,7 @@ def summary_values(pages: Sequence[ReviewedPage], observations: Sequence[Activit
     # pages never enter the verdict and are not checked here.
     # PI R4 a (2026-11-18, T-041 re-run): a confirms_activity page that passed its check may also sit
     # off `yes` when none of its observations is supported (setting F: an activity's type and action both failed).
+    # RC-D-049 (PI 2026-11-22, R5): a page the roll-up rescued is positive above, so it never sits off `yes`.
     supported_pages = {o.page_id for o in observations if o.supported}
     open_positive = [p.page_id for p in relevant if p.page_verdict == "confirms_activity"
                      and not p.support_status.startswith("downgraded_") and p.page_id in supported_pages]

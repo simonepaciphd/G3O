@@ -266,6 +266,7 @@ from g3o.validate.consolidate_v27 import (
     RelationDecision,
     ReviewedPage,
     outcome_values,
+    rollup_applies,
 )
 from g3o.validate.stage6_v27 import InputQuote, ObservationRecord, Stage6QuoteNotApproved
 
@@ -1318,6 +1319,10 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
             oid, page.page_id, finals[aid].outcomes, nano_values(spans[aid]),
             observation_supported(aid, finals[aid].outcomes, act_support),
             tuple(frag["coder_records"]), tuple(frag["item_support"])))
+    # Page-verdict roll-up (RC-D-049; PI ruling 2026-11-22, R1 b): once the page's observations exist.
+    # Only the mark is set: the verdict, its support status and every stored node stay as checked.
+    if rollup_applies(out.page, out.observations):
+        out.page = replace(out.page, verdict_rollup=True)
     return out
 
 

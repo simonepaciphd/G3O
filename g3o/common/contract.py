@@ -260,6 +260,12 @@ SOURCE_SUPPORT_STATUS: frozenset[str] = frozenset(
 DOWNGRADED_SUPPORT_STATUS: frozenset[str] = frozenset(
     s for s in SOURCE_SUPPORT_STATUS if s.startswith("downgraded_")
 )
+#: Page-verdict roll-up (RC-D-049; matches ``g3o.validate.consolidate_v27.ROLLUP_STATUSES``):
+#: the downgraded statuses a rescued ``confirms_activity`` source may carry, the two
+#: failures on the quote. ``downgraded_low_confidence`` is never rescued.
+ROLLUP_SUPPORT_STATUS: frozenset[str] = frozenset(
+    {"downgraded_no_quote", "downgraded_quote_not_stating_value"}
+)
 
 #: Validation context selecting the codebook-2.7 Stage 6 rules on the legacy
 #: :class:`ConsolidatedInstitutionResponse` (PI 2026-11-10, RC-D-029 Q1 a). The
@@ -851,6 +857,33 @@ class SourceRecord(BaseModel):
             )
         return v
 
+    # Internal (PI 2026-11-22, R1 b; RC-D-049): True when the page-verdict roll-up
+    # rescued this source's page. The source keeps its downgraded ``support_status``;
+    # this mark is what lets it carry `yes`. Kept out of the Stage 6 JSON schema and
+    # out of ``model_dump``, exactly as ``support_status``. v2.7 only.
+    verdict_rollup: SkipJsonSchema[bool] = Field(default=False, exclude=True)
+
+    @model_validator(mode="after")
+    def _check_verdict_rollup(self, info: ValidationInfo) -> SourceRecord:
+        if not self.verdict_rollup:
+            return self
+        if not is_v27_context(info):
+            raise ValueError(
+                "verdict_rollup on a legacy (v2.5/2.6) source: it is a "
+                "codebook-2.7 field (validate with V27_CONTEXT)"
+            )
+        if (
+            self.genai_evidence != "confirms_activity"
+            or self.support_status not in ROLLUP_SUPPORT_STATUS
+        ):
+            raise ValueError(
+                f"source {self.source_id}: verdict_rollup needs "
+                f"genai_evidence=confirms_activity and a support_status in "
+                f"{sorted(ROLLUP_SUPPORT_STATUS)}; got {self.genai_evidence!r}, "
+                f"{self.support_status!r}"
+            )
+        return self
+
 
 class ConsolidatedInstitutionResponse(BaseModel):
     """Full Stage 6 response for one institution: metadata + institution + activities + sources."""
@@ -895,7 +928,12 @@ class ConsolidatedInstitutionResponse(BaseModel):
             # carry `yes`; at least one must be non-downgraded (matches
             # g3o.validate.consolidate_v27, which requires `supported`).
             # Unchecked sources (support_status None, legacy) still count.
-            if all(s.support_status in DOWNGRADED_SUPPORT_STATUS for s in confirms):
+            # PI 2026-11-22 (R6; RC-D-049 amends O2 b): a downgraded source the
+            # page-verdict roll-up rescued (``verdict_rollup``) carries `yes` too.
+            if all(
+                s.support_status in DOWNGRADED_SUPPORT_STATUS and not s.verdict_rollup
+                for s in confirms
+            ):
                 raise ValueError(
                     "has_genai_activity=yes but every confirms_activity source "
                     "has a downgraded support_status; offenders: "
@@ -951,6 +989,14 @@ class ConsolidatedInstitutionResponse(BaseModel):
                     "genai_evidence=confirms_activity without a downgraded "
                     f"support_status; offenders: "
                     f"{[(s.source_id, s.support_status) for s in undowngraded]}"
+                )
+            # PI 2026-11-22 (R5; RC-D-049): a rescued page has a supported
+            # activity and counts, so it never sits on `unclear`.
+            rolled_up = [s.source_id for s in confirms if s.verdict_rollup]
+            if rolled_up:
+                raise ValueError(
+                    "has_genai_activity=unclear but a rolled-up confirms_activity "
+                    f"source counts as supported; offenders: {rolled_up}"
                 )
         return self
 
@@ -1193,6 +1239,7 @@ __all__ = [
     "refuse_support_status",
     "SOURCE_SUPPORT_STATUS",
     "DOWNGRADED_SUPPORT_STATUS",
+    "ROLLUP_SUPPORT_STATUS",
     "EvidenceChannel",
     "page_verdict_vocabulary",
     "check_page_verdict",
