@@ -582,17 +582,19 @@ def test_qt3_within_page_pair_whose_votes_all_fail_is_unknown_not_held(tmp_path)
 
 def test_r4_confirming_page_with_no_supported_activity_is_unclear_not_held(tmp_path):
     """PI R4 a (2026-11-18, T-041 re-run): c1's verdict confirms_activity passes its check but its only
-    activity's type fails (no quote), so no observation is supported (Y1): INST-0000003 is unclear and
-    written by Stage 6, not held by the RC-D-027 2 a check."""
+    activity's type and action both fail (no quote), so no observation is supported (setting F: type or
+    action): INST-0000003 is unclear and written by Stage 6, not held by the RC-D-027 2 a check."""
     run_dir = tmp_path / "run"
     bound = bind_runtime(run_dir, SETTINGS)
     instrument = load_instrument(run_dir / "final" / "instruments", bound.instrument_id)
-    world = World(run_dir, bound, instrument, _pages(), withhold=WITHHOLD | {("c1", "a1", "core.activity_type", "c1#p3")})
+    world = World(run_dir, bound, instrument, _pages(), withhold=WITHHOLD | {
+        ("c1", "a1", "core.activity_type", "c1#p3"), ("c1", "a1", "core.action_type", "c1#p3")})
     insts = [world.institution("INST-0000001", None), world.institution("INST-0000002"),
              world.institution("INST-0000003")]
     jev, ready, metrics, s6m = _full(run_dir, bound, instrument, world, insts)
     assert not metrics.held and not s6m.held
     assert "INST-0000003" in s6m.written
+    assert not any(o.supported for i in ready if i.institution_id == "INST-0000003" for o in i.observations)
 
 
 def test_r5_role_part_follows_an_all_not_covered_relationship(tmp_path):
@@ -844,7 +846,16 @@ def test_y1_supported_is_derived_from_activity_and_action_type(tmp_path):
     ready, _ = _perpage(run_dir, bound, instrument, world, insts[:2], FakeJev(ANSWERS, RELATIONS, _fail_verdict))
     obs = {o.observation_id: o for i in ready for o in i.observations}
     assert obs["p1.a1"].supported and obs["p3.a2"].supported and obs["b2.a1"].supported
-    assert not obs["b1.a1"].supported  # activity_type downgraded (no quote) -> unknown
+    assert obs["b1.a1"].supported  # activity_type downgraded (no quote) -> unknown; its action_type is supported
+    # type and action both downgraded: not supported
+    run2 = tmp_path / "both"
+    bound2 = bind_runtime(run2, SETTINGS)
+    instrument2 = load_instrument(run2 / "final" / "instruments", bound2.instrument_id)
+    world2 = World(run2, bound2, instrument2, _pages(), withhold=WITHHOLD | {("b1", "a1", "core.action_type", "b1#p0")})
+    insts2 = [world2.institution("INST-0000001", None), world2.institution("INST-0000002")]
+    ready2, _ = _perpage(run2, bound2, instrument2, world2, insts2, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    obs2 = {o.observation_id: o for i in ready2 for o in i.observations}
+    assert not obs2["b1.a1"].supported and obs2["b2.a1"].supported and obs2["p1.a1"].supported
     assert "supported" not in {f.name for f in __import__("dataclasses").fields(pp.PageUpstream)}
 
 
