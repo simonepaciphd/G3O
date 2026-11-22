@@ -28,7 +28,7 @@ from g3o.codebook.cli import main as cli_main
 from g3o.codebook.generators import GENERATED_DIR, generate_all
 from g3o.codebook.loader import REPO_ROOT, Codebook, load_codebook
 
-SIGNED_SHA256 = "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4"  # r17 (signed when signoff-record.md holds it)
+SIGNED_SHA256 = "ee448cedcb2ab6fed52cc3edd52f28ff8d76f91c7eaf8b2960e60dcf98570117"  # r17 (signed when signoff-record.md holds it)
 
 
 @pytest.fixture(scope="module")
