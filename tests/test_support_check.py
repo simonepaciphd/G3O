@@ -621,3 +621,56 @@ def test_pair_quote_join_keeps_distinct_linked_activities():
     assert len(joined) == 2
     assert joined[("lhs", "core.activity_segment", P, "unresolved", "one")] is quotes[0]
     assert joined[("lhs", "core.activity_segment", P, "unresolved", "two")] is quotes[1]
+
+
+# ---------------------------------------------------------------------------
+# Setting F: the X35 bar per checked item (codebook `threshold_by_checked_item`)
+# ---------------------------------------------------------------------------
+
+X35_BARS_F = {"core.page_verdict": 0.6, "core.action_type": 0.6}  # every other checked item: 0.8
+
+
+def test_x35_bar_of_every_checked_item():
+    rules = sc.default_rules()
+    assert rules.entailment_bar == 0.8  # the bar of a checked item the codebook does not list
+    assert rules.entailment_bars == {"core.page_verdict": 0.6, "core.activity_type": 0.8, "core.action_type": 0.6}
+    assert "core.activity_type" in rules.entailment_labels and len(rules.entailment_labels) == 52
+    for item_id in rules.entailment_labels:
+        assert rules.x35_bar(item_id) == X35_BARS_F.get(item_id, 0.8), item_id
+    # the classifier's chosen-answer bar is not the X35 bar and stays 0.8 on every classifier item
+    for item_id, item in rules.items.items():
+        if item.get("coder") == "classifier":
+            assert rules.bar(item_id) == 0.8, item_id
+
+
+@pytest.mark.parametrize("item,value,bar", [
+    ("core.page_verdict", "confirms_activity", 0.6),
+    ("core.action_type", "deployment", 0.6),
+    ("core.activity_type", "pilot_experiment", 0.8),
+    ("core.adoption_stage", "pilot", 0.8),
+])
+def test_x35_bar_decides_the_quote_check_per_item(item, value, bar):
+    below = round(bar - 0.01, 2)
+    assert check_code(ev(item=item, value=value, ent=Entailment("true", bar)), SRC).support_status == SUPPORTED
+    r = check_code(ev(item=item, value=value, ent=Entailment("true", below)), SRC)
+    assert r.support_status == NOT_STATING and r.support_status_second_reason is None
+    # `false`, a non-answer and a missing probability fail at any bar
+    for ent in (Entailment("false", 0.99), Entailment(sc.X35_NON_ANSWER, None), Entailment("true", None)):
+        assert check_code(ev(item=item, value=value, ent=ent), SRC).support_status == NOT_STATING
+    # the classifier bar on the coded value itself stays 0.8, whatever the X35 bar
+    low = check_code(ev(item=item, value=value, p=0.79, ent=Entailment("true", 0.99)), SRC)
+    assert low.support_status == LOW_CONFIDENCE
+
+
+def test_x35_bars_refuse_an_item_the_check_does_not_cover():
+    import dataclasses
+
+    rules = sc.default_rules()
+    with pytest.raises(ValueError, match="not an X35-checked item"):
+        sc.validate_entailment_bars({"core.no_such_item": 0.6}, rules.entailment_labels)
+    for bad in (0, 1.2, True, "0.6", None):
+        with pytest.raises(ValueError, match="bar"):
+            sc.validate_entailment_bars({"core.action_type": bad}, rules.entailment_labels)
+    # a rule set with no per-item bars uses the one bar everywhere (a codebook without the node)
+    plain = dataclasses.replace(rules, entailment_bars={})
+    assert {plain.x35_bar(i) for i in plain.entailment_labels} == {0.8}

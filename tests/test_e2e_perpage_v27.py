@@ -839,7 +839,7 @@ def test_released_institution_is_not_concluded_on_stale_markers_after_a_resume_s
 
 
 def test_y1_supported_is_derived_from_activity_and_action_type(tmp_path):
-    """Y1 b: supported = final activity_type and action_type both supported (no explicit input)."""
+    """Setting F (replaces Y1 b): supported = final activity_type or action_type supported (no explicit input)."""
     run_dir, bound, instrument, world, insts = _setup(tmp_path)
     ready, _ = _perpage(run_dir, bound, instrument, world, insts[:2], FakeJev(ANSWERS, RELATIONS, _fail_verdict))
     obs = {o.observation_id: o for i in ready for o in i.observations}
@@ -849,28 +849,50 @@ def test_y1_supported_is_derived_from_activity_and_action_type(tmp_path):
 
 
 def test_y1_observation_supported_unit():
+    """Setting F truth table: an observation is supported when its final activity_type OR its final
+    action_type is supported (was RC-D-030 Y1 b: both)."""
     from g3o.classify.jev_activity_code import ItemOutcome
     from g3o.common.support_check import SupportResult
+
+    T, A = "core.activity_type", "core.action_type"
+    assert pp.SUPPORTED_ITEMS == (T, A)
 
     def sr(item, status, value):
         return SupportResult(item_id=item, part=None, activity_id="a1", chunk_id="c0", original_value=value,
                              value=value, support_status=status, support_status_second_reason=None,
                              support_rule_name=None, supporting_text="q" if status == "supported" else None,
                              quote_chunk_id="c0", match=None, chosen_answer_probability=0.9, entailment=None)
-    out = {"t": ItemOutcome("t", "core.activity_type", None, "combined", "internal_operational", part_id="c0"),
-           "a": ItemOutcome("a", "core.action_type", None, "combined", "deployment", part_id="c0")}
-    support = {("a1", "core.activity_type", None, "c0", None): sr("core.activity_type", "supported",
-                                                                   "internal_operational"),
-               ("a1", "core.action_type", None, "c0", None): sr("core.action_type", "supported", "deployment")}
-    assert pp.observation_supported("a1", out, support)
-    low = dict(support)
-    low[("a1", "core.action_type", None, "c0", None)] = sr("core.action_type", "downgraded_low_confidence",
-                                                            "deployment")
-    assert not pp.observation_supported("a1", out, low)
-    gated = {**out, "a": ItemOutcome("a", "core.action_type", None, "gated_out", "not_asked")}
-    assert not pp.observation_supported("a1", gated, support)
-    failed = {**out, "t": ItemOutcome("t", "core.activity_type", None, "combined", "unknown", True, part_id="c0")}
-    assert not pp.observation_supported("a1", failed, support)
+
+    out = {"t": ItemOutcome("t", T, None, "combined", "internal_operational", part_id="c0"),
+           "a": ItemOutcome("a", A, None, "combined", "deployment", part_id="c0")}
+    values = {T: "internal_operational", A: "deployment"}
+
+    def support(type_status, action_status):
+        return {("a1", T, None, "c0", None): sr(T, type_status, values[T]),
+                ("a1", A, None, "c0", None): sr(A, action_status, values[A])}
+
+    both = support("supported", "supported")
+    # the truth table over the two support statuses
+    for bad in ("downgraded_low_confidence", "downgraded_quote_not_stating_value", "downgraded_no_quote"):
+        assert pp.observation_supported("a1", out, both)
+        assert pp.observation_supported("a1", out, support("supported", bad))      # type only
+        assert pp.observation_supported("a1", out, support(bad, "supported"))      # action only
+        assert not pp.observation_supported("a1", out, support(bad, bad))          # neither
+    # a value that is gated, failed, missing, or not the supported value does not count; the other one still does
+    gated = {**out, "a": ItemOutcome("a", A, None, "gated_out", "not_asked")}
+    assert pp.observation_supported("a1", gated, both)
+    assert not pp.observation_supported("a1", gated, support("downgraded_no_quote", "supported"))
+    failed = {**out, "t": ItemOutcome("t", T, None, "combined", "unknown", True, part_id="c0")}
+    assert pp.observation_supported("a1", failed, both)
+    assert not pp.observation_supported("a1", failed, support("supported", "downgraded_no_quote"))
+    assert pp.observation_supported("a1", {"a": out["a"]}, both)
+    assert not pp.observation_supported("a1", {}, both)
+    assert pp.observation_supported("a1", out, {k: v for k, v in both.items() if k[1] == T})
+    assert not pp.observation_supported("a1", out, {})
+    other_value = {("a1", T, None, "c0", None): sr(T, "supported", "public_facing"),
+                   ("a1", A, None, "c0", None): sr(A, "supported", "program")}
+    assert not pp.observation_supported("a1", out, other_value)
+    assert not pp.observation_supported("a2", out, both)  # another activity's support rows
 
 
 def test_y5_within_page_decision_rule():

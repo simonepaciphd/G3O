@@ -716,6 +716,52 @@ def test_labels_absent_leave_the_question_unchanged() -> None:
     assert "labels" not in q and "instructions_page" not in q
 
 
+def _bars_mini(bars) -> dict:
+    d = _labelled_mini()
+    d["items"]["core.support_entailment"]["threshold_by_checked_item"] = {"bars": bars, "exception_to": "R-081"}
+    return d
+
+
+def test_support_check_bars_reach_the_question_and_the_dictionary(tmp_path: Path) -> None:
+    """Setting F: the entailment item states its bar per checked item; the generated question carries the
+    bars and the data dictionary prints them. An item without the node generates the same bytes as before."""
+    d = _bars_mini({"core.alpha": 0.6, "core.rel": 0.8})
+    results = _all_pass(d, tmp_path)
+    assert all(s in ("pass", "n/a") for s, _ in results.values()), results
+    files, _, q = _entailment_question(_cb(d))
+    assert q["threshold"] == {"metric": "chosen_answer_probability", "bar": 0.8}
+    assert q["threshold_by_checked_item"] == {"core.alpha": 0.6, "core.rel": 0.8}
+    dictionary = next(f for f in files if f.name == "data_dictionary.md").content
+    assert '| threshold_by_checked_item | `{"core.alpha": 0.6, "core.rel": 0.8}` |' in dictionary
+    files0, _, q0 = _entailment_question(_cb(_labelled_mini()))
+    assert "threshold_by_checked_item" not in q0
+    assert "threshold_by_checked_item" not in next(f for f in files0 if f.name == "data_dictionary.md").content
+
+
+def test_support_check_bars_check_01_seeded_faults() -> None:
+    assert not _run(_bars_mini({"core.alpha": 0.6}), 1).findings
+    for bars, word in (({"core.nope": 0.6}, "no entailment_label"),
+                       ({"core.support_entailment": 0.6}, "no entailment_label"),
+                       ({"core.alpha": 0}, "not a bar"), ({"core.alpha": 1.5}, "not a bar"),
+                       ({"core.alpha": True}, "not a bar"), ({"core.alpha": "0.6"}, "not a bar"),
+                       ({}, "bars"), ("none", "bars")):
+        findings = _run(_bars_mini(bars), 1).findings
+        assert any(word in f for f in findings), (bars, findings)
+    bad = _bars_mini({"core.alpha": 0.6})
+    bad["items"]["core.alpha"]["threshold_by_checked_item"] = {"bars": {"core.alpha": 0.6}}
+    assert any("only core.support_entailment" in f for f in _run(bad, 1).findings)
+    bad = _bars_mini({"core.alpha": 0.6})
+    bad["items"]["core.support_entailment"]["threshold_by_checked_item"] = {"core.alpha": 0.6}
+    assert any("bars" in f for f in _run(bad, 1).findings)
+
+
+def test_signed_codebook_states_the_support_check_bars(cb: Codebook) -> None:
+    node = cb.items["core.support_entailment"]["threshold_by_checked_item"]
+    assert node["bars"] == {"core.page_verdict": 0.6, "core.activity_type": 0.8, "core.action_type": 0.6}
+    assert cb.items["core.support_entailment"]["threshold"] == {"metric": "chosen_answer_probability", "bar": 0.8}
+    assert [k for k, it in cb.items.items() if "threshold_by_checked_item" in it] == ["core.support_entailment"]
+
+
 #: The RC-D-007 candidate lives outside the repo until signature; set this
 #: variable to its path to run the candidate case, e.g.
 #: <worktree>/planning/t010/candidate-r9/codebook-r9-signoff.yaml
