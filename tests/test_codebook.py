@@ -28,7 +28,7 @@ from g3o.codebook.cli import main as cli_main
 from g3o.codebook.generators import GENERATED_DIR, generate_all
 from g3o.codebook.loader import REPO_ROOT, Codebook, load_codebook
 
-SIGNED_SHA256 = "ee448cedcb2ab6fed52cc3edd52f28ff8d76f91c7eaf8b2960e60dcf98570117"  # r17 (signed when signoff-record.md holds it)
+SIGNED_SHA256 = "2ad76ee7df9da3e70fda3fe6d20fcef7b35483594b038d5446e89b1e6cce6aa7"  # r17 (signed when signoff-record.md holds it)
 
 
 @pytest.fixture(scope="module")
@@ -760,6 +760,24 @@ def test_signed_codebook_states_the_support_check_bars(cb: Codebook) -> None:
     assert node["bars"] == {"core.page_verdict": 0.6, "core.activity_type": 0.8, "core.action_type": 0.6}
     assert cb.items["core.support_entailment"]["threshold"] == {"metric": "chosen_answer_probability", "bar": 0.8}
     assert [k for k, it in cb.items.items() if "threshold_by_checked_item" in it] == ["core.support_entailment"]
+
+
+def test_signed_codebook_states_the_page_verdict_rollup_outside_every_model_text(cb: Codebook) -> None:
+    """RC-D-049 (PI ruling 2026-11-22, R2): the institution rule states the roll-up; no text sent to a
+    model holds it (it is in the reference documents only)."""
+    from g3o.validate.consolidate_v27 import ROLLUP_STATUSES
+
+    rules = cb.items["core.has_genai_activity"]["rules"]
+    assert len(rules) == 3 and rules[2]["role"] == "page-verdict roll-up"
+    text = rules[2]["text"]
+    assert text.startswith("Page-verdict roll-up: ")
+    statuses = set(cb.vocabularies["support_status"]["values"])
+    assert {s for s in statuses if f"`{s}` or" in text or f"or `{s}`" in text} == ROLLUP_STATUSES
+    assert "`downgraded_low_confidence` is never rescued" in text
+    assert [k for k, it in cb.items.items() if "Page-verdict roll-up" in json.dumps(it.get("rules", ""))] == [
+        "core.has_genai_activity"]
+    holders = {f.name for f in generate_all(cb) if "Page-verdict roll-up" in f.content}
+    assert holders == {"data_dictionary.md", "validate_output_contract.md"}
 
 
 #: The RC-D-007 candidate lives outside the repo until signature; set this
