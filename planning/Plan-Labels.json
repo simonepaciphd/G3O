@@ -6,9 +6,9 @@
   },
   "date": "2026-11-21",
   "sources": {
-    "SPEC.md": "77b5d64ba69e82ddd391a13060cb3b6b110e1eb705cfdd5332c4bb6140c8a036",
+    "SPEC.md": "4cb69ef822e457628bbc689a72926e7bda3871f691ace4021099669227a52c15",
     "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
-    "PLAN.md": "013e950ea6e58c9192d9ec3d915980c28b45309273f735163fe0ff97c2d497af"
+    "PLAN.md": "6d327f8074dde21b171ec98317ad24748ec28ba12a216be0c77486f032807dd7"
   },
   "labels": {
     "T-001": {

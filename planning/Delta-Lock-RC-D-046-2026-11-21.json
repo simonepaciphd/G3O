@@ -1,0 +1,49 @@
+{
+ "format": "g3o-approved-delta-application-v1",
+ "delta": "RC-D-046",
+ "approval": "Simone Paci, 2026-11-21 chat: a (RC-D-046); 2026-11-21 chat: lock (re-lock)",
+ "recorded_by": "integrator session 20261121-claude-v2-55bc915111fad15d (Claude Code, claude-fable-5-2), at PI request 2026-11-21 (\"you take integrator and assign dev to subagents\"); DEC-012 a",
+ "recorded_at": "2026-11-22T00:27:43.516796+00:00",
+ "baseline": "RC-BL-001 retained",
+ "SPEC_version": "v001.33",
+ "RESOURCES_version": "unchanged by RC-D-046",
+ "preimages": "none kept: the prior state is commit 4c6253f of this branch (planning-protocol v0.9: git history, not snapshot folders)",
+ "superseded_lock": "archive/records/Delta-Lock-RC-D-045-2026-11-21.json",
+ "artifacts": {
+  "SPEC.md": "4cb69ef822e457628bbc689a72926e7bda3871f691ace4021099669227a52c15",
+  "PLAN.md": "6d327f8074dde21b171ec98317ad24748ec28ba12a216be0c77486f032807dd7",
+  "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
+  "CHANGELOG.md": "633ef41e322914d23fdc1d8c0b7efba29e241430ae677df95732051b2728463b",
+  "Plan-Labels.json": "0d7c989e929320c535553b09e71ae8a3b98dd9c826a36c61c3c6ce8719a37a59",
+  "page/Plan-Visual.html": "630d903eea0986268b11348000167fdcf2a5d17cb4921aa79b5ccef848f69c4e",
+  "handoffs/D-007-interface-spec.md": "240c3eb1b20793c28ca8c4106bb80be5c807d3b93428e9289e075dba30f4bbfa",
+  "handoffs/D-007-field-map.json": "b41cf514aa2e398df5646fe580b4c830dd5a7d7ddb61355c250c74c47063bd89",
+  "deltas/RC-D-044.md": "5a9bb2f755902d57b38c43f2b2580c12a8efd2115eb87d504d92725c65f1d040",
+  "deltas/RC-D-045.md": "fdaf6d8763d3f289322f95e77ca0bf6546f8fc36b697a62428af7a0e1c5208e6",
+  "deltas/RC-D-046.md": "c6cac4566600cfe0989c8b84734bc01a5472e46797f9e56a52903180fab691ef"
+ },
+ "checks": {
+  "plan_viewer": "0 errors; 10 existing untyped warnings (ok)",
+  "size_bytes_SPEC_RESOURCES_PLAN": 546607,
+  "signed_codebook": "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4 (r17, signed 2026-11-21; record codebook/r17-20261121 cb4ecce)",
+  "stage6_quote_instruction": "898194903d3a0c733bb4f59d9b420423388afda48eb740e666de578320f04483 (RC-D-029, unchanged)",
+  "x35_model": "claude-haiku-5-5 (RC-D-033 C1 a, RC-D-038 139 a)",
+  "x35_instruction": "6f048d6018bba9cb8ebc9027a45ece29a80b8b9de5ae19173d3f67580900861c (Q160; effort medium, max 4,000 tokens)",
+  "pass1_system_prompt": "2024c61dc6c1600c1f9b20b9acd4ff5fd3c02627f47579269b5ddd08055a6d2b (RC-D-045, ruling P; supersedes 48f7c2ed…, RC-D-042 Q-T2 b); PASS1_SYSTEM_SHA256 on codebook/r17-20261121 cb4ecce",
+  "pass2_system_prompt": "b96e903420aca2eb8b342da2128c9e44237fec533ba5be88d05046bcc3174bb9 (RC-D-045, ruling P; supersedes fdcd47f2…); PASS2_SYSTEM_SHA256 on codebook/r17-20261121 cb4ecce",
+  "residual_question_set": "source_type_residual (RC-D-037 95 a); hash e0263ebb329d0ad08836e575493d41973d5069e60afd25ff5e8dd34138473745 from g3o.common.source_fields.residual_set_sha256() on codebook/r17-20261121 cb4ecce",
+  "d007_field_map": "b41cf514aa2e398df5646fe580b4c830dd5a7d7ddb61355c250c74c47063bd89 (RC-D-043 bytes plus codebook_sha256 r17 and the fifth code of core.genai_mechanism_basis); the code line holds the same bytes and MAP_SOURCE_SHA256 is this value (codebook/r17-20261121 cb4ecce)"
+ },
+ "notes": [
+  "RC-D-046 registers setting F and the page-verdict roll-up as candidates for C2: no requirement text, codebook, instrument pin or g3o/ change. Every instrument pin is as in the RC-D-045 lock.",
+  "Neither candidate is in production; both exist in the calibration harness only (scripts/calib/overrides.py), default off.",
+  "The decisions were put to the PI by the C2 design researcher session 20261121-claude-v2-8e4d9da53e6b3c12; the integrator session wrote this delta from its rulings record.",
+  "Labels: source hashes refreshed; no label text changed."
+ ],
+ "pending": [
+  "Full-suite run on codebook/r17-20261121 cb4ecce (submitted by the PI 2026-11-21, build 6dbb9e58-6f49-445a-93db-880c35e052c8; result not yet read); landing and deploy (owner-run); runtime file approval_reference names RC-D-044 and RC-D-045",
+  "GitHub issue to the API maintainer before any 2.7 row is public (Q6b a); procurement notice via T-060; text-detection notice (D6 a): PI posts or approves posting",
+  "C2 on fresh units (PREREG A25; pre-registration addendum owed, after the prior-list check); discovery and triage decision after C2 (S1 c)",
+  "Push of this governance branch and of the r17 codebook branch (owner-run); no push/merge/paid calls by agent"
+ ]
+}
