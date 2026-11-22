@@ -597,6 +597,52 @@ def test_r4_confirming_page_with_no_supported_activity_is_unclear_not_held(tmp_p
     assert not any(o.supported for i in ready if i.institution_id == "INST-0000003" for o in i.observations)
 
 
+def _rollup_run(tmp_path, name, extra_withhold=()):
+    """c1's verdict loses its quote at both answering parts (``downgraded_no_quote``); c2 fails."""
+    run_dir = tmp_path / name
+    bound = bind_runtime(run_dir, SETTINGS)
+    instrument = load_instrument(run_dir / "final" / "instruments", bound.instrument_id)
+    world = World(run_dir, bound, instrument, _pages(), withhold=WITHHOLD | {
+        ("c1", None, jpc.VERDICT, "c1#p2"), ("c1", None, jpc.VERDICT, "c1#p3"), *extra_withhold})
+    insts = [world.institution("INST-0000003")]
+    jev, ready, metrics, s6m = _full(run_dir, bound, instrument, world, insts)
+    assert not metrics.held and not s6m.held and s6m.written == ["INST-0000003"]
+    c1 = next(p for i in ready for p in i.pages if p.page_id == "c1")
+    return run_dir, ready, c1
+
+
+def test_rollup_quote_failed_verdict_with_a_supported_activity_gives_yes(tmp_path):
+    """Page-verdict roll-up (RC-D-049; PI rulings 2026-11-22 R1 b, R3, R5): c1's confirms_activity verdict
+    failed its own check on the quote, and its activity is supported, so the page counts: INST-0000003 is
+    ``yes`` with the activity published. What is stored keeps the verdict's failed status and the source
+    row's low confidence; the rescue is the page's separate ``verdict_rollup`` mark."""
+    run_dir, ready, c1 = _rollup_run(tmp_path, "run")
+    assert (c1.page_verdict, c1.support_status, c1.verdict_rollup) == (
+        "confirms_activity", "downgraded_no_quote", True)
+    assert [p.verdict_rollup for i in ready for p in i.pages if p.page_id != "c1"] == [False]
+    assert [o.supported for i in ready for o in i.observations] == [True]
+    stored = _storage(run_dir, "INST-0000003")
+    assert stored["summary"]["values"]["core.has_genai_activity"] == "yes"
+    assert [a["observation_ids"] for a in stored["activities"].values()] == [["c1.a1"]]
+    (source,) = [r for r in stored["sources"].values() if r["observation_ids"] == ["c1.a1"]]
+    assert source["activity_id"] == "A1"
+    verdict_nodes = [n for n in source["item_support"] if n["item_id"] == jpc.VERDICT]
+    assert verdict_nodes and all(n["value_json"] == "confirms_activity"
+                                 and n["support_status"] == "downgraded_no_quote" for n in verdict_nodes)
+    assert source["values"]["core.genai_evidence"] == "confirms_activity"
+    assert source["values"]["core.confidence"] == "low"
+
+
+def test_rollup_does_not_rescue_a_page_with_no_supported_activity(tmp_path):
+    """The same page with its activity's type and action both unsupported: no rescue, ``unclear``."""
+    run_dir, ready, c1 = _rollup_run(tmp_path, "run", extra_withhold={
+        ("c1", "a1", "core.activity_type", "c1#p3"), ("c1", "a1", "core.action_type", "c1#p3")})
+    assert (c1.support_status, c1.verdict_rollup) == ("downgraded_no_quote", False)
+    assert not any(o.supported for i in ready for o in i.observations)
+    stored = _storage(run_dir, "INST-0000003")
+    assert stored["summary"]["values"]["core.has_genai_activity"] == "unclear" and not stored["activities"]
+
+
 def test_r5_role_part_follows_an_all_not_covered_relationship(tmp_path):
     """PI R5 a (2026-11-18, T-041 re-run A021-02): every part of b2 answers "not covered" to the
     relationship and its role part; the role combines by the same rule, so INST-0000002 is not held."""

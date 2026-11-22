@@ -445,6 +445,66 @@ def test_yes_legacy_unchecked_sources_unchanged() -> None:
     _v27(_yes_response())
 
 
+# Page-verdict roll-up (RC-D-049; PI ruling 2026-11-22, R6: amends RC-D-029 O2 b beside RC-D-027 2 a).
+# A confirms_activity source whose verdict failed its check on the quote and is rescued keeps its
+# downgraded support_status (R1 b); the rescue is the separate internal mark ``verdict_rollup``.
+ROLLUP_STATUSES = ["downgraded_no_quote", "downgraded_quote_not_stating_value"]
+
+
+@pytest.mark.parametrize("status", ROLLUP_STATUSES)
+def test_yes_with_only_a_rolled_up_confirms_activity_accepted(status: str) -> None:
+    payload = _yes_response()
+    payload["sources"][0].update(support_status=status, verdict_rollup=True)
+    r = _v27(payload)
+    assert r.sources[0].support_status == status and r.sources[0].verdict_rollup is True
+
+
+@pytest.mark.parametrize("status", ROLLUP_STATUSES)
+def test_yes_with_downgraded_confirms_activity_not_rolled_up_still_rejected(status: str) -> None:
+    payload = _yes_response()
+    payload["sources"][0].update(support_status=status, verdict_rollup=False)
+    with pytest.raises(ValidationError, match="every confirms_activity source has a downgraded"):
+        _v27(payload)
+
+
+@pytest.mark.parametrize(
+    "status", ["downgraded_low_confidence", "supported", "not_required", "set_by_rule", None]
+)
+def test_roll_up_mark_only_on_a_quote_failure(status: str | None) -> None:
+    payload = _yes_response()
+    payload["sources"][0].update(support_status=status, verdict_rollup=True)
+    with pytest.raises(ValidationError, match="verdict_rollup"):
+        _v27(payload)
+
+
+def test_roll_up_mark_only_on_a_confirms_activity_source() -> None:
+    payload = _yes_response()
+    payload["sources"][0]["support_status"] = "supported"
+    payload["sources"].append(
+        _source(source_id="S2", activity_id=NA, genai_evidence="ambiguous_genai",
+                support_status="downgraded_no_quote", verdict_rollup=True)
+    )
+    with pytest.raises(ValidationError, match="verdict_rollup"):
+        _v27(payload)
+
+
+def test_rolled_up_source_may_not_sit_on_unclear() -> None:
+    with pytest.raises(ValidationError, match="unclear but a rolled-up confirms_activity"):
+        _v27(_unclear_with_confirms(support_status="downgraded_no_quote", verdict_rollup=True))
+
+
+def test_roll_up_mark_is_v27_only_and_internal() -> None:
+    from g3o.common.contract import SourceRecord
+
+    with pytest.raises(ValidationError, match="verdict_rollup"):
+        ConsolidatedInstitutionResponse.model_validate(_yes_response(sources=[_source(verdict_rollup=True)]))
+    assert SourceRecord.model_validate(_source()).verdict_rollup is False
+    assert "verdict_rollup" not in str(ConsolidatedInstitutionResponse.model_json_schema())
+    payload = _yes_response()
+    payload["sources"][0].update(support_status="downgraded_no_quote", verdict_rollup=True)
+    assert "verdict_rollup" not in _v27(payload).sources[0].model_dump()
+
+
 # RC-D-029 Q1 a: without V27_CONTEXT (every v2.5/2.6 payload) validation is
 # exactly as at main 80a010a.
 @pytest.mark.parametrize(
