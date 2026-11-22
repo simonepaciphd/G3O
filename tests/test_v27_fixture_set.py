@@ -158,7 +158,8 @@ def test_jev_label_scores_join_and_readings():
     assert {r["jev_key"] for r in sheet if r["jev_argmax_1_5"]} == keys & sheet_keys
     for r in sheet:
         if r["label_version"] not in ("", "1"):
-            assert r["jev_key"].endswith("@v" + r["label_version"])
+            # synthetic labels are never jev-scored and carry no key; a relabelled real label has a versioned key
+            assert r["jev_key"].endswith("@v" + r["label_version"]) if r["kind"] == "real" else r["jev_key"] == ""
     for s in scores:
         probs = {int(k): v for k, v in json.loads(s["probabilities_1_5"]).items()}
         top = max(probs, key=lambda k: (probs[k], -k))
