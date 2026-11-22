@@ -17,7 +17,12 @@ Rules applied:
   names a link id, the address is taken from the page's stored links.
 - **Spans are full-page character offsets** (DP-008, PI P5 a), found by
   locating the extractor's verbatim start and end anchors in the page text.
-  An anchor that cannot be found, or is empty or whitespace only, leaves the
+  An anchor is looked for exactly, then up to whitespace, then up to Unicode
+  form (NFKC, the quote check's form), then by the quote check's word rule
+  (R-042: 80% of its words, here in the same order and place, and only when
+  one place on the page qualifies). Every offset is an offset in the stored
+  page text. An anchor that cannot be found, that fits two places under the
+  word rule, or is empty or whitespace only, leaves the
   span unresolved; no offset is guessed. An anchor or id of the wrong JSON
   type is a contract error, never a ``TypeError``; so is an array field that is
   not a list (ruling 30 a; null reads as empty).
@@ -33,9 +38,11 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
+from g3o.common.support_check import _WORD, WORD_RULE_CUTOFF, word_tokens
 from g3o.extract.anthropic_client import ExtractorResult
 from g3o.extract.request_v27 import (
     DATE_ITEM,
@@ -191,9 +198,101 @@ def _ws_index(text: str) -> tuple[str, list[int]]:
     return "".join(out), idx
 
 
-def _find(text: str, needle: str, lo: int, hi: int | None = None) -> tuple[int, int] | None:
-    """Find ``needle`` in ``text`` starting in [lo, hi): exact first, then
-    whitespace-insensitive. Returns (start, end) offsets in ``text``."""
+def _joins_previous(ch: str) -> bool:
+    """Can ``ch`` combine with the character before it under normalisation? Combining marks and
+    the conjoining Hangul vowels and finals."""
+    return unicodedata.category(ch)[0] == "M" or "\u1160" <= ch <= "\u11ff"
+
+
+def _nfkc_index(text: str) -> tuple[str, list[int], list[int]] | None:
+    """NFKC copy of ``text`` and, for each of its characters, the start and the end in ``text`` of
+    the original characters it stands for (a base character with what combines with it).
+
+    None when the copy built piece by piece is not the NFKC form of the whole text: then no
+    offset can be trusted and none is given."""
+    out: list[str] = []
+    starts: list[int] = []
+    ends: list[int] = []
+    i, n = 0, len(text)
+    while i < n:
+        j = i + 1
+        while j < n and _joins_previous(text[j]):
+            j += 1
+        piece = unicodedata.normalize("NFKC", text[i:j])
+        out.append(piece)
+        starts.extend([i] * len(piece))
+        ends.extend([j] * len(piece))
+        i = j
+    norm = "".join(out)
+    if norm != unicodedata.normalize("NFKC", text):
+        return None
+    return norm, starts, ends
+
+
+def _find_unicode_form(text: str, needle: str, lo: int, hi: int) -> tuple[int, int] | None:
+    """``needle`` in ``text`` up to Unicode form (NFKC, as the quote check normalises, R-042) and
+    whitespace. The offsets returned are offsets in ``text``; the match starts and ends at whole
+    original characters, so ``text[start:end]`` is the needle under NFKC and whitespace."""
+    n = re.sub(r"\s+", " ", unicodedata.normalize("NFKC", needle).strip())
+    built = _nfkc_index(text) if n else None
+    if built is None:
+        return None
+    norm, starts, ends = built
+    collapsed, idx = _ws_index(norm)
+    j = collapsed.find(n, next((k for k, o in enumerate(idx) if starts[o] >= lo), len(collapsed)))
+    while j != -1:
+        a, b = idx[j], idx[j + len(n) - 1]
+        if starts[a] >= hi:
+            return None
+        if (a == 0 or starts[a - 1] != starts[a]) and (b == len(norm) - 1 or starts[b + 1] != starts[b]):
+            return starts[a], ends[b]
+        j = collapsed.find(n, j + 1)
+    return None
+
+
+def _find_by_words(text: str, needle: str, lo: int, hi: int, edge: str) -> tuple[int, int] | None:
+    """``needle`` located by the quote check's word rule (R-042, RC-D-014 S1), made positional.
+
+    The quote check accepts a quote when at least ``WORD_RULE_CUTOFF`` (80%) of its words are on
+    the page. Here a place is a run of as many page words as the needle has (the same word
+    tokens: NFKC, casefold, punctuation dropped), and it qualifies when at least 80% of the words
+    are equal position by position. That is narrower than the quote check, never wider. The
+    place is returned only when it is the one qualifying place starting in [lo, hi) and the word
+    whose offset is used is itself equal: the first word of a start anchor (``edge`` "start"),
+    the last word of an end anchor ("end"). Two qualifying places, or a differing edge word:
+    None; no offset is guessed."""
+    q = word_tokens(needle)
+    if not q:
+        return None
+    words: list[tuple[str, int, int]] = []  # (token, start, end in text)
+    for m in _WORD.finditer(text, lo):
+        for tok in _WORD.findall(unicodedata.normalize("NFKC", m.group()).casefold()):
+            words.append((tok, m.start(), m.end()))
+    n = len(q)
+    found: int | None = None
+    for i in range(len(words) - n + 1):
+        if words[i][1] >= hi:
+            break
+        if sum(words[i + k][0] == q[k] for k in range(n)) / n < WORD_RULE_CUTOFF:
+            continue
+        if found is not None:
+            return None
+        found = i
+    if found is None:
+        return None
+    first, last = words[found], words[found + n - 1]
+    if (first[0] != q[0]) if edge == "start" else (last[0] != q[-1]):
+        return None
+    return first[1], last[2]
+
+
+def _find(text: str, needle: str, lo: int, hi: int | None = None, *, edge: str = "start"
+          ) -> tuple[int, int] | None:
+    """Find ``needle`` in ``text`` starting in [lo, hi): exact first, then whitespace-insensitive,
+    then up to Unicode form (:func:`_find_unicode_form`), then by the quote check's word rule where
+    one place qualifies (:func:`_find_by_words`; ``edge`` names the offset the caller uses).
+    Returns (start, end) offsets in ``text``. The first two steps are those of every earlier
+    release, so an anchor they find keeps its offsets."""
     hi = len(text) if hi is None else hi
     i = text.find(needle, lo)
     if i != -1 and i < hi:
@@ -205,9 +304,9 @@ def _find(text: str, needle: str, lo: int, hi: int | None = None) -> tuple[int, 
     # first collapsed position whose original index is >= lo
     start_c = next((k for k, o in enumerate(idx) if o >= lo), len(collapsed))
     j = collapsed.find(n, start_c)
-    if j == -1 or idx[j] >= hi:
-        return None
-    return idx[j], idx[j + len(n) - 1] + 1
+    if j != -1 and idx[j] < hi:
+        return idx[j], idx[j + len(n) - 1] + 1
+    return _find_unicode_form(text, needle, lo, hi) or _find_by_words(text, needle, lo, hi, edge)
 
 
 def resolve_span(page: Pass1Page, chunk_id: str, start_text: str, end_text: str
@@ -219,7 +318,7 @@ def resolve_span(page: Pass1Page, chunk_id: str, start_text: str, end_text: str
     s = _find(page.text, start_text, chunk.start, chunk.end) if start_text.strip() else None
     if s is None:
         return None, None, "unresolved_start"
-    e = _find(page.text, end_text, s[0]) if end_text.strip() else None
+    e = _find(page.text, end_text, s[0], edge="end") if end_text.strip() else None
     if e is None or e[1] <= s[0]:
         return None, None, "unresolved_end"
     return s[0], e[1], "resolved"
