@@ -45,8 +45,10 @@ Rules applied, each as SPEC v001.20 / codebook r13 states it:
 - **0.8 bar (R-081, r2#26).** The chosen answer's probability, for every
   classifier code including ``no`` and negatives. A missing probability is
   retained as missing, the code is downgraded and the cause recorded
-  (``probability_unavailable``; RC-D-010). X35 uses the same bar on its own
-  answer: ``false``, below 0.8, or no probability fails the quote check.
+  (``probability_unavailable``; RC-D-010). X35 has its own bar on its own
+  answer, per checked item (setting F; codebook ``threshold_by_checked_item``:
+  0.6 on the page verdict and ``action_type``, 0.8 on every other checked item):
+  ``false``, below that bar, or no probability fails the quote check.
 - **Downgrade target (R-041, X14; item ``downgrade_target``).** ``unknown``
   replaces the value; ``tag_only`` (the page verdict) keeps it and only the
   status says downgraded (r2#40).
@@ -276,17 +278,39 @@ class SupportRules:
     entailment_labels: dict[str, dict[str, Any]]  # X35 label map (generated jev_questions.json)
     entailment_activity_form: str
     entailment_page_form: str
-    entailment_bar: float
+    entailment_bar: float  # the X35 bar of a checked item that ``entailment_bars`` does not list
+    #: setting F: the X35 bar per checked item (codebook ``core.support_entailment.threshold_by_checked_item``)
+    entailment_bars: Mapping[str, float] = field(default_factory=dict)
 
     def bar(self, item_id: str) -> float | None:
         th = self.items[item_id].get("threshold")
         return float(th["bar"]) if isinstance(th, dict) else None
 
+    def x35_bar(self, item_id: str) -> float:
+        """The bar the stated probability of an X35 ``true`` must reach when ``item_id`` is the checked item."""
+        return self.entailment_bars.get(item_id, self.entailment_bar)
+
+
+def validate_entailment_bars(bars: Any, labels: Mapping[str, Any]) -> dict[str, float]:
+    """The codebook's per-item X35 bars, refused unless every key is an X35-checked item and every value a bar."""
+    if bars is None:
+        return {}
+    if not isinstance(bars, Mapping):
+        raise ValueError("the X35 bars must map a checked item to its bar")
+    out: dict[str, float] = {}
+    for item_id, value in bars.items():
+        if item_id not in labels:
+            raise ValueError(f"{item_id} is not an X35-checked item; it cannot carry an X35 bar")
+        if isinstance(value, bool) or not isinstance(value, int | float) or not 0 < value <= 1:
+            raise ValueError(f"{item_id}: {value!r} is not an X35 bar in (0, 1]")
+        out[item_id] = float(value)
+    return out
+
 
 def rules_from_codebook(cb: Codebook) -> SupportRules:
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
         raise ValueError(f"codebook sha256 {cb.sha256} is not the signed r13 release")
-    from g3o.codebook.generators import gen_jev_questions
+    from g3o.codebook.generators import BARS_KEY, gen_jev_questions
 
     status = cb.vocabularies["support_status"]
     by_answer = {k: v for k, v in status["status_by_answer"].items() if re.fullmatch(r"[A-Za-z_]+", k)}
@@ -302,6 +326,7 @@ def rules_from_codebook(cb: Codebook) -> SupportRules:
         entailment_activity_form=ent["instructions"],
         entailment_page_form=ent["instructions_page"],
         entailment_bar=float(ent["threshold"]["bar"]),
+        entailment_bars=validate_entailment_bars(ent.get(BARS_KEY), ent["labels"]),
     )
 
 
@@ -460,7 +485,7 @@ def check_code(ev: CodeEvidence, sources: PageSources, rules: SupportRules | Non
             elif ev.item_id in rules.entailment_labels:
                 if ev.entailment is None:
                     raise ValueError(f"{ev.item_id}: matched quote has no X35 entailment answer")
-                if _entailment_fails(ev.entailment, rules.entailment_bar, flags):
+                if _entailment_fails(ev.entailment, rules.x35_bar(ev.item_id), flags):
                     failures.append(NOT_STATING)
 
     bar = rules.bar(ev.item_id) if item.get("coder") == "classifier" else None

@@ -336,7 +336,7 @@ def summary_values(pages: Sequence[ReviewedPage], observations: Sequence[Activit
     # failed its support check (R-041: verdict kept, status downgraded, r2#40). AI-text
     # pages never enter the verdict and are not checked here.
     # PI R4 a (2026-11-18, T-041 re-run): a confirms_activity page that passed its check may also sit
-    # off `yes` when none of its observations is supported (Y1: an activity's type or action failed).
+    # off `yes` when none of its observations is supported (setting F: an activity's type and action both failed).
     supported_pages = {o.page_id for o in observations if o.supported}
     open_positive = [p.page_id for p in relevant if p.page_verdict == "confirms_activity"
                      and not p.support_status.startswith("downgraded_") and p.page_id in supported_pages]

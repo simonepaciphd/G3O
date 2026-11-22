@@ -121,6 +121,11 @@
              "properties": {"metric": {"const": "chosen_answer_probability"}, "bar": {"const": 0.8}}}
           ]
         },
+        "threshold_by_checked_item": {
+          "type": "object", "required": ["bars"],
+          "properties": {"bars": {"type": "object", "minProperties": 1,
+                                  "additionalProperties": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}}}
+        },
         "missing_tokens": {"oneOf": [{"$ref": "#/$defs/none"}, {"type": "array", "items": {"type": "string", "minLength": 1}}]},
         "input_text": {"enum": ["main", "main_plus_chrome", "links", "quote_source", "metadata"]},
         "visibility": {"enum": ["public", "internal", "public_derived"]},

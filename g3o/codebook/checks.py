@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.codebook.generators import (
+    BARS_KEY,
     ENTAILMENT_ITEM,
     ITEM_MARKER,
     LABEL_KEY,
@@ -244,6 +245,19 @@ def check_01_template_complete(cb: Codebook, ctx: Context) -> CheckResult:
         thr = item.get("threshold")
         if thr != NONE and thr != THRESHOLD:
             bad("threshold", f"{_short(thr)} is not {THRESHOLD} or none")
+        if BARS_KEY in item:
+            node = item[BARS_KEY]
+            bars = node.get("bars") if isinstance(node, dict) else None
+            if item_id != ENTAILMENT_ITEM:
+                bad(BARS_KEY, f"only {ENTAILMENT_ITEM} states the support check's bars")
+            elif not isinstance(bars, dict) or not bars:
+                bad(BARS_KEY, f"{_short(node)} has no `bars` mapping of checked item to bar")
+            else:
+                for checked, value in bars.items():
+                    if cb.slot_text((cb.items.get(checked) or {}).get(LABEL_KEY)) is None:
+                        bad(BARS_KEY, f"{checked} has no entailment_label, so the support check never asks about it")
+                    if isinstance(value, bool) or not isinstance(value, int | float) or not 0 < value <= 1:
+                        bad(BARS_KEY, f"{checked}: {_short(value)} is not a bar in (0, 1]")
         mt = item.get("missing_tokens")
         if mt != NONE and (not isinstance(mt, list) or not set(map(str, mt)) <= missing_vocab):
             bad("missing_tokens", f"{_short(mt)} is not none or a subset of vocabularies.missing (amendment A4)")
