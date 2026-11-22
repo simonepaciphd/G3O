@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.manifest",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4",
+  "codebook_sha256": "ee448cedcb2ab6fed52cc3edd52f28ff8d76f91c7eaf8b2960e60dcf98570117",
   "build_scope": [
     "core"
   ],
@@ -531,7 +531,7 @@
     },
     {
       "item_id": "core.support_entailment",
-      "item_hash": "c5b4622acfca3d8d78dffb98f55c0693dc122be59dbe75e77cfaafa7b186af8b",
+      "item_hash": "bd2e0ba6d16a724599a8d278c69e7a2b88f7c66d900688d0f5be7142d0136fd7",
       "frozen_signature": "none",
       "in_build_scope": true
     },
@@ -731,42 +731,42 @@
   "generated_files": [
     {
       "path": "g3o/codebook/generated/jev_questions.json",
-      "sha256": "1ffc7834088ccb63b2e3c2172883c5a890d19be86884bf4cc62ffb08476d5139",
+      "sha256": "85e04ffcf6a6b8bb56ce94e54492eb3e1cd104352e5b384e1a57068b32fdb473",
       "intended_target": "T-011 jev question and choice sets (path chosen by T-011)"
     },
     {
       "path": "g3o/codebook/generated/extractor_prompt_sections.md",
-      "sha256": "98cededd1334f9de797a1ab4e112cc940c06d397d7c02426c3ba0f10d4d5d1f7",
+      "sha256": "04752ce80a047f0da96b00c8d1e2c018ba827d42f5f080b6ede238897e7f9ddb",
       "intended_target": "T-022 / T-032 extractor prompt sections (path chosen there)"
     },
     {
       "path": "g3o/codebook/generated/enums.py",
-      "sha256": "1a6bc919546ff59740aac20cfef3d5382daa90c3c13eb07c706a3edeb0e02b23",
+      "sha256": "c02c7631f75a779c76317434697b27ed601d9283d7c484c75d0a7ccff470f21c",
       "intended_target": "T-012 enum constants (g3o/common/contract.py or a module T-012 names)"
     },
     {
       "path": "g3o/codebook/generated/item_schemas.json",
-      "sha256": "41fa6bf0f0d465ff6f4e2a4d45b34adefe0a2e08a464d13c636537d72be936ad",
+      "sha256": "4b87a29801a4a78dbc49cdfcbe48f9b0bd004886d13ac901302984e4df6b74da",
       "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)"
     },
     {
       "path": "g3o/codebook/generated/data_dictionary.md",
-      "sha256": "bf240f3ce9de2998f387b2fa2834b45d01af2316cd97a8b54e40edc8293caa80",
+      "sha256": "e482db0e3d1640de013fec9b586e787c7869eb04c47624e8a62d02c5d9e29b8d",
       "intended_target": "T-090 data dictionary (docs/data_dictionary.md)"
     },
     {
       "path": "g3o/codebook/generated/extract_output_contract.md",
-      "sha256": "4b3da7a9d9a375ed61a596ecaed4f57f622fb5abb882bc5f0204ff40ad587174",
+      "sha256": "790440e0a6a3ad462b1d1e2507ecb76645f21103be650415a8f6bd7884f20beb",
       "intended_target": "T-010 g3o/extract/prompts/output_contract.md"
     },
     {
       "path": "g3o/codebook/generated/validate_output_contract.md",
-      "sha256": "bd8eba03a2048801050f7d0c24a4749de5ffca53764fa29646b431afa0f5aab4",
+      "sha256": "960ce05a5cf1ae9bba293fc52691e0b5c1a21bad03b6806dcc0a7db418573402",
       "intended_target": "T-010 g3o/validate/prompts/output_contract.md"
     },
     {
       "path": "g3o/codebook/generated/system_prompt.md",
-      "sha256": "536f5259b7c5eb72ea7094b829813ff1c237e3935455fcfd4c1a09307e5673e3",
+      "sha256": "f1aced8457e2580314e03587a129352266beafe23ec20cbbbf0e6fa70a476423",
       "intended_target": "T-022 / T-032 g3o/extract/prompts/system_prompt.md (and the Stage 6 prompts)"
     }
   ],

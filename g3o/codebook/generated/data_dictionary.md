@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.data_dictionary. -->
-<!-- codebook release: 2.7 | codebook sha256: 71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4 -->
+<!-- codebook release: 2.7 | codebook sha256: ee448cedcb2ab6fed52cc3edd52f28ff8d76f91c7eaf8b2960e60dcf98570117 -->
 
 # G3O codebook data dictionary
 
-Codebook release `2.7`, sha256 `71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4`. 109 items.
+Codebook release `2.7`, sha256 `ee448cedcb2ab6fed52cc3edd52f28ff8d76f91c7eaf8b2960e60dcf98570117`. 109 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: 9df075bee06243aa33703279c998ffefc1413c9aa599b873e23a63fc642654c7 -->
@@ -5243,11 +5243,11 @@ Retire flags that just mirror a column; keep 'identity unresolved' and 'stage am
 AI-text flags fold into the main list, the language-barrier flag is dropped everywhere, and language coverage is carried by the multilingual subproject's item.
 
 ## `core.support_entailment`
-<!-- item: core.support_entailment sha256: c5b4622acfca3d8d78dffb98f55c0693dc122be59dbe75e77cfaafa7b186af8b -->
+<!-- item: core.support_entailment sha256: bd2e0ba6d16a724599a8d278c69e7a2b88f7c66d900688d0f5be7142d0136fd7 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c5b4622acfca3d8d78dffb98f55c0693dc122be59dbe75e77cfaafa7b186af8b` |
+| item hash | `bd2e0ba6d16a724599a8d278c69e7a2b88f7c66d900688d0f5be7142d0136fd7` |
 | family | `support` |
 | name | `support_entailment` |
 | level | `row` |
@@ -5261,6 +5261,7 @@ AI-text flags fold into the main list, the language-barrier flag is dropped ever
 | support_required | `False` |
 | downgrade_target | `unknown` |
 | threshold | `{"metric": "chosen_answer_probability", "bar": 0.8}` |
+| threshold_by_checked_item | `{"core.page_verdict": 0.6, "core.activity_type": 0.8, "core.action_type": 0.6}` |
 | missing_tokens | `not_asked`, `not_documented`, `unknown` |
 | input_text | `main` |
 | visibility | `internal` |
