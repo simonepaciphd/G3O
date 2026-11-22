@@ -494,7 +494,10 @@ def test_rolled_up_source_may_not_sit_on_unclear() -> None:
 
 
 def test_roll_up_mark_is_v27_only_and_internal() -> None:
-    from g3o.common.contract import SourceRecord
+    from g3o.common.contract import ROLLUP_SUPPORT_STATUS, SourceRecord
+    from g3o.validate.consolidate_v27 import ROLLUP_STATUSES as RULE_STATUSES
+
+    assert ROLLUP_SUPPORT_STATUS == RULE_STATUSES == set(ROLLUP_STATUSES)
 
     with pytest.raises(ValidationError, match="verdict_rollup"):
         ConsolidatedInstitutionResponse.model_validate(_yes_response(sources=[_source(verdict_rollup=True)]))

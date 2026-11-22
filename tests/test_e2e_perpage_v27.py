@@ -605,7 +605,10 @@ def _rollup_run(tmp_path, name, extra_withhold=()):
     world = World(run_dir, bound, instrument, _pages(), withhold=WITHHOLD | {
         ("c1", None, jpc.VERDICT, "c1#p2"), ("c1", None, jpc.VERDICT, "c1#p3"), *extra_withhold})
     insts = [world.institution("INST-0000003")]
-    jev, ready, metrics, s6m = _full(run_dir, bound, instrument, world, insts)
+    jev = FakeJev(ANSWERS, RELATIONS, _fail_verdict)
+    ready, metrics = _perpage(run_dir, bound, instrument, world, insts, jev)
+    s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=jev, quote_fn=FakeQuotes(), config=bound.stage6_config(),
+                            instrument=instrument, now=CLOCK, test_only_unbound_quote_fn=True)
     assert not metrics.held and not s6m.held and s6m.written == ["INST-0000003"]
     c1 = next(p for i in ready for p in i.pages if p.page_id == "c1")
     return run_dir, ready, c1
@@ -629,7 +632,7 @@ def test_rollup_quote_failed_verdict_with_a_supported_activity_gives_yes(tmp_pat
     verdict_nodes = [n for n in source["item_support"] if n["item_id"] == jpc.VERDICT]
     assert verdict_nodes and all(n["value_json"] == "confirms_activity"
                                  and n["support_status"] == "downgraded_no_quote" for n in verdict_nodes)
-    assert source["values"]["core.genai_evidence"] == "confirms_activity"
+    assert source["values"][jpc.VERDICT] == "confirms_activity"
     assert source["values"]["core.confidence"] == "low"
 
 
