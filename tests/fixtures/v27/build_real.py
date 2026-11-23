@@ -102,6 +102,51 @@ def e(item, value, rule, quote=None, scope="page", jc=None):
     return d
 
 
+# ------------------------------------------------------------------ r17 relabels (PI rulings 2026-11-22)
+# Signed codebook r17 counts any tool the page calls AI or machine learning. "ruling 5 row N" is a row of
+# the PI's 13 expected values; "ruling 6 X" a lettered point. A relabelled value raises label_version and
+# keeps the superseded label in label_history (the v27-real-12 precedent). Ruling 6 F: accepted on the
+# PI's ruling alone, no new jev scoring, so jev_score stays None and the new label keys have no score.
+PI_R17 = "PI 2026-11-22"
+CB17 = f"{CB} r17"
+PV17 = f"{CB17} core.page_verdict"
+R17_LABELLER = {
+    "labeller": "agent",
+    "label_session": "20261122-claude-v2-e2d5bcfea31b1889 (builder subagent)",
+    "label_model": "claude-fable-5-2",
+    "label_date": "2026-11-22",
+    "jev_score": None,
+}
+_scores = None
+
+
+def e17(item, value, rule, quote=None, scope="page", jc=None):
+    """An expected value labelled under r17."""
+    return {**e(item, value, rule, quote, scope, jc), **R17_LABELLER, "codebook_rev": "r17"}
+
+
+def superseded(fid, k, version, value, quote, ruling):
+    """The label_history entry of a superseded label, with its jev readings when it was scored."""
+    global _scores
+    if _scores is None:
+        with (HERE / "jev-label-scores.csv").open(encoding="utf-8") as fh:
+            _scores = {r["key"]: r for r in csv.DictReader(fh)}
+    key = ft.label_key(fid, k, {"label_version": version})
+    d = {"label_version": version, "value": value, "evidence_quote": quote}
+    if key in _scores:
+        assert _scores[key]["label"] == str(value), key
+        d["jev_argmax_1_5"] = int(_scores[key]["jev_argmax_1_5"])
+        d["jev_expected_1_5"] = float(_scores[key]["jev_expected_1_5"])
+    d["jev_key"] = key
+    d["superseded_by"] = f"{PI_R17} {ruling}"
+    return d
+
+
+def relabelled(new, history):
+    """``new`` (an e17 value) as label version len(history) + 1, with the superseded labels attached."""
+    return {**new, "label_version": len(history) + 1, "label_history": history}
+
+
 F = []
 
 
@@ -180,12 +225,25 @@ add(
     sp_ref(22),
     "COUNTY OF CALHOUN",
     [
-        e(
-            "core.page_verdict",
-            "ambiguous_genai",
-            f"{PV} ambiguous_genai (generic AI policy, generative not stated); SPEC R-016",
-            "436 Artificial Intelligence (AI) Workplace Use",
-            jc="JC-R4",
+        relabelled(
+            e17(
+                "core.page_verdict",
+                "confirms_activity",
+                f"{PV17} confirms_activity: the institution's own policy or guidance on AI (a listed policy "
+                f"on AI workplace use); SPEC R-016; {PI_R17} ruling 5 row 3",
+                "436 Artificial Intelligence (AI) Workplace Use",
+                jc="JC-R4",
+            ),
+            [
+                superseded(
+                    "v27-real-03",
+                    0,
+                    1,
+                    "ambiguous_genai",
+                    "436 Artificial Intelligence (AI) Workplace Use",
+                    "ruling 5 row 3 (r17 relabel); ruling 6 F (no new jev scoring)",
+                )
+            ],
         )
     ],
 )
@@ -266,12 +324,26 @@ add(
     sp_ref(44),
     "阿勒泰市",
     [
-        e(
-            "core.page_verdict",
-            "ambiguous_genai",
-            f"{PV} ambiguous_genai: AI classroom analytics (recording, behaviour capture, scoring); confirms_activity excludes analytics/recognition unless the tool generates content",
-            "平台自动生成课堂分析报告",
-            jc="JC-R6",
+        relabelled(
+            e17(
+                "core.page_verdict",
+                "other_body",
+                f"{PV17} other_body: the AI classroom-analysis system is a middle school's; "
+                f"{CB17} core.rule.attribution_grain names ministries and departments as a government's "
+                f"units, and a school is read as a separate body; {PI_R17} ruling 5 row 7",
+                "阿勒泰市第二中学将AI智能课堂分析系统引入日常教学",
+                jc="JC-R6",
+            ),
+            [
+                superseded(
+                    "v27-real-09",
+                    0,
+                    1,
+                    "ambiguous_genai",
+                    "平台自动生成课堂分析报告",
+                    "ruling 5 row 7 (r17 relabel); ruling 6 F (no new jev scoring)",
+                )
+            ],
         )
     ],
 )
@@ -281,12 +353,33 @@ add(
     sp_ref(46),
     "Gand",
     [
-        e(
-            "core.page_verdict",
-            "ambiguous_genai",
-            f"{PV} ambiguous_genai (definition example: traditional machine learning / NLP at this institution)",
-            "Using artificial intelligence, such as natural language processing (NLP) , we link decisions to keywords and locations",
-        )
+        relabelled(
+            e17(
+                "core.page_verdict",
+                "confirms_activity",
+                f"{PV17} confirms_activity: any other tool the page calls AI or machine learning counts; "
+                f"{PI_R17} ruling 5 row 4",
+                "Using artificial intelligence, such as natural language processing (NLP) , we link decisions to keywords and locations",
+            ),
+            [
+                superseded(
+                    "v27-real-10",
+                    0,
+                    1,
+                    "ambiguous_genai",
+                    "Using artificial intelligence, such as natural language processing (NLP) , we link decisions to keywords and locations",
+                    "ruling 5 row 4 (r17 relabel); ruling 6 F (no new jev scoring)",
+                )
+            ],
+        ),
+        e17(
+            "core.genai_mechanism_basis",
+            "no_generative_signal",
+            f"{CB17} core.genai_mechanism_basis no_generative_signal: called AI, none of the other signs; "
+            f"{PI_R17} ruling 6 H",
+            "BeAT, which stands for Decision Annotation Tool, is an AI solution that imports decisions as Linked Open Data",
+            scope="activity:BeAT",
+        ),
     ],
 )
 add(
@@ -311,17 +404,16 @@ add(
     "Alberta",
     [
         {
-            **e(
+            **e17(
                 "core.page_verdict",
-                "ambiguous_genai",
-                f"{PV} ambiguous_genai: the page mentions AI at this institution (the Alberta AI Academy, "
-                "created for Alberta's public servants) but does not settle that the Academy is generative AI; "
-                "confirms_activity (institution-directed staff GenAI training) needs the text to be explicitly "
-                "generative for the activity, so the order rule does not reach it",
+                "confirms_activity",
+                f"{PV17} confirms_activity: AI training that the institution directs at public-sector staff "
+                "(the Alberta AI Academy, created for Alberta's public servants); event_only: such training is "
+                f"not public-facing, whatever its format; {PI_R17} ruling 5 row 5",
                 "The Alberta AI Academy was created to help Alberta's public servants be leaders in this technological shift.",
                 jc="JC-R9",
             ),
-            "label_version": 2,
+            "label_version": 3,
             "label_history": [
                 {
                     "label_version": 1,
@@ -331,9 +423,25 @@ add(
                     "jev_expected_1_5": 2.05,
                     "jev_key": "v27-real-12#0",
                     "superseded_by": "PI 2026-11-04 v27-results-1104 R4 a + R5 a (relabel and re-score)",
-                }
+                },
+                superseded(
+                    "v27-real-12",
+                    0,
+                    2,
+                    "ambiguous_genai",
+                    "The Alberta AI Academy was created to help Alberta's public servants be leaders in this technological shift.",
+                    "ruling 5 row 5 (r17 relabel); ruling 6 F (no new jev scoring)",
+                ),
             ],
-        }
+        },
+        e17(
+            "core.action_type",
+            "staff_training",
+            f"{CB17} core.action_type staff_training: the institution trains public-sector staff, its own, "
+            f"to use AI; {PI_R17} ruling 6 H",
+            "The Alberta AI Academy was created to help Alberta's public servants be leaders in this technological shift.",
+            scope="activity:Alberta AI Academy",
+        ),
     ],
 )
 add(
@@ -394,11 +502,25 @@ add(
             f"{PV} confirms_activity (order rule: first fitting value; absence statements on the same page do not override)",
             "Staff may use approved Generative AI tools internally under policy governance.",
         ),
-        e(
-            "n_activities",
-            3,
-            "SPEC R-017: AI policy; Minute pilot; Q Assistant pilot (policy and the tools it governs are separate)",
-            jc="JC-R11",
+        relabelled(
+            e17(
+                "n_activities",
+                4,
+                "SPEC R-017: AI policy; Minute pilot; Q Assistant pilot; staff AI training (policy and the "
+                f"tools it governs are separate). {CB17}: staff AI training counts without being generative; "
+                f"'exploring predictive analytics' adds none; {PI_R17} ruling 5 row 12",
+                jc="JC-R11",
+            ),
+            [
+                superseded(
+                    "v27-real-20",
+                    1,
+                    1,
+                    3,
+                    None,
+                    "ruling 5 row 12 (r17 relabel); ruling 6 F (no new jev scoring)",
+                )
+            ],
         ),
         e(
             "core.has_human_oversight",
