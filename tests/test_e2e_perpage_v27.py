@@ -634,6 +634,11 @@ def test_rollup_quote_failed_verdict_with_a_supported_activity_gives_yes(tmp_pat
                                  and n["support_status"] == "downgraded_no_quote" for n in verdict_nodes)
     assert source["values"][jpc.VERDICT] == "confirms_activity"
     assert source["values"]["core.confidence"] == "low"
+    # PI 2026-11-22: no stored or exported mark. The mark lives in memory only; no file the run wrote names it.
+    files = [p for p in run_dir.rglob("*") if p.is_file()]
+    assert any(p.name == "6_storage.json" for p in files) and len(files) > 10
+    assert [str(p.relative_to(run_dir)) for p in files if b"verdict_rollup" in p.read_bytes()] == []
+    assert [str(p.relative_to(run_dir)) for p in files if b"rollup" in p.read_bytes().lower()] == []
 
 
 def test_rollup_does_not_rescue_a_page_with_no_supported_activity(tmp_path):
