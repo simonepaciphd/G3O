@@ -39,7 +39,9 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from bisect import bisect_left
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Any
 
 from g3o.common.support_check import _WORD, WORD_RULE_CUTOFF, word_tokens
@@ -198,10 +200,15 @@ def _ws_index(text: str) -> tuple[str, list[int]]:
     return "".join(out), idx
 
 
+def _joins_under(ch: str) -> bool:
+    return unicodedata.category(ch)[0] == "M" or "ᅠ" <= ch <= "ᇿ"
+
+
 def _joins_previous(ch: str) -> bool:
     """Can ``ch`` combine with the character before it under normalisation? Combining marks and
-    the conjoining Hangul vowels and finals."""
-    return unicodedata.category(ch)[0] == "M" or "\u1160" <= ch <= "\u11ff"
+    the conjoining Hangul vowels and finals, and a character whose own NFKC form begins with one
+    (the half-width kana voiced marks, the compatibility jamo vowels)."""
+    return _joins_under(ch) or _joins_under(unicodedata.normalize("NFKC", ch)[:1] or ch)
 
 
 def _nfkc_index(text: str) -> tuple[str, list[int], list[int]] | None:
@@ -229,33 +236,64 @@ def _nfkc_index(text: str) -> tuple[str, list[int], list[int]] | None:
     return norm, starts, ends
 
 
-_NfkcIndex = tuple[str, list[int], list[int]]
+@dataclass(frozen=True)
+class _PageIndex:
+    """What the Unicode-form and word steps read of one page text, built once per page."""
+    norm: str  # NFKC copy of the page
+    starts: list[int]  # per character of ``norm``: start in the page of the characters it stands for
+    ends: list[int]  # ... and their end
+    collapsed: str  # ``norm`` with whitespace runs as one space
+    cidx: list[int]  # per character of ``collapsed``: its index in ``norm``
+    cstarts: list[int]  # per character of ``collapsed``: its start in the page
+    words: list[tuple[str, int, int]]  # the quote check's word tokens: (token, start, end in the page)
+    wstarts: list[int]  # start in the page of each word
 
 
-def _find_unicode_form(text: str, needle: str, lo: int, hi: int, index: _NfkcIndex | None = None
-                       ) -> tuple[int, int] | None:
+@lru_cache(maxsize=2)
+def _page_index(text: str) -> _PageIndex | None:
+    """The index of one page text; None when :func:`_nfkc_index` gives none. Kept for the last two
+    page texts, so a page's anchors share one build."""
+    built = _nfkc_index(text)
+    if built is None:
+        return None
+    norm, starts, ends = built
+    collapsed, cidx = _ws_index(norm)
+    words = [(m.group().casefold(), starts[m.start()], ends[m.end() - 1]) for m in _WORD.finditer(norm)]
+    return _PageIndex(norm, starts, ends, collapsed, cidx, [starts[o] for o in cidx], words, [w[1] for w in words])
+
+
+_page_ws_index = lru_cache(maxsize=2)(_ws_index)
+
+
+def _find_unicode_form(text: str, needle: str, lo: int, hi: int) -> tuple[int, int] | None:
     """``needle`` in ``text`` up to Unicode form (NFKC, as the quote check normalises, R-042) and
     whitespace. The offsets returned are offsets in ``text``; the match starts and ends at whole
     original characters, so ``text[start:end]`` is the needle under NFKC and whitespace."""
     n = re.sub(r"\s+", " ", unicodedata.normalize("NFKC", needle).strip())
-    index = index or (_nfkc_index(text) if n else None)
+    index = _page_index(text) if n else None
     if index is None or not n:
         return None
-    norm, starts, ends = index
-    collapsed, idx = _ws_index(norm)
-    j = collapsed.find(n, next((k for k, o in enumerate(idx) if starts[o] >= lo), len(collapsed)))
+    norm, starts, ends, idx = index.norm, index.starts, index.ends, index.cidx
+    j = index.collapsed.find(n, bisect_left(index.cstarts, lo))
     while j != -1:
         a, b = idx[j], idx[j + len(n) - 1]
         if starts[a] >= hi:
             return None
         if (a == 0 or starts[a - 1] != starts[a]) and (b == len(norm) - 1 or starts[b + 1] != starts[b]):
             return starts[a], ends[b]
-        j = collapsed.find(n, j + 1)
+        j = index.collapsed.find(n, j + 1)
     return None
 
 
-def _find_by_words(text: str, needle: str, lo: int, hi: int, edge: str, index: _NfkcIndex | None = None
-                   ) -> tuple[int, int] | None:
+def _stands_on_page(text: str, needle: str) -> bool:
+    """Does ``needle`` stand anywhere on the page as the first three steps of :func:`_find` read it:
+    exactly, up to whitespace, or up to Unicode form?"""
+    n = re.sub(r"\s+", " ", needle.strip())
+    return (needle in text or (bool(n) and n in _page_ws_index(text)[0])
+            or _find_unicode_form(text, needle, 0, len(text)) is not None)
+
+
+def _find_by_words(text: str, needle: str, lo: int, hi: int, edge: str) -> tuple[int, int] | None:
     """``needle`` located by the quote check's word rule (R-042, RC-D-014 S1), made positional.
 
     The quote check accepts a quote when at least ``WORD_RULE_CUTOFF`` (80%) of its words are on
@@ -266,18 +304,19 @@ def _find_by_words(text: str, needle: str, lo: int, hi: int, edge: str, index: _
     word whose offset is used is itself equal: the first word of a start anchor (``edge``
     "start"), the last word of an end anchor ("end"). Two qualifying places, or a differing edge
     word: None; no offset is guessed. The offsets are those of the first and the last word in
-    ``text`` (punctuation around them is outside)."""
+    ``text`` (punctuation around them is outside).
+
+    The rule is for an anchor that stands nowhere on the page as written. When the anchor stands
+    on the page outside [lo, hi), exactly, up to whitespace or up to Unicode form, no near copy
+    inside the range is taken for it: None."""
     q = word_tokens(needle)
-    index = index or (_nfkc_index(text) if q else None)
-    if index is None or not q:
+    index = _page_index(text) if q else None
+    if index is None or not q or _stands_on_page(text, needle):
         return None
-    norm, starts, ends = index
-    # (token, start, end in text) of the page words starting at or after lo
-    words = [(m.group().casefold(), starts[m.start()], ends[m.end() - 1]) for m in _WORD.finditer(norm)
-             if starts[m.start()] >= lo]
+    words = index.words
     n = len(q)
     found: int | None = None
-    for i in range(len(words) - n + 1):
+    for i in range(bisect_left(index.wstarts, lo), len(words) - n + 1):
         if words[i][1] >= hi:
             break
         if sum(words[i + k][0] == q[k] for k in range(n)) / n < WORD_RULE_CUTOFF:
@@ -297,27 +336,23 @@ def _find(text: str, needle: str, lo: int, hi: int | None = None, *, edge: str =
           ) -> tuple[int, int] | None:
     """Find ``needle`` in ``text`` starting in [lo, hi): exact first, then whitespace-insensitive,
     then up to Unicode form (:func:`_find_unicode_form`), then by the quote check's word rule where
-    one place qualifies (:func:`_find_by_words`; ``edge`` names the offset the caller uses).
+    one place qualifies and the anchor stands nowhere else on the page (:func:`_find_by_words`;
+    ``edge`` names the offset the caller uses).
     Returns (start, end) offsets in ``text``. The first two steps are those of every earlier
     release, so an anchor they find keeps its offsets."""
     hi = len(text) if hi is None else hi
     i = text.find(needle, lo)
     if i != -1 and i < hi:
         return i, i + len(needle)
-    collapsed, idx = _ws_index(text)
+    collapsed, idx = _page_ws_index(text)
     n = re.sub(r"\s+", " ", needle.strip())
     if not n:
         return None
     # first collapsed position whose original index is >= lo
-    start_c = next((k for k, o in enumerate(idx) if o >= lo), len(collapsed))
-    j = collapsed.find(n, start_c)
+    j = collapsed.find(n, bisect_left(idx, lo))
     if j != -1 and idx[j] < hi:
         return idx[j], idx[j + len(n) - 1] + 1
-    index = _nfkc_index(text)
-    if index is None:
-        return None
-    return (_find_unicode_form(text, needle, lo, hi, index)
-            or _find_by_words(text, needle, lo, hi, edge, index))
+    return _find_unicode_form(text, needle, lo, hi) or _find_by_words(text, needle, lo, hi, edge)
 
 
 def resolve_span(page: Pass1Page, chunk_id: str, start_text: str, end_text: str
