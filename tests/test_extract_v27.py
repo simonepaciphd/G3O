@@ -326,7 +326,11 @@ def test_system_prompt_carries_generated_sections_and_shared_prompt():
     system = build_system_prompt(cb)
     assert system.startswith(cb.shared_slot("system_prompt").text)
     for item in default_rules().activity_fields:
-        assert f"<!-- item: {item} sha256: {cb.item_hash(item)} -->" in system
+        assert f"## `{item}`" in system
+        assert f"Column `{item.split('.', 1)[1]}`." in system
+        assert cb.item_hash(item) not in system
+    # item hashes never reach the model (PI 2026-11-23, R1 c)
+    assert "<!-- item: " not in system and "item hash" not in system
     assert "{{" not in system
     for item in DEFERRED_FIELDS:
         assert f"## `{item}`" not in system
