@@ -42,7 +42,7 @@ from g3o.codebook.loader import REPO_ROOT, Codebook, load_codebook
 #: Version stamp for the three sets (pinned in goldens and stored with answers).
 JEV_QUESTION_SET_VERSION = "g3o.classify.questions.v27.jev.1"
 
-#: Codebook r17 (calibration rulings 2026-11-21), signed when planning/t010/signoff-record.md holds this sha256 (A-001).
+#: Codebook r18 (setting F bars per checked item; the page-verdict roll-up; RC-D-048, RC-D-049), signed when planning/t010/signoff-record.md holds this sha256 (A-001).
 #: A different codebook is refused.
 SIGNED_CODEBOOK_SHA256 = "470f8be2de43e9d7f47cd0e061fb2075dc2d70869fb36d2c6530a92cde490759"
 

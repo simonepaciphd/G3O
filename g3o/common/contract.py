@@ -861,6 +861,10 @@ class SourceRecord(BaseModel):
     # rescued this source's page. The source keeps its downgraded ``support_status``;
     # this mark is what lets it carry `yes`. Kept out of the Stage 6 JSON schema and
     # out of ``model_dump``, exactly as ``support_status``. v2.7 only.
+    # No producer sets this field today: the v2.7 path builds its envelope elsewhere and the
+    # pipeline's own rule is ``g3o.validate.consolidate_v27.rollup_applies``. This model sees no
+    # evidence channel, no chosen probability and no observation, so its check cannot enforce
+    # "web pages only", the classifier bar or the supported-observation condition by itself.
     verdict_rollup: SkipJsonSchema[bool] = Field(default=False, exclude=True)
 
     @model_validator(mode="after")
