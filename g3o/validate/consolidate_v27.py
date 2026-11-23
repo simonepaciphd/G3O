@@ -358,10 +358,14 @@ def summary_values(pages: Sequence[ReviewedPage], observations: Sequence[Activit
         outcome_values(o.final_outcomes)
         if o.supported and (not o.raw_records or not o.support_records):
             raise ConsolidationError("supported observation lost coder/support records")
-    for p in pages:  # RC-D-049: the mark is only ever the rule's own result
-        if p.verdict_rollup and not rollup_applies(p, observations):
+    for p in pages:  # RC-D-049: the mark is the rule's own result, in both directions
+        applies = rollup_applies(p, observations)
+        if p.verdict_rollup and not applies:
             raise ConsolidationError(f"page {p.page_id} carries the roll-up mark but has no supported "
                                      "activity observation")
+        if applies and not p.verdict_rollup:
+            raise ConsolidationError(f"page {p.page_id} meets the roll-up rule but does not carry the "
+                                     "roll-up mark")
     positive = any(o.supported and _positive(page_map[o.page_id]) for o in observations)
     if positive != bool(published_activity_values):
         raise ConsolidationError("published activity presence disagrees with supported confirmed evidence")
