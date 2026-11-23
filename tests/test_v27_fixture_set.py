@@ -20,7 +20,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "v27"
 CODEBOOK = ROOT / "codebook" / "codebook.yaml"
-SIGNED_SHA = "2ad76ee7df9da3e70fda3fe6d20fcef7b35483594b038d5446e89b1e6cce6aa7"
+SIGNED_SHA = "470f8be2de43e9d7f47cd0e061fb2075dc2d70869fb36d2c6530a92cde490759"
 A_IDS = ["A-003", "A-004", "A-010", "A-011", "A-012", "A-020", "A-021", "A-022"]
 VERDICTS = [
     "confirms_activity",
