@@ -356,3 +356,132 @@ def test_page_words_are_the_quote_checks_words():
     slip = "5kg of rice was handed out after the office AI tools"  # last word miscopied
     got = parser_v27._find(text, slip, 0)
     assert got is not None and text[got[0]:got[1]] == "5㎏ of rice was handed out after the office AI tool"
+
+
+# ---------------------------------------------------------------------------
+# Review of the landing branch (2026-11-22): the word rule never overrides another occurrence of the anchor
+# ---------------------------------------------------------------------------
+
+TEMPLATED = ("Ministry of Health launched a generative AI chatbot for citizens in March. Other text here. "
+             "Ministry of Finance launched a generative AI chatbot for citizens in March. ")
+FINANCE = "Ministry of Finance launched a generative AI chatbot for citizens"
+
+
+def test_the_word_rule_does_not_pick_a_near_copy_when_the_anchor_is_exact_elsewhere():
+    at = TEMPLATED.index(FINANCE)
+    assert at == 92
+    # the part named holds the Health sentence only (9 of 10 words equal, first word equal): no place is guessed
+    assert parser_v27._find(TEMPLATED, FINANCE, 0, 80) is None
+    # with the anchor's own place in range it is found exactly, as before
+    assert parser_v27._find(TEMPLATED, FINANCE, 0) == (at, at + len(FINANCE))
+    assert parser_v27._find(TEMPLATED, FINANCE, 80) == (at, at + len(FINANCE))
+
+
+@pytest.mark.parametrize("elsewhere", [
+    "Ministry of  Finance launched a\ngenerative AI chatbot for citizens",  # up to whitespace
+    "Ministry of Ｆinance launched a generative AI chatbot for citizens",  # up to Unicode form (full-width F)
+])
+def test_an_occurrence_up_to_whitespace_or_unicode_form_elsewhere_also_vetoes(elsewhere):
+    text = ("Ministry of Health launched a generative AI chatbot for citizens in March. Other text here. "
+            + elsewhere + " in March. ")
+    assert parser_v27._find(text, FINANCE, 0, 80) is None
+    assert parser_v27._find(text, FINANCE, 80) is not None  # found by the earlier steps where it stands
+
+
+def test_an_occurrence_before_the_range_vetoes_an_end_anchor_too():
+    exact = "the board began a pilot of AI tools for staff"
+    text = (f"In 2024 {exact} in the north office. "
+            "In 2025 the board began a pilot of AI tool for staff in the south office.")
+    lo = text.index("In 2025")
+    assert text.count(exact) == 1 and text.index(exact) < lo
+    assert parser_v27._find(text, exact, lo, edge="end") is None
+    assert parser_v27._find(text, exact, lo, edge="start") is None
+    # an anchor that stands nowhere on the page as written is still located by the word rule
+    slip = "the board began a pilot of AI tooling for staff in the south office"
+    got = parser_v27._find(text, slip, lo)
+    assert got is not None and got[0] == text.index("the board", lo)
+
+
+# ---------------------------------------------------------------------------
+# Review: half-width kana voiced marks and compatibility jamo do not switch the new steps off for the page
+# ---------------------------------------------------------------------------
+
+KANA_PAGE = "ﾃﾞｰﾀ活用。 The ministry uses ﬁne‑tuned models for drafting."
+JAMO_PAGE = "앞 ㄱㅏ 뒤. The office uses ﬁne tools for letters."
+
+
+def test_half_width_kana_page_keeps_the_unicode_form_step():
+    assert unicodedata.normalize("NFKC", "ﾃﾞ") == "デ"
+    index = parser_v27._nfkc_index(KANA_PAGE)
+    assert index is not None and index[0] == unicodedata.normalize("NFKC", KANA_PAGE)
+    got = parser_v27._find(KANA_PAGE, "fine‑tuned models", 0)
+    assert got == (KANA_PAGE.index("ﬁne"), KANA_PAGE.index("ﬁne") + len("ﬁne‑tuned models"))
+    assert canon(KANA_PAGE[got[0]:got[1]]) == canon("fine‑tuned models")
+    # the kana itself: the voiced mark belongs to the character before it
+    got = parser_v27._find(KANA_PAGE, "データ活用", 0)
+    assert got == (0, 6) and canon(KANA_PAGE[0:6]) == "データ活用"
+    assert parser_v27._find(KANA_PAGE, "テ", 0) is None  # never half of ﾃﾞ
+    assert parser_v27._find(KANA_PAGE, "ータ活用", 0) == (2, 6)
+    # semi-voiced mark
+    text = "ﾊﾟｿｺﾝ教室 uses ﬁne tools"
+    assert parser_v27._nfkc_index(text) is not None
+    assert parser_v27._find(text, "パソコン教室", 0) == (0, 7)
+
+
+def test_compatibility_jamo_page_keeps_the_unicode_form_step():
+    assert unicodedata.normalize("NFKC", "ㄱㅏ") == "가"
+    index = parser_v27._nfkc_index(JAMO_PAGE)
+    assert index is not None and index[0] == unicodedata.normalize("NFKC", JAMO_PAGE)
+    got = parser_v27._find(JAMO_PAGE, "fine tools", 0)
+    assert got is not None and JAMO_PAGE[got[0]:got[1]] == "ﬁne tools"
+    got = parser_v27._find(JAMO_PAGE, "앞 가 뒤", 0)
+    assert got == (0, 6) and JAMO_PAGE[got[0]:got[1]] == "앞 ㄱㅏ 뒤"
+    assert parser_v27._find(JAMO_PAGE, "가", 0) == (2, 4)
+    # a lone compatibility vowel after another letter joins nothing it should not: offsets stay whole characters
+    lone = "aㅏ b ﬁne"
+    assert parser_v27._nfkc_index(lone) is not None
+    assert parser_v27._find(lone, "fine", 0) == (lone.index("ﬁ"), len(lone))
+
+
+def test_a_text_the_index_cannot_follow_still_fails_closed(monkeypatch):
+    monkeypatch.setattr(parser_v27, "_joins_previous", lambda ch: False)
+    parser_v27._page_index.cache_clear()
+    try:
+        text = nfd("Cách đây vài năm") + " ﬁne"
+        assert parser_v27._nfkc_index(text) is None
+        assert parser_v27._find(text, "fine", 0) is None
+    finally:
+        parser_v27._page_index.cache_clear()
+
+
+# ---------------------------------------------------------------------------
+# Review: the page index is built once per page, and the results are those of a fresh build
+# ---------------------------------------------------------------------------
+
+def test_the_page_index_is_built_once_per_page_and_changes_no_result(monkeypatch):
+    text = nfd("Tin tức. ") + PAGE + " " + KANA_PAGE + " " + nfd("Cách đây vài năm cơ quan thuế bắt đầu.")
+    anchors = [SLIP, "fine‑tuned models", "nothing like this is anywhere on that page", nfc("Cách đây vài năm"),
+               "some years ago, the Revenue Board began its fight", "データ活用", "years ago the revenue boards"]
+    calls = []
+    real = parser_v27._nfkc_index
+
+    def counted(t):
+        calls.append(len(t))
+        return real(t)
+
+    monkeypatch.setattr(parser_v27, "_nfkc_index", counted)
+    fresh = []
+    for a in anchors:  # each anchor against a newly built index
+        parser_v27._page_index.cache_clear()
+        fresh.append((parser_v27._find(text, a, 0), parser_v27._find(text, a, 5, len(text) - 3, edge="end")))
+    assert any(f[0] is not None for f in fresh) and any(f[0] is None for f in fresh)
+    parser_v27._page_index.cache_clear()
+    calls.clear()
+    cached = [(parser_v27._find(text, a, 0), parser_v27._find(text, a, 5, len(text) - 3, edge="end")) for a in anchors]
+    assert cached == fresh
+    assert calls == [len(text)]
+    page = make_page(text)
+    for a in anchors:
+        parser_v27.resolve_span(page, "P1#p001", a, "words that are nowhere on it at all")
+    assert calls == [len(text)]
+    parser_v27._page_index.cache_clear()
