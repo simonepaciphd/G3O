@@ -1,7 +1,7 @@
 {
   "format": "g3o-storage-fixtures-v1",
   "purpose": "Explicit offline PI-authorized local fixtures; not production provenance",
-  "codebook_sha256": "0cd68ed0750c05e25e646aa2f5fd62e1f3ac9d05c79cb437b1697eda84d6655e",
+  "codebook_sha256": "d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84",
   "map_sha256": "3c83860ebcfa559b50685c872d2cd0929b8cff63abd4a08d0ace17d1c3a2e96d",
   "artifacts": [
     {
@@ -18,27 +18,27 @@
     },
     {
       "path": "page_two_activities/activities.csv",
-      "sha256": "4020edc2dd6b9ec079ee908575e9db5a0128efa3191b42fa760407410adcf25c"
+      "sha256": "8cf41c8341a4daf2dcdcb2702c0dc8ab41b05a4fc05e3484c3ff1c4385b09513"
     },
     {
       "path": "page_two_activities/sources.csv",
-      "sha256": "f26ce867cc55797d8df540797e8075ff0d3c4b443a13f89544dc7a9bd7feb065"
+      "sha256": "326ffd82b6295cb1421a4350fab9670b8438fb1968c61634dc5eacd72669f299"
     },
     {
       "path": "page_two_activities/summary.csv",
-      "sha256": "7af107da367f5c076ca69eed37b32a723f0c20bcf4914c8f61bcce0d2abf7c84"
+      "sha256": "30e9fbfee8a4125058710c90f4cf5852e5e9224228496bd4836370b9ecb0005f"
     },
     {
       "path": "combined_activity/activities.csv",
-      "sha256": "6f1f2930d4b23ec92de8109749f3f561eaf9f7d1fb4150e605679b2615a02cf4"
+      "sha256": "3bcb1067d5c6c6d331bbce012e5f32e2e68ef8a66901f04970e13cbca53f7539"
     },
     {
       "path": "combined_activity/sources.csv",
-      "sha256": "d6805cfe49fcc6f3f7900fcc531d5b064ecd3a2a29979b9c33b29817b311cdb8"
+      "sha256": "f863b5b446e99c4a00650c5cceb1d64179217dc2a6e9d0eddfa2557454daa05c"
     },
     {
       "path": "combined_activity/summary.csv",
-      "sha256": "64ae95daf69a30ef4cda42980d364b482f25627b3fcd1e52368573e32c95aae0"
+      "sha256": "15cfdb190189d65c6bbb9dde7ccbe826ca17540065d8411d8775b54f73f0a74f"
     }
   ]
 }

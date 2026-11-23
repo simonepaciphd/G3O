@@ -95,7 +95,7 @@ from typing import Any
 from g3o.codebook.loader import Codebook, load_codebook
 
 #: Codebook r18 (setting F bars per checked item; the page-verdict roll-up; RC-D-048, RC-D-049), signed when planning/t010/signoff-record.md holds this sha256 (A-001). Another file is refused.
-SIGNED_CODEBOOK_SHA256 = "0cd68ed0750c05e25e646aa2f5fd62e1f3ac9d05c79cb437b1697eda84d6655e"
+SIGNED_CODEBOOK_SHA256 = "d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84"
 
 PINNED_RAPIDFUZZ = "3.14.3"  # DEC-007 a; RC-D-017 1a. Change only with a re-calibration (T-003).
 MATCH_METRIC = "token_set_ratio_norm"  # RC-D-017 1a
