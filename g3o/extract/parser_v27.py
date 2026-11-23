@@ -229,15 +229,19 @@ def _nfkc_index(text: str) -> tuple[str, list[int], list[int]] | None:
     return norm, starts, ends
 
 
-def _find_unicode_form(text: str, needle: str, lo: int, hi: int) -> tuple[int, int] | None:
+_NfkcIndex = tuple[str, list[int], list[int]]
+
+
+def _find_unicode_form(text: str, needle: str, lo: int, hi: int, index: _NfkcIndex | None = None
+                       ) -> tuple[int, int] | None:
     """``needle`` in ``text`` up to Unicode form (NFKC, as the quote check normalises, R-042) and
     whitespace. The offsets returned are offsets in ``text``; the match starts and ends at whole
     original characters, so ``text[start:end]`` is the needle under NFKC and whitespace."""
     n = re.sub(r"\s+", " ", unicodedata.normalize("NFKC", needle).strip())
-    built = _nfkc_index(text) if n else None
-    if built is None:
+    index = index or (_nfkc_index(text) if n else None)
+    if index is None or not n:
         return None
-    norm, starts, ends = built
+    norm, starts, ends = index
     collapsed, idx = _ws_index(norm)
     j = collapsed.find(n, next((k for k, o in enumerate(idx) if starts[o] >= lo), len(collapsed)))
     while j != -1:
@@ -250,24 +254,27 @@ def _find_unicode_form(text: str, needle: str, lo: int, hi: int) -> tuple[int, i
     return None
 
 
-def _find_by_words(text: str, needle: str, lo: int, hi: int, edge: str) -> tuple[int, int] | None:
+def _find_by_words(text: str, needle: str, lo: int, hi: int, edge: str, index: _NfkcIndex | None = None
+                   ) -> tuple[int, int] | None:
     """``needle`` located by the quote check's word rule (R-042, RC-D-014 S1), made positional.
 
     The quote check accepts a quote when at least ``WORD_RULE_CUTOFF`` (80%) of its words are on
-    the page. Here a place is a run of as many page words as the needle has (the same word
-    tokens: NFKC, casefold, punctuation dropped), and it qualifies when at least 80% of the words
-    are equal position by position. That is narrower than the quote check, never wider. The
-    place is returned only when it is the one qualifying place starting in [lo, hi) and the word
-    whose offset is used is itself equal: the first word of a start anchor (``edge`` "start"),
-    the last word of an end anchor ("end"). Two qualifying places, or a differing edge word:
-    None; no offset is guessed."""
+    the page. Here a place is a run of as many page words as the needle has (the quote check's
+    word tokens: NFKC, casefold, punctuation dropped), and it qualifies when at least 80% of the
+    words are equal position by position. That is narrower than the quote check, never wider.
+    The place is returned only when it is the one qualifying place starting in [lo, hi) and the
+    word whose offset is used is itself equal: the first word of a start anchor (``edge``
+    "start"), the last word of an end anchor ("end"). Two qualifying places, or a differing edge
+    word: None; no offset is guessed. The offsets are those of the first and the last word in
+    ``text`` (punctuation around them is outside)."""
     q = word_tokens(needle)
-    if not q:
+    index = index or (_nfkc_index(text) if q else None)
+    if index is None or not q:
         return None
-    words: list[tuple[str, int, int]] = []  # (token, start, end in text)
-    for m in _WORD.finditer(text, lo):
-        for tok in _WORD.findall(unicodedata.normalize("NFKC", m.group()).casefold()):
-            words.append((tok, m.start(), m.end()))
+    norm, starts, ends = index
+    # (token, start, end in text) of the page words starting at or after lo
+    words = [(m.group().casefold(), starts[m.start()], ends[m.end() - 1]) for m in _WORD.finditer(norm)
+             if starts[m.start()] >= lo]
     n = len(q)
     found: int | None = None
     for i in range(len(words) - n + 1):
@@ -306,7 +313,11 @@ def _find(text: str, needle: str, lo: int, hi: int | None = None, *, edge: str =
     j = collapsed.find(n, start_c)
     if j != -1 and idx[j] < hi:
         return idx[j], idx[j + len(n) - 1] + 1
-    return _find_unicode_form(text, needle, lo, hi) or _find_by_words(text, needle, lo, hi, edge)
+    index = _nfkc_index(text)
+    if index is None:
+        return None
+    return (_find_unicode_form(text, needle, lo, hi, index)
+            or _find_by_words(text, needle, lo, hi, edge, index))
 
 
 def resolve_span(page: Pass1Page, chunk_id: str, start_text: str, end_text: str

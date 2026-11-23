@@ -345,3 +345,14 @@ def test_a_miscopied_word_on_a_decomposed_page():
     slip = nfc("Cách đây vài năm cơ quan thuế bắt đầu dùng trí tuệ nhân tạo để chống trốn thuê")
     got = parser_v27._find(text, slip, 0)
     assert got == (len(nfd("Tin. ")), len(nfd("Tin. ")) + len(nfd(passage)))
+
+
+def test_page_words_are_the_quote_checks_words():
+    # "㎏" is one page character and no letter; under NFKC it is "kg", and the quote check reads "5kg".
+    from g3o.common.support_check import word_tokens
+
+    text = "Note. 5㎏ of rice was handed out after the office AI tool sorted the list. End."
+    assert "5kg" in word_tokens(text)
+    slip = "5kg of rice was handed out after the office AI tools"  # last word miscopied
+    got = parser_v27._find(text, slip, 0)
+    assert got is not None and text[got[0]:got[1]] == "5㎏ of rice was handed out after the office AI tool"
