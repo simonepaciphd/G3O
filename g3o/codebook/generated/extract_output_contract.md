@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extract_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: 24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d -->
+<!-- codebook release: 2.7 | codebook sha256: d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84 -->
 
 # G3O output contract (extract), generated from the codebook
 
-Codebook release `2.7`, sha256 `24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d`. 99 items.
+Codebook release `2.7`, sha256 `d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84`. 99 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: f3224d00890eba351b1b5b696c2d6eacdf7f3863c010e0a99de35216d1fa0bfe -->
@@ -5090,11 +5090,11 @@ A supported `yes` sets the final `adoption_stage` to `production` only when the 
 The page does not let this be settled.
 
 ## `core.vendor_claim_only`
-<!-- item: core.vendor_claim_only sha256: 022ad323570a7dbe3a097ad5bd811cb499213742c1003c7f82be62f3d2b947c8 -->
+<!-- item: core.vendor_claim_only sha256: 55b92f0eee7ff1506210ef663c3839c5a4a1d7cd690bd36e3ae5a247ae19b536 -->
 
 | Field | Value |
 |---|---|
-| item hash | `022ad323570a7dbe3a097ad5bd811cb499213742c1003c7f82be62f3d2b947c8` |
+| item hash | `55b92f0eee7ff1506210ef663c3839c5a4a1d7cd690bd36e3ae5a247ae19b536` |
 | family | `quality` |
 | name | `vendor_claim_only` |
 | level | `activity` |
@@ -5122,7 +5122,7 @@ The page does not let this be settled.
 
 1. `items/core.vendor_claim_only/rules/0`
 
-Each item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.
+`yes` when every source supporting the activity has source type `vendor`; `unknown` when any of them has no source type; otherwise `no`. A page typed automatically (official domain or archive address) has a type and is not `vendor`.
 
 ## `core.unit_credit`
 <!-- item: core.unit_credit sha256: 300296a33913ac5bd7c8163ea1da222da1a176e78591a22447b9d84049b94786 -->
@@ -5160,11 +5160,11 @@ Each item states its coder (classifier, mechanical, quote step or derived), and 
 Keep your rule and add a yes/no column marking credit received through a unit, so analyses can remove duplicates; the data dictionary explains it.
 
 ## `core.uncertainty_flags`
-<!-- item: core.uncertainty_flags sha256: eed917f31f1f040350aa39f72e0d2ef4f7f2a4177de4d657f50a9b048c2b229f -->
+<!-- item: core.uncertainty_flags sha256: 634a01d4f82fbe62c12870d25ab0de60b094c8cb0c2a26f3a688451d2c2dbd76 -->
 
 | Field | Value |
 |---|---|
-| item hash | `eed917f31f1f040350aa39f72e0d2ef4f7f2a4177de4d657f50a9b048c2b229f` |
+| item hash | `634a01d4f82fbe62c12870d25ab0de60b094c8cb0c2a26f3a688451d2c2dbd76` |
 | family | `quality` |
 | name | `uncertainty_flags` |
 | level | `activity`, `row` |
@@ -5192,22 +5192,14 @@ Keep your rule and add a yes/no column marking credit received through a unit, s
 
 1. `items/core.uncertainty_flags/rules/0`
 
-Compute each flag from codes (table above); add `identity_unresolved` for Stage 6 relations; drop `source_language_barrier`; `discontinued_uncertain` becomes a pass-2 jev yes/no.
-
-2. `items/core.uncertainty_flags/rules/1`
-
-Retire flags that just mirror a column; keep 'identity unresolved' and 'stage ambiguous', and fold 'discontinuation uncertain' into the incident question as a value instead of a separate question.
-
-3. `items/core.uncertainty_flags/rules/2`
-
-AI-text flags fold into the main list, the language-barrier flag is dropped everywhere, and language coverage is carried by the multilingual subproject's item.
+Two flags. `stage_ambiguous`: the stated adoption-stage answers differ across parts or pooled observations before combining; missing answers are ignored. `identity_unresolved`: a Stage 6 cross-page relation is `unresolved`; it is a row flag of the left-hand activity of that relation. A support node carries only its own code's flags; an activity row carries the union. `discontinuation_uncertain` is a value of the incident question, not a flag. No flag is defined for AI-text evidence.
 
 ## `core.support_entailment`
-<!-- item: core.support_entailment sha256: 6607e989006ecf017caa1f2fd23f2b5f30b9adbeefbed96b22d7d4d09c3e6127 -->
+<!-- item: core.support_entailment sha256: 788c0223c3a3d3baa7fca234c08dca065d53d4f6642a71901d8a5f480a539075 -->
 
 | Field | Value |
 |---|---|
-| item hash | `6607e989006ecf017caa1f2fd23f2b5f30b9adbeefbed96b22d7d4d09c3e6127` |
+| item hash | `788c0223c3a3d3baa7fca234c08dca065d53d4f6642a71901d8a5f480a539075` |
 | family | `support` |
 | name | `support_entailment` |
 | level | `row` |
@@ -5258,14 +5250,14 @@ The quoted text does not state or clearly show that the field has the given valu
 
 1. `items/core.support_entailment/rules/0`
 
-State = quote (plus a short window); question: 'Does this text state or clearly show that the <field label> of the activity "<activity name>" is "<value label>"?' true/false; false or confidence < threshold -> downgrade `no_support`.
+The check sees the quote plus 200 characters on each side, clipped to the producing part, and asks: 'Does this text state or clearly show that the <field label> of the activity "<activity name>" is "<value label>"?' (page-level items use the page form). The answer fails when it is `false`, when there is no answer or no probability, or when its probability is below the checked item's bar (`threshold_by_checked_item`; otherwise the item's `threshold`). A failed answer gives the support status `downgraded_quote_not_stating_value`, and the value takes the checked item's downgrade target.
 
 ## `core.support_status`
-<!-- item: core.support_status sha256: 31436cc2b24f392932efeb4325f829f8ceda60fe4dd503b29e60d426a070743a -->
+<!-- item: core.support_status sha256: f28888c3deb7fb33388b286c5ba09c1bea8e28a7ab55f4cbb05b4af12037e20f -->
 
 | Field | Value |
 |---|---|
-| item hash | `31436cc2b24f392932efeb4325f829f8ceda60fe4dd503b29e60d426a070743a` |
+| item hash | `f28888c3deb7fb33388b286c5ba09c1bea8e28a7ab55f4cbb05b4af12037e20f` |
 | family | `support` |
 | name | `support_status` |
 | level | `row` |
@@ -5293,7 +5285,7 @@ State = quote (plus a short window); question: 'Does this text state or clearly 
 
 1. `items/core.support_status/rules/0`
 
-Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including "not asked" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.
+Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including "not asked" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity`, `no_generative_signal` and negative page verdicts.
 
 2. `items/core.support_status/rules/1`
 
@@ -5304,11 +5296,11 @@ Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_con
 A second reason item
 
 ## `core.supporting_text`
-<!-- item: core.supporting_text sha256: a19ee7b282d149ce6b66320a455ca06fb67b26f2e60833632545f70390ccbe7c -->
+<!-- item: core.supporting_text sha256: ed7c6f3e92f25fcdd9f5220099088627f3b129dc5cefbe68e94ab2020fdcd517 -->
 
 | Field | Value |
 |---|---|
-| item hash | `a19ee7b282d149ce6b66320a455ca06fb67b26f2e60833632545f70390ccbe7c` |
+| item hash | `ed7c6f3e92f25fcdd9f5220099088627f3b129dc5cefbe68e94ab2020fdcd517` |
 | family | `support` |
 | name | `supporting_text` |
 | level | `row` |
@@ -5336,7 +5328,7 @@ A second reason item
 
 1. `items/core.supporting_text/rules/0`
 
-For every jev code on a page or activity, the extractor (C-001; the quote step) extracts the verbatim supporting text from the page. RC-D-002 row 15 replaces "after jev has coded"; RC-D-017 replaces its blind rule: the quote step sees the chosen answer for the field it quotes and copies the text that supports it, so it is a confirmatory step. It may also see that a gate is not `none`. Each supporting text (a quote, a link passage or a field's supporting text) is at most 200 characters; a longer one is kept whole and flagged. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". A01 and CX-61 get quotes relevant to the field. The scale number is copied verbatim by the quote step and the classifier picks the unit; the publication date is coded by the quote step under the R-042 check. X35 adds an entailment check per (code, quote) with a chosen-answer probability bar.
+For every classifier code on a page or activity, the quote step copies the verbatim supporting text from the page. It sees the chosen answer for the field it quotes and copies the text that supports it; it may also see that a gate is not `none`. Each supporting text (a quote, a link passage or a field's supporting text) is at most 200 characters; a longer one is kept whole and flagged. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". The GenAI mechanism basis and the outcome and incident kinds get quotes relevant to the field. The quote step copies the scale number verbatim and the classifier picks the unit; the quote step codes the publication date, checked against the stored text. A second check asks whether each quote states the coded value (`core.support_entailment`).
 
 2. `items/core.supporting_text/rules/1`
 

@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.jev_questions",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d",
+  "codebook_sha256": "d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84",
   "intended_target": "T-011 jev question and choice sets (path chosen by T-011)",
   "part_prompt": {
     "sentence": "The text below is only one part of a longer page; the rest of the page is read separately. Answer from this part only.",
@@ -3997,7 +3997,7 @@
     {
       "question_id": "core.support_entailment",
       "item_id": "core.support_entailment",
-      "item_hash": "6607e989006ecf017caa1f2fd23f2b5f30b9adbeefbed96b22d7d4d09c3e6127",
+      "item_hash": "788c0223c3a3d3baa7fca234c08dca065d53d4f6642a71901d8a5f480a539075",
       "column": "support_entailment",
       "pass": "none",
       "round": "none",
@@ -4013,7 +4013,7 @@
       "criteria": [
         {
           "code": "true",
-          "text": "The quoted text states or clearly shows that the field has the given value.\n\nRules:\n1. State = quote (plus a short window); question: 'Does this text state or clearly show that the <field label> of the activity \"<activity name>\" is \"<value label>\"?' true/false; false or confidence < threshold -> downgrade `no_support`.",
+          "text": "The quoted text states or clearly shows that the field has the given value.\n\nRules:\n1. The check sees the quote plus 200 characters on each side, clipped to the producing part, and asks: 'Does this text state or clearly show that the <field label> of the activity \"<activity name>\" is \"<value label>\"?' (page-level items use the page form). The answer fails when it is `false`, when there is no answer or no probability, or when its probability is below the checked item's bar (`threshold_by_checked_item`; otherwise the item's `threshold`). A failed answer gives the support status `downgraded_quote_not_stating_value`, and the value takes the checked item's downgrade target.",
           "definition_slot": "items/core.support_entailment/values/0/definition",
           "rule_slots": [
             "items/core.support_entailment/rules/0"
@@ -4021,7 +4021,7 @@
         },
         {
           "code": "false",
-          "text": "The quoted text does not state or clearly show that the field has the given value. The answer's support status becomes 'downgraded: quote does not state the value'.\n\nRules:\n1. State = quote (plus a short window); question: 'Does this text state or clearly show that the <field label> of the activity \"<activity name>\" is \"<value label>\"?' true/false; false or confidence < threshold -> downgrade `no_support`.",
+          "text": "The quoted text does not state or clearly show that the field has the given value. The answer's support status becomes 'downgraded: quote does not state the value'.\n\nRules:\n1. The check sees the quote plus 200 characters on each side, clipped to the producing part, and asks: 'Does this text state or clearly show that the <field label> of the activity \"<activity name>\" is \"<value label>\"?' (page-level items use the page form). The answer fails when it is `false`, when there is no answer or no probability, or when its probability is below the checked item's bar (`threshold_by_checked_item`; otherwise the item's `threshold`). A failed answer gives the support status `downgraded_quote_not_stating_value`, and the value takes the checked item's downgrade target.",
           "definition_slot": "items/core.support_entailment/values/1/definition",
           "rule_slots": [
             "items/core.support_entailment/rules/0"

@@ -768,8 +768,9 @@ def test_signed_codebook_states_the_page_verdict_rollup_outside_every_model_text
     from g3o.validate.consolidate_v27 import ROLLUP_STATUSES
 
     rules = cb.items["core.has_genai_activity"]["rules"]
-    assert len(rules) == 3 and rules[2]["role"] == "page-verdict roll-up"
-    text = rules[2]["text"]
+    # clean-docs (PI 2026-11-23): rules/1 is the roll-up, rules/2 the supported-observation rule (R2, 3 D)
+    assert len(rules) == 3 and [r.get("role") for r in rules[1:]] == ["page-verdict roll-up", "supported activity observation"]
+    text = rules[1]["text"]
     assert text.startswith("Page-verdict roll-up: ")
     statuses = set(cb.vocabularies["support_status"]["values"])
     assert {s for s in statuses if f"`{s}` or" in text or f"or `{s}`" in text} == ROLLUP_STATUSES

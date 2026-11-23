@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extractor_prompt_sections. -->
-<!-- codebook release: 2.7 | codebook sha256: 24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d -->
+<!-- codebook release: 2.7 | codebook sha256: d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84 -->
 
 # Extractor prompt sections
 
-Codebook release `2.7`, sha256 `24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
+Codebook release `2.7`, sha256 `d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
 
 ## `core.source_publication_date`
 <!-- item: core.source_publication_date sha256: 44eac9838bdb4ff1e4552e1ce3e2fe7f65e4d874149b5b3d1b0cbaaa49589f06 -->
@@ -239,13 +239,13 @@ Column `reported_incidents`; item hash `beed4c12c06a509a8abebfdbfae91d3457c4a952
 Documented errors, failures, or controversies. Only record if explicitly stated.
 
 ## `core.supporting_text`
-<!-- item: core.supporting_text sha256: a19ee7b282d149ce6b66320a455ca06fb67b26f2e60833632545f70390ccbe7c -->
+<!-- item: core.supporting_text sha256: ed7c6f3e92f25fcdd9f5220099088627f3b129dc5cefbe68e94ab2020fdcd517 -->
 
-Column `supporting_text`; item hash `a19ee7b282d149ce6b66320a455ca06fb67b26f2e60833632545f70390ccbe7c`.
+Column `supporting_text`; item hash `ed7c6f3e92f25fcdd9f5220099088627f3b129dc5cefbe68e94ab2020fdcd517`.
 
 ### Rules
 
-1. For every jev code on a page or activity, the extractor (C-001; the quote step) extracts the verbatim supporting text from the page. RC-D-002 row 15 replaces "after jev has coded"; RC-D-017 replaces its blind rule: the quote step sees the chosen answer for the field it quotes and copies the text that supports it, so it is a confirmatory step. It may also see that a gate is not `none`. Each supporting text (a quote, a link passage or a field's supporting text) is at most 200 characters; a longer one is kept whole and flagged. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". A01 and CX-61 get quotes relevant to the field. The scale number is copied verbatim by the quote step and the classifier picks the unit; the publication date is coded by the quote step under the R-042 check. X35 adds an entailment check per (code, quote) with a chosen-answer probability bar.
+1. For every classifier code on a page or activity, the quote step copies the verbatim supporting text from the page. It sees the chosen answer for the field it quotes and copies the text that supports it; it may also see that a gate is not `none`. Each supporting text (a quote, a link passage or a field's supporting text) is at most 200 characters; a longer one is kept whole and flagged. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". The GenAI mechanism basis and the outcome and incident kinds get quotes relevant to the field. The quote step copies the scale number verbatim and the classifier picks the unit; the quote step codes the publication date, checked against the stored text. A second check asks whether each quote states the coded value (`core.support_entailment`).
 2. Supporting text is checked against the stored page text by fuzzy match; a quote below the match threshold counts as no supporting text.
 3. Supporting text is published with the code it supports. The API carries the full text; the website shows it up to 200 characters, with a marker and access to the full text.
 4. Published supporting quotes stay verbatim, with no masking.

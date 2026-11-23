@@ -1,16 +1,16 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.validate_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: 24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d -->
+<!-- codebook release: 2.7 | codebook sha256: d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84 -->
 
 # G3O output contract (validate, Stage 6), generated from the codebook
 
-Codebook release `2.7`, sha256 `24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d`. 14 items.
+Codebook release `2.7`, sha256 `d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84`. 14 items.
 
 ## `core.has_genai_activity`
-<!-- item: core.has_genai_activity sha256: 5d8e6ba766281d035d01c6b90cfd05d0c33af81c4023c9ffd3e565649b8b58b7 -->
+<!-- item: core.has_genai_activity sha256: a030dc0edb4f7abfaa51b66a8c95dd8c750f89448ee1338f41ab9f1902b30043 -->
 
 | Field | Value |
 |---|---|
-| item hash | `5d8e6ba766281d035d01c6b90cfd05d0c33af81c4023c9ffd3e565649b8b58b7` |
+| item hash | `a030dc0edb4f7abfaa51b66a8c95dd8c750f89448ee1338f41ab9f1902b30043` |
 | family | `verdict` |
 | name | `has_genai_activity` |
 | level | `institution` |
@@ -38,15 +38,15 @@ Codebook release `2.7`, sha256 `24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce17
 
 1. `items/core.has_genai_activity/rules/0`
 
-Institution-level consolidation (Stage 6) applies the v2.6 consolidation rules as jev questions or deterministic rules: explicit relations before merging observations; distinct/unresolved relations never merge; institution-level `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a low-confidence negative downgraded under R-081 counts as one). Stage 6 becomes the X29 truth table, with these ruled components: `background_only` pages may sit in the institution `no` set; any downgraded page counts as unresolved, except a `confirms_activity` page counted under the page-verdict roll-up; the bar is the chosen answer's probability ≥ 0.8; `yes` can come from any pipeline, `no` from web pages only, and AI-text results never count; any supported AI purchase record can give `yes`, while the evidence tier still shows it as commitment; `not_assessable` is set mechanically only and does not block `no`. Also: X30 with the shared relation list incl. `governs`; X31 pooled evidence, split when too long; A06 per r2#21; A07 with 9 counts per pipeline; X23 replaced by r2#27; unit-credit flag. `unresolved` stays a coding value and is reported as `unknown` in published summaries; unresolved relations still never merge. Inside the institution-level rule both `unresolved` and `not_assessable` keep their current roles, and `not_assessable` stays out of the institution-rate base.
+Institution-level consolidation (Stage 6): explicit relations are decided before observations merge; distinct or unresolved relations never merge; the institution gets `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a negative page below the bar counts as one). The truth table: `background_only` pages may sit in the institution `no` set; any downgraded page counts as unresolved, except a `confirms_activity` page counted under the page-verdict roll-up; the bar is the chosen answer's probability ≥ 0.8; `yes` can come from any pipeline, `no` from web pages only, and AI-text results never count; any supported AI purchase record can give `yes`, while the evidence tier still shows it as commitment; `not_assessable` is set mechanically only and does not block `no`. Stage 6 also asks the cross-page relation with the shared relation list, including `governs`; codes merged activities on their pooled evidence, split into parts when too long; and sets the evidence tier, the review depth (nine verdict counts per pipeline), activity confidence and the unit-credit flag. `unresolved` stays a coding value and is reported as `unknown` in published summaries. `not_assessable` stays out of the institution-rate base.
 
 2. `items/core.has_genai_activity/rules/1`
 
-Codebook table: `yes` if >= 1 supported `confirms_activity` page with a supported activity; `no` if every attempted page (incl. failed fetches and unfollowed links) ends in {no_genai, confirms_absence, event_only, other_body} at confidence >= 0.8 and no page is ambiguous, background_only or failed; otherwise `unclear`. Variant for PI: allow background_only in `no`.
+Page-verdict roll-up: a reviewed, unfailed web page whose final verdict is `confirms_activity`, whose verdict support status is `downgraded_quote_not_stating_value` or `downgraded_no_quote`, whose chosen probability passes the classifier verdict bar, and which has at least one supported activity observation on the same page, counts as a supported `confirms_activity` page. `downgraded_low_confidence` is never rescued and a page with no supported activity is never rescued. The verdict is never rewritten and keeps its support status; the source row's `confidence` stays `low`.
 
 3. `items/core.has_genai_activity/rules/2`
 
-Page-verdict roll-up: a reviewed, unfailed web page whose final verdict is `confirms_activity`, whose verdict support status is `downgraded_quote_not_stating_value` or `downgraded_no_quote`, whose chosen probability passes the classifier verdict bar, and which has at least one supported activity observation on the same page, counts as a supported `confirms_activity` page. `downgraded_low_confidence` is never rescued and a page with no supported activity is never rescued. The verdict is never rewritten and keeps its support status; the source row's `confidence` stays `low`.
+Supported activity observation: an activity observation is supported when its final `activity_type` or its final `action_type` has support status `supported`. A value that is gated out, set by rule, downgraded or missing is not supported. The other of the two may be `unknown`.
 
 ## `core.verdict_rule`
 <!-- item: core.verdict_rule sha256: aec5d5efdd3c58217aa68520910d52f04083fce2c5c9045aed07feca1a551006 -->
@@ -84,11 +84,11 @@ Page-verdict roll-up: a reviewed, unfailed web page whose final verdict is `conf
 v2.5 `none` institutions show `no` labelled as produced by the v2.5 rule (`verdict_rule`, r2#45).
 
 ## `core.evidence_tier`
-<!-- item: core.evidence_tier sha256: c7358fa49e107f3adbeefd0a6e5944d75e8f6ec14ae5dcd8c121818d3631d71d -->
+<!-- item: core.evidence_tier sha256: 5638c7694144b5900a5bbce6ece02b2ffcedc7a5cc04af9ef25ed7c385717b3c -->
 
 | Field | Value |
 |---|---|
-| item hash | `c7358fa49e107f3adbeefd0a6e5944d75e8f6ec14ae5dcd8c121818d3631d71d` |
+| item hash | `5638c7694144b5900a5bbce6ece02b2ffcedc7a5cc04af9ef25ed7c385717b3c` |
 | family | `verdict` |
 | name | `evidence_tier` |
 | level | `institution` |
@@ -116,11 +116,7 @@ v2.5 `none` institutions show `no` labelled as produced by the v2.5 rule (`verdi
 
 1. `items/core.evidence_tier/rules/0`
 
-Highest of: documented_use (any pilot, production or discontinued deployment) > documented_commitment (announced, or procured if C09 alt-1) > governance_or_training_only > proposal_only > none_found / unclear. Published beside has_genai_activity.
-
-2. `items/core.evidence_tier/rules/1`
-
-Use = a deployment or program at pilot, production or discontinued; commitment = announced, or a tender, contract or payment; governance or training only = those action types only; proposal only = stage 'proposed' or action type 'proposal'. You word the rule, and tests are added.
+Published beside `has_genai_activity`: the highest tier any published activity reaches. `documented_use`: action type `deployment` or `program` at stage `pilot`, `production` or `discontinued`. `documented_commitment`: stage `announced`, or purchase status `tender_or_rfp`, `award_or_contract` or `payment_or_subscription`. `governance_or_training_only`: action type `governance` or `staff_training`. `proposal_only`: stage `proposed`. An activity that meets none of these is `unclear`. With no published activity, the tier is `none_found` when `has_genai_activity` is `no`, otherwise `unclear`.
 
 ## `core.review_depth`
 <!-- item: core.review_depth sha256: b1e3d31d4664ec90346676843db71e07b4c4bcec4e2749a3167c2519aa42424b -->

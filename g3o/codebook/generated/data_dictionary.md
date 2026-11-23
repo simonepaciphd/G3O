@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.data_dictionary. -->
-<!-- codebook release: 2.7 | codebook sha256: 24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d -->
+<!-- codebook release: 2.7 | codebook sha256: d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84 -->
 
 # G3O codebook data dictionary
 
-Codebook release `2.7`, sha256 `24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d`. 109 items.
+Codebook release `2.7`, sha256 `d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84`. 109 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: f3224d00890eba351b1b5b696c2d6eacdf7f3863c010e0a99de35216d1fa0bfe -->
@@ -5090,11 +5090,11 @@ A supported `yes` sets the final `adoption_stage` to `production` only when the 
 The page does not let this be settled.
 
 ## `core.vendor_claim_only`
-<!-- item: core.vendor_claim_only sha256: 022ad323570a7dbe3a097ad5bd811cb499213742c1003c7f82be62f3d2b947c8 -->
+<!-- item: core.vendor_claim_only sha256: 55b92f0eee7ff1506210ef663c3839c5a4a1d7cd690bd36e3ae5a247ae19b536 -->
 
 | Field | Value |
 |---|---|
-| item hash | `022ad323570a7dbe3a097ad5bd811cb499213742c1003c7f82be62f3d2b947c8` |
+| item hash | `55b92f0eee7ff1506210ef663c3839c5a4a1d7cd690bd36e3ae5a247ae19b536` |
 | family | `quality` |
 | name | `vendor_claim_only` |
 | level | `activity` |
@@ -5122,7 +5122,7 @@ The page does not let this be settled.
 
 1. `items/core.vendor_claim_only/rules/0`
 
-Each item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.
+`yes` when every source supporting the activity has source type `vendor`; `unknown` when any of them has no source type; otherwise `no`. A page typed automatically (official domain or archive address) has a type and is not `vendor`.
 
 ## `core.unit_credit`
 <!-- item: core.unit_credit sha256: 300296a33913ac5bd7c8163ea1da222da1a176e78591a22447b9d84049b94786 -->
@@ -5160,11 +5160,11 @@ Each item states its coder (classifier, mechanical, quote step or derived), and 
 Keep your rule and add a yes/no column marking credit received through a unit, so analyses can remove duplicates; the data dictionary explains it.
 
 ## `core.uncertainty_flags`
-<!-- item: core.uncertainty_flags sha256: eed917f31f1f040350aa39f72e0d2ef4f7f2a4177de4d657f50a9b048c2b229f -->
+<!-- item: core.uncertainty_flags sha256: 634a01d4f82fbe62c12870d25ab0de60b094c8cb0c2a26f3a688451d2c2dbd76 -->
 
 | Field | Value |
 |---|---|
-| item hash | `eed917f31f1f040350aa39f72e0d2ef4f7f2a4177de4d657f50a9b048c2b229f` |
+| item hash | `634a01d4f82fbe62c12870d25ab0de60b094c8cb0c2a26f3a688451d2c2dbd76` |
 | family | `quality` |
 | name | `uncertainty_flags` |
 | level | `activity`, `row` |
@@ -5192,22 +5192,14 @@ Keep your rule and add a yes/no column marking credit received through a unit, s
 
 1. `items/core.uncertainty_flags/rules/0`
 
-Compute each flag from codes (table above); add `identity_unresolved` for Stage 6 relations; drop `source_language_barrier`; `discontinued_uncertain` becomes a pass-2 jev yes/no.
-
-2. `items/core.uncertainty_flags/rules/1`
-
-Retire flags that just mirror a column; keep 'identity unresolved' and 'stage ambiguous', and fold 'discontinuation uncertain' into the incident question as a value instead of a separate question.
-
-3. `items/core.uncertainty_flags/rules/2`
-
-AI-text flags fold into the main list, the language-barrier flag is dropped everywhere, and language coverage is carried by the multilingual subproject's item.
+Two flags. `stage_ambiguous`: the stated adoption-stage answers differ across parts or pooled observations before combining; missing answers are ignored. `identity_unresolved`: a Stage 6 cross-page relation is `unresolved`; it is a row flag of the left-hand activity of that relation. A support node carries only its own code's flags; an activity row carries the union. `discontinuation_uncertain` is a value of the incident question, not a flag. No flag is defined for AI-text evidence.
 
 ## `core.support_entailment`
-<!-- item: core.support_entailment sha256: 6607e989006ecf017caa1f2fd23f2b5f30b9adbeefbed96b22d7d4d09c3e6127 -->
+<!-- item: core.support_entailment sha256: 788c0223c3a3d3baa7fca234c08dca065d53d4f6642a71901d8a5f480a539075 -->
 
 | Field | Value |
 |---|---|
-| item hash | `6607e989006ecf017caa1f2fd23f2b5f30b9adbeefbed96b22d7d4d09c3e6127` |
+| item hash | `788c0223c3a3d3baa7fca234c08dca065d53d4f6642a71901d8a5f480a539075` |
 | family | `support` |
 | name | `support_entailment` |
 | level | `row` |
@@ -5258,14 +5250,14 @@ The quoted text does not state or clearly show that the field has the given valu
 
 1. `items/core.support_entailment/rules/0`
 
-State = quote (plus a short window); question: 'Does this text state or clearly show that the <field label> of the activity "<activity name>" is "<value label>"?' true/false; false or confidence < threshold -> downgrade `no_support`.
+The check sees the quote plus 200 characters on each side, clipped to the producing part, and asks: 'Does this text state or clearly show that the <field label> of the activity "<activity name>" is "<value label>"?' (page-level items use the page form). The answer fails when it is `false`, when there is no answer or no probability, or when its probability is below the checked item's bar (`threshold_by_checked_item`; otherwise the item's `threshold`). A failed answer gives the support status `downgraded_quote_not_stating_value`, and the value takes the checked item's downgrade target.
 
 ## `core.support_status`
-<!-- item: core.support_status sha256: 31436cc2b24f392932efeb4325f829f8ceda60fe4dd503b29e60d426a070743a -->
+<!-- item: core.support_status sha256: f28888c3deb7fb33388b286c5ba09c1bea8e28a7ab55f4cbb05b4af12037e20f -->
 
 | Field | Value |
 |---|---|
-| item hash | `31436cc2b24f392932efeb4325f829f8ceda60fe4dd503b29e60d426a070743a` |
+| item hash | `f28888c3deb7fb33388b286c5ba09c1bea8e28a7ab55f4cbb05b4af12037e20f` |
 | family | `support` |
 | name | `support_status` |
 | level | `row` |
@@ -5293,7 +5285,7 @@ State = quote (plus a short window); question: 'Does this text state or clearly 
 
 1. `items/core.support_status/rules/0`
 
-Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including "not asked" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.
+Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including "not asked" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity`, `no_generative_signal` and negative page verdicts.
 
 2. `items/core.support_status/rules/1`
 
@@ -5304,11 +5296,11 @@ Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_con
 A second reason item
 
 ## `core.supporting_text`
-<!-- item: core.supporting_text sha256: a19ee7b282d149ce6b66320a455ca06fb67b26f2e60833632545f70390ccbe7c -->
+<!-- item: core.supporting_text sha256: ed7c6f3e92f25fcdd9f5220099088627f3b129dc5cefbe68e94ab2020fdcd517 -->
 
 | Field | Value |
 |---|---|
-| item hash | `a19ee7b282d149ce6b66320a455ca06fb67b26f2e60833632545f70390ccbe7c` |
+| item hash | `ed7c6f3e92f25fcdd9f5220099088627f3b129dc5cefbe68e94ab2020fdcd517` |
 | family | `support` |
 | name | `supporting_text` |
 | level | `row` |
@@ -5336,7 +5328,7 @@ A second reason item
 
 1. `items/core.supporting_text/rules/0`
 
-For every jev code on a page or activity, the extractor (C-001; the quote step) extracts the verbatim supporting text from the page. RC-D-002 row 15 replaces "after jev has coded"; RC-D-017 replaces its blind rule: the quote step sees the chosen answer for the field it quotes and copies the text that supports it, so it is a confirmatory step. It may also see that a gate is not `none`. Each supporting text (a quote, a link passage or a field's supporting text) is at most 200 characters; a longer one is kept whole and flagged. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". A01 and CX-61 get quotes relevant to the field. The scale number is copied verbatim by the quote step and the classifier picks the unit; the publication date is coded by the quote step under the R-042 check. X35 adds an entailment check per (code, quote) with a chosen-answer probability bar.
+For every classifier code on a page or activity, the quote step copies the verbatim supporting text from the page. It sees the chosen answer for the field it quotes and copies the text that supports it; it may also see that a gate is not `none`. Each supporting text (a quote, a link passage or a field's supporting text) is at most 200 characters; a longer one is kept whole and flagged. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". The GenAI mechanism basis and the outcome and incident kinds get quotes relevant to the field. The quote step copies the scale number verbatim and the classifier picks the unit; the quote step codes the publication date, checked against the stored text. A second check asks whether each quote states the coded value (`core.support_entailment`).
 
 2. `items/core.supporting_text/rules/1`
 
@@ -5351,11 +5343,11 @@ Supporting text is published with the code it supports. The API carries the full
 Published supporting quotes stay verbatim, with no masking.
 
 ## `core.has_genai_activity`
-<!-- item: core.has_genai_activity sha256: 5d8e6ba766281d035d01c6b90cfd05d0c33af81c4023c9ffd3e565649b8b58b7 -->
+<!-- item: core.has_genai_activity sha256: a030dc0edb4f7abfaa51b66a8c95dd8c750f89448ee1338f41ab9f1902b30043 -->
 
 | Field | Value |
 |---|---|
-| item hash | `5d8e6ba766281d035d01c6b90cfd05d0c33af81c4023c9ffd3e565649b8b58b7` |
+| item hash | `a030dc0edb4f7abfaa51b66a8c95dd8c750f89448ee1338f41ab9f1902b30043` |
 | family | `verdict` |
 | name | `has_genai_activity` |
 | level | `institution` |
@@ -5383,15 +5375,15 @@ Published supporting quotes stay verbatim, with no masking.
 
 1. `items/core.has_genai_activity/rules/0`
 
-Institution-level consolidation (Stage 6) applies the v2.6 consolidation rules as jev questions or deterministic rules: explicit relations before merging observations; distinct/unresolved relations never merge; institution-level `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a low-confidence negative downgraded under R-081 counts as one). Stage 6 becomes the X29 truth table, with these ruled components: `background_only` pages may sit in the institution `no` set; any downgraded page counts as unresolved, except a `confirms_activity` page counted under the page-verdict roll-up; the bar is the chosen answer's probability ≥ 0.8; `yes` can come from any pipeline, `no` from web pages only, and AI-text results never count; any supported AI purchase record can give `yes`, while the evidence tier still shows it as commitment; `not_assessable` is set mechanically only and does not block `no`. Also: X30 with the shared relation list incl. `governs`; X31 pooled evidence, split when too long; A06 per r2#21; A07 with 9 counts per pipeline; X23 replaced by r2#27; unit-credit flag. `unresolved` stays a coding value and is reported as `unknown` in published summaries; unresolved relations still never merge. Inside the institution-level rule both `unresolved` and `not_assessable` keep their current roles, and `not_assessable` stays out of the institution-rate base.
+Institution-level consolidation (Stage 6): explicit relations are decided before observations merge; distinct or unresolved relations never merge; the institution gets `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a negative page below the bar counts as one). The truth table: `background_only` pages may sit in the institution `no` set; any downgraded page counts as unresolved, except a `confirms_activity` page counted under the page-verdict roll-up; the bar is the chosen answer's probability ≥ 0.8; `yes` can come from any pipeline, `no` from web pages only, and AI-text results never count; any supported AI purchase record can give `yes`, while the evidence tier still shows it as commitment; `not_assessable` is set mechanically only and does not block `no`. Stage 6 also asks the cross-page relation with the shared relation list, including `governs`; codes merged activities on their pooled evidence, split into parts when too long; and sets the evidence tier, the review depth (nine verdict counts per pipeline), activity confidence and the unit-credit flag. `unresolved` stays a coding value and is reported as `unknown` in published summaries. `not_assessable` stays out of the institution-rate base.
 
 2. `items/core.has_genai_activity/rules/1`
 
-Codebook table: `yes` if >= 1 supported `confirms_activity` page with a supported activity; `no` if every attempted page (incl. failed fetches and unfollowed links) ends in {no_genai, confirms_absence, event_only, other_body} at confidence >= 0.8 and no page is ambiguous, background_only or failed; otherwise `unclear`. Variant for PI: allow background_only in `no`.
+Page-verdict roll-up: a reviewed, unfailed web page whose final verdict is `confirms_activity`, whose verdict support status is `downgraded_quote_not_stating_value` or `downgraded_no_quote`, whose chosen probability passes the classifier verdict bar, and which has at least one supported activity observation on the same page, counts as a supported `confirms_activity` page. `downgraded_low_confidence` is never rescued and a page with no supported activity is never rescued. The verdict is never rewritten and keeps its support status; the source row's `confidence` stays `low`.
 
 3. `items/core.has_genai_activity/rules/2`
 
-Page-verdict roll-up: a reviewed, unfailed web page whose final verdict is `confirms_activity`, whose verdict support status is `downgraded_quote_not_stating_value` or `downgraded_no_quote`, whose chosen probability passes the classifier verdict bar, and which has at least one supported activity observation on the same page, counts as a supported `confirms_activity` page. `downgraded_low_confidence` is never rescued and a page with no supported activity is never rescued. The verdict is never rewritten and keeps its support status; the source row's `confidence` stays `low`.
+Supported activity observation: an activity observation is supported when its final `activity_type` or its final `action_type` has support status `supported`. A value that is gated out, set by rule, downgraded or missing is not supported. The other of the two may be `unknown`.
 
 ## `core.verdict_rule`
 <!-- item: core.verdict_rule sha256: aec5d5efdd3c58217aa68520910d52f04083fce2c5c9045aed07feca1a551006 -->
@@ -5429,11 +5421,11 @@ Page-verdict roll-up: a reviewed, unfailed web page whose final verdict is `conf
 v2.5 `none` institutions show `no` labelled as produced by the v2.5 rule (`verdict_rule`, r2#45).
 
 ## `core.evidence_tier`
-<!-- item: core.evidence_tier sha256: c7358fa49e107f3adbeefd0a6e5944d75e8f6ec14ae5dcd8c121818d3631d71d -->
+<!-- item: core.evidence_tier sha256: 5638c7694144b5900a5bbce6ece02b2ffcedc7a5cc04af9ef25ed7c385717b3c -->
 
 | Field | Value |
 |---|---|
-| item hash | `c7358fa49e107f3adbeefd0a6e5944d75e8f6ec14ae5dcd8c121818d3631d71d` |
+| item hash | `5638c7694144b5900a5bbce6ece02b2ffcedc7a5cc04af9ef25ed7c385717b3c` |
 | family | `verdict` |
 | name | `evidence_tier` |
 | level | `institution` |
@@ -5461,11 +5453,7 @@ v2.5 `none` institutions show `no` labelled as produced by the v2.5 rule (`verdi
 
 1. `items/core.evidence_tier/rules/0`
 
-Highest of: documented_use (any pilot, production or discontinued deployment) > documented_commitment (announced, or procured if C09 alt-1) > governance_or_training_only > proposal_only > none_found / unclear. Published beside has_genai_activity.
-
-2. `items/core.evidence_tier/rules/1`
-
-Use = a deployment or program at pilot, production or discontinued; commitment = announced, or a tender, contract or payment; governance or training only = those action types only; proposal only = stage 'proposed' or action type 'proposal'. You word the rule, and tests are added.
+Published beside `has_genai_activity`: the highest tier any published activity reaches. `documented_use`: action type `deployment` or `program` at stage `pilot`, `production` or `discontinued`. `documented_commitment`: stage `announced`, or purchase status `tender_or_rfp`, `award_or_contract` or `payment_or_subscription`. `governance_or_training_only`: action type `governance` or `staff_training`. `proposal_only`: stage `proposed`. An activity that meets none of these is `unclear`. With no published activity, the tier is `none_found` when `has_genai_activity` is `no`, otherwise `unclear`.
 
 ## `core.review_depth`
 <!-- item: core.review_depth sha256: b1e3d31d4664ec90346676843db71e07b4c4bcec4e2749a3167c2519aa42424b -->

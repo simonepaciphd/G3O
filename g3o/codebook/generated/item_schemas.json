@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.item_schemas",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d",
+  "codebook_sha256": "d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84",
   "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)",
   "$defs": {
     "page_verdict": {
@@ -1024,7 +1024,7 @@
     },
     "vendor_claim_only": {
       "x-item-id": "core.vendor_claim_only",
-      "x-item-hash": "022ad323570a7dbe3a097ad5bd811cb499213742c1003c7f82be62f3d2b947c8",
+      "x-item-hash": "55b92f0eee7ff1506210ef663c3839c5a4a1d7cd690bd36e3ae5a247ae19b536",
       "x-answer-type": "yes_no",
       "type": "string"
     },
@@ -1036,7 +1036,7 @@
     },
     "uncertainty_flags": {
       "x-item-id": "core.uncertainty_flags",
-      "x-item-hash": "eed917f31f1f040350aa39f72e0d2ef4f7f2a4177de4d657f50a9b048c2b229f",
+      "x-item-hash": "634a01d4f82fbe62c12870d25ab0de60b094c8cb0c2a26f3a688451d2c2dbd76",
       "x-answer-type": "list",
       "anyOf": [
         {
@@ -1057,7 +1057,7 @@
     },
     "support_entailment": {
       "x-item-id": "core.support_entailment",
-      "x-item-hash": "6607e989006ecf017caa1f2fd23f2b5f30b9adbeefbed96b22d7d4d09c3e6127",
+      "x-item-hash": "788c0223c3a3d3baa7fca234c08dca065d53d4f6642a71901d8a5f480a539075",
       "x-answer-type": "yes_no",
       "enum": [
         "true",
@@ -1069,19 +1069,19 @@
     },
     "support_status": {
       "x-item-id": "core.support_status",
-      "x-item-hash": "31436cc2b24f392932efeb4325f829f8ceda60fe4dd503b29e60d426a070743a",
+      "x-item-hash": "f28888c3deb7fb33388b286c5ba09c1bea8e28a7ab55f4cbb05b4af12037e20f",
       "x-answer-type": "single",
       "type": "string"
     },
     "supporting_text": {
       "x-item-id": "core.supporting_text",
-      "x-item-hash": "a19ee7b282d149ce6b66320a455ca06fb67b26f2e60833632545f70390ccbe7c",
+      "x-item-hash": "ed7c6f3e92f25fcdd9f5220099088627f3b129dc5cefbe68e94ab2020fdcd517",
       "x-answer-type": "text",
       "type": "string"
     },
     "has_genai_activity": {
       "x-item-id": "core.has_genai_activity",
-      "x-item-hash": "5d8e6ba766281d035d01c6b90cfd05d0c33af81c4023c9ffd3e565649b8b58b7",
+      "x-item-hash": "a030dc0edb4f7abfaa51b66a8c95dd8c750f89448ee1338f41ab9f1902b30043",
       "x-answer-type": "single",
       "type": "string"
     },
@@ -1093,7 +1093,7 @@
     },
     "evidence_tier": {
       "x-item-id": "core.evidence_tier",
-      "x-item-hash": "c7358fa49e107f3adbeefd0a6e5944d75e8f6ec14ae5dcd8c121818d3631d71d",
+      "x-item-hash": "5638c7694144b5900a5bbce6ece02b2ffcedc7a5cc04af9ef25ed7c385717b3c",
       "x-answer-type": "single",
       "type": "string"
     },
