@@ -182,13 +182,12 @@ ACTIVITY_NAME = "core.activity_name"
 
 #: SHA256 (UTF-8) of the PI-approved pass-1 system prompt,
 #: ``request_v27.build_system_prompt()`` (RC-D-021 P-1 a).
-#: Pin of the r17 candidate (the prompt under the r17 text). The prompt diff is approved with the r17 signature,
-#: recorded in ``planning/t010/signoff-record.md``. Under r16 the approved value was ``48f7c2ed...``.
-PASS1_SYSTEM_SHA256 = "2024c61dc6c1600c1f9b20b9acd4ff5fd3c02627f47579269b5ddd08055a6d2b"
+#: Pin of the cleaned r18 candidate, approved by the PI on 2026-11-23.
+PASS1_SYSTEM_SHA256 = "e2a6b491691635f6af3f75de8d84b745d0113670404ab96dc2d0ca8d9d948277"
 #: SHA256 (UTF-8) of the PI-approved pass-2 system prompt,
 #: ``pass2_support.build_system_prompt()`` (RC-D-021 P-2 a).
-#: Pin of the r17 candidate, covered by the same prompt diff; under r16 the approved value was ``fdcd47f2...``.
-PASS2_SYSTEM_SHA256 = "b96e903420aca2eb8b342da2128c9e44237fec533ba5be88d05046bcc3174bb9"
+#: Pin of the cleaned r18 candidate, approved by the PI on 2026-11-23.
+PASS2_SYSTEM_SHA256 = "fbb438f572b33ffe159edcda04afc3f85cadd2e8d35da7508b4e2462e59ce197"
 _APPROVED = {"pass1": ("P-1", PASS1_SYSTEM_SHA256), "pass2": ("P-2", PASS2_SYSTEM_SHA256)}
 #: SHA256 (UTF-8) of the PI-approved P-2c quote-task question for ``core.activity_segment``
 #: (RC-D-021 P-2c a, reply 2 "p2c draft ok"; the text quoted in that row). It reaches the
