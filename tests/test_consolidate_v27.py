@@ -318,6 +318,8 @@ def test_rollup_applies_to_a_quote_failure_with_a_supported_observation(status):
     (failed_verdict(reviewed=False, failure_reason="unfollowed_link"), [observation(page_id="r")],
      "an unreviewed page"),
     (failed_verdict(pipeline="ai_text"), [observation(page_id="r")], "AI-text evidence never counts"),
+    (failed_verdict(pipeline="procurement"), [observation(page_id="r")],
+     "a procurement page is not a web page (PI ruling 2026-11-22)"),
     *[(replace(failed_verdict(), page_verdict=v), [observation(page_id="r")], f"verdict {v}")
       for v in sorted(set(VERDICTS) - {"confirms_activity"})],
 ])
@@ -374,6 +376,7 @@ def test_rolled_up_page_pools_its_supported_observations_only():
     (failed_verdict(chosen_probability=.5), "under the bar"),
     (replace(failed_verdict(), page_verdict="ambiguous_genai"), "not a confirming verdict"),
     (failed_verdict(pipeline="ai_text"), "AI-text"),
+    (failed_verdict(pipeline="procurement"), "a procurement page is not a web page"),
     (failed_verdict(failed=True, failure_reason="page_failed"), "failed page"),
     (failed_verdict(reviewed=False, failure_reason="unfollowed_link"), "unreviewed page"),
 ])
@@ -391,3 +394,17 @@ def test_roll_up_mark_without_a_supported_observation_on_the_page_is_refused():
     other = page("s", "confirms_activity", support_status="supported")
     with pytest.raises(ConsolidationError, match="roll-up"):
         summary_values([other, rescued], [observation(page_id="s")], published_activity_values=[activity_values()])
+
+
+def test_rollup_covers_web_pages_only():
+    """PI ruling 2026-11-22: the roll-up names the web page. A procurement page that meets every other
+    condition is never rescued and stays out of the positive set; the same page from the web is rescued."""
+    from g3o.validate import consolidate_v27 as cv
+
+    obs = [observation(page_id="r")]
+    web, purchase = failed_verdict(), failed_verdict(pipeline="procurement")
+    assert web.pipeline == "web_extract" and replace(purchase, pipeline="web_extract") == web
+    assert cv.rollup_applies(web, obs) is True
+    assert cv.rollup_applies(purchase, obs) is False
+    assert summary_values([purchase], [], published_activity_values=[])["core.has_genai_activity"] == "unclear"
+    assert {p for p in cv.CHANNELS if cv.rollup_applies(replace(web, pipeline=p), obs)} == {"web_extract"}
