@@ -2,632 +2,632 @@
   "generated_by": "g3o.codebook.generators.manifest",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "0cd68ed0750c05e25e646aa2f5fd62e1f3ac9d05c79cb437b1697eda84d6655e",
+  "codebook_sha256": "dd3cc7e9c7e7dd9c9031f242001350ae730d418f9a8915affc2a08a85675c08b",
   "build_scope": [
     "core"
   ],
   "items": [
     {
       "item_id": "core.page_verdict",
-      "item_hash": "9df075bee06243aa33703279c998ffefc1413c9aa599b873e23a63fc642654c7",
+      "item_hash": "f3224d00890eba351b1b5b696c2d6eacdf7f3863c010e0a99de35216d1fa0bfe",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.disclosure_form",
-      "item_hash": "6d5ce44a18eea9599e585257ed852f2bf73a412c1de68bd3c8ef7ec1dde80256",
+      "item_hash": "4c7908f12b580b3e4e8a7be9d770ead29af77e02f08681fc291c854d70394907",
       "frozen_signature": "CX-01.3:CX-10..CX-18",
       "in_build_scope": true
     },
     {
       "item_id": "core.disclosure_scope",
-      "item_hash": "089514643eaca8c94b06d0d617c2082f6604ef19a8f6c3680be56860fe8143b2",
+      "item_hash": "bbf20d49f25291065f7e23d8da177e661d18017fb41dcfb7ec2ebcc07a75fe9c",
       "frozen_signature": "CX-01.3:CX-20..CX-25",
       "in_build_scope": true
     },
     {
       "item_id": "core.page_complete",
-      "item_hash": "51ca906f401a602a318eafdc8bca73eeabd5de58da3e0cdec44c9c2f7841333a",
+      "item_hash": "113384334a8758749a57c8b6e25c7f77680c397198b7c4a26d4e40b997c91f5e",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.source_type",
-      "item_hash": "eeec6e92b28743e0e64973fc7847010727a12a4b47d0cefcb38ab7ada9a7e5c0",
+      "item_hash": "5d2e196e4b10755e018d1d822130b9ce51cd0f21f01b856aae21f6d90610ae3a",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_contact_named",
-      "item_hash": "3e327f7b4ad6a742e2d7d7c655b8b25f50302d223b1df2100286192abd22f138",
+      "item_hash": "c14e3b5271cb6b4e8df73f4dcb77100ec06c3adc4c04a5ebe592f12bbdf28c8f",
       "frozen_signature": "CX-01.3:CX-51",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_contact_details",
-      "item_hash": "fc7ef02ed1ceea6bb837c625ea62bf0b83476213e30ff90785b7b89e7391a804",
+      "item_hash": "d28c7a2aee5b9a1370e7049188e8f2f95512a04bb7d0abc40e442c2d0e5b7f53",
       "frozen_signature": "CX-01.3:CX-51",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_contact",
-      "item_hash": "ad458bdf2737aa21be2ae42b7f2b736e6c005ac31a3e5e046ca8e57b4996728a",
+      "item_hash": "baa275cc015ab1e206c1f64085e88e2ba12272a88b973f8766d52215e8c0784a",
       "frozen_signature": "CX-01.3:CX-51",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_contact_emails",
-      "item_hash": "e229c2d67499a6832570cedd2b87e320234d274d524be292ae5eb6def04c7e5d",
+      "item_hash": "ed70a76875d9dfc801610a334e226550b3304a9d3f11b88dd7a0811aab76e265",
       "frozen_signature": "CX-01.3:CX-53",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_purpose",
-      "item_hash": "acc595148082039db0f5a753754fbc7e6fc7a049454760ba0c3b0d0344a8092c",
+      "item_hash": "081399c1e5329f2425e24ccbaec6ec3df5503f449e3c51699f28e23a9de257dc",
       "frozen_signature": "CX-01.3:CX-51",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_tool_or_model",
-      "item_hash": "fc0b0349569b6e4906a71bf367a8600d73fb715249ca2e788a3561582d892fce",
+      "item_hash": "5bc83e76db256532a9abed9ed6e20cd4bbe8ff4a203a37963840b45748bb829d",
       "frozen_signature": "CX-01.3:CX-51",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_vendor",
-      "item_hash": "98026611bb9f63a839d2fb6490e0da233564254f43a111b45e26244081f88115",
+      "item_hash": "24632fd60cb1d9587dd65fe8e2e922893981d4eafa46035a8f4babd41b2d1d36",
       "frozen_signature": "CX-01.3:CX-51",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_data",
-      "item_hash": "861eaa4fb096f613b15b17416a5f16106f231f0cb0015554dcb5de27000cfeb4",
+      "item_hash": "7c5141d851e5c3912b9b926a4ab4e5d89d8f8df3e931531ef095f47cd28b3434",
       "frozen_signature": "CX-01.3:CX-51",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_users",
-      "item_hash": "a8136f9fe3db7defcbc4b157333c527df84dc6d3e45716aedbccb4ead3ff7f79",
+      "item_hash": "6e9f2d6c36a680942780706dccd8a1225f64ffe197a81eb335d629d7047ffc5e",
       "frozen_signature": "CX-01.3:CX-51",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_status_date",
-      "item_hash": "cb067b618c3bcdab9819d7b7a6d6985e8aeb9af556f4ac57fb7474ecb4bd5974",
+      "item_hash": "ddade1c7e26bf62a5c9ed042a695654489de405834c403320f215cb72f713ed7",
       "frozen_signature": "CX-01.3:CX-51",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_human_oversight",
-      "item_hash": "7072e13a851bbdc4444200355b4fb6f55be833beb19fca58e20e505b85840346",
+      "item_hash": "ecabd6ecbb5ebd89a404faa7aa1053d51895cd09b1feaa6b9333dbd2671f0d73",
       "frozen_signature": "CX-01.3:CX-52",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_risk_assessment",
-      "item_hash": "a89e8a4095484d704c72f09c3188d641f8b05afcac4e0f40847953588c5a4c25",
+      "item_hash": "3dd5d635c172e6b6fe2825c83638d3cd1b89608a839148cb04e27d04e5ce79d4",
       "frozen_signature": "CX-01.3:CX-52",
       "in_build_scope": true
     },
     {
       "item_id": "core.content_user_notification",
-      "item_hash": "ce48e88e55e70564fd0ff3804b4b7411dbe4ce903d3f40401b7715f3ef7f2312",
+      "item_hash": "6514048ff7a43362bc01c8ebe6cb247cb61b44a77faa1c603aaa5fb89bf506db",
       "frozen_signature": "CX-01.3:CX-52",
       "in_build_scope": true
     },
     {
       "item_id": "core.source_url",
-      "item_hash": "a222772a8fc31fd0fd5deb72eb49c3fd2e436ae879d677ece0f6e2105b783113",
+      "item_hash": "6e9f3ffb20c3e1e4ebc08f74fb499162e3830cd1306adae0e373a53c90133e0e",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.source_title",
-      "item_hash": "80e0fad0a3c58ea973619ad1cdce567a5850f88032c6077190b21d573a8f3c8a",
+      "item_hash": "bffa6f00a89d353ca5b5d4c1044230cb13237862601756f1453566b7b8a45f92",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.source_access_date",
-      "item_hash": "ee1cc5dcff850c3596a93ba052aabf201343d8a54faeddcdb0ca0dd51882781b",
+      "item_hash": "6dedbfa5c479055d2507e57e5cc291a4b29108ac441b3a5aab26d54fc72feae3",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.source_language",
-      "item_hash": "6eef15a077d0980bc3b2d9c2ea3e9cb8a04d715167869edf4aa2e0fa659283a8",
+      "item_hash": "11736d1618fb6297a36945c4cd82b305ccfe9de6d5da43ba421d1bb28c98628a",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.source_on_official_domain",
-      "item_hash": "808a40f0391818a73e8620b2812462e3bd34050aaf83ac8a597695765aaf042b",
+      "item_hash": "232b102bdb49835791ea8db3e793255ae7b7f0b51374326ad5d41f3c0095e7e7",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.syndication_group",
-      "item_hash": "f3db8eda3ba82dd6282414e91888311b4df2d66902d70551e223cd1e3f23ac97",
+      "item_hash": "1e8ac31aa635119028239a474d8716741d56b9d148ff432c8bfbe248c471d1e6",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.page_review_state",
-      "item_hash": "10518a8e804f53b1fe9782c51f9964fb7255d0793872752365c497f3c2c30316",
+      "item_hash": "9b238e3bb7ee2e748e4b62bedb882fcb43cb0f7340f1634b8241e2fce26e77b6",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.discovery_path",
-      "item_hash": "271c46190676c2361db79e832f2f8625def1d54e988ca4bf3747da320ed12259",
+      "item_hash": "357c1255fd4564a9c6e0f145c723ac10b26223629a465bdeb5ac12462c7858b8",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.text_source",
-      "item_hash": "29a736c9fdd33449fe74745c291f9113f4526fb1ffda06effef07c842e65a6a2",
+      "item_hash": "978a2076564d9a86756e24deff140bc472bf88bdd2aad3d3e524c49a455c0793",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.source_publication_date",
-      "item_hash": "8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320",
+      "item_hash": "8463f0d7963f052e7e5db917091583901d9b0a9d8be6e441340546cffbd3873a",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.source_snippet",
-      "item_hash": "a26fef1a984c518461bea85a9771caad96db7347f057ec8e66cf035ba014314e",
+      "item_hash": "cd81837b81c62d13bd865eb4173c1561fd8eadb2cdbd1f81acca9a9dc297a7a6",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.source_credibility",
-      "item_hash": "c912c76f4ecb296c07dde7ed38e2e81a3512c1cda34dfc1f36315af16e8b1ffa",
+      "item_hash": "19f28f187dc610987d2b2166922be7e44dec86054280dd820a52977024d6e945",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.activity_segment",
-      "item_hash": "e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759",
+      "item_hash": "1b7750af042738acd295133cb4b1a14e0cfb189619952074db0f3607cfef5f17",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.activity_name",
-      "item_hash": "9a9a55c3d066738f911fdc5269670d927e3bee2da8236094fb9e2c68e1069401",
+      "item_hash": "69808679d441b3cc10cb66a680689e5e2cd4e9280cdd8c6d867494c3ac71e32f",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.observed_actor_name",
-      "item_hash": "d76dc7f2c930b753dd8511068222d56eb0e16384dcefe9064fc860a06e4ef25f",
+      "item_hash": "e2aa4a5376ea5dd043627194b1fdd485920b97014c28402b7d0434f8bdf7d7c8",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.observed_actor_relationship",
-      "item_hash": "eb128ea7cd4da3523104479bb645e543c69c729fa6164d14f6cce3607ed271b7",
+      "item_hash": "39da975c8e44b9e211870b552eb4ab4ae2fc3669406842f39c7f0a6abc0a014d",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.activity_type",
-      "item_hash": "9ab6d6db8652f2aa46c2b9652e86594bb411b52cd20b3b41bc338b8e3466abf0",
+      "item_hash": "82fed996275e4d042efea9bea6935308cd9e2c79469ed39135601b6a3af9a742",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.action_type",
-      "item_hash": "ece42341264b8bebbd0599788bc5dc0606c3d10a7652299c2248acb4785db3b6",
+      "item_hash": "cc49f966c1a02a32489091c718ee1fd94896f341158ca1a2788cd37253ef78d1",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.adoption_stage",
-      "item_hash": "c2c162b7663483a48c5364418a9887c3f2204fa1d706f9b0b25a6b52865e4bb4",
+      "item_hash": "7bb0b0e80894be92f16d6bc51778b7de0dc0a09dd13355860518cb03632a0dd6",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.procurement_status",
-      "item_hash": "069cac4eae165dba976c259f3d778a07c2a07fe9ff5d88f60f780c501519af39",
+      "item_hash": "6a27a7df087d81ee84d1a80ae4493c71aba22288d8e9852882b5e37682440820",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.model_origin",
-      "item_hash": "604814a8eeb44403f59c7eb1c3dd321e8618344ef2c7492918e0dfb91e38084f",
+      "item_hash": "a8eccc5010f668b465e986fc3fd060716ff41a7ee9dcd25eff4e70100d1262f6",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.build_arrangement",
-      "item_hash": "26747e9b192f65d107fefbb46c7423d785b554a37936e2dd775eee596ecfc205",
+      "item_hash": "5ad6eb5e066f8167db901e699752996fe8ace4c3bba4c615e77e766e3ebab582",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.interface",
-      "item_hash": "1f6053a45c6b23423f842cf6f7298ebec811773fa4dab7c930493f3dc4ffdb52",
+      "item_hash": "7ff9950b948b59cf784f3303003661c59aa9d0fa285ac9829255eb909c84d8b2",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.function_drafting_writing",
-      "item_hash": "a053690516ee898f1bdff22da452ed5f433f2372b5533f9dfbb6b9ea8ad338fe",
+      "item_hash": "9d4a44529aa69940a10a092f981ef8aabed9aeb7c82c2de0d32d22757676c481",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.function_summarization",
-      "item_hash": "edfbd403f224c2df70919e51689a7ec36b3dbb599872860118adb077153dffb4",
+      "item_hash": "134e27de8e50c257d2916e7e5f82c3e9333c1a5469ae6fd582a091fd48581373",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.function_translation",
-      "item_hash": "872277e5bf01ebeae5c7651032d8a86a71c71a8e79373466d23bb3e22ac470ed",
+      "item_hash": "08bcc42a47982423b900361d535646758863d637d4c8f5b96280dfc232cc7603",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.function_search_retrieval",
-      "item_hash": "24d3e6c6e7c999d5ea25cf87318eb9aee07a7300048ebc8a9c027a89f53e285b",
+      "item_hash": "a9d975c026c25b4ab93cad2a6e6917a394bd2ea42a94bc4e8676c103255c4877",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.function_code",
-      "item_hash": "ab11951183a0b10e3b61f8d61d1b0d37e3b3e973fe211d739cffe02798edcc08",
+      "item_hash": "04ec6ce8f32cb2105118b4f45e56c88be084fb2918dddb5472b0fd20e4b1edfa",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.function_image_audio_video",
-      "item_hash": "538dff367d93a589aa7561b3306a2bb3fddded3f6655ae9478ecc57e42b2c242",
+      "item_hash": "31fcf07acca54ccbeca7637feb59496c407059a2e8eafc17e97b8a4f822dda81",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.function_extraction_classification",
-      "item_hash": "c6b8d591da62fc1af2e39bd85f12bc2a27e423a2e24ff8f4441bdeef4c03fc6f",
+      "item_hash": "5b6fd7b8062937a905121023bbfe841b4a22936d1f3190e712a36cef331ddbfc",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.function_analysis_recommendation",
-      "item_hash": "46e598ead1d140774354594de96cc8e910dc942454798338b0535efc6c39dc4b",
+      "item_hash": "4a973c2f1e681855c13ae910fc161c7c408dc362ab85015b8b3873c46ac44cb9",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.tool_name",
-      "item_hash": "e606956923481de92a2b4c59bbffa78de57b1fcc574c7b2f5e666a7c000969b1",
+      "item_hash": "1e879decc441d08c1b631a1f9440e6ef97606a9d056326e738407db500984350",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.model_name",
-      "item_hash": "7dd785b572b3e2c6fb2bec9e18322fd3947632922cf627ddc43a1b3cd53ed834",
+      "item_hash": "920c2ca82290833327903b8555b400f782cfb9d1af1b42c99b0700ba966b947f",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.contracting_party",
-      "item_hash": "fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2",
+      "item_hash": "08c049166dc9dff75f2da9a369b32e7cb664c615d17f0f09a58e5c75adf1c3cd",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.developer",
-      "item_hash": "947cd93228ce4c32c279ab6fa876967f2cc39e58f925019a4a438bb17de71f36",
+      "item_hash": "eaa4b9278a86d5d25d3b8a6de4a4cfdfd66f8b06b5d39a07ebb35e0284bdc6bf",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.developer_basis",
-      "item_hash": "d76e4097f154eab1ca16fc863f2dc1a11e713a074ae41ac5324b315ebc3d7194",
+      "item_hash": "49985b943e91ec215c6a7919ab4d9db9f68916d7df01be30bf940983017bcc57",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.deployment_mode",
-      "item_hash": "7da7a90e15a99e1ecdfe1290a318e2a76862a48ea53d5d8b79b26865658406b3",
+      "item_hash": "ed5672b2fed226dd6a980bec93b1b15edb9d943ae4d08eeea596d69b8377008c",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.target_users",
-      "item_hash": "8d985ade4cec6acc88a59524a2421739f44f5974d43c091cd810661c8e878675",
+      "item_hash": "fd900391b467a5aade9e8ddba9eb1c3da8247f681ccf54cbe1867015410b4a64",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.governed_population",
-      "item_hash": "0e318135188e3d9cad0912b2b6a4982b06c931ce3f329645c9c565bfa7ffb971",
+      "item_hash": "84b1eabcc7e258f67d556996506aa8436b3ed51e0b32865b2b9594f9182cc3e3",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.governance_form",
-      "item_hash": "ae8c86617f21eb2e92365dcaa0a538361f271d3904a56162178c17dfc4bdde44",
+      "item_hash": "9b84ef67dcb070a32922917d06ab5a956193261e27e713de958b3f34a14bf93a",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.governance_direction",
-      "item_hash": "a802ccf621f35fa12cac0de1f625aaa4b8ebecf47e1491bc6515c5dbc89816eb",
+      "item_hash": "f84d7bfb555ec9856b9d13f4b269dfedd31b070fd148dc5a93b30b8c4fd38149",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.service_domain",
-      "item_hash": "38acc164fd9dcc80757e5c7edfb714d20cb99448be913a6bb74fb56426302960",
+      "item_hash": "123bf211ef3127c9998ee9064714c651171f1a284832af21f9c117c6ecdb8150",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.genai_mechanism_basis",
-      "item_hash": "0f2f4e390483f9d70e2e8ed578a0a71d6ebfcc5b0874d7436e72ad424c9aeb7f",
+      "item_hash": "c23be1bdd952944f28000538057031619e40ec02d05d4445e2a57644a7480cdd",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.year_announced",
-      "item_hash": "18ae4c635eb3fba036a5216a023d3c7f4c0b0d03946e4c9ff845414d5ee7e6ee",
+      "item_hash": "5012f56b9cc6e875253650faab5901f2dc885bb9b047e2efcd69b53751d88251",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.year_pilot_start",
-      "item_hash": "aa7f390fc73ea6d7539f44677f4d0e88ce6fe439deddf70947b1bafc5720707f",
+      "item_hash": "f1f89ccdbc5ca6c6e7827a9d2db5f32576f58510aa3ebebf96c7bfd14c63cbc7",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.year_production_start",
-      "item_hash": "cf8da9ff7b94d785f5ad1ca8477d4542784013e4c56844fbbbe4e38824f6cc2f",
+      "item_hash": "efe66c3eeb335786bafe62cca5a3d4da7c5b9da1da1ecebffa2c08fb7479a94a",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.deployment_scale_number",
-      "item_hash": "732f308184bb60eedf1e67468eb657857b20ce4dcfc76fb97cf16c19454b3686",
+      "item_hash": "c3740fb709eb05a98b259f988dc7611e778dfd87abd332d7de982d11ad8b23ae",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.deployment_scale_unit",
-      "item_hash": "c4359e7dd8e604b19a00b999b3d14d2407d5b6c8f398a8f759a417693852e7eb",
+      "item_hash": "87368e214a3f451255e7ecf7d61518e8642043fce8097e9299abcbfc9994d55b",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.has_human_oversight",
-      "item_hash": "d295f72c1b7d9084ba2aaa7175f0d072bd1847acd66828f5764b3109c9406d40",
+      "item_hash": "f457c8145acede1568adb8b4935f40c6ec54f1527e86afb4de1fcfb0bbc7e614",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.has_transparency_notice",
-      "item_hash": "8b67314da88223d5cb70d2f9a20264670f1db2aacdc58287238d97c3161b1f0c",
+      "item_hash": "1feb9b1b0a856b2230f82f423887235fa54e5e5639cc0fea2e740ea24e31accb",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.has_data_classification",
-      "item_hash": "c87240d8603e964e338ee2429213041510bf66932774798e63a0063945a4fdfc",
+      "item_hash": "7f4298c0a9d34091bdff171a97ab9d0a143b74439e2a7354c756d7d955111bd2",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.has_risk_assessment",
-      "item_hash": "4b340b3af9416bb9713e92e6558919763d64617c523fb4bbc5e633f149358ea4",
+      "item_hash": "6b438e33e59995ecb695bcbde885caee7d2bea00896ac8832eb4342638b0dace",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.outcome_kind",
-      "item_hash": "7215b6b2576b8a967c86362ed2a3d4dbcb740b84a4f23d2de05a4ef817091e12",
+      "item_hash": "59564af9fc5b525d9472d8ed39d46328708e5f8768eade74b8f57edb7b3aaacc",
       "frozen_signature": "CX-01.3:CX-61",
       "in_build_scope": true
     },
     {
       "item_id": "core.incident_kind",
-      "item_hash": "9d7ab9101539f801ee5098e8df2c46e9f0b6fcc27fdf679eaf88cf502f395d32",
+      "item_hash": "0f4afe6e02b0cd70050442ee5f46ecef32fb1aa645bdf3832b2a076deebfed66",
       "frozen_signature": "CX-01.3:CX-61",
       "in_build_scope": true
     },
     {
       "item_id": "core.reported_outcomes",
-      "item_hash": "841fe4e05bdbe08ab94621fc8d47e330ac1a68b3fb8af5875eddf8de74af9554",
+      "item_hash": "e300a747a495f361fc5ed992427089b3b53bec4e1e399cebf20d9ad469078389",
       "frozen_signature": "CX-01.3:CX-60",
       "in_build_scope": true
     },
     {
       "item_id": "core.reported_incidents",
-      "item_hash": "5965e825e8086c714fe752e1004c91a1c7f839644191a4e2077a3693f744e429",
+      "item_hash": "692aaae911794084163262122c7da59a7cb4bb66de94563585cb810730b3acf2",
       "frozen_signature": "CX-01.3:CX-60",
       "in_build_scope": true
     },
     {
       "item_id": "core.evaluation_documented",
-      "item_hash": "72612246f3249a9de830061aaea503805790864a71a345b04c7cc9cd94afa366",
+      "item_hash": "04b649f49a72fd77cbec33e3669e421e7153302044dab5fe06ec6878eff0a0ee",
       "frozen_signature": "CX-01.3:CX-30..CX-40",
       "in_build_scope": true
     },
     {
       "item_id": "core.evaluation_type_pre_deployment_testing",
-      "item_hash": "56f266691b0a497adc3ae6c663c7c888f3af1cea40395e6c164da02b6059182a",
+      "item_hash": "c3706c6d9bebdf6e901dc45dce655bbb948818fd9883ad5bf64ea58eaa7076a5",
       "frozen_signature": "CX-01.3:CX-41",
       "in_build_scope": true
     },
     {
       "item_id": "core.evaluation_type_pilot_evaluation",
-      "item_hash": "908c2704cf1af68a2036806c821a047e91bbf3135830238a2e7546037a05f3cd",
+      "item_hash": "1099159d5be8b73c936cf133d62882c92b016ba20959f5eb29a124fbf02f5796",
       "frozen_signature": "CX-01.3:CX-41",
       "in_build_scope": true
     },
     {
       "item_id": "core.evaluation_type_independent_audit",
-      "item_hash": "1f17899a3484b6ac7bc35b61cf459bd84e0c0cc5efe52a1f33facd11eab0c5b7",
+      "item_hash": "e0766d1413eca8d14e85c1e33b0b6605f3bef4b81795fded86c169ee7a0ceedb",
       "frozen_signature": "CX-01.3:CX-41",
       "in_build_scope": true
     },
     {
       "item_id": "core.evaluation_type_ongoing_monitoring",
-      "item_hash": "781f24c150accde0fd605d3066e4f8cb79dc91b971b656669a75abc26a9092d8",
+      "item_hash": "71286dc8612e46e34aaf558f5927e29a38add37c5720508ac8f122e7d95bf290",
       "frozen_signature": "CX-01.3:CX-41",
       "in_build_scope": true
     },
     {
       "item_id": "core.evaluation_type_user_feedback",
-      "item_hash": "f6254ba80055d4ba6ff7051f9c1fda8436849aa1abaa9cce14741863912b63b1",
+      "item_hash": "dea28705e59122ac47606e82ec2a32a190ef8ed19a8272c91ed2f8e280f675dc",
       "frozen_signature": "CX-01.3:CX-41",
       "in_build_scope": true
     },
     {
       "item_id": "core.evaluation_type_bias_or_safety_testing",
-      "item_hash": "c0ae0fc3fbd69f6159a885ad4f9638f66cde52f394cd20a36b2ee7ca896a466e",
+      "item_hash": "b1d0421cf3637b33abd41b5a668afff5cb9352b61c14e809e26aca6c6d877fc2",
       "frozen_signature": "CX-01.3:CX-41",
       "in_build_scope": true
     },
     {
       "item_id": "core.stage_as_of",
-      "item_hash": "a4cfb8749247a32920ceb3fd6cef7053a6dfc66866687cccf5c030875bc73ca4",
+      "item_hash": "9bda6a142f0941947e27263b11e1f023f120627db2fc9b3ead3e6b15bb99fa76",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.stage_as_of_basis",
-      "item_hash": "c40ce46095c40201d4c252d58c6eaa6fa915a8ae19e1a4fe3abe01f314c3c953",
+      "item_hash": "c4b647d7928f513a6a95f9d65e11fd351d23b597e78d12fed5a731cd9783d3d7",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.permanent_pilot",
-      "item_hash": "152bbabb24b057f88773d735097cc0341ee6e95603be4597682f789458beedb2",
+      "item_hash": "2c15465e82f9f7f3ea29dfce9ac4cb3f9f0629345bf9880d12dfebfe45a46748",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.vendor_claim_only",
-      "item_hash": "8d2d3e7b7d9864d230056eeab9d9c44d5cf51f4633e7aa5f1ebb7e571c372553",
+      "item_hash": "022ad323570a7dbe3a097ad5bd811cb499213742c1003c7f82be62f3d2b947c8",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.unit_credit",
-      "item_hash": "9ba4f21e759c415862d143345631e1e375687d471ac850a58cd020c2605c474a",
+      "item_hash": "300296a33913ac5bd7c8163ea1da222da1a176e78591a22447b9d84049b94786",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.uncertainty_flags",
-      "item_hash": "c4129942fd2c85becde37da31998d5a7599d74917b78b845d2d64259a9f0228e",
+      "item_hash": "eed917f31f1f040350aa39f72e0d2ef4f7f2a4177de4d657f50a9b048c2b229f",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.support_entailment",
-      "item_hash": "adde7fa704c82447caec3af45cd3330e8942dc90b2da70c56fad0a0f76954d0d",
+      "item_hash": "6607e989006ecf017caa1f2fd23f2b5f30b9adbeefbed96b22d7d4d09c3e6127",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.support_status",
-      "item_hash": "924b5b6df5f13ea2157170229426c40bc4776b48f93c0769a06cac33c29ab4d2",
+      "item_hash": "31436cc2b24f392932efeb4325f829f8ceda60fe4dd503b29e60d426a070743a",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.supporting_text",
-      "item_hash": "1fb914e4b8a9334e05516a8f1293086df70305fbbcc74541716eab3e0012c3b2",
+      "item_hash": "a19ee7b282d149ce6b66320a455ca06fb67b26f2e60833632545f70390ccbe7c",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.has_genai_activity",
-      "item_hash": "625a6297e848e5e3ffef1af541202058c937c9a1b01273b6c5ce190ebec7e37c",
+      "item_hash": "5d8e6ba766281d035d01c6b90cfd05d0c33af81c4023c9ffd3e565649b8b58b7",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.verdict_rule",
-      "item_hash": "beba0bea88ea30453204e005e89d0dfb23d80d5624e8a0656b0e1aa6c45a7607",
+      "item_hash": "aec5d5efdd3c58217aa68520910d52f04083fce2c5c9045aed07feca1a551006",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.evidence_tier",
-      "item_hash": "d0d7454be200964d5ec47c0589c4c533e5cf8a44eb5991f607251cc3491c72f3",
+      "item_hash": "c7358fa49e107f3adbeefd0a6e5944d75e8f6ec14ae5dcd8c121818d3631d71d",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.review_depth",
-      "item_hash": "1e0e3603138283d76aee43d38e7da00ff2027461b73af0f8fd2b54c5ec3e7795",
+      "item_hash": "b1e3d31d4664ec90346676843db71e07b4c4bcec4e2749a3167c2519aa42424b",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.activity_relation_cross_page",
-      "item_hash": "ace0da2bc93b3c6a70f0a97873b123abea5906bba93b238f926feff086ed6e5c",
+      "item_hash": "f065c023f39a30eb1e9e1e89d0eb8f96ab60ebfa902a5de7c69abc0f1c6d7691",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.pooled_activity_fields",
-      "item_hash": "fc67ae7a795e99099949c382d5d944ec9f2c5cb6bd6ca215cf3d73e8c37dc16b",
+      "item_hash": "e7bb3504420de2437c4fb2433390b098488993337945d5c1d57e478ee060655b",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.confidence",
-      "item_hash": "e7c3cc4a6ef4f3d0aa4ab7e63a6e700f56f971175415070e02d4fcb3c9e8707b",
+      "item_hash": "02d8f7878e803f3b94926601c37b2b7f8772413b59d2994bfc562699a40c8329",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.n_sources",
-      "item_hash": "ea16c31f1a1bb6ce87487f5e44204a5ab1a2afc0d3e12334d3a176c8556e7672",
+      "item_hash": "18270c4c8fcc6f67a1f5e3adb9005f1f429a9bb27bd29bb8d3fe7b39dc9905f4",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.institution_summary",
-      "item_hash": "d9fb888186e8e3adb55f161442c71d9b12a220881989b2d03b20c65d52ea17a6",
+      "item_hash": "47f16063b2706efab4cfeb7a11a07159a793d884031525de33b4f69f93191105",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.cx_display_rollup",
-      "item_hash": "f52d103820b333f6c591a4240b67d803a641e61caaaab1074c100baa2cae3953",
+      "item_hash": "03fd62398d893f650e46c90537028a7b66d4e14c224c3b3500374515b61e69c8",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.codebook_release",
-      "item_hash": "d19547278ff8587cfdd0f00fb38382c63b2b746d5a1671b44af5f14b0cf9edbc",
+      "item_hash": "486c259a39f209960cf2f7e620525a4fa6afd2c55bbb49321a2aece61f866fd9",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.setup_pointer",
-      "item_hash": "65b098d4b8efc9532ece93367858c8019cfb0434582423ce3ae52c7cbfcf4d3b",
+      "item_hash": "58d0baf502066294c9ce6151b5d7d499789520452ae4b970081da64aa551d979",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.evidence_channel",
-      "item_hash": "3f0aecba911cd3885adec08bce01216562ab796732c3ac5668e937a579ccc518",
+      "item_hash": "d6a78890e3f781cc67a15785c8b81773ad12ebcc5e82c5bf0a94029463de82ff",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.coder_record",
-      "item_hash": "213c3c3f241b5081f4f6cbde23e3db0d711564f03a04bede0010b1e9a35fb167",
+      "item_hash": "12443b1c740af48ea758a3ce0f785c07cd1ac8d35444e29cc63cac4122269a73",
       "frozen_signature": "none",
       "in_build_scope": true
     },
@@ -693,37 +693,37 @@
     },
     {
       "item_id": "text.published_text_ai_use",
-      "item_hash": "458fe9cfcc668cc9034f4551b01ad5e7d9851fb3309547d8201316e920a9b3a7",
+      "item_hash": "422c623febfb2ccf3ffc0eaa4dee3d8ba1422a097d8e7c813ad14a099d74fce1",
       "frozen_signature": "none",
       "in_build_scope": false
     },
     {
       "item_id": "core.language_coverage",
-      "item_hash": "4d0e597ea9ef890f2a4cb621a3840ebff9d335198b8a51b83b37cdc5e19c2208",
+      "item_hash": "f05f522f2bc12009427b791952760892e5ccdc368a5799e3df58c29dff197b51",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.observed_actor_role",
-      "item_hash": "49db2543e6a85f2373dcd89d14185927a46b9f9eea29ecebb4c686d8d89faf66",
+      "item_hash": "810963929241da559892fb090d147f5ce543f0a47569f9503b7bcd4c0a79d208",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.date_upper_bound",
-      "item_hash": "82943a083cbd38b0f4fbc0d8f54b3d5eb273a4ebe3d136a77c32c2613be5f73e",
+      "item_hash": "227b575cb825948691e2a44a969205daa7339368f4c50df23b10ef61d1339693",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.support_rule_name",
-      "item_hash": "4906ff346c853e893883241928a250b7eb41abffea48ff7ecf44f34ac2b34d25",
+      "item_hash": "93a31f186f55ddcc978d2175e796da477de173bfd8df4a980a83e134f7442ac5",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.support_status_second_reason",
-      "item_hash": "15278c373296fcd2164444cc29b816e0d773a02d940a21b28f78a49c701fc90d",
+      "item_hash": "789e41d0caa0aa77d9911763f463a01683c667b3f7c1cf1e233910eb832938ac",
       "frozen_signature": "none",
       "in_build_scope": true
     }
@@ -731,42 +731,42 @@
   "generated_files": [
     {
       "path": "g3o/codebook/generated/jev_questions.json",
-      "sha256": "9b929447077fc47086935ced0dea73a1041bfaba0455b17b916763ccf3ef75cf",
+      "sha256": "21a8bd8e44d4a1cb4a9651de58f62cd65a4d4b4f6f7689973f645b1fb4d0ceb7",
       "intended_target": "T-011 jev question and choice sets (path chosen by T-011)"
     },
     {
       "path": "g3o/codebook/generated/extractor_prompt_sections.md",
-      "sha256": "2cd66fef4cd85a276df1e930c5f6f6ba3b94302ac31a3497d0497c69d2bb3f96",
+      "sha256": "351de38db5fd5c537c102498098843e5210de96067a6cbf20681c18425e3ea6e",
       "intended_target": "T-022 / T-032 extractor prompt sections (path chosen there)"
     },
     {
       "path": "g3o/codebook/generated/enums.py",
-      "sha256": "8b62fb075cdbd0b79d0f6371d5845faf45cd8e909f6781188f92a6e998813612",
+      "sha256": "35c5f34e2f7a7ec325c1ed6161fe60feec97f47f58d619165c13f1950e3b8237",
       "intended_target": "T-012 enum constants (g3o/common/contract.py or a module T-012 names)"
     },
     {
       "path": "g3o/codebook/generated/item_schemas.json",
-      "sha256": "5a307378f76270f9e07796b2a455cc47923368eb2b970b62ce4057b6dce92683",
+      "sha256": "22845c2f0c02b1e794ac620e5a99759ba1e11b0f0b28b88c09f935ec5a87fda0",
       "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)"
     },
     {
       "path": "g3o/codebook/generated/data_dictionary.md",
-      "sha256": "75d8a1ad2e3c52282f2adc2df60a8e83a9dd17acd531c13b851d4da234b15d53",
+      "sha256": "8c222a9967513c74772875260e1e155aa0e9743f62010594e4a64da5156a06df",
       "intended_target": "T-090 data dictionary (docs/data_dictionary.md)"
     },
     {
       "path": "g3o/codebook/generated/extract_output_contract.md",
-      "sha256": "328665bee5941af57ee01ef022b689550b7d3bbb0b216b3e7609d76b6050033b",
+      "sha256": "6a945f5b9e7959ed6232870d74b3e5e18d8f0d0b5eb10203631e17fd86ad8d09",
       "intended_target": "T-010 g3o/extract/prompts/output_contract.md"
     },
     {
       "path": "g3o/codebook/generated/validate_output_contract.md",
-      "sha256": "dcd42ee498a63ab4adfb87709c012c7e92dbd0089eca30a8301c89b0b5453eab",
+      "sha256": "1e1ef01f0320ae08e1b868c091609927d61ee7d59e935dc17f2c93198071e1e0",
       "intended_target": "T-010 g3o/validate/prompts/output_contract.md"
     },
     {
       "path": "g3o/codebook/generated/system_prompt.md",
-      "sha256": "3d4ebbe8ac7db44238bc5730bd14d7f8ae9c1afb9e78d65eceeff8438808574b",
+      "sha256": "9f1e62a439a7e120c7fe6042b33ea2923a4124b7b8d9ad401f62145009118018",
       "intended_target": "T-022 / T-032 g3o/extract/prompts/system_prompt.md (and the Stage 6 prompts)"
     }
   ],
