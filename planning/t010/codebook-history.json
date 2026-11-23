@@ -3034,7 +3034,7 @@
   "layer2": {
     "what": "Slot texts replaced or deleted by the clean-docs layer-2 edits (PI rulings 2026-11-23, RULINGS-1123.md sections 24-25; clean-docs P1-P7, B1, B5, B6, B8, B11-B14, R2, R3, R9). Keyed by slot path in the source codebook of this section (after layer 1); `before` is the parsed YAML value as it stood there; `change` names the ruling. `renumbered` maps a kept slot's path before to its path after (slots after a deleted one move up); `added` lists new slots by their path after.",
     "source_codebook_sha256": "dd3cc7e9c7e7dd9c9031f242001350ae730d418f9a8915affc2a08a85675c08b",
-    "result_codebook_sha256": "d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84",
+    "result_codebook_sha256": "64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5",
     "slots": {
       "items/core.observed_actor_relationship/rules/2": {
         "change": "PI 2026-11-23 chat \"all as rec\" (clean-docs P1, C-06 a); slot deleted",
@@ -3231,6 +3231,14 @@
           "text": "Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including \"not asked\" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.",
           "origin": "PI 2026-11-05 chat \"D1b add all of them\" and \"F1a\" (RC-D-019 D1 b, F1 a; list wording accepted as procedural); r13",
           "source": "SPEC.md:108 R-041"
+        }
+      },
+      "items/core.support_status/rules/1": {
+        "change": "PI 2026-11-23 chat \"2 block accepted\" (clean-docs B14, ledger 15 a); coherence with rules/0",
+        "before": {
+          "text": "`not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.",
+          "origin": "PI 2026-11-05 chat \"D1b add all of them\" and \"F1a\" (RC-D-019 D1 b, F1 a; list wording accepted as procedural); r13",
+          "source": "codebook-rulings-round3.json record-02 (choice a); option text questions-r3.json record-02.a.mechanism"
         }
       },
       "items/core.supporting_text/rules/0": {

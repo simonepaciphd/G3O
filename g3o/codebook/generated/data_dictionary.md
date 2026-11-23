@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.data_dictionary. -->
-<!-- codebook release: 2.7 | codebook sha256: d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84 -->
+<!-- codebook release: 2.7 | codebook sha256: 64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5 -->
 
 # G3O codebook data dictionary
 
-Codebook release `2.7`, sha256 `d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84`. 109 items.
+Codebook release `2.7`, sha256 `64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5`. 109 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: f3224d00890eba351b1b5b696c2d6eacdf7f3863c010e0a99de35216d1fa0bfe -->
@@ -5253,11 +5253,11 @@ The quoted text does not state or clearly show that the field has the given valu
 The check sees the quote plus 200 characters on each side, clipped to the producing part, and asks: 'Does this text state or clearly show that the <field label> of the activity "<activity name>" is "<value label>"?' (page-level items use the page form). The answer fails when it is `false`, when there is no answer or no probability, or when its probability is below the checked item's bar (`threshold_by_checked_item`; otherwise the item's `threshold`). A failed answer gives the support status `downgraded_quote_not_stating_value`, and the value takes the checked item's downgrade target.
 
 ## `core.support_status`
-<!-- item: core.support_status sha256: f28888c3deb7fb33388b286c5ba09c1bea8e28a7ab55f4cbb05b4af12037e20f -->
+<!-- item: core.support_status sha256: 9922a0d04275fadb3ec1f0e76d1c4af19e86bca6b9f7733bf590dbb74fb86154 -->
 
 | Field | Value |
 |---|---|
-| item hash | `f28888c3deb7fb33388b286c5ba09c1bea8e28a7ab55f4cbb05b4af12037e20f` |
+| item hash | `9922a0d04275fadb3ec1f0e76d1c4af19e86bca6b9f7733bf590dbb74fb86154` |
 | family | `support` |
 | name | `support_status` |
 | level | `row` |
@@ -5289,7 +5289,7 @@ Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_con
 
 2. `items/core.support_status/rules/1`
 
-`not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.
+`not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity`, `no_generative_signal` and negative page verdicts.
 
 3. `items/core.support_status/rules/2`
 

@@ -8915,10 +8915,9 @@ items:
       origin: PI 2026-11-23 chat "2 block accepted" (clean-docs B14, ledger 15 a)
       source: agent-workspace/2026-11-21-integrator/clean-docs-audit/QUESTIONS-CLEAN-DOCS.md B14; vocabularies.support_status status_by_answer gives no_generative_signal not_required
     - text: |-
-        `not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.
-      origin: PI 2026-11-05 chat "D1b add all of them" and "F1a" (RC-D-019 D1 b, F1 a; list wording accepted as procedural); r13
-      source: |-
-        codebook-rulings-round3.json record-02 (choice a); option text questions-r3.json record-02.a.mechanism
+        `not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity`, `no_generative_signal` and negative page verdicts.
+      origin: PI 2026-11-23 chat "2 block accepted" (clean-docs B14, ledger 15 a)
+      source: agent-workspace/2026-11-21-integrator/clean-docs-audit/QUESTIONS-CLEAN-DOCS.md B14; vocabularies.support_status status_by_answer gives no_generative_signal not_required
     - text: A second reason item
       origin: ruling-r3
       source: |-

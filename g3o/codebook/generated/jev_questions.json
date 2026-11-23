@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.jev_questions",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "d94cd2218c0487925b35b514a3d8dd2d93409830313ec3f0f291b688ade95e84",
+  "codebook_sha256": "64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5",
   "intended_target": "T-011 jev question and choice sets (path chosen by T-011)",
   "part_prompt": {
     "sentence": "The text below is only one part of a longer page; the rest of the page is read separately. Answer from this part only.",
