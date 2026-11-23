@@ -408,3 +408,20 @@ def test_rollup_covers_web_pages_only():
     assert cv.rollup_applies(purchase, obs) is False
     assert summary_values([purchase], [], published_activity_values=[])["core.has_genai_activity"] == "unclear"
     assert {p for p in cv.CHANNELS if cv.rollup_applies(replace(web, pipeline=p), obs)} == {"web_extract"}
+
+
+@pytest.mark.parametrize("status", ROLLUP_STATUSES)
+def test_a_page_the_roll_up_covers_that_arrives_unmarked_is_refused(status):
+    """Review 2026-11-22: the mark is the rule's result in both directions. A page that meets the rule but
+    carries no mark is refused; it is never read as ``unclear`` in silence."""
+    from g3o.validate import consolidate_v27 as cv
+
+    down, obs = failed_verdict(status), [observation(page_id="r")]
+    assert cv.rollup_applies(down, obs) and not down.verdict_rollup
+    with pytest.raises(ConsolidationError, match="roll-up"):
+        summary_values([down], obs, published_activity_values=[])
+    with pytest.raises(ConsolidationError, match="roll-up"):
+        summary_values([page(), down], obs, published_activity_values=[activity_values()])
+    # the same page with no supported observation does not meet the rule: unmarked and `unclear`, as before
+    for none in ([], [observation(page_id="r", supported=False)]):
+        assert summary_values([down], none, published_activity_values=[])["core.has_genai_activity"] == "unclear"
