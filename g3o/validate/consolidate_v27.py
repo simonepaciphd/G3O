@@ -311,8 +311,11 @@ def _pages(pages: Sequence[ReviewedPage]) -> dict[str, ReviewedPage]:
 
 
 def _rollup_page(page: ReviewedPage) -> bool:
-    """The page-side conditions of the roll-up (the observation condition is in :func:`rollup_applies`)."""
-    return (page.pipeline != "ai_text" and page.reviewed and not page.failed
+    """The page-side conditions of the roll-up (the observation condition is in :func:`rollup_applies`).
+
+    The rule names the web page: a procurement page and AI-text evidence are never rescued.
+    """
+    return (page.pipeline == "web_extract" and page.reviewed and not page.failed
             and page.page_verdict == "confirms_activity" and page.support_status in ROLLUP_STATUSES
             and _probability(page.chosen_probability))
 
@@ -320,7 +323,8 @@ def _rollup_page(page: ReviewedPage) -> bool:
 def rollup_applies(page: ReviewedPage, observations: Iterable[ActivityObservation]) -> bool:
     """Page-verdict roll-up (RC-D-049; tested as arm F_r of the second confirmation run).
 
-    True when all hold: the page is reviewed, unfailed and not AI-text evidence; its final
+    True when all hold: the page is a reviewed, unfailed web page (never a procurement page,
+    never AI-text evidence); its final
     verdict is ``confirms_activity``; the verdict's own support check failed on the quote
     (:data:`ROLLUP_STATUSES`); its chosen probability passes the classifier verdict bar; and
     at least one activity observation of the same page is supported. The bar and the
