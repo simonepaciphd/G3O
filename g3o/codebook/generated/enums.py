@@ -1,13 +1,13 @@
 # GENERATED FILE - do not edit. Built from codebook/codebook.yaml by
 # g3o.codebook.generators.enums.
-# codebook release: 2.7 | codebook sha256: 470f8be2de43e9d7f47cd0e061fb2075dc2d70869fb36d2c6530a92cde490759
+# codebook release: 2.7 | codebook sha256: 0cd68ed0750c05e25e646aa2f5fd62e1f3ac9d05c79cb437b1697eda84d6655e
 # Intended target: T-012 enum constants (g3o/common/contract.py or a module T-012 names).
 """Codebook value lists as constants; each carries its item id and item hash."""
 
 from __future__ import annotations
 
 CODEBOOK_RELEASE = '2.7'
-CODEBOOK_SHA256 = '470f8be2de43e9d7f47cd0e061fb2075dc2d70869fb36d2c6530a92cde490759'
+CODEBOOK_SHA256 = '0cd68ed0750c05e25e646aa2f5fd62e1f3ac9d05c79cb437b1697eda84d6655e'
 
 #: item id -> (item hash, value codes in codebook order)
 ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {

@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.item_schemas",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "470f8be2de43e9d7f47cd0e061fb2075dc2d70869fb36d2c6530a92cde490759",
+  "codebook_sha256": "0cd68ed0750c05e25e646aa2f5fd62e1f3ac9d05c79cb437b1697eda84d6655e",
   "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)",
   "$defs": {
     "page_verdict": {
@@ -1081,7 +1081,7 @@
     },
     "has_genai_activity": {
       "x-item-id": "core.has_genai_activity",
-      "x-item-hash": "dac623b4c78320cea177d70a61573fa387e179e5336b0e7710c3206f2b624b9a",
+      "x-item-hash": "625a6297e848e5e3ffef1af541202058c937c9a1b01273b6c5ce190ebec7e37c",
       "x-answer-type": "single",
       "type": "string"
     },

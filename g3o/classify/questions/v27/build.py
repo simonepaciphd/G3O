@@ -44,7 +44,7 @@ JEV_QUESTION_SET_VERSION = "g3o.classify.questions.v27.jev.1"
 
 #: Codebook r18 (setting F bars per checked item; the page-verdict roll-up; RC-D-048, RC-D-049), signed when planning/t010/signoff-record.md holds this sha256 (A-001).
 #: A different codebook is refused.
-SIGNED_CODEBOOK_SHA256 = "470f8be2de43e9d7f47cd0e061fb2075dc2d70869fb36d2c6530a92cde490759"
+SIGNED_CODEBOOK_SHA256 = "0cd68ed0750c05e25e646aa2f5fd62e1f3ac9d05c79cb437b1697eda84d6655e"
 
 SET_DIR = Path(__file__).resolve().parent
 SET_FILES = {"page": "page.json", "activity": "activity.json", "institution": "institution.json"}

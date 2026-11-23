@@ -1,16 +1,16 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.validate_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: 470f8be2de43e9d7f47cd0e061fb2075dc2d70869fb36d2c6530a92cde490759 -->
+<!-- codebook release: 2.7 | codebook sha256: 0cd68ed0750c05e25e646aa2f5fd62e1f3ac9d05c79cb437b1697eda84d6655e -->
 
 # G3O output contract (validate, Stage 6), generated from the codebook
 
-Codebook release `2.7`, sha256 `470f8be2de43e9d7f47cd0e061fb2075dc2d70869fb36d2c6530a92cde490759`. 14 items.
+Codebook release `2.7`, sha256 `0cd68ed0750c05e25e646aa2f5fd62e1f3ac9d05c79cb437b1697eda84d6655e`. 14 items.
 
 ## `core.has_genai_activity`
-<!-- item: core.has_genai_activity sha256: dac623b4c78320cea177d70a61573fa387e179e5336b0e7710c3206f2b624b9a -->
+<!-- item: core.has_genai_activity sha256: 625a6297e848e5e3ffef1af541202058c937c9a1b01273b6c5ce190ebec7e37c -->
 
 | Field | Value |
 |---|---|
-| item hash | `dac623b4c78320cea177d70a61573fa387e179e5336b0e7710c3206f2b624b9a` |
+| item hash | `625a6297e848e5e3ffef1af541202058c937c9a1b01273b6c5ce190ebec7e37c` |
 | family | `verdict` |
 | name | `has_genai_activity` |
 | level | `institution` |
@@ -38,7 +38,7 @@ Codebook release `2.7`, sha256 `470f8be2de43e9d7f47cd0e061fb2075dc2d70869fb36d2c
 
 1. `items/core.has_genai_activity/rules/0`
 
-Institution-level consolidation (Stage 6) applies the v2.6 consolidation rules as jev questions or deterministic rules: explicit relations before merging observations; distinct/unresolved relations never merge; institution-level `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a low-confidence negative downgraded under R-081 counts as one). Stage 6 becomes the X29 truth table, with these ruled components: `background_only` pages may sit in the institution `no` set; any downgraded page counts as unresolved; the bar is the chosen answer's probability ≥ 0.8; `yes` can come from any pipeline, `no` from web pages only, and AI-text results never count; any supported AI purchase record can give `yes`, while the evidence tier still shows it as commitment; `not_assessable` is set mechanically only and does not block `no`. Also: X30 with the shared relation list incl. `governs`; X31 pooled evidence, split when too long; A06 per r2#21; A07 with 9 counts per pipeline; X23 replaced by r2#27; unit-credit flag. `unresolved` stays a coding value and is reported as `unknown` in published summaries; unresolved relations still never merge. Inside the institution-level rule both `unresolved` and `not_assessable` keep their current roles, and `not_assessable` stays out of the institution-rate base.
+Institution-level consolidation (Stage 6) applies the v2.6 consolidation rules as jev questions or deterministic rules: explicit relations before merging observations; distinct/unresolved relations never merge; institution-level `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a low-confidence negative downgraded under R-081 counts as one). Stage 6 becomes the X29 truth table, with these ruled components: `background_only` pages may sit in the institution `no` set; any downgraded page counts as unresolved, except a `confirms_activity` page counted under the page-verdict roll-up; the bar is the chosen answer's probability ≥ 0.8; `yes` can come from any pipeline, `no` from web pages only, and AI-text results never count; any supported AI purchase record can give `yes`, while the evidence tier still shows it as commitment; `not_assessable` is set mechanically only and does not block `no`. Also: X30 with the shared relation list incl. `governs`; X31 pooled evidence, split when too long; A06 per r2#21; A07 with 9 counts per pipeline; X23 replaced by r2#27; unit-credit flag. `unresolved` stays a coding value and is reported as `unknown` in published summaries; unresolved relations still never merge. Inside the institution-level rule both `unresolved` and `not_assessable` keep their current roles, and `not_assessable` stays out of the institution-rate base.
 
 2. `items/core.has_genai_activity/rules/1`
 
