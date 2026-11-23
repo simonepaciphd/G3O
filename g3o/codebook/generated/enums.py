@@ -1,13 +1,13 @@
 # GENERATED FILE - do not edit. Built from codebook/codebook.yaml by
 # g3o.codebook.generators.enums.
-# codebook release: 2.7 | codebook sha256: dd3cc7e9c7e7dd9c9031f242001350ae730d418f9a8915affc2a08a85675c08b
+# codebook release: 2.7 | codebook sha256: 24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d
 # Intended target: T-012 enum constants (g3o/common/contract.py or a module T-012 names).
 """Codebook value lists as constants; each carries its item id and item hash."""
 
 from __future__ import annotations
 
 CODEBOOK_RELEASE = '2.7'
-CODEBOOK_SHA256 = 'dd3cc7e9c7e7dd9c9031f242001350ae730d418f9a8915affc2a08a85675c08b'
+CODEBOOK_SHA256 = '24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d'
 
 #: item id -> (item hash, value codes in codebook order)
 ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -20,11 +20,11 @@ ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
     'core.content_contact_details': ('d28c7a2aee5b9a1370e7049188e8f2f95512a04bb7d0abc40e442c2d0e5b7f53', ('yes', 'no',)),
     'core.content_data': ('7c5141d851e5c3912b9b926a4ab4e5d89d8f8df3e931531ef095f47cd28b3434', ('yes', 'no',)),
     'core.activity_segment': ('1b7750af042738acd295133cb4b1a14e0cfb189619952074db0f3607cfef5f17', ('same_activity', 'component_of_program', 'has_component', 'shared_participation', 'governs', 'governed_by', 'distinct_action', 'unresolved', 'not_an_activity',)),
-    'core.observed_actor_relationship': ('39da975c8e44b9e211870b552eb4ab4ae2fc3669406842f39c7f0a6abc0a014d', ('this_institution', 'unit_of_institution', 'joint_participant', 'other', 'unresolved',)),
-    'core.activity_type': ('82fed996275e4d042efea9bea6935308cd9e2c79469ed39135601b6a3af9a742', ('policy_guidance', 'pilot_experiment', 'program_initiative', 'internal_operational', 'public_facing_service',)),
-    'core.action_type': ('cc49f966c1a02a32489091c718ee1fd94896f341158ca1a2788cd37253ef78d1', ('deployment', 'governance', 'staff_training', 'program',)),
+    'core.observed_actor_relationship': ('4c440a4b3d97d7010e60412db483419f4fc47629fc874a131d8a219524a4bb16', ('this_institution', 'unit_of_institution', 'joint_participant', 'other', 'unresolved',)),
+    'core.activity_type': ('9b0dbf4bdc73d1ea6d60e92fb0ca9c307b114264dfb0ad48aba03e1f48361ee2', ('policy_guidance', 'pilot_experiment', 'program_initiative', 'internal_operational', 'public_facing_service',)),
+    'core.action_type': ('ba678413a7169cb0a7963c2617c0e629f77325545a3d13d991ca5c589d961657', ('deployment', 'governance', 'staff_training', 'program',)),
     'core.adoption_stage': ('7bb0b0e80894be92f16d6bc51778b7de0dc0a09dd13355860518cb03632a0dd6', ('proposed', 'announced', 'pilot', 'production', 'discontinued',)),
-    'core.procurement_status': ('6a27a7df087d81ee84d1a80ae4493c71aba22288d8e9852882b5e37682440820', ('none_documented', 'tender_or_rfp', 'award_or_contract', 'payment_or_subscription',)),
+    'core.procurement_status': ('f861980556dfa3d13157436b45d9fa9acd27c2281a42c350f62498460fad47f6', ('none_documented', 'tender_or_rfp', 'award_or_contract', 'payment_or_subscription',)),
     'core.model_origin': ('a8eccc5010f668b465e986fc3fd060716ff41a7ee9dcd25eff4e70100d1262f6', ('commercial', 'open_weight', 'government_developed',)),
     'core.build_arrangement': ('5ad6eb5e066f8167db901e699752996fe8ace4c3bba4c615e77e766e3ebab582', ('off_the_shelf_product', 'custom_application_on_external_model', 'model_trained_or_fine_tuned_by_institution',)),
     'core.interface': ('7ff9950b948b59cf784f3303003661c59aa9d0fa285ac9829255eb909c84d8b2', ('conversational', 'backend_or_api', 'other_interface',)),
@@ -38,7 +38,7 @@ ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
     'core.function_analysis_recommendation': ('4a973c2f1e681855c13ae910fc161c7c408dc362ab85015b8b3873c46ac44cb9', ('yes', 'no',)),
     'core.deployment_mode': ('ed5672b2fed226dd6a980bec93b1b15edb9d943ae4d08eeea596d69b8377008c', ('integrated', 'standalone',)),
     'core.target_users': ('fd900391b467a5aade9e8ddba9eb1c3da8247f681ccf54cbe1867015410b4a64', ('internal_staff', 'public', 'both',)),
-    'core.governed_population': ('84b1eabcc7e258f67d556996506aa8436b3ed51e0b32865b2b9594f9182cc3e3', ('internal_personnel', 'external_users', 'both',)),
+    'core.governed_population': ('e57d050167a5cbc640be0588e4e4b1a51d9ce6a1ef81c22ebfbf0bf8714ee7f5', ('internal_personnel', 'external_users', 'both',)),
     'core.governance_form': ('9b84ef67dcb070a32922917d06ab5a956193261e27e713de958b3f34a14bf93a', ('dedicated_genai_or_ai_policy_or_guideline', 'approved_tool_list_or_endorsement', 'clause_in_instrument_on_other_subject', 'court_or_regulatory_order', 'procurement_standard',)),
     'core.governance_direction': ('f84d7bfb555ec9856b9d13f4b269dfedd31b070fd148dc5a93b30b8c4fd38149', ('prohibits', 'restricts_with_conditions', 'permits', 'requires', 'promotes',)),
     'core.service_domain': ('123bf211ef3127c9998ee9064714c651171f1a284832af21f9c117c6ecdb8150', ('general_public_services', 'defence', 'public_order_safety', 'economic_affairs', 'environmental_protection', 'housing_community_amenities', 'health', 'recreation_culture_religion', 'education', 'social_protection', 'other',)),

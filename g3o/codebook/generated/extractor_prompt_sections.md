@@ -1,19 +1,19 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extractor_prompt_sections. -->
-<!-- codebook release: 2.7 | codebook sha256: dd3cc7e9c7e7dd9c9031f242001350ae730d418f9a8915affc2a08a85675c08b -->
+<!-- codebook release: 2.7 | codebook sha256: 24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d -->
 
 # Extractor prompt sections
 
-Codebook release `2.7`, sha256 `dd3cc7e9c7e7dd9c9031f242001350ae730d418f9a8915affc2a08a85675c08b`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
+Codebook release `2.7`, sha256 `24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
 
 ## `core.source_publication_date`
-<!-- item: core.source_publication_date sha256: 8463f0d7963f052e7e5db917091583901d9b0a9d8be6e441340546cffbd3873a -->
+<!-- item: core.source_publication_date sha256: 44eac9838bdb4ff1e4552e1ce3e2fe7f65e4d874149b5b3d1b0cbaaa49589f06 -->
 
-Column `source_publication_date`; item hash `8463f0d7963f052e7e5db917091583901d9b0a9d8be6e441340546cffbd3873a`.
+Column `source_publication_date`; item hash `44eac9838bdb4ff1e4552e1ce3e2fe7f65e4d874149b5b3d1b0cbaaa49589f06`.
 
 ### Rules
 
-1. Take dates from HTML metadata / PDF properties / URL patterns deterministically; if absent, the extractor returns a date with its verbatim quote, validated by R-042.
-2. One shared date of 1 November 2022, with "before" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown; the AI-text code changes.
+1. Take dates from HTML metadata, PDF properties or URL patterns deterministically; if none is found, the extractor returns a date with its verbatim quote, which is checked against the stored page text like any other quote.
+2. One shared date of 1 November 2022, with "before" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown.
 
 ## `core.source_snippet`
 <!-- item: core.source_snippet sha256: cd81837b81c62d13bd865eb4173c1561fd8eadb2cdbd1f81acca9a9dc297a7a6 -->
@@ -154,13 +154,13 @@ Column `activity_name`; item hash `69808679d441b3cc10cb66a680689e5e2cd4e9280cdd8
 Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platform"). Otherwise descriptive (e.g., "Internal Copilot pilot for document drafting").
 
 ## `core.observed_actor_name`
-<!-- item: core.observed_actor_name sha256: e2aa4a5376ea5dd043627194b1fdd485920b97014c28402b7d0434f8bdf7d7c8 -->
+<!-- item: core.observed_actor_name sha256: e75b120e8bce7ce52b35f2469175efedcbcb30fd659a8d187ef206c852aebb05 -->
 
-Column `observed_actor_name`; item hash `e2aa4a5376ea5dd043627194b1fdd485920b97014c28402b7d0434f8bdf7d7c8`.
+Column `observed_actor_name`; item hash `e75b120e8bce7ce52b35f2469175efedcbcb30fd659a8d187ef206c852aebb05`.
 
 ### Rules
 
-1. The extractor returns the verbatim actor name and organisational unit. jev Choice gives the relationship (this institution / unit of it / joint participant / other / unresolved) and the role (as v2.6).
+1. The extractor returns the verbatim actor name and organisational unit.
 
 ## `core.tool_name`
 <!-- item: core.tool_name sha256: 1e879decc441d08c1b631a1f9440e6ef97606a9d056326e738407db500984350 -->
@@ -221,30 +221,22 @@ Column `deployment_scale_number`; item hash `c3740fb709eb05a98b259f988dc7611e778
 3. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.reported_outcomes`
-<!-- item: core.reported_outcomes sha256: e300a747a495f361fc5ed992427089b3b53bec4e1e399cebf20d9ad469078389 -->
+<!-- item: core.reported_outcomes sha256: b8966f48a7aaa47f305aa79f349549b07b42f1f878241510f6e3cdc80550e6b4 -->
 
-Column `reported_outcomes`; item hash `e300a747a495f361fc5ed992427089b3b53bec4e1e399cebf20d9ad469078389`.
+Column `reported_outcomes`; item hash `b8966f48a7aaa47f305aa79f349549b07b42f1f878241510f6e3cdc80550e6b4`.
 
 ### Instruction
 
 Documented performance claims. Only record if explicitly stated. Never infer.
 
-### Rules
-
-1. Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
-
 ## `core.reported_incidents`
-<!-- item: core.reported_incidents sha256: 692aaae911794084163262122c7da59a7cb4bb66de94563585cb810730b3acf2 -->
+<!-- item: core.reported_incidents sha256: beed4c12c06a509a8abebfdbfae91d3457c4a9524e3308533f371dc4c0d073d2 -->
 
-Column `reported_incidents`; item hash `692aaae911794084163262122c7da59a7cb4bb66de94563585cb810730b3acf2`.
+Column `reported_incidents`; item hash `beed4c12c06a509a8abebfdbfae91d3457c4a9524e3308533f371dc4c0d073d2`.
 
 ### Instruction
 
 Documented errors, failures, or controversies. Only record if explicitly stated.
-
-### Rules
-
-1. Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
 
 ## `core.supporting_text`
 <!-- item: core.supporting_text sha256: a19ee7b282d149ce6b66320a455ca06fb67b26f2e60833632545f70390ccbe7c -->

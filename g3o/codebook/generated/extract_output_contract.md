@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extract_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: dd3cc7e9c7e7dd9c9031f242001350ae730d418f9a8915affc2a08a85675c08b -->
+<!-- codebook release: 2.7 | codebook sha256: 24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d -->
 
 # G3O output contract (extract), generated from the codebook
 
-Codebook release `2.7`, sha256 `dd3cc7e9c7e7dd9c9031f242001350ae730d418f9a8915affc2a08a85675c08b`. 99 items.
+Codebook release `2.7`, sha256 `24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d`. 99 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: f3224d00890eba351b1b5b696c2d6eacdf7f3863c010e0a99de35216d1fa0bfe -->
@@ -1413,11 +1413,11 @@ Add a deterministic `discovery_path` (searched / followed hop n / back-fill foll
 A per-row `text_source` (stored / live re-fetch / new run) records which rows lack chrome text and links.
 
 ## `core.source_publication_date`
-<!-- item: core.source_publication_date sha256: 8463f0d7963f052e7e5db917091583901d9b0a9d8be6e441340546cffbd3873a -->
+<!-- item: core.source_publication_date sha256: 44eac9838bdb4ff1e4552e1ce3e2fe7f65e4d874149b5b3d1b0cbaaa49589f06 -->
 
 | Field | Value |
 |---|---|
-| item hash | `8463f0d7963f052e7e5db917091583901d9b0a9d8be6e441340546cffbd3873a` |
+| item hash | `44eac9838bdb4ff1e4552e1ce3e2fe7f65e4d874149b5b3d1b0cbaaa49589f06` |
 | family | `source` |
 | name | `source_publication_date` |
 | level | `source` |
@@ -1445,11 +1445,11 @@ A per-row `text_source` (stored / live re-fetch / new run) records which rows la
 
 1. `items/core.source_publication_date/rules/0`
 
-Take dates from HTML metadata / PDF properties / URL patterns deterministically; if absent, the extractor returns a date with its verbatim quote, validated by R-042.
+Take dates from HTML metadata, PDF properties or URL patterns deterministically; if none is found, the extractor returns a date with its verbatim quote, which is checked against the stored page text like any other quote.
 
 2. `items/core.source_publication_date/rules/1`
 
-One shared date of 1 November 2022, with "before" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown; the AI-text code changes.
+One shared date of 1 November 2022, with "before" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown.
 
 ## `core.source_snippet`
 <!-- item: core.source_snippet sha256: cd81837b81c62d13bd865eb4173c1561fd8eadb2cdbd1f81acca9a9dc297a7a6 -->
@@ -1678,11 +1678,11 @@ Each pair of passages gets a link.
 Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platform"). Otherwise descriptive (e.g., "Internal Copilot pilot for document drafting").
 
 ## `core.observed_actor_name`
-<!-- item: core.observed_actor_name sha256: e2aa4a5376ea5dd043627194b1fdd485920b97014c28402b7d0434f8bdf7d7c8 -->
+<!-- item: core.observed_actor_name sha256: e75b120e8bce7ce52b35f2469175efedcbcb30fd659a8d187ef206c852aebb05 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e2aa4a5376ea5dd043627194b1fdd485920b97014c28402b7d0434f8bdf7d7c8` |
+| item hash | `e75b120e8bce7ce52b35f2469175efedcbcb30fd659a8d187ef206c852aebb05` |
 | family | `attribution` |
 | name | `observed_actor_name` |
 | level | `activity` |
@@ -1710,14 +1710,14 @@ Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platf
 
 1. `items/core.observed_actor_name/rules/0`
 
-The extractor returns the verbatim actor name and organisational unit. jev Choice gives the relationship (this institution / unit of it / joint participant / other / unresolved) and the role (as v2.6).
+The extractor returns the verbatim actor name and organisational unit.
 
 ## `core.observed_actor_relationship`
-<!-- item: core.observed_actor_relationship sha256: 39da975c8e44b9e211870b552eb4ab4ae2fc3669406842f39c7f0a6abc0a014d -->
+<!-- item: core.observed_actor_relationship sha256: 4c440a4b3d97d7010e60412db483419f4fc47629fc874a131d8a219524a4bb16 -->
 
 | Field | Value |
 |---|---|
-| item hash | `39da975c8e44b9e211870b552eb4ab4ae2fc3669406842f39c7f0a6abc0a014d` |
+| item hash | `4c440a4b3d97d7010e60412db483419f4fc47629fc874a131d8a219524a4bb16` |
 | family | `attribution` |
 | name | `observed_actor_relationship` |
 | level | `activity` |
@@ -1849,27 +1849,23 @@ The relationship is coded per activity. The role of the searched institution is 
 
 The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.
 
-3. `items/core.observed_actor_relationship/rules/2`
-
-The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.
-
-4. `shared_rules/core.rule.attribution_grain/0` (shared rule `core.rule.attribution_grain`)
+3. `shared_rules/core.rule.attribution_grain/0` (shared rule `core.rule.attribution_grain`)
 
 An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.
 
-5. `shared_rules/core.rule.attribution_grain/1` (shared rule `core.rule.attribution_grain`)
+4. `shared_rules/core.rule.attribution_grain/1` (shared rule `core.rule.attribution_grain`)
 
 A joint activity counts when the page names this institution as a participant.
 
-6. `items/core.observed_actor_relationship/rules/4`
+5. `items/core.observed_actor_relationship/rules/3`
 
 Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.
 
-7. `items/core.observed_actor_relationship/rules/5`
+6. `items/core.observed_actor_relationship/rules/4`
 
 Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint
 
-8. `items/core.observed_actor_relationship/rules/6`
+7. `items/core.observed_actor_relationship/rules/5`
 
 Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.
 
@@ -1880,11 +1876,11 @@ Not documented: the page says nothing on this question. For whose activity this 
 the role part is taken from the same part that produced the relationship
 
 ## `core.activity_type`
-<!-- item: core.activity_type sha256: 82fed996275e4d042efea9bea6935308cd9e2c79469ed39135601b6a3af9a742 -->
+<!-- item: core.activity_type sha256: 9b0dbf4bdc73d1ea6d60e92fb0ca9c307b114264dfb0ad48aba03e1f48361ee2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `82fed996275e4d042efea9bea6935308cd9e2c79469ed39135601b6a3af9a742` |
+| item hash | `9b0dbf4bdc73d1ea6d60e92fb0ca9c307b114264dfb0ad48aba03e1f48361ee2` |
 | family | `activity_typing` |
 | name | `activity_type` |
 | level | `activity` |
@@ -1958,24 +1954,16 @@ An AI policy and a pilot at the same institution are two separate activities; co
 
 A national programme counts as this institution's activity only when the page confirms that this institution takes part.
 
-3. `shared_rules/core.rule.allowed_type_action_pairs/0` (shared rule `core.rule.allowed_type_action_pairs`)
-
-List the allowed (type, action) pairs; activities with other pairs are flagged for review
-
-4. `shared_rules/core.rule.allowed_type_action_pairs/1` (shared rule `core.rule.allowed_type_action_pairs`)
-
-a disallowed pair is flagged for review and no label is changed
-
-5. `items/core.activity_type/rules/3`
+3. `items/core.activity_type/rules/2`
 
 `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.
 
 ## `core.action_type`
-<!-- item: core.action_type sha256: cc49f966c1a02a32489091c718ee1fd94896f341158ca1a2788cd37253ef78d1 -->
+<!-- item: core.action_type sha256: ba678413a7169cb0a7963c2617c0e629f77325545a3d13d991ca5c589d961657 -->
 
 | Field | Value |
 |---|---|
-| item hash | `cc49f966c1a02a32489091c718ee1fd94896f341158ca1a2788cd37253ef78d1` |
+| item hash | `ba678413a7169cb0a7963c2617c0e629f77325545a3d13d991ca5c589d961657` |
 | family | `activity_typing` |
 | name | `action_type` |
 | level | `activity` |
@@ -2039,19 +2027,11 @@ Entailment label: a programme with named components
 
 One answer per activity: deployment, governance, staff training or program. Purchases and proposals are not action types; the purchase status and the stage carry them.
 
-2. `shared_rules/core.rule.allowed_type_action_pairs/0` (shared rule `core.rule.allowed_type_action_pairs`)
-
-List the allowed (type, action) pairs; activities with other pairs are flagged for review
-
-3. `shared_rules/core.rule.allowed_type_action_pairs/1` (shared rule `core.rule.allowed_type_action_pairs`)
-
-a disallowed pair is flagged for review and no label is changed
-
-4. `shared_rules/core.rule.governance_gate/0` (shared rule `core.rule.governance_gate`)
+2. `shared_rules/core.rule.governance_gate/0` (shared rule `core.rule.governance_gate`)
 
 A body that sets or oversees rules gets the governance questions.
 
-5. `items/core.action_type/rules/3`
+3. `items/core.action_type/rules/2`
 
 `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.
 
@@ -2139,11 +2119,11 @@ Proposals specific to this institution and explicitly about AI remain a qualifyi
 `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the AI activity but does not let its stage be settled.
 
 ## `core.procurement_status`
-<!-- item: core.procurement_status sha256: 6a27a7df087d81ee84d1a80ae4493c71aba22288d8e9852882b5e37682440820 -->
+<!-- item: core.procurement_status sha256: f861980556dfa3d13157436b45d9fa9acd27c2281a42c350f62498460fad47f6 -->
 
 | Field | Value |
 |---|---|
-| item hash | `6a27a7df087d81ee84d1a80ae4493c71aba22288d8e9852882b5e37682440820` |
+| item hash | `f861980556dfa3d13157436b45d9fa9acd27c2281a42c350f62498460fad47f6` |
 | family | `activity_typing` |
 | name | `procurement_status` |
 | level | `activity` |
@@ -2205,17 +2185,13 @@ Entailment label: a payment or subscription
 
 1. `items/core.procurement_status/rules/0`
 
-Keep adoption_stage for use; add `procurement_status`: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown. Payment-only activities get adoption_stage `unknown` plus procurement_status `payment_or_subscription`.
+Answers: `none_documented`, `tender_or_rfp`, `award_or_contract`, `payment_or_subscription`. Use is coded in the adoption stage. A payment-only activity takes `payment_or_subscription` here and stage `unknown`.
 
 2. `items/core.procurement_status/rules/1`
 
-Purchase records fill the purchase-status field and get an "unknown" adoption stage unless use is shown. The owed contract amendment shrinks to removing purchase language, the procurement rules are amended, and the evidence-tier wording is fixed.
-
-3. `items/core.procurement_status/rules/2`
-
 A page that describes the activity but shows no purchase step takes `none_documented`, which is a real answer; `not_documented` is not used for this item.
 
-4. `items/core.procurement_status/rules/3`
+3. `items/core.procurement_status/rules/2`
 
 The page mentions a purchase of the tool or service but does not let it be settled.
 
@@ -3246,11 +3222,11 @@ not_documented: the page is silent.
 Drop 'not covered by this part' and missing labels from the list. 'both' present, or staff and public both present, gives 'both'. One real value gives that value. No real value: not_documented if any part says the page is silent, else unknown. Every part 'not covered' gives not_documented.
 
 ## `core.governed_population`
-<!-- item: core.governed_population sha256: 84b1eabcc7e258f67d556996506aa8436b3ed51e0b32865b2b9594f9182cc3e3 -->
+<!-- item: core.governed_population sha256: e57d050167a5cbc640be0588e4e4b1a51d9ce6a1ef81c22ebfbf0bf8714ee7f5 -->
 
 | Field | Value |
 |---|---|
-| item hash | `84b1eabcc7e258f67d556996506aa8436b3ed51e0b32865b2b9594f9182cc3e3` |
+| item hash | `e57d050167a5cbc640be0588e4e4b1a51d9ce6a1ef81c22ebfbf0bf8714ee7f5` |
 | family | `governance` |
 | name | `governed_population` |
 | level | `activity` |
@@ -3306,13 +3282,9 @@ Entailment label: both staff and people or bodies outside the institution
 
 1. `items/core.governed_population/rules/0`
 
-jev Choice: internal_personnel / external_users / both / unknown; `not_applicable` for non-governance.
-
-2. `items/core.governed_population/rules/1`
-
 The page mentions whom the rule applies to but does not let it be settled.
 
-3. `items/core.governed_population/rules/2`
+2. `items/core.governed_population/rules/1`
 
 not_documented: the page is silent.
 
@@ -4452,11 +4424,11 @@ Retire flags that just mirror a column; keep 'identity unresolved' and 'stage am
 The incident question ignores stops unless a problem is reported.
 
 ## `core.reported_outcomes`
-<!-- item: core.reported_outcomes sha256: e300a747a495f361fc5ed992427089b3b53bec4e1e399cebf20d9ad469078389 -->
+<!-- item: core.reported_outcomes sha256: b8966f48a7aaa47f305aa79f349549b07b42f1f878241510f6e3cdc80550e6b4 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e300a747a495f361fc5ed992427089b3b53bec4e1e399cebf20d9ad469078389` |
+| item hash | `b8966f48a7aaa47f305aa79f349549b07b42f1f878241510f6e3cdc80550e6b4` |
 | family | `outcomes` |
 | name | `reported_outcomes` |
 | level | `activity` |
@@ -4484,18 +4456,12 @@ The incident question ignores stops unless a problem is reported.
 
 Documented performance claims. Only record if explicitly stated. Never infer.
 
-### Rules
-
-1. `items/core.reported_outcomes/rules/0`
-
-Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
-
 ## `core.reported_incidents`
-<!-- item: core.reported_incidents sha256: 692aaae911794084163262122c7da59a7cb4bb66de94563585cb810730b3acf2 -->
+<!-- item: core.reported_incidents sha256: beed4c12c06a509a8abebfdbfae91d3457c4a9524e3308533f371dc4c0d073d2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `692aaae911794084163262122c7da59a7cb4bb66de94563585cb810730b3acf2` |
+| item hash | `beed4c12c06a509a8abebfdbfae91d3457c4a9524e3308533f371dc4c0d073d2` |
 | family | `outcomes` |
 | name | `reported_incidents` |
 | level | `activity` |
@@ -4522,12 +4488,6 @@ Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothin
 ### Instruction
 
 Documented errors, failures, or controversies. Only record if explicitly stated.
-
-### Rules
-
-1. `items/core.reported_incidents/rules/0`
-
-Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
 
 ## `core.evaluation_documented`
 <!-- item: core.evaluation_documented sha256: 04b649f49a72fd77cbec33e3669e421e7153302044dab5fe06ec6878eff0a0ee -->

@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.item_schemas",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "dd3cc7e9c7e7dd9c9031f242001350ae730d418f9a8915affc2a08a85675c08b",
+  "codebook_sha256": "24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d",
   "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)",
   "$defs": {
     "page_verdict": {
@@ -246,7 +246,7 @@
     },
     "source_publication_date": {
       "x-item-id": "core.source_publication_date",
-      "x-item-hash": "8463f0d7963f052e7e5db917091583901d9b0a9d8be6e441340546cffbd3873a",
+      "x-item-hash": "44eac9838bdb4ff1e4552e1ce3e2fe7f65e4d874149b5b3d1b0cbaaa49589f06",
       "x-answer-type": "date",
       "type": "string"
     },
@@ -290,13 +290,13 @@
     },
     "observed_actor_name": {
       "x-item-id": "core.observed_actor_name",
-      "x-item-hash": "e2aa4a5376ea5dd043627194b1fdd485920b97014c28402b7d0434f8bdf7d7c8",
+      "x-item-hash": "e75b120e8bce7ce52b35f2469175efedcbcb30fd659a8d187ef206c852aebb05",
       "x-answer-type": "text",
       "type": "string"
     },
     "observed_actor_relationship": {
       "x-item-id": "core.observed_actor_relationship",
-      "x-item-hash": "39da975c8e44b9e211870b552eb4ab4ae2fc3669406842f39c7f0a6abc0a014d",
+      "x-item-hash": "4c440a4b3d97d7010e60412db483419f4fc47629fc874a131d8a219524a4bb16",
       "x-answer-type": "single",
       "x-parts": {
         "relationship": [
@@ -318,7 +318,7 @@
     },
     "activity_type": {
       "x-item-id": "core.activity_type",
-      "x-item-hash": "82fed996275e4d042efea9bea6935308cd9e2c79469ed39135601b6a3af9a742",
+      "x-item-hash": "9b0dbf4bdc73d1ea6d60e92fb0ca9c307b114264dfb0ad48aba03e1f48361ee2",
       "x-answer-type": "single",
       "enum": [
         "policy_guidance",
@@ -334,7 +334,7 @@
     },
     "action_type": {
       "x-item-id": "core.action_type",
-      "x-item-hash": "cc49f966c1a02a32489091c718ee1fd94896f341158ca1a2788cd37253ef78d1",
+      "x-item-hash": "ba678413a7169cb0a7963c2617c0e629f77325545a3d13d991ca5c589d961657",
       "x-answer-type": "single",
       "enum": [
         "deployment",
@@ -365,7 +365,7 @@
     },
     "procurement_status": {
       "x-item-id": "core.procurement_status",
-      "x-item-hash": "6a27a7df087d81ee84d1a80ae4493c71aba22288d8e9852882b5e37682440820",
+      "x-item-hash": "f861980556dfa3d13157436b45d9fa9acd27c2281a42c350f62498460fad47f6",
       "x-answer-type": "single",
       "enum": [
         "none_documented",
@@ -613,7 +613,7 @@
     },
     "governed_population": {
       "x-item-id": "core.governed_population",
-      "x-item-hash": "84b1eabcc7e258f67d556996506aa8436b3ed51e0b32865b2b9594f9182cc3e3",
+      "x-item-hash": "e57d050167a5cbc640be0588e4e4b1a51d9ce6a1ef81c22ebfbf0bf8714ee7f5",
       "x-answer-type": "single",
       "enum": [
         "internal_personnel",
@@ -856,7 +856,7 @@
     },
     "reported_outcomes": {
       "x-item-id": "core.reported_outcomes",
-      "x-item-hash": "e300a747a495f361fc5ed992427089b3b53bec4e1e399cebf20d9ad469078389",
+      "x-item-hash": "b8966f48a7aaa47f305aa79f349549b07b42f1f878241510f6e3cdc80550e6b4",
       "x-answer-type": "list",
       "anyOf": [
         {
@@ -877,7 +877,7 @@
     },
     "reported_incidents": {
       "x-item-id": "core.reported_incidents",
-      "x-item-hash": "692aaae911794084163262122c7da59a7cb4bb66de94563585cb810730b3acf2",
+      "x-item-hash": "beed4c12c06a509a8abebfdbfae91d3457c4a9524e3308533f371dc4c0d073d2",
       "x-answer-type": "list",
       "anyOf": [
         {

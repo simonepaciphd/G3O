@@ -399,10 +399,10 @@ shared_rules:
     source: |-
       codebook-rulings-round3.json activity-04 (choice d); option text questions-r3.json activity-04.d.mechanism
   core.rule.allowed_type_action_pairs:
-  - text: List the allowed (type, action) pairs; activities with other pairs are flagged for review
-    origin: ruling-r3
-    source: |-
-      codebook-rulings-round3.json activity-02 (choice c); option text questions-r3.json activity-02.c.mechanism
+  - text: |-
+      After coding, an activity whose (activity type, action type) pair is not on the allowed list is flagged for review; no label is changed.
+    origin: PI 2026-11-23 chat "all as rec" (clean-docs P5, C-09 a)
+    source: agent-workspace/2026-11-21-integrator/clean-docs-audit/layer2/PROPOSALS.md C-09 (a)
     pairs:
     - activity_type: policy_guidance
       action_type: deployment
@@ -530,10 +530,6 @@ shared_rules:
     pairs_source: |-
       final-open.json pairs (PI 2026-10-30 "all accepted"; final-open pairs table, O11); inferred, no source gives the list
     pairs_confidence: medium overall; lowest on pilot_experiment x staff_training and on the four 'program' flags
-  - text: a disallowed pair is flagged for review and no label is changed
-    origin: PI 2026-10-30 "approved!"; fixes-r4 FX13
-    source: deltas/RC-D-003.md:161 (O14)
-    role: handling of a disallowed pair
 combining_conventions:
   check_then_combine:
     rulings:
@@ -2588,13 +2584,13 @@ items:
     values: none
     rules:
     - text: |-
-        Take dates from HTML metadata / PDF properties / URL patterns deterministically; if absent, the extractor returns a date with its verbatim quote, validated by R-042.
-      origin: r1
-      source: codebook-rulings-round1.json X26.mechanism
+        Take dates from HTML metadata, PDF properties or URL patterns deterministically; if none is found, the extractor returns a date with its verbatim quote, which is checked against the stored page text like any other quote.
+      origin: PI 2026-11-23 chat "all as rec" (clean-docs P7b, C-11b)
+      source: agent-workspace/2026-11-21-integrator/clean-docs-audit/layer2/PROPOSALS.md C-11b
     - text: |-
-        One shared date of 1 November 2022, with "before" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown; the AI-text code changes.
-      origin: r2
-      source: codebook-rulings-round2.json n=31
+        One shared date of 1 November 2022, with "before" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown.
+      origin: PI 2026-11-23 chat "all as rec" (clean-docs P7c, C-11c a)
+      source: agent-workspace/2026-11-21-integrator/clean-docs-audit/layer2/PROPOSALS.md C-11c (a)
     order_tie_rule: none
     long_page_rule:
       rule: first_section
@@ -2991,9 +2987,9 @@ items:
     values: none
     rules:
     - text: |-
-        The extractor returns the verbatim actor name and organisational unit. jev Choice gives the relationship (this institution / unit of it / joint participant / other / unresolved) and the role (as v2.6).
-      origin: r1
-      source: codebook-rulings-round1.json A05.mechanism
+        The extractor returns the verbatim actor name and organisational unit.
+      origin: PI 2026-11-23 chat "all as rec" (clean-docs P7a, C-11a a)
+      source: agent-workspace/2026-11-21-integrator/clean-docs-audit/layer2/PROPOSALS.md C-11a (a)
     order_tie_rule: none
     long_page_rule: none
     support_required: true
@@ -3188,10 +3184,6 @@ items:
         The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX12
       source: codebook-rulings-round2.json n=4
-    - text: |-
-        The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.
-      origin: PI 2026-10-30 "approved!"; fixes-r4 FX12
-      source: codebook-rulings-round2.json n=23
     - core.rule.attribution_grain
     - text: |-
         Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.
@@ -3258,7 +3250,7 @@ items:
       offered:
       - not_documented
       rule:
-      - items/core.observed_actor_relationship/rules/6
+      - items/core.observed_actor_relationship/rules/5
       resolution: 'RC-D-005 12a'' (iv): offered; the item''s own rule gives the meaning'
     entailment_label:
       text: body that carries out the activity
@@ -3334,7 +3326,6 @@ items:
         A national programme counts as this institution's activity only when the page confirms that this institution takes part.
       origin: PI 2026-10-31 "edits reviewed and accepted"; agent draft T16-11 (T-016 rewording)
       source: output_contract.md:163
-    - core.rule.allowed_type_action_pairs
     - text: |-
         `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.
       origin: PI 2026-10-31 "edits reviewed and accepted"; agent draft T16-01 (T-016 rewording)
@@ -3436,7 +3427,6 @@ items:
         One answer per activity: deployment, governance, staff training or program. Purchases and proposals are not action types; the purchase status and the stage carry them.
       origin: PI 2026-10-31 "edits reviewed and accepted"; agent draft T16-05 (T-016 rewording)
       source: codebook-rulings-round1.json A02.mechanism
-    - core.rule.allowed_type_action_pairs
     - core.rule.governance_gate
     - text: |-
         `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.
@@ -3711,13 +3701,9 @@ items:
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
     rules:
     - text: |-
-        Keep adoption_stage for use; add `procurement_status`: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown. Payment-only activities get adoption_stage `unknown` plus procurement_status `payment_or_subscription`.
-      origin: PI 2026-10-30 "approved!"; fixes-r4 FX12
-      source: codebook-rulings-round1.json C09.mechanism
-    - text: |-
-        Purchase records fill the purchase-status field and get an "unknown" adoption stage unless use is shown. The owed contract amendment shrinks to removing purchase language, the procurement rules are amended, and the evidence-tier wording is fixed.
-      origin: r2
-      source: codebook-rulings-round2.json n=14
+        Answers: `none_documented`, `tender_or_rfp`, `award_or_contract`, `payment_or_subscription`. Use is coded in the adoption stage. A payment-only activity takes `payment_or_subscription` here and stage `unknown`.
+      origin: PI 2026-11-23 chat "all as rec" (clean-docs P3, C-07b)
+      source: agent-workspace/2026-11-21-integrator/clean-docs-audit/layer2/PROPOSALS.md C-07b
     - text: |-
         A page that describes the activity but shows no purchase step takes `none_documented`, which is a real answer; `not_documented` is not used for this item.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX07
@@ -3765,9 +3751,9 @@ items:
     jev_missing_choice:
       offered: []
       rule:
-      - items/core.procurement_status/rules/2
+      - items/core.procurement_status/rules/1
       why: the item's rule says `not_documented` is not used for this item
-      grounds: 'signed rules/2: "`not_documented` is not used for this item"'
+      grounds: 'signed rules/1: "`not_documented` is not used for this item"'
       resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
     entailment_label:
       text: purchase step
@@ -5676,10 +5662,6 @@ items:
         text: both staff and people or bodies outside the institution
         origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
     rules:
-    - text: |-
-        jev Choice: internal_personnel / external_users / both / unknown; `not_applicable` for non-governance.
-      origin: r1
-      source: codebook-rulings-round1.json A04.mechanism
     - text: The page mentions whom the rule applies to but does not let it be settled.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX06
       source: drafts/fixes-r4.json FX06
@@ -5733,7 +5715,7 @@ items:
       offered:
       - not_documented
       rule:
-      - items/core.governed_population/rules/2
+      - items/core.governed_population/rules/1
       resolution: |-
         RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions whom the rule applies to but does not settle it; a silent page is the other case
     entailment_label:
@@ -7690,15 +7672,7 @@ items:
       origin: v25
       source: output_contract.md:111 col reported_outcomes
     values: none
-    rules:
-    - text: |-
-        Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
-      origin: agent-draft
-      source: cx-01.3-draft.json CX-60; ruling activity-25, activity-26
-      draft_action: edit
-      frozen_text: |-
-        Deterministic step (no API): map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
-      frozen_source: codebook-extension-proposal.md:105 CX-60
+    rules: none
     order_tie_rule: none
     long_page_rule: combined_list
     support_required: true
@@ -7750,15 +7724,7 @@ items:
       origin: v25
       source: output_contract.md:112 col reported_incidents
     values: none
-    rules:
-    - text: |-
-        Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
-      origin: agent-draft
-      source: cx-01.3-draft.json CX-60; ruling activity-25, activity-26
-      draft_action: edit
-      frozen_text: |-
-        Deterministic step (no API): map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
-      frozen_source: codebook-extension-proposal.md:105 CX-60
+    rules: none
     order_tie_rule: none
     long_page_rule: combined_list
     support_required: true

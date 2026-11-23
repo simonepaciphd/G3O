@@ -5,7 +5,7 @@
   "do_not_edit": true,
   "build_command": "python -m g3o.classify.questions.v27 build",
   "codebook_release": "2.7",
-  "codebook_sha256": "dd3cc7e9c7e7dd9c9031f242001350ae730d418f9a8915affc2a08a85675c08b",
+  "codebook_sha256": "24d4d8cffdebc9eae00c3ad1d69a607aa95a8f534a1cce176a65bfa9a6b4642d",
   "source": "g3o.codebook.generators.gen_jev_questions (regenerated from the codebook)",
   "pass": 2,
   "unit": "page x activity, with the activity's span marked (DEC-010 a)",
@@ -122,7 +122,7 @@
       "question_id": "core.observed_actor_relationship",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.observed_actor_relationship`",
       "item_id": "core.observed_actor_relationship",
-      "item_hash": "39da975c8e44b9e211870b552eb4ab4ae2fc3669406842f39c7f0a6abc0a014d",
+      "item_hash": "4c440a4b3d97d7010e60412db483419f4fc47629fc874a131d8a219524a4bb16",
       "column": "observed_actor_relationship",
       "pass": 2,
       "round": 2,
@@ -138,93 +138,87 @@
       "criteria": [
         {
           "code": "this_institution",
-          "text": "The page names the searched institution itself, not one of its units, as carrying out or adopting the activity.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.\n4. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n5. A joint activity counts when the page names this institution as a participant.\n6. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n7. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n8. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
+          "text": "The page names the searched institution itself, not one of its units, as carrying out or adopting the activity.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n4. A joint activity counts when the page names this institution as a participant.\n5. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n6. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n7. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
           "definition_slot": "items/core.observed_actor_relationship/values/relationship/0/definition",
           "rule_slots": [
             "items/core.observed_actor_relationship/rules/0",
             "items/core.observed_actor_relationship/rules/1",
-            "items/core.observed_actor_relationship/rules/2",
             "shared_rules/core.rule.attribution_grain/0",
             "shared_rules/core.rule.attribution_grain/1",
+            "items/core.observed_actor_relationship/rules/3",
             "items/core.observed_actor_relationship/rules/4",
-            "items/core.observed_actor_relationship/rules/5",
-            "items/core.observed_actor_relationship/rules/6"
+            "items/core.observed_actor_relationship/rules/5"
           ]
         },
         {
           "code": "unit_of_institution",
-          "text": "The page names an organisational unit of the searched institution (a department, office or service) as carrying out the activity; it counts for the institution. Choose this, not the institution itself, whenever the page names the unit.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.\n4. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n5. A joint activity counts when the page names this institution as a participant.\n6. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n7. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n8. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
+          "text": "The page names an organisational unit of the searched institution (a department, office or service) as carrying out the activity; it counts for the institution. Choose this, not the institution itself, whenever the page names the unit.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n4. A joint activity counts when the page names this institution as a participant.\n5. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n6. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n7. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
           "definition_slot": "items/core.observed_actor_relationship/values/relationship/1/definition",
           "rule_slots": [
             "items/core.observed_actor_relationship/rules/0",
             "items/core.observed_actor_relationship/rules/1",
-            "items/core.observed_actor_relationship/rules/2",
             "shared_rules/core.rule.attribution_grain/0",
             "shared_rules/core.rule.attribution_grain/1",
+            "items/core.observed_actor_relationship/rules/3",
             "items/core.observed_actor_relationship/rules/4",
-            "items/core.observed_actor_relationship/rules/5",
-            "items/core.observed_actor_relationship/rules/6"
+            "items/core.observed_actor_relationship/rules/5"
           ]
         },
         {
           "code": "joint_participant",
-          "text": "The activity is a joint one, and the page names the searched institution as a participant.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.\n4. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n5. A joint activity counts when the page names this institution as a participant.\n6. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n7. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n8. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
+          "text": "The activity is a joint one, and the page names the searched institution as a participant.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n4. A joint activity counts when the page names this institution as a participant.\n5. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n6. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n7. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
           "definition_slot": "items/core.observed_actor_relationship/values/relationship/2/definition",
           "rule_slots": [
             "items/core.observed_actor_relationship/rules/0",
             "items/core.observed_actor_relationship/rules/1",
-            "items/core.observed_actor_relationship/rules/2",
             "shared_rules/core.rule.attribution_grain/0",
             "shared_rules/core.rule.attribution_grain/1",
+            "items/core.observed_actor_relationship/rules/3",
             "items/core.observed_actor_relationship/rules/4",
-            "items/core.observed_actor_relationship/rules/5",
-            "items/core.observed_actor_relationship/rules/6"
+            "items/core.observed_actor_relationship/rules/5"
           ]
         },
         {
           "code": "other",
-          "text": "The activity belongs to another body: a parent, sibling or neighbouring body, a separate court, board or authority, a similarly named organisation, or a vendor. The searched institution's role is still asked.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.\n4. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n5. A joint activity counts when the page names this institution as a participant.\n6. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n7. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n8. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
+          "text": "The activity belongs to another body: a parent, sibling or neighbouring body, a separate court, board or authority, a similarly named organisation, or a vendor. The searched institution's role is still asked.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n4. A joint activity counts when the page names this institution as a participant.\n5. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n6. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n7. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
           "definition_slot": "items/core.observed_actor_relationship/values/relationship/3/definition",
           "rule_slots": [
             "items/core.observed_actor_relationship/rules/0",
             "items/core.observed_actor_relationship/rules/1",
-            "items/core.observed_actor_relationship/rules/2",
             "shared_rules/core.rule.attribution_grain/0",
             "shared_rules/core.rule.attribution_grain/1",
+            "items/core.observed_actor_relationship/rules/3",
             "items/core.observed_actor_relationship/rules/4",
-            "items/core.observed_actor_relationship/rules/5",
-            "items/core.observed_actor_relationship/rules/6"
+            "items/core.observed_actor_relationship/rules/5"
           ]
         },
         {
           "code": "unresolved",
-          "text": "The page does not settle whose activity this is. The role of the searched institution is not asked.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.\n4. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n5. A joint activity counts when the page names this institution as a participant.\n6. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n7. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n8. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
+          "text": "The page does not settle whose activity this is. The role of the searched institution is not asked.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n4. A joint activity counts when the page names this institution as a participant.\n5. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n6. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n7. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
           "definition_slot": "items/core.observed_actor_relationship/values/relationship/4/definition",
           "rule_slots": [
             "items/core.observed_actor_relationship/rules/0",
             "items/core.observed_actor_relationship/rules/1",
-            "items/core.observed_actor_relationship/rules/2",
             "shared_rules/core.rule.attribution_grain/0",
             "shared_rules/core.rule.attribution_grain/1",
+            "items/core.observed_actor_relationship/rules/3",
             "items/core.observed_actor_relationship/rules/4",
-            "items/core.observed_actor_relationship/rules/5",
-            "items/core.observed_actor_relationship/rules/6"
+            "items/core.observed_actor_relationship/rules/5"
           ]
         },
         {
           "code": "not_documented",
           "missing_label": true,
-          "text": "Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.\n4. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n5. A joint activity counts when the page names this institution as a participant.\n6. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n7. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n8. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
-          "definition_slot": "items/core.observed_actor_relationship/rules/6",
+          "text": "Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n4. A joint activity counts when the page names this institution as a participant.\n5. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n6. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n7. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
+          "definition_slot": "items/core.observed_actor_relationship/rules/5",
           "rule_slots": [
             "items/core.observed_actor_relationship/rules/0",
             "items/core.observed_actor_relationship/rules/1",
-            "items/core.observed_actor_relationship/rules/2",
             "shared_rules/core.rule.attribution_grain/0",
             "shared_rules/core.rule.attribution_grain/1",
+            "items/core.observed_actor_relationship/rules/3",
             "items/core.observed_actor_relationship/rules/4",
-            "items/core.observed_actor_relationship/rules/5",
-            "items/core.observed_actor_relationship/rules/6"
+            "items/core.observed_actor_relationship/rules/5"
           ]
         }
       ],
@@ -241,7 +235,7 @@
       "question_id": "core.observed_actor_relationship#searched_institution_role",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.observed_actor_relationship`",
       "item_id": "core.observed_actor_relationship",
-      "item_hash": "39da975c8e44b9e211870b552eb4ab4ae2fc3669406842f39c7f0a6abc0a014d",
+      "item_hash": "4c440a4b3d97d7010e60412db483419f4fc47629fc874a131d8a219524a4bb16",
       "column": "observed_actor_relationship",
       "pass": 2,
       "round": 2,
@@ -268,93 +262,87 @@
       "criteria": [
         {
           "code": "contracting_authority",
-          "text": "The searched institution buys or contracts for the tool or service in its own name.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.\n4. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n5. A joint activity counts when the page names this institution as a participant.\n6. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n7. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n8. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
+          "text": "The searched institution buys or contracts for the tool or service in its own name.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n4. A joint activity counts when the page names this institution as a participant.\n5. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n6. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n7. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
           "definition_slot": "items/core.observed_actor_relationship/values/searched_institution_role/0/definition",
           "rule_slots": [
             "items/core.observed_actor_relationship/rules/0",
             "items/core.observed_actor_relationship/rules/1",
-            "items/core.observed_actor_relationship/rules/2",
             "shared_rules/core.rule.attribution_grain/0",
             "shared_rules/core.rule.attribution_grain/1",
+            "items/core.observed_actor_relationship/rules/3",
             "items/core.observed_actor_relationship/rules/4",
-            "items/core.observed_actor_relationship/rules/5",
-            "items/core.observed_actor_relationship/rules/6"
+            "items/core.observed_actor_relationship/rules/5"
           ]
         },
         {
           "code": "beneficiary",
-          "text": "Another body runs or buys the activity for the searched institution, and the page names the searched institution as benefiting.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.\n4. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n5. A joint activity counts when the page names this institution as a participant.\n6. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n7. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n8. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
+          "text": "Another body runs or buys the activity for the searched institution, and the page names the searched institution as benefiting.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n4. A joint activity counts when the page names this institution as a participant.\n5. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n6. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n7. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
           "definition_slot": "items/core.observed_actor_relationship/values/searched_institution_role/1/definition",
           "rule_slots": [
             "items/core.observed_actor_relationship/rules/0",
             "items/core.observed_actor_relationship/rules/1",
-            "items/core.observed_actor_relationship/rules/2",
             "shared_rules/core.rule.attribution_grain/0",
             "shared_rules/core.rule.attribution_grain/1",
+            "items/core.observed_actor_relationship/rules/3",
             "items/core.observed_actor_relationship/rules/4",
-            "items/core.observed_actor_relationship/rules/5",
-            "items/core.observed_actor_relationship/rules/6"
+            "items/core.observed_actor_relationship/rules/5"
           ]
         },
         {
           "code": "central_purchasing_body",
-          "text": "The searched institution buys or sets up a contract or framework on behalf of other bodies.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.\n4. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n5. A joint activity counts when the page names this institution as a participant.\n6. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n7. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n8. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
+          "text": "The searched institution buys or sets up a contract or framework on behalf of other bodies.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n4. A joint activity counts when the page names this institution as a participant.\n5. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n6. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n7. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
           "definition_slot": "items/core.observed_actor_relationship/values/searched_institution_role/2/definition",
           "rule_slots": [
             "items/core.observed_actor_relationship/rules/0",
             "items/core.observed_actor_relationship/rules/1",
-            "items/core.observed_actor_relationship/rules/2",
             "shared_rules/core.rule.attribution_grain/0",
             "shared_rules/core.rule.attribution_grain/1",
+            "items/core.observed_actor_relationship/rules/3",
             "items/core.observed_actor_relationship/rules/4",
-            "items/core.observed_actor_relationship/rules/5",
-            "items/core.observed_actor_relationship/rules/6"
+            "items/core.observed_actor_relationship/rules/5"
           ]
         },
         {
           "code": "unit",
-          "text": "The searched institution is itself a unit (a department, office or school) of a larger body that carries out the activity. Not for an activity that a unit of the searched institution carries out.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.\n4. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n5. A joint activity counts when the page names this institution as a participant.\n6. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n7. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n8. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
+          "text": "The searched institution is itself a unit (a department, office or school) of a larger body that carries out the activity. Not for an activity that a unit of the searched institution carries out.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n4. A joint activity counts when the page names this institution as a participant.\n5. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n6. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n7. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
           "definition_slot": "items/core.observed_actor_relationship/values/searched_institution_role/3/definition",
           "rule_slots": [
             "items/core.observed_actor_relationship/rules/0",
             "items/core.observed_actor_relationship/rules/1",
-            "items/core.observed_actor_relationship/rules/2",
             "shared_rules/core.rule.attribution_grain/0",
             "shared_rules/core.rule.attribution_grain/1",
+            "items/core.observed_actor_relationship/rules/3",
             "items/core.observed_actor_relationship/rules/4",
-            "items/core.observed_actor_relationship/rules/5",
-            "items/core.observed_actor_relationship/rules/6"
+            "items/core.observed_actor_relationship/rules/5"
           ]
         },
         {
           "code": "joint",
-          "text": "The searched institution takes part as one of several joint participants.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.\n4. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n5. A joint activity counts when the page names this institution as a participant.\n6. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n7. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n8. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
+          "text": "The searched institution takes part as one of several joint participants.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n4. A joint activity counts when the page names this institution as a participant.\n5. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n6. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n7. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
           "definition_slot": "items/core.observed_actor_relationship/values/searched_institution_role/4/definition",
           "rule_slots": [
             "items/core.observed_actor_relationship/rules/0",
             "items/core.observed_actor_relationship/rules/1",
-            "items/core.observed_actor_relationship/rules/2",
             "shared_rules/core.rule.attribution_grain/0",
             "shared_rules/core.rule.attribution_grain/1",
+            "items/core.observed_actor_relationship/rules/3",
             "items/core.observed_actor_relationship/rules/4",
-            "items/core.observed_actor_relationship/rules/5",
-            "items/core.observed_actor_relationship/rules/6"
+            "items/core.observed_actor_relationship/rules/5"
           ]
         },
         {
           "code": "not_documented",
           "missing_label": true,
-          "text": "Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.\n4. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n5. A joint activity counts when the page names this institution as a participant.\n6. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n7. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n8. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
-          "definition_slot": "items/core.observed_actor_relationship/rules/6",
+          "text": "Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.\n\nRules:\n1. The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.\n2. The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.\n3. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n4. A joint activity counts when the page names this institution as a participant.\n5. Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.\n6. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n7. Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.",
+          "definition_slot": "items/core.observed_actor_relationship/rules/5",
           "rule_slots": [
             "items/core.observed_actor_relationship/rules/0",
             "items/core.observed_actor_relationship/rules/1",
-            "items/core.observed_actor_relationship/rules/2",
             "shared_rules/core.rule.attribution_grain/0",
             "shared_rules/core.rule.attribution_grain/1",
+            "items/core.observed_actor_relationship/rules/3",
             "items/core.observed_actor_relationship/rules/4",
-            "items/core.observed_actor_relationship/rules/5",
-            "items/core.observed_actor_relationship/rules/6"
+            "items/core.observed_actor_relationship/rules/5"
           ]
         }
       ],
@@ -371,7 +359,7 @@
       "question_id": "core.activity_type",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.activity_type`",
       "item_id": "core.activity_type",
-      "item_hash": "82fed996275e4d042efea9bea6935308cd9e2c79469ed39135601b6a3af9a742",
+      "item_hash": "9b0dbf4bdc73d1ea6d60e92fb0ca9c307b114264dfb0ad48aba03e1f48361ee2",
       "column": "activity_type",
       "pass": 2,
       "round": 2,
@@ -387,62 +375,52 @@
       "criteria": [
         {
           "code": "policy_guidance",
-          "text": "Executive orders, agency memos, acceptable-use rules, procurement standards, internal guidance on permissible AI tools and data handling.\n\nRules:\n1. An AI policy and a pilot at the same institution are two separate activities; code only the activity in question.\n2. A national programme counts as this institution's activity only when the page confirms that this institution takes part.\n3. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n4. a disallowed pair is flagged for review and no label is changed\n5. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.",
+          "text": "Executive orders, agency memos, acceptable-use rules, procurement standards, internal guidance on permissible AI tools and data handling.\n\nRules:\n1. An AI policy and a pilot at the same institution are two separate activities; code only the activity in question.\n2. A national programme counts as this institution's activity only when the page confirms that this institution takes part.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.",
           "definition_slot": "items/core.activity_type/values/0/definition",
           "rule_slots": [
             "items/core.activity_type/rules/0",
             "items/core.activity_type/rules/1",
-            "shared_rules/core.rule.allowed_type_action_pairs/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/1",
-            "items/core.activity_type/rules/3"
+            "items/core.activity_type/rules/2"
           ]
         },
         {
           "code": "pilot_experiment",
-          "text": "Limited trials, sandboxes, proof-of-concept deployments, or time-bounded experiments.\n\nRules:\n1. An AI policy and a pilot at the same institution are two separate activities; code only the activity in question.\n2. A national programme counts as this institution's activity only when the page confirms that this institution takes part.\n3. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n4. a disallowed pair is flagged for review and no label is changed\n5. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.",
+          "text": "Limited trials, sandboxes, proof-of-concept deployments, or time-bounded experiments.\n\nRules:\n1. An AI policy and a pilot at the same institution are two separate activities; code only the activity in question.\n2. A national programme counts as this institution's activity only when the page confirms that this institution takes part.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.",
           "definition_slot": "items/core.activity_type/values/1/definition",
           "rule_slots": [
             "items/core.activity_type/rules/0",
             "items/core.activity_type/rules/1",
-            "shared_rules/core.rule.allowed_type_action_pairs/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/1",
-            "items/core.activity_type/rules/3"
+            "items/core.activity_type/rules/2"
           ]
         },
         {
           "code": "program_initiative",
-          "text": "Cross-agency programs, governance bodies, training programs, or platform rollouts spanning multiple units.\n\nRules:\n1. An AI policy and a pilot at the same institution are two separate activities; code only the activity in question.\n2. A national programme counts as this institution's activity only when the page confirms that this institution takes part.\n3. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n4. a disallowed pair is flagged for review and no label is changed\n5. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.",
+          "text": "Cross-agency programs, governance bodies, training programs, or platform rollouts spanning multiple units.\n\nRules:\n1. An AI policy and a pilot at the same institution are two separate activities; code only the activity in question.\n2. A national programme counts as this institution's activity only when the page confirms that this institution takes part.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.",
           "definition_slot": "items/core.activity_type/values/2/definition",
           "rule_slots": [
             "items/core.activity_type/rules/0",
             "items/core.activity_type/rules/1",
-            "shared_rules/core.rule.allowed_type_action_pairs/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/1",
-            "items/core.activity_type/rules/3"
+            "items/core.activity_type/rules/2"
           ]
         },
         {
           "code": "internal_operational",
-          "text": "Routine internal use for drafting, summarization, knowledge search, translation, internal helpdesks, or developer tooling.\n\nRules:\n1. An AI policy and a pilot at the same institution are two separate activities; code only the activity in question.\n2. A national programme counts as this institution's activity only when the page confirms that this institution takes part.\n3. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n4. a disallowed pair is flagged for review and no label is changed\n5. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.",
+          "text": "Routine internal use for drafting, summarization, knowledge search, translation, internal helpdesks, or developer tooling.\n\nRules:\n1. An AI policy and a pilot at the same institution are two separate activities; code only the activity in question.\n2. A national programme counts as this institution's activity only when the page confirms that this institution takes part.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.",
           "definition_slot": "items/core.activity_type/values/3/definition",
           "rule_slots": [
             "items/core.activity_type/rules/0",
             "items/core.activity_type/rules/1",
-            "shared_rules/core.rule.allowed_type_action_pairs/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/1",
-            "items/core.activity_type/rules/3"
+            "items/core.activity_type/rules/2"
           ]
         },
         {
           "code": "public_facing_service",
-          "text": "Citizen- or business-facing chatbots, service navigation, translation, complaint handling, case triage.\n\nRules:\n1. An AI policy and a pilot at the same institution are two separate activities; code only the activity in question.\n2. A national programme counts as this institution's activity only when the page confirms that this institution takes part.\n3. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n4. a disallowed pair is flagged for review and no label is changed\n5. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.",
+          "text": "Citizen- or business-facing chatbots, service navigation, translation, complaint handling, case triage.\n\nRules:\n1. An AI policy and a pilot at the same institution are two separate activities; code only the activity in question.\n2. A national programme counts as this institution's activity only when the page confirms that this institution takes part.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.",
           "definition_slot": "items/core.activity_type/values/4/definition",
           "rule_slots": [
             "items/core.activity_type/rules/0",
             "items/core.activity_type/rules/1",
-            "shared_rules/core.rule.allowed_type_action_pairs/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/1",
-            "items/core.activity_type/rules/3"
+            "items/core.activity_type/rules/2"
           ]
         }
       ],
@@ -458,7 +436,7 @@
       "question_id": "core.action_type",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.action_type`",
       "item_id": "core.action_type",
-      "item_hash": "cc49f966c1a02a32489091c718ee1fd94896f341158ca1a2788cd37253ef78d1",
+      "item_hash": "ba678413a7169cb0a7963c2617c0e629f77325545a3d13d991ca5c589d961657",
       "column": "action_type",
       "pass": 2,
       "round": 2,
@@ -474,50 +452,42 @@
       "criteria": [
         {
           "code": "deployment",
-          "text": "The institution puts an AI tool to use, or tries one out, for its own work or for the public. Publishing its own content credited as made with AI is putting a tool to use. The stage and the purchase status are coded separately.\n\nRules:\n1. One answer per activity: deployment, governance, staff training or program. Purchases and proposals are not action types; the purchase status and the stage carry them.\n2. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n3. a disallowed pair is flagged for review and no label is changed\n4. A body that sets or oversees rules gets the governance questions.\n5. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.",
+          "text": "The institution puts an AI tool to use, or tries one out, for its own work or for the public. Publishing its own content credited as made with AI is putting a tool to use. The stage and the purchase status are coded separately.\n\nRules:\n1. One answer per activity: deployment, governance, staff training or program. Purchases and proposals are not action types; the purchase status and the stage carry them.\n2. A body that sets or oversees rules gets the governance questions.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.",
           "definition_slot": "items/core.action_type/values/0/definition",
           "rule_slots": [
             "items/core.action_type/rules/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/1",
             "shared_rules/core.rule.governance_gate/0",
-            "items/core.action_type/rules/3"
+            "items/core.action_type/rules/2"
           ]
         },
         {
           "code": "governance",
-          "text": "The institution issues or applies a rule on AI use: a policy, guidance, approved-tool list, order or standard. A body that sets or oversees such rules also counts.\n\nRules:\n1. One answer per activity: deployment, governance, staff training or program. Purchases and proposals are not action types; the purchase status and the stage carry them.\n2. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n3. a disallowed pair is flagged for review and no label is changed\n4. A body that sets or oversees rules gets the governance questions.\n5. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.",
+          "text": "The institution issues or applies a rule on AI use: a policy, guidance, approved-tool list, order or standard. A body that sets or oversees such rules also counts.\n\nRules:\n1. One answer per activity: deployment, governance, staff training or program. Purchases and proposals are not action types; the purchase status and the stage carry them.\n2. A body that sets or oversees rules gets the governance questions.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.",
           "definition_slot": "items/core.action_type/values/1/definition",
           "rule_slots": [
             "items/core.action_type/rules/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/1",
             "shared_rules/core.rule.governance_gate/0",
-            "items/core.action_type/rules/3"
+            "items/core.action_type/rules/2"
           ]
         },
         {
           "code": "staff_training",
-          "text": "The institution trains public-sector staff, its own or those of bodies it serves, to use AI.\n\nRules:\n1. One answer per activity: deployment, governance, staff training or program. Purchases and proposals are not action types; the purchase status and the stage carry them.\n2. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n3. a disallowed pair is flagged for review and no label is changed\n4. A body that sets or oversees rules gets the governance questions.\n5. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.",
+          "text": "The institution trains public-sector staff, its own or those of bodies it serves, to use AI.\n\nRules:\n1. One answer per activity: deployment, governance, staff training or program. Purchases and proposals are not action types; the purchase status and the stage carry them.\n2. A body that sets or oversees rules gets the governance questions.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.",
           "definition_slot": "items/core.action_type/values/2/definition",
           "rule_slots": [
             "items/core.action_type/rules/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/1",
             "shared_rules/core.rule.governance_gate/0",
-            "items/core.action_type/rules/3"
+            "items/core.action_type/rules/2"
           ]
         },
         {
           "code": "program",
-          "text": "A container activity whose named components are each their own activity, linked to it. Used only when the page names the components.\n\nRules:\n1. One answer per activity: deployment, governance, staff training or program. Purchases and proposals are not action types; the purchase status and the stage carry them.\n2. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n3. a disallowed pair is flagged for review and no label is changed\n4. A body that sets or oversees rules gets the governance questions.\n5. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.",
+          "text": "A container activity whose named components are each their own activity, linked to it. Used only when the page names the components.\n\nRules:\n1. One answer per activity: deployment, governance, staff training or program. Purchases and proposals are not action types; the purchase status and the stage carry them.\n2. A body that sets or oversees rules gets the governance questions.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.",
           "definition_slot": "items/core.action_type/values/3/definition",
           "rule_slots": [
             "items/core.action_type/rules/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/0",
-            "shared_rules/core.rule.allowed_type_action_pairs/1",
             "shared_rules/core.rule.governance_gate/0",
-            "items/core.action_type/rules/3"
+            "items/core.action_type/rules/2"
           ]
         }
       ],
@@ -807,7 +777,7 @@
       "question_id": "core.procurement_status",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.procurement_status`",
       "item_id": "core.procurement_status",
-      "item_hash": "6a27a7df087d81ee84d1a80ae4493c71aba22288d8e9852882b5e37682440820",
+      "item_hash": "f861980556dfa3d13157436b45d9fa9acd27c2281a42c350f62498460fad47f6",
       "column": "procurement_status",
       "pass": 2,
       "round": 3,
@@ -847,46 +817,42 @@
       "criteria": [
         {
           "code": "none_documented",
-          "text": "The page documents the activity but no purchase step for it.\n\nRules:\n1. Keep adoption_stage for use; add `procurement_status`: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown. Payment-only activities get adoption_stage `unknown` plus procurement_status `payment_or_subscription`.\n2. Purchase records fill the purchase-status field and get an \"unknown\" adoption stage unless use is shown. The owed contract amendment shrinks to removing purchase language, the procurement rules are amended, and the evidence-tier wording is fixed.\n3. A page that describes the activity but shows no purchase step takes `none_documented`, which is a real answer; `not_documented` is not used for this item.\n4. The page mentions a purchase of the tool or service but does not let it be settled.",
+          "text": "The page documents the activity but no purchase step for it.\n\nRules:\n1. Answers: `none_documented`, `tender_or_rfp`, `award_or_contract`, `payment_or_subscription`. Use is coded in the adoption stage. A payment-only activity takes `payment_or_subscription` here and stage `unknown`.\n2. A page that describes the activity but shows no purchase step takes `none_documented`, which is a real answer; `not_documented` is not used for this item.\n3. The page mentions a purchase of the tool or service but does not let it be settled.",
           "definition_slot": "items/core.procurement_status/values/0/definition",
           "rule_slots": [
             "items/core.procurement_status/rules/0",
             "items/core.procurement_status/rules/1",
-            "items/core.procurement_status/rules/2",
-            "items/core.procurement_status/rules/3"
+            "items/core.procurement_status/rules/2"
           ]
         },
         {
           "code": "tender_or_rfp",
-          "text": "The institution has issued a call for tenders, a request for proposals or a similar invitation to bid for the tool or service.\n\nRules:\n1. Keep adoption_stage for use; add `procurement_status`: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown. Payment-only activities get adoption_stage `unknown` plus procurement_status `payment_or_subscription`.\n2. Purchase records fill the purchase-status field and get an \"unknown\" adoption stage unless use is shown. The owed contract amendment shrinks to removing purchase language, the procurement rules are amended, and the evidence-tier wording is fixed.\n3. A page that describes the activity but shows no purchase step takes `none_documented`, which is a real answer; `not_documented` is not used for this item.\n4. The page mentions a purchase of the tool or service but does not let it be settled.",
+          "text": "The institution has issued a call for tenders, a request for proposals or a similar invitation to bid for the tool or service.\n\nRules:\n1. Answers: `none_documented`, `tender_or_rfp`, `award_or_contract`, `payment_or_subscription`. Use is coded in the adoption stage. A payment-only activity takes `payment_or_subscription` here and stage `unknown`.\n2. A page that describes the activity but shows no purchase step takes `none_documented`, which is a real answer; `not_documented` is not used for this item.\n3. The page mentions a purchase of the tool or service but does not let it be settled.",
           "definition_slot": "items/core.procurement_status/values/1/definition",
           "rule_slots": [
             "items/core.procurement_status/rules/0",
             "items/core.procurement_status/rules/1",
-            "items/core.procurement_status/rules/2",
-            "items/core.procurement_status/rules/3"
+            "items/core.procurement_status/rules/2"
           ]
         },
         {
           "code": "award_or_contract",
-          "text": "A contract, award or licence agreement for the tool or service is reported as made.\n\nRules:\n1. Keep adoption_stage for use; add `procurement_status`: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown. Payment-only activities get adoption_stage `unknown` plus procurement_status `payment_or_subscription`.\n2. Purchase records fill the purchase-status field and get an \"unknown\" adoption stage unless use is shown. The owed contract amendment shrinks to removing purchase language, the procurement rules are amended, and the evidence-tier wording is fixed.\n3. A page that describes the activity but shows no purchase step takes `none_documented`, which is a real answer; `not_documented` is not used for this item.\n4. The page mentions a purchase of the tool or service but does not let it be settled.",
+          "text": "A contract, award or licence agreement for the tool or service is reported as made.\n\nRules:\n1. Answers: `none_documented`, `tender_or_rfp`, `award_or_contract`, `payment_or_subscription`. Use is coded in the adoption stage. A payment-only activity takes `payment_or_subscription` here and stage `unknown`.\n2. A page that describes the activity but shows no purchase step takes `none_documented`, which is a real answer; `not_documented` is not used for this item.\n3. The page mentions a purchase of the tool or service but does not let it be settled.",
           "definition_slot": "items/core.procurement_status/values/2/definition",
           "rule_slots": [
             "items/core.procurement_status/rules/0",
             "items/core.procurement_status/rules/1",
-            "items/core.procurement_status/rules/2",
-            "items/core.procurement_status/rules/3"
+            "items/core.procurement_status/rules/2"
           ]
         },
         {
           "code": "payment_or_subscription",
-          "text": "The page records a payment, invoice or subscription for the tool or service. On its own this does not show use; the stage is then unknown unless use is shown.\n\nRules:\n1. Keep adoption_stage for use; add `procurement_status`: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown. Payment-only activities get adoption_stage `unknown` plus procurement_status `payment_or_subscription`.\n2. Purchase records fill the purchase-status field and get an \"unknown\" adoption stage unless use is shown. The owed contract amendment shrinks to removing purchase language, the procurement rules are amended, and the evidence-tier wording is fixed.\n3. A page that describes the activity but shows no purchase step takes `none_documented`, which is a real answer; `not_documented` is not used for this item.\n4. The page mentions a purchase of the tool or service but does not let it be settled.",
+          "text": "The page records a payment, invoice or subscription for the tool or service. On its own this does not show use; the stage is then unknown unless use is shown.\n\nRules:\n1. Answers: `none_documented`, `tender_or_rfp`, `award_or_contract`, `payment_or_subscription`. Use is coded in the adoption stage. A payment-only activity takes `payment_or_subscription` here and stage `unknown`.\n2. A page that describes the activity but shows no purchase step takes `none_documented`, which is a real answer; `not_documented` is not used for this item.\n3. The page mentions a purchase of the tool or service but does not let it be settled.",
           "definition_slot": "items/core.procurement_status/values/3/definition",
           "rule_slots": [
             "items/core.procurement_status/rules/0",
             "items/core.procurement_status/rules/1",
-            "items/core.procurement_status/rules/2",
-            "items/core.procurement_status/rules/3"
+            "items/core.procurement_status/rules/2"
           ]
         }
       ],
@@ -1880,7 +1846,7 @@
       "question_id": "core.governed_population",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.governed_population`",
       "item_id": "core.governed_population",
-      "item_hash": "84b1eabcc7e258f67d556996506aa8436b3ed51e0b32865b2b9594f9182cc3e3",
+      "item_hash": "e57d050167a5cbc640be0588e4e4b1a51d9ce6a1ef81c22ebfbf0bf8714ee7f5",
       "column": "governed_population",
       "pass": 2,
       "round": 3,
@@ -1902,43 +1868,39 @@
       "criteria": [
         {
           "code": "internal_personnel",
-          "text": "The rule applies to the institution's own staff and officials.\n\nRules:\n1. jev Choice: internal_personnel / external_users / both / unknown; `not_applicable` for non-governance.\n2. The page mentions whom the rule applies to but does not let it be settled.\n3. not_documented: the page is silent.",
+          "text": "The rule applies to the institution's own staff and officials.\n\nRules:\n1. The page mentions whom the rule applies to but does not let it be settled.\n2. not_documented: the page is silent.",
           "definition_slot": "items/core.governed_population/values/0/definition",
           "rule_slots": [
             "items/core.governed_population/rules/0",
-            "items/core.governed_population/rules/1",
-            "items/core.governed_population/rules/2"
+            "items/core.governed_population/rules/1"
           ]
         },
         {
           "code": "external_users",
-          "text": "The rule applies to people or bodies outside the institution, such as the public or the parties it regulates.\n\nRules:\n1. jev Choice: internal_personnel / external_users / both / unknown; `not_applicable` for non-governance.\n2. The page mentions whom the rule applies to but does not let it be settled.\n3. not_documented: the page is silent.",
+          "text": "The rule applies to people or bodies outside the institution, such as the public or the parties it regulates.\n\nRules:\n1. The page mentions whom the rule applies to but does not let it be settled.\n2. not_documented: the page is silent.",
           "definition_slot": "items/core.governed_population/values/1/definition",
           "rule_slots": [
             "items/core.governed_population/rules/0",
-            "items/core.governed_population/rules/1",
-            "items/core.governed_population/rules/2"
+            "items/core.governed_population/rules/1"
           ]
         },
         {
           "code": "both",
-          "text": "The rule applies both to the institution's own staff and to people or bodies outside it. On long pages, one part naming each also gives this value.\n\nRules:\n1. jev Choice: internal_personnel / external_users / both / unknown; `not_applicable` for non-governance.\n2. The page mentions whom the rule applies to but does not let it be settled.\n3. not_documented: the page is silent.",
+          "text": "The rule applies both to the institution's own staff and to people or bodies outside it. On long pages, one part naming each also gives this value.\n\nRules:\n1. The page mentions whom the rule applies to but does not let it be settled.\n2. not_documented: the page is silent.",
           "definition_slot": "items/core.governed_population/values/2/definition",
           "rule_slots": [
             "items/core.governed_population/rules/0",
-            "items/core.governed_population/rules/1",
-            "items/core.governed_population/rules/2"
+            "items/core.governed_population/rules/1"
           ]
         },
         {
           "code": "not_documented",
           "missing_label": true,
-          "text": "not_documented: the page is silent.\n\nRules:\n1. jev Choice: internal_personnel / external_users / both / unknown; `not_applicable` for non-governance.\n2. The page mentions whom the rule applies to but does not let it be settled.\n3. not_documented: the page is silent.",
-          "definition_slot": "items/core.governed_population/rules/2",
+          "text": "not_documented: the page is silent.\n\nRules:\n1. The page mentions whom the rule applies to but does not let it be settled.\n2. not_documented: the page is silent.",
+          "definition_slot": "items/core.governed_population/rules/1",
           "rule_slots": [
             "items/core.governed_population/rules/0",
-            "items/core.governed_population/rules/1",
-            "items/core.governed_population/rules/2"
+            "items/core.governed_population/rules/1"
           ]
         }
       ],
