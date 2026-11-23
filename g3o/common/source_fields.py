@@ -1,7 +1,7 @@
 """Source-level field coder (T-015; RC-D-002 H Q3, N25, O2; RC-D-023 B-Q3 a).
 
 One producer per source-level item of the signed codebook (r18, sha256
-``2ad76ee7…ce6aa7``, signed only when ``planning/t010/signoff-record.md`` holds it): every item whose ``level`` includes ``source``. Values,
+``470f8be2…490759``, signed only when ``planning/t010/signoff-record.md`` holds it): every item whose ``level`` includes ``source``. Values,
 codes, missing tokens, support statuses and the date-origin map are read from
 the codebook through :mod:`g3o.codebook`; nothing here restates an enum the
 loader provides. Where a signed slot states its codes only inside rule text
@@ -101,7 +101,7 @@ from g3o.common.support_check import (
 from g3o.common.urlnorm import site_host
 
 #: Codebook r17 (calibration rulings 2026-11-21), signed when planning/t010/signoff-record.md holds this sha256 (A-001).
-SIGNED_CODEBOOK_SHA256 = "2ad76ee7df9da3e70fda3fe6d20fcef7b35483594b038d5446e89b1e6cce6aa7"
+SIGNED_CODEBOOK_SHA256 = "470f8be2de43e9d7f47cd0e061fb2075dc2d70869fb36d2c6530a92cde490759"
 if SIGNED_CODEBOOK_SHA256 != SUPPORT_CHECK_CODEBOOK_SHA256:  # pragma: no cover - pin drift guard
     raise ImportError("source_fields and support_check pin different codebook releases")
 

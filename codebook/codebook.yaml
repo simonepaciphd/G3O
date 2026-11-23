@@ -11104,7 +11104,7 @@ items:
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page institution card I01 slot 2'
     - text: |-
         Page-verdict roll-up: a reviewed, unfailed web page whose final verdict is `confirms_activity`, whose verdict support status is `downgraded_quote_not_stating_value` or `downgraded_no_quote`, whose chosen probability passes the classifier verdict bar, and which has at least one supported activity observation on the same page, counts as a supported `confirms_activity` page. `downgraded_low_confidence` is never rescued and a page with no supported activity is never rescued. The verdict is never rewritten and keeps its support status; the source row's `confidence` stays `low`.
-      origin: 'PI 2026-11-22 chat "all as rec" (rulings R1 b, R2, R3 for RC-D-049); r18'
+      origin: 'PI 2026-11-22 chat "all as rec" (rulings R2, R3 for RC-D-049), chat "a" (no stored mark; the rescued page keeps its failed status) and chat "all prev as rec" (web pages only); r18'
       source: RC-D-049; PREREG A34, A38
       role: page-verdict roll-up
     order_tie_rule: none

@@ -30,7 +30,7 @@ R17_CANDIDATE_SHA256 = "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7
 #: UNSIGNED codebook r18 candidate (setting F: the support check's bar per checked item,
 #: ``core.support_entailment.threshold_by_checked_item``; byte edits to the signed r17 file). It keeps every r16
 #: field. Signed only when ``planning/t010/signoff-record.md`` holds this SHA256.
-R18_CANDIDATE_SHA256 = "2ad76ee7df9da3e70fda3fe6d20fcef7b35483594b038d5446e89b1e6cce6aa7"
+R18_CANDIDATE_SHA256 = "470f8be2de43e9d7f47cd0e061fb2075dc2d70869fb36d2c6530a92cde490759"
 
 #: The releases that carry the r16 fields: r16 and the revisions built on it.
 R16_FIELD_RELEASES = (R16_CANDIDATE_SHA256, R17_CANDIDATE_SHA256, R18_CANDIDATE_SHA256)
