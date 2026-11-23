@@ -49,9 +49,16 @@ def test_the_codebook_in_use_is_the_r18_candidate_built_on_r16():
     assert hashlib.sha256(CODEBOOK.read_bytes()).hexdigest() == r16.R18_CANDIDATE_SHA256
     assert r16.R16_FIELD_RELEASES == (r16.R16_CANDIDATE_SHA256, r16.R17_CANDIDATE_SHA256, r16.R18_CANDIDATE_SHA256)
     live, base = yaml.safe_load(CODEBOOK.read_bytes())["items"], yaml.safe_load(FIXTURE.read_bytes())["items"]
+    # clean-docs layer 1 (PI 2026-11-23, 1 c): history keys such as the gate's `amended` records moved to
+    # planning/t010/codebook-history.json, so they are left out of the shape comparison.
+    history = {"amended"}
+
+    def shape(v):
+        return {k: x for k, x in v.items() if k not in history} if isinstance(v, dict) else v
+
     for item in ("core.developer", "core.developer_basis", "core.stage_as_of_basis"):  # the r16 fields keep their shape
         for key in ("coder", "linkage", "pass", "round", "gate", "answer_type"):
-            assert live[item][key] == base[item][key], (item, key)
+            assert shape(live[item][key]) == shape(base[item][key]), (item, key)
         codes = lambda it: [v["code"] for v in it["values"]] if isinstance(it.get("values"), list) else it.get("values")  # noqa: E731
         assert codes(live[item]) == codes(base[item]), item
 
