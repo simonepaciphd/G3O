@@ -182,8 +182,10 @@ ACTIVITY_NAME = "core.activity_name"
 
 #: SHA256 (UTF-8) of the PI-approved pass-1 system prompt,
 #: ``request_v27.build_system_prompt()`` (RC-D-021 P-1 a).
-#: Pin of the cleaned r18 candidate, approved by the PI on 2026-11-23.
-PASS1_SYSTEM_SHA256 = "e2a6b491691635f6af3f75de8d84b745d0113670404ab96dc2d0ca8d9d948277"
+#: o1124 Change 2 (DRAFT, pending PI approval of the follow-link wording): the link task names the any-AI
+#: construct. The pin the PI approved on 2026-11-23 for the cleaned r18 candidate was
+#: e2a6b491691635f6af3f75de8d84b745d0113670404ab96dc2d0ca8d9d948277.
+PASS1_SYSTEM_SHA256 = "2c702f9f3190cc540929ec56418c811a58e0e7bcfbbd181975c80f1d3e19b9f4"
 #: SHA256 (UTF-8) of the PI-approved pass-2 system prompt,
 #: ``pass2_support.build_system_prompt()`` (RC-D-021 P-2 a).
 #: Pin of the cleaned r18 candidate, approved by the PI on 2026-11-23.
