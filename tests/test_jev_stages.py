@@ -248,6 +248,20 @@ class TestJevURLTriageQuestions:
         for q in questions.values():
             assert q.type == "noul"
 
+    def test_keep_instruction_uses_the_any_ai_construct(self):
+        """o1124 Change 2: triage keeps evidence of any AI the source calls AI or machine learning
+        (codebook r18 construct), not generative AI only; the keep threshold is unchanged."""
+        (q,) = build_triage_questions(["https://example.gov/ai"]).values()
+        text = q.instructions
+        assert "'https://example.gov/ai'" in text
+        assert "generative ai adoption" not in text.lower() and "genai" not in text.lower()
+        assert "evidence of AI adoption" in text
+        assert ("generative AI or any other tool or activity the source calls AI, artificial intelligence or "
+                "machine learning") in text
+        assert "institution-specific AI signal" in text
+        assert "Be inclusive at the margins: when uncertain, prefer keep." in text
+        assert KEEP_THRESHOLD == 0.5
+
     def test_build_questions_empty(self):
         questions = build_triage_questions([])
         assert len(questions) == 0
@@ -773,7 +787,8 @@ class TestConstants:
         assert CONFIDENCE_LEVELS == ["none", "low", "medium", "high"]
 
     def test_triage_constants(self):
-        assert TRIAGE_JEV_QUESTION_SET_VERSION == "g3o.classify.url_triage.jev.v1"
+        # o1124 Change 2: the keep instruction moved to the any-AI construct (v1 said generative AI)
+        assert TRIAGE_JEV_QUESTION_SET_VERSION == "g3o.classify.url_triage.jev.v2"
         assert KEEP_THRESHOLD == 0.5
 
     def test_runner_constants(self):

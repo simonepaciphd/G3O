@@ -26,6 +26,7 @@ from g3o.classify.jev_official_site import (
 from g3o.classify.jev_official_site import (
     parse_official_site_result as jev_parse_official_site_result,
 )
+from g3o.classify.jev_url_triage import JEV_QUESTION_SET_VERSION as TRIAGE_JEV_QUESTION_SET_VERSION
 from g3o.classify.jev_url_triage import (
     build_triage_questions as jev_build_triage_questions,
 )
@@ -887,7 +888,7 @@ def _run_classify_triage_jev(
                 ],
                 "response_model": parsed.response_model,
                 "request_id": parsed.request_id,
-                "jev_question_set_version": "g3o.classify.url_triage.jev.v1",
+                "jev_question_set_version": TRIAGE_JEV_QUESTION_SET_VERSION,
             }
             (inst_dir / "3_triage.json").write_text(
                 json.dumps(payload, ensure_ascii=False, indent=2),
