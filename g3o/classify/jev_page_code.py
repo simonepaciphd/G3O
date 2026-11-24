@@ -82,6 +82,12 @@ CHROME_INPUT = "main_plus_chrome"
 GROUP_MAIN = "main"
 GROUP_CHROME = "chrome"
 
+#: o1124 Change 1 (DRAFT, packet item W-09 pending PI approval): the master row's
+#: ``institution_type`` and ``disambiguation``, sent after the level of government.
+#: A missing or blank value gives no field (as W3-2 a), never an empty string.
+INSTITUTION_TYPE_FIELD = "institution_type"
+DISAMBIGUATION_FIELD = "institution_disambiguation"
+
 READABILITY_RULE = "readability_failure:"
 GATE_RULE = "gated_out:"
 
@@ -113,6 +119,8 @@ class PageInput:
     has_metadata_date: bool = False  # passed to T-022 unchanged
     email_links: tuple[str, ...] | None = None  # T-014 addresses, already normalized
     first_heading: str | None = None  # Def7 RenderedPage.first_heading; None = not measured
+    institution_type: str | None = None  # master ``institution_type``; None = not recorded
+    disambiguation: str | None = None  # master ``disambiguation``; None = not recorded
 
 
 @dataclass(frozen=True)
@@ -178,6 +186,7 @@ def build_state(page: PageInput, chunk: Chunk, index: int, n_parts: int, qset: M
         "institution": page.institution,
         "country": page.country,
         "level_of_government": page.level_of_government,
+        **identity_fields(page),
         "page_url": page.url,
         "page_title": page.title,
         "page_part": f"{index} of {n_parts}",
@@ -188,6 +197,16 @@ def build_state(page: PageInput, chunk: Chunk, index: int, n_parts: int, qset: M
     if chrome:
         state[CHROME_STATE_FIELD] = contact_text(page)
     return state
+
+
+def identity_fields(page: PageInput) -> dict[str, str]:
+    """The master identity fields of the state (o1124 Change 1); a missing or blank value is left out."""
+    out: dict[str, str] = {}
+    for name, value in ((INSTITUTION_TYPE_FIELD, page.institution_type),
+                        (DISAMBIGUATION_FIELD, page.disambiguation)):
+        if isinstance(value, str) and value.strip():
+            out[name] = value
+    return out
 
 
 def build_questions(questions: Sequence[dict[str, Any]], *, part: bool) -> dict[str, dict[str, Any]]:

@@ -25,10 +25,13 @@
     "packet_items": [
       "W-01",
       "W-02",
-      "B-Q4"
+      "B-Q4",
+      "W-09"
     ],
-    "approval": "approved",
-    "open": [],
+    "approval": "pending",
+    "open": [
+      "W-09: names, value form (master code verbatim) and place of the fields institution_type and institution_disambiguation await PI approval"
+    ],
     "form_source": "T-016 re-pilot state (scripts/spikes/t016/repilot_v27.py page_units)",
     "fields": [
       {
@@ -46,6 +49,16 @@
       {
         "name": "level_of_government",
         "value": "level of government from the master"
+      },
+      {
+        "name": "institution_type",
+        "value": "institution_type from the master, verbatim",
+        "shown_text": "the master code as recorded (e.g. municipality); left out when blank"
+      },
+      {
+        "name": "institution_disambiguation",
+        "value": "disambiguation from the master, verbatim",
+        "shown_text": "the master text as recorded; left out when blank (most rows have none)"
       },
       {
         "name": "page_url",
@@ -89,6 +102,10 @@
       "packet_item": "W-02",
       "approval": "approved",
       "approval_record": "PI 2026-11-05 chat \"w2a\" (W-02 a: coder briefing and part sentence with the page material)"
+    },
+    {
+      "packet_item": "W-09",
+      "approval": "pending"
     }
   ],
   "questions": [

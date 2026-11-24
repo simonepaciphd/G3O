@@ -114,6 +114,8 @@ def test_searched_pages_are_followed_false_and_round_records_provenance(tmp_path
     assert fetch.calls == [F1]
     (spec,) = out
     assert (spec.page.page_id, spec.page.url, spec.page.institution) == (url_hash(F1), F1, "Council One")
+    # o1124 Change 1: a followed page is coded with the same master identity as the searched page
+    assert (spec.page.institution_type, spec.page.disambiguation) == ("council", "New South Wales — local council")
     assert (spec.upstream.followed, spec.upstream.hop) == (True, 1)
     assert artifact_exists(institution_dir(run_dir, I1) / fv.FOLLOW_DIR / f"{url_hash(F1)}.json")
     doc = json.loads((institution_dir(run_dir, I1) / fv.FOLLOW_DIR / fv.STATE_FILE).read_text(encoding="utf-8"))

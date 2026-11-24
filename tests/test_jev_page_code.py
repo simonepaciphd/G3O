@@ -116,6 +116,36 @@ def test_single_part_state_rounds_and_chrome(rules):
     assert r.configured_model == "jev-test-1" and r.chunk_id == "inst1:u1#p001" and r.downgraded is False
 
 
+def test_identity_fields_follow_level_in_every_request(rules):
+    """o1124 Change 1 (draft, packet item W-09 pending): the master's institution type and
+    disambiguation reach every page request, right after the level of government."""
+    fake = FakeJev(dict(DEFAULTS))
+    jpc.code_page(page(institution_type="municipality", disambiguation="Oum El Bouaghi — commune"), fake,
+                  cfg(rules))
+    for state, _ in fake.calls:
+        keys = list(state)
+        assert keys[:6] == ["coder_instructions", "institution", "country", "level_of_government",
+                            jpc.INSTITUTION_TYPE_FIELD, jpc.DISAMBIGUATION_FIELD]
+        assert state[jpc.INSTITUTION_TYPE_FIELD] == "municipality"
+        assert state[jpc.DISAMBIGUATION_FIELD] == "Oum El Bouaghi — commune"
+
+
+@pytest.mark.parametrize("itype, disamb, present", [
+    (None, None, []),
+    ("", "   ", []),
+    ("municipality", None, ["institution_type"]),
+    (" ", "Ouargla — commune", ["institution_disambiguation"]),
+])
+def test_missing_identity_values_are_left_out(rules, itype, disamb, present):
+    """A missing or blank value gives no field (as W3-2 a): never an empty string or null."""
+    fake = FakeJev(dict(DEFAULTS))
+    jpc.code_page(page(institution_type=itype, disambiguation=disamb), fake, cfg(rules))
+    for state, _ in fake.calls:
+        sent = [k for k in (jpc.INSTITUTION_TYPE_FIELD, jpc.DISAMBIGUATION_FIELD) if k in state]
+        assert sent == present
+        assert all(isinstance(state[k], str) and state[k].strip() for k in sent)
+
+
 def test_round_order_follows_gates(rules):
     fake = FakeJev(dict(DEFAULTS))
     jpc.code_page(page(), fake, cfg(rules))

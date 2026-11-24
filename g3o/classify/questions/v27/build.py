@@ -99,15 +99,22 @@ PACKET_RULINGS = {
 # kept (W-01 a). A value still None is a point the PI rulings do not settle (see "open").
 
 PAGE_STATE = {
-    "packet_items": ["W-01", "W-02", "B-Q4"],
-    "approval": APPROVED,
-    "open": [],
+    "packet_items": ["W-01", "W-02", "B-Q4", "W-09"],
+    # o1124 Change 1 (draft, 2026-11-24): the two master identity fields are a new packet item W-09,
+    # pending until the PI approves the field names, the value form and their place in the state.
+    "approval": PENDING,
+    "open": ["W-09: names, value form (master code verbatim) and place of the fields institution_type "
+             "and institution_disambiguation await PI approval"],
     "form_source": "T-016 re-pilot state (scripts/spikes/t016/repilot_v27.py page_units)",
     "fields": [
         {"name": "coder_instructions", "value": "signed slot shared/system_prompt, verbatim"},
         {"name": "institution", "value": "institution name from the master"},
         {"name": "country", "value": "country from the master"},
         {"name": "level_of_government", "value": "level of government from the master"},
+        {"name": "institution_type", "value": "institution_type from the master, verbatim",   # W-09 draft
+         "shown_text": "the master code as recorded (e.g. municipality); left out when blank"},
+        {"name": "institution_disambiguation", "value": "disambiguation from the master, verbatim",  # W-09 draft
+         "shown_text": "the master text as recorded; left out when blank (most rows have none)"},
         {"name": "page_url", "value": "stored page URL"},
         {"name": "page_title", "value": "stored page title"},
         {"name": "page_part", "value": "chunk marker '{i} of {n}' (always present)"},

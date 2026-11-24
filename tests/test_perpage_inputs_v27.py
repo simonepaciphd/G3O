@@ -38,11 +38,13 @@ I1, I2, I3 = "INST-0000001", "INST-0000002", "INST-0000003"
 
 ROWS = [
     {"master_row_id": "1", "institution_name": "Council One", "country": "Australia", "government_level": "local",
-     "branch": "executive", "institution_type": "council", "website": "https://one.example.gov/"},
+     "branch": "executive", "institution_type": "council", "website": "https://one.example.gov/",
+     "disambiguation": "New South Wales — local council"},
     {"master_row_id": "2", "institution_name": "Ministerio Dos", "country": "Uruguay",
      "government_level": "national", "branch": "executive", "institution_type": "ministry", "website": ""},
     {"master_row_id": "3", "institution_name": "Agency Three", "country": "Australia",
-     "government_level": "national", "branch": "executive", "institution_type": "agency", "website": ""},
+     "government_level": "national", "branch": "executive", "institution_type": "agency", "website": "",
+     "disambiguation": ""},
 ]
 
 EN = ("The council announced today that it will begin a pilot of a generative artificial intelligence "
@@ -111,6 +113,19 @@ def test_page_input_fields_verbatim_and_page_id_is_url_hash(tmp_path):
     archive = _spec(insts[I2], P_ARCHIVE).page
     assert archive.chrome_text is None and archive.links is None and archive.email_links is None  # not measured
     assert _spec(one, P_URL).page.links == () and _spec(one, P_URL).page.chrome_text == ""
+
+
+def test_page_input_carries_master_type_and_disambiguation(tmp_path):
+    """o1124 Change 1: the sample row's ``institution_type`` and ``disambiguation`` reach the PageInput;
+    an absent column or a blank cell is ``None`` (the coder then leaves the field out)."""
+    insts = _built(tmp_path)
+    one = _spec(insts[I1], P_META).page
+    assert (one.institution_type, one.disambiguation) == ("council", "New South Wales — local council")
+    two = insts[I2].pages[0].page
+    assert (two.institution_type, two.disambiguation) == ("ministry", None)  # no disambiguation column
+    blank = pin.page_input(P_META, {**ROWS[0], "institution_type": "", "disambiguation": "  "},
+                           institution_id=I1)
+    assert (blank.institution_type, blank.disambiguation) == (None, None)
 
 
 def test_institution_identity_uid_and_run_id(tmp_path):
