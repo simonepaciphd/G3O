@@ -1087,6 +1087,26 @@ def test_materialise_records_a_v27_run_so_record_run_pipeline_accepts_it(tmp_pat
         "pipeline_version": PIPELINE_V27, "instrument_id": "i-1"}
 
 
+def test_fixture_identity_fields_reach_the_page_input(tmp_path):
+    """o1124 Change 1: a fixture institution's optional ``institution_type`` / ``disambiguation`` reach the
+    sample row, and so the classifier's PageInput; a fixture without them gives none (as before)."""
+    from g3o.run.presweep.perpage_inputs_v27 import page_input
+
+    base = _fixture([])
+    assert "institution_type" not in fr.fixture_institution_row(base)
+    assert "disambiguation" not in fr.fixture_institution_row(base)
+    fixture = {**base, "institution": {**base["institution"], "institution_type": "municipality",
+                                       "disambiguation": "Jiangsu — prefecture-level city"}}
+    row = fr.fixture_institution_row(fixture)
+    assert (row["institution_type"], row["disambiguation"]) == ("municipality", "Jiangsu — prefecture-level city")
+    sample, scraped, _ = fr.materialise(tmp_path, fixture, fr.fixture_pages(fixture),
+                                        searched_policy=fr.SEARCHED_UNLINKED, official_policy=fr.OFFICIAL_NONE,
+                                        access_date="2026-11-17")
+    (inst_id,) = scraped
+    page = page_input(scraped[inst_id][0], sample[0], institution_id=inst_id)
+    assert (page.institution_type, page.disambiguation) == ("municipality", "Jiangsu — prefecture-level city")
+
+
 def test_page_host_warning_is_printed_for_real_fixtures(tmp_path, monkeypatch, capsys):
     _forbid_live(monkeypatch)
     assert _script().main(["--group", "real", "--out-dir", str(tmp_path)]) == 0
