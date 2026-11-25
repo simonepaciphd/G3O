@@ -326,10 +326,26 @@ def test_system_prompt_carries_generated_sections_and_shared_prompt():
     system = build_system_prompt(cb)
     assert system.startswith(cb.shared_slot("system_prompt").text)
     for item in default_rules().activity_fields:
-        assert f"<!-- item: {item} sha256: {cb.item_hash(item)} -->" in system
+        assert f"## `{item}`" in system
+        assert f"Column `{item.split('.', 1)[1]}`." in system
+        assert cb.item_hash(item) not in system
+    # item hashes never reach the model (PI 2026-11-23, R1 c)
+    assert "<!-- item: " not in system and "item hash" not in system
     assert "{{" not in system
     for item in DEFERRED_FIELDS:
         assert f"## `{item}`" not in system
+
+
+def test_link_task_uses_the_any_ai_construct():
+    """o1124 Change 2: the follow-link task asks for links about any AI activity the page mentions
+    (codebook r18 construct), not generative AI only."""
+    system = build_system_prompt()
+    task = system.split("### Follow-up links (`link_task`)", 1)[1].split("### Activities", 1)[0]
+    assert "generative-AI activity" not in task
+    assert "more information about an AI activity it mentions" in task
+    assert ("generative AI or any other tool or activity the page calls AI, artificial intelligence or "
+            "machine learning") in task
+    assert "Choose the links that lead to more information about an AI activity this page mentions." in task
 
 
 def test_job_params_haiku_medium_effort_structured_output():

@@ -43,7 +43,7 @@ from g3o.validate.consolidate_v27 import ActivityObservation, RelationDecision, 
 from tests._layout import uid_for, write_manifest
 from tests._storage_fixture import _values
 
-R16 = "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4"
+R16 = "64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5"
 RUN_ID = "R-T030-E2E"
 TRUE = Entailment("true", 0.95)
 CLOCK = lambda: datetime(2026, 11, 10, 12, 0, tzinfo=timezone.utc)  # noqa: E731

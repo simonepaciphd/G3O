@@ -1,7 +1,7 @@
 {
   "format": "g3o-d007-field-map-v1",
   "state": "PI_APPROVED_LOCAL_IMPLEMENTATION",
-  "codebook_sha256": "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4",
+  "codebook_sha256": "64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5",
   "rows": [
     {
       "item_id": "core.page_verdict",

@@ -11,6 +11,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "v27"
 CODEBOOK = ROOT / "codebook" / "codebook.yaml"
-SIGNED_SHA = "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4"
+SIGNED_SHA = "64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5"
 A_IDS = ["A-003", "A-004", "A-010", "A-011", "A-012", "A-020", "A-021", "A-022"]
 VERDICTS = [
     "confirms_activity",
@@ -157,7 +158,8 @@ def test_jev_label_scores_join_and_readings():
     assert {r["jev_key"] for r in sheet if r["jev_argmax_1_5"]} == keys & sheet_keys
     for r in sheet:
         if r["label_version"] not in ("", "1"):
-            assert r["jev_key"].endswith("@v" + r["label_version"])
+            # synthetic labels are never jev-scored and carry no key; a relabelled real label has a versioned key
+            assert r["jev_key"].endswith("@v" + r["label_version"]) if r["kind"] == "real" else r["jev_key"] == ""
     for s in scores:
         probs = {int(k): v for k, v in json.loads(s["probabilities_1_5"]).items()}
         top = max(probs, key=lambda k: (probs[k], -k))
@@ -251,7 +253,12 @@ def test_recovery_fixture_revisions_and_known_limits(fixtures):
         assert all(e["codebook_rev"] == "r13" for e in by[fid]["expected"])
     for f in fixtures:
         if f["kind"] == "synthetic" and f["fixture_id"] not in new_ids:
-            assert all(e["codebook_rev"] == "r11" for e in f["expected"])
+            # r17 (PI 2026-11-22): relabelled values and the 13 new boundary fixtures carry r17
+            revs = {e["codebook_rev"] for e in f["expected"] if e["codebook_rev"] != "r11"}
+            if f["fixture_id"] in R17_NEW or f["fixture_id"] in R17_SYN_RELABELLED:
+                assert revs == {"r17"}, f["fixture_id"]
+            else:
+                assert not revs, (f["fixture_id"], revs)
     for n in (12, 13, 14):
         f = by[f"v27-syn-A021-{n}"]
         assert "known_limit" in f["tags"]
@@ -384,3 +391,179 @@ def test_target_page_fixture_with_production_follow(fixtures, tmp_path):
     expected = {e["item"]: e["value"] for e in f["expected"]}
     assert events == expected["event_order"]
     assert {k: events.count("extract:" + k) for k in ("p0", "p1")} == expected["extractor_calls"]
+
+
+# ---------------------------------------------------------------------------
+# r17 fixture set (PI rulings 2026-11-22: the 13 expected values and points A to H)
+# ---------------------------------------------------------------------------
+
+R17_DATE = "2026-11-22"
+#: Synthetic fixtures whose page-verdict label was re-ruled under r17 (value, label version).
+R17_SYN_RELABELLED = {
+    "v27-syn-A011-02": ("confirms_activity", 2),
+    "v27-syn-A012-03": ("confirms_activity", 2),
+    "v27-syn-A011-07": ("confirms_absence", 2),  # value kept; page text reworded to deny AI
+}
+#: Real fixtures: (item, new value, old value, new label version).
+R17_REAL_RELABELLED = {
+    "v27-real-03": ("core.page_verdict", "confirms_activity", "ambiguous_genai", 2),
+    "v27-real-10": ("core.page_verdict", "confirms_activity", "ambiguous_genai", 2),
+    "v27-real-12": ("core.page_verdict", "confirms_activity", "ambiguous_genai", 3),
+    "v27-real-09": ("core.page_verdict", "other_body", "ambiguous_genai", 2),
+    "v27-real-20": ("n_activities", 4, 3, 2),
+}
+#: The 13 new synthetic fixtures: id -> {(item, scope kind): value}; every one is pipeline mode.
+R17_NEW = {
+    "v27-syn-A012-08": {("core.page_verdict", "page"): "ambiguous_genai"},
+    "v27-syn-A012-09": {("core.page_verdict", "page"): "confirms_activity",
+                        ("core.genai_mechanism_basis", "activity"): "no_generative_signal",
+                        ("core.has_genai_activity", "institution"): "yes"},
+    "v27-syn-A012-10": {("core.page_verdict", "page"): "confirms_activity",
+                        ("core.genai_mechanism_basis", "activity"): "no_generative_signal"},
+    "v27-syn-A012-11": {("core.page_verdict", "page"): "confirms_activity",
+                        ("core.action_type", "activity"): "staff_training"},
+    "v27-syn-A012-12": {("core.page_verdict", "page"): "confirms_activity"},
+    "v27-syn-A012-13": {("core.page_verdict", "page"): "confirms_activity"},
+    "v27-syn-A012-14": {("core.page_verdict", "page"): "confirms_activity",
+                        ("core.action_type", "activity"): "deployment",
+                        ("core.genai_mechanism_basis", "activity"): "generative_capability_described"},
+    "v27-syn-A012-15": {("core.page_verdict", "page"): "other_body"},
+    "v27-syn-A012-16": {("core.page_verdict", "page"): "confirms_activity",
+                        ("core.action_type", "activity"): "governance"},
+    "v27-syn-A012-17": {("core.page_verdict", "page"): "confirms_activity"},
+    "v27-syn-A012-18": {("core.page_verdict", "page"): "confirms_activity"},
+    "v27-syn-A012-19": {("core.page_verdict", "page"): "other_body"},
+    "v27-syn-A012-20": {("core.page_verdict", "page"): "no_genai"},
+}
+_AI_WORDS = re.compile(r"\bAI\b|artificial intelligence|machine[- ]learning", re.IGNORECASE)
+
+
+def _by_id(fixtures):
+    return {f["fixture_id"]: f for f in fixtures}
+
+
+def _one(fixture, item):
+    hits = [e for e in fixture["expected"] if e["item"] == item]
+    assert len(hits) == 1, (fixture["fixture_id"], item)
+    return hits[0]
+
+
+def test_r17_synthetic_relabels_follow_the_rulings(fixtures):
+    by = _by_id(fixtures)
+    for fid, (value, version) in R17_SYN_RELABELLED.items():
+        e = _one(by[fid], "core.page_verdict")
+        assert (e["value"], e["label_version"], e["codebook_rev"], e["label_date"]) == (value, version, "r17", R17_DATE)
+        assert "r17" in e["rule"] and "PI 2026-11-22" in e["rule"]
+        history = e["label_history"]
+        assert [h["label_version"] for h in history] == list(range(1, version))
+        assert history[-1]["codebook_rev"] == "r11" and history[-1]["superseded_by"].startswith("PI 2026-11-22")
+    assert by["v27-syn-A011-02"]["expected"][0]["label_history"][0]["value"] == "ambiguous_genai"
+    assert by["v27-syn-A012-03"]["expected"][0]["label_history"][0]["value"] == "ambiguous_genai"
+    # ruling D: a strategy that names no tool gets no basis expectation; no other new expectation (H)
+    for fid in R17_SYN_RELABELLED:
+        assert [e["item"] for e in by[fid]["expected"]] == ["core.page_verdict"]
+    assert "ambiguous" not in by["v27-syn-A012-03"]["purpose"]
+    # row 13: the page denies AI, not only generative AI; the old text is kept in the label history
+    absent = by["v27-syn-A011-07"]
+    text = absent["pages"][0]["text"]
+    assert "does not use artificial intelligence (AI) tools of any kind" in text
+    old = absent["expected"][0]["label_history"][0]
+    assert old["value"] == "confirms_absence"
+    assert old["page_text"].startswith("Freedom of information response") and old["page_text"] != text
+    assert "does not use generative AI tools" in old["page_text"]
+
+
+def test_r17_real_relabels_follow_the_rulings(fixtures):
+    by = _by_id(fixtures)
+    for fid, (item, value, was, version) in R17_REAL_RELABELLED.items():
+        e = _one(by[fid], item)
+        assert (e["value"], e["label_version"], e["codebook_rev"], e["label_date"]) == (value, version, "r17", R17_DATE)
+        assert "PI 2026-11-22" in e["rule"]
+        history = e["label_history"]
+        assert [h["label_version"] for h in history] == list(range(1, version))
+        assert history[-1]["value"] == was and history[-1]["superseded_by"].startswith("PI 2026-11-22")
+        assert e["jev_score"] is None  # ruling F: accepted on the PI's ruling alone, no new jev scoring
+    # the real-12 history keeps its first relabel
+    assert by["v27-real-12"]["expected"][0]["label_history"][0]["value"] == "background_only"
+    # ruling H: two new expectations, no others
+    basis = _one(by["v27-real-10"], "core.genai_mechanism_basis")
+    assert basis["value"] == "no_generative_signal" and basis["scope"].startswith("activity:")
+    action = _one(by["v27-real-12"], "core.action_type")
+    assert action["value"] == "staff_training" and action["scope"].startswith("activity:")
+    for e in (basis, action):
+        assert e["codebook_rev"] == "r17" and e["label_date"] == R17_DATE and e["evidence_quote"]
+    items = {fid: [e["item"] for e in by[fid]["expected"]] for fid in R17_REAL_RELABELLED}
+    assert items == {
+        "v27-real-03": ["core.page_verdict"],
+        "v27-real-10": ["core.page_verdict", "core.genai_mechanism_basis"],
+        "v27-real-12": ["core.page_verdict", "core.action_type"],
+        "v27-real-09": ["core.page_verdict"],
+        "v27-real-20": ["core.page_verdict", "n_activities", "core.has_human_oversight"],
+    }
+    # rows 6, 8 to 11: ruled unchanged, labels untouched
+    for fid, value in (("v27-real-02", "ambiguous_genai"), ("v27-real-13", "ambiguous_genai"),
+                       ("v27-real-14", "ambiguous_genai"), ("v27-real-15", "ambiguous_genai"),
+                       ("v27-real-22", "confirms_absence")):
+        e = _one(by[fid], "core.page_verdict")
+        assert e["value"] == value and "label_version" not in e and "codebook_rev" not in e
+
+
+def test_r17_new_boundary_fixtures(fixtures):
+    by = _by_id(fixtures)
+    synthetic = [f for f in fixtures if f["kind"] == "synthetic"]
+    assert len(synthetic) == 79 and R17_NEW.keys() <= by.keys()
+    for fid, want in R17_NEW.items():
+        f = by[fid]
+        assert f["kind"] == "synthetic" and f["mode"] == "pipeline" and "A-012" in f["a_ids"], fid
+        assert len(f["pages"]) == 1 and f["pages"][0]["fetch_status"] == "ok" and f["pages"][0]["text"], fid
+        got = {(e["item"], e["scope"].partition(":")[0]): e["value"] for e in f["expected"]}
+        assert got == want, fid
+        assert len(got) == len(f["expected"]), fid
+        for e in f["expected"]:
+            assert e["codebook_rev"] == "r17" and e["label_date"] == R17_DATE, fid
+    ids = [f["institution"]["institution_id"] for f in synthetic]
+    assert all(ids.count(by[fid]["institution"]["institution_id"]) == 1 for fid in R17_NEW)
+    text = {fid: by[fid]["pages"][0]["text"] for fid in R17_NEW}
+    low = {fid: t.lower() for fid, t in text.items()}
+    # case 2: the bare mention is tagged A-011 too (per-verdict coverage)
+    assert by["v27-syn-A012-08"]["a_ids"] == ["A-012", "A-011"]
+    # case 3 and the AI-translation page: called AI, none of the generative signs
+    for fid in ("v27-syn-A012-09", "v27-syn-A012-10"):
+        assert _AI_WORDS.search(text[fid]), fid
+        for word in ("chatbot", "assistant", "generat", "language model", "chatgpt", "copilot", "gemini", "llm"):
+            assert word not in low[fid], (fid, word)
+    assert "ai translation" in low["v27-syn-A012-10"]
+    # ruling C: the caption wording; ruling B: the twin page differs only in the credit
+    caption = "Image generated with AI"
+    assert caption + "." in text["v27-syn-A012-14"] and caption in text["v27-syn-A012-15"]
+    assert text["v27-syn-A012-14"].split(caption)[0] == text["v27-syn-A012-15"].split(caption)[0]
+    for fid in ("v27-syn-A012-14", "v27-syn-A012-15"):
+        assert len(_AI_WORDS.findall(text[fid])) == 1, fid  # the caption is the only AI content
+    # ruling E: no vendor_claim_only expectation on the vendor case study
+    assert all("vendor_claim_only" not in e["item"] for e in by["v27-syn-A012-17"]["expected"])
+    assert by["v27-syn-A012-17"]["institution"]["name"] in text["v27-syn-A012-17"]
+    # case 8: the same ministry page under the government (counts) and under a sibling ministry (does not)
+    assert text["v27-syn-A012-18"] == text["v27-syn-A012-19"]
+    assert by["v27-syn-A012-18"]["institution"]["name"] in text["v27-syn-A012-18"]
+    assert by["v27-syn-A012-19"]["institution"]["name"] not in text["v27-syn-A012-19"]
+    # case 9: never called AI or machine learning
+    assert not _AI_WORDS.search(text["v27-syn-A012-20"])
+    assert "smart" in low["v27-syn-A012-20"] and "predictive" in low["v27-syn-A012-20"]
+
+
+def test_a012_covers_every_mechanism_basis(fixtures, items):
+    """A-012 as amended: each A01 basis, `no_generative_signal` included, has a fixture."""
+    codes = {v["code"] for v in items["core.genai_mechanism_basis"]["values"]}
+    have = {e["value"] for f in fixtures if "A-012" in f["a_ids"] for e in f["expected"]
+            if e["item"] == "core.genai_mechanism_basis"}
+    assert codes <= have, codes - have
+
+
+def test_open_judgement_calls_of_the_r17_set_are_registered(fixtures):
+    """Values the builder derived, not ruled, stay flagged as open judgement calls."""
+    reg = {r["jc_id"]: r for r in csv.DictReader((FIX / "judgement-calls.csv").open(encoding="utf-8"))}
+    by = _by_id(fixtures)
+    for fid, item in (("v27-syn-A012-10", "core.page_verdict"), ("v27-syn-A012-10", "core.genai_mechanism_basis"),
+                      ("v27-syn-A012-19", "core.page_verdict")):
+        jc = _one(by[fid], item)["judgement_call"]
+        assert fid in reg[jc]["fixture_ids"] and reg[jc]["status"].startswith("open")

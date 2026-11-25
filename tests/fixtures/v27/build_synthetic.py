@@ -1392,6 +1392,386 @@ for fixture in F:
         if revision == "r13":
             expected["label_date"] = "2026-11-07"
 
+# ------------------------------------------------ r17 fixture set (PI rulings 2026-11-22)
+# Signed codebook r17 counts any tool the page calls AI or machine learning, not generative AI only.
+# "ruling 5 row N" is a row of the PI's 13 expected values; "ruling 6 X" is a lettered point on the
+# new fixtures and the open points of the relabel. Relabelled values keep the old label in
+# label_history (as v27-real-12 does) and raise label_version.
+R17 = "r17"
+R17_DATE = "2026-11-22"
+PI_R17 = "PI 2026-11-22"
+CB17 = f"{CB} {R17}"
+_BY_ID = {f["fixture_id"]: f for f in F}
+
+
+def relabel_r17(fid, item, value, rule, ruling, purpose=None, text=None):
+    """Re-rule one expected value under r17, keeping the superseded label (and page text) in its history."""
+    fixture = _BY_ID[fid]
+    (e,) = [x for x in fixture["expected"] if x["item"] == item]
+    old = {
+        "label_version": e.get("label_version", 1),
+        "value": e["value"],
+        "rule": e["rule"],
+        "codebook_rev": e["codebook_rev"],
+        "superseded_by": f"{PI_R17} {ruling}",
+    }
+    if text is not None:
+        (p,) = fixture["pages"]
+        old["page_text"] = p["text"]
+        p["text"] = text
+    e.update(
+        value=value,
+        rule=rule,
+        codebook_rev=R17,
+        label_date=R17_DATE,
+        label_version=old["label_version"] + 1,
+        label_history=[*e.get("label_history", []), old],
+    )
+    if purpose is not None:
+        fixture["purpose"] = purpose
+
+
+relabel_r17(
+    "v27-syn-A011-02",
+    "core.page_verdict",
+    "confirms_activity",
+    f"{CB17} core.page_verdict confirms_activity: the institution's own policy or guidance on AI; "
+    f"SPEC R-016 (a specific institution-issued AI strategy is a confirmed activity); {PI_R17} ruling 5 row 1",
+    "ruling 5 row 1 (r17 relabel)",
+    purpose="page verdict confirms_activity: a specific institution-issued AI strategy "
+    "(the ambiguous_genai page of this group until r17)",
+)
+relabel_r17(
+    "v27-syn-A012-03",
+    "core.page_verdict",
+    "confirms_activity",
+    f"{CB17} core.page_verdict confirms_activity: the institution's own policy or guidance on AI; "
+    f"SPEC R-016 (a specific institution-issued AI strategy is a confirmed activity); {PI_R17} ruling 5 row 2",
+    "ruling 5 row 2 (r17 relabel)",
+    purpose="a specific institution-issued AI strategy is a confirmed activity",
+)
+relabel_r17(
+    "v27-syn-A011-07",
+    "core.page_verdict",
+    "confirms_absence",
+    f"{CB17} core.page_verdict confirms_absence: the page states that this institution has no AI activity "
+    f"(it does not use AI tools); {PI_R17} ruling 5 row 13 (value kept; page text reworded to deny AI, "
+    "not only generative AI)",
+    "ruling 5 row 13 (value kept; page text reworded to deny AI, not only generative AI)",
+    text="Freedom of information response: Hollowmere Town Council does not use artificial intelligence (AI) "
+    "tools of any kind, including generative AI tools such as ChatGPT or Copilot, and has no plans to "
+    "introduce them.",
+)
+
+PV17 = f"{CB17} core.page_verdict"
+A01 = f"{CB17} core.genai_mechanism_basis"
+ACT = f"{CB17} core.action_type"
+FOOTBRIDGE = (
+    "Holmbrook Parish Council news, 3 April. The footbridge over Mill Stream has reopened after repairs to "
+    "the handrail. The bridge had been closed since January. Image caption: the repaired footbridge. "
+)
+MINISTRY_PAGE = (
+    "Ministry of Transport of Norvale. The Ministry of Transport, a ministry of the Government of Norvale, "
+    "uses an AI system to check driving-licence applications for missing documents. The ministry's own "
+    "licensing office introduced the system in February, and only its staff use it."
+)
+# (fixture id, a_ids, purpose, institution, page text, expected values)
+A012_R17 = [
+    (
+        "v27-syn-A012-08",
+        ["A-012", "A-011"],
+        "bare mention of AI (an agenda item title only): no specific activity",
+        inst(200, "Pendlebury Parish Council"),
+        "Pendlebury Parish Council. Agenda for the meeting of 9 June. 1. Apologies for absence. 2. Minutes of "
+        "the previous meeting. 3. Artificial intelligence. 4. Play area repairs. 5. Date of the next meeting.",
+        [
+            exp(
+                "core.page_verdict",
+                "ambiguous_genai",
+                f"{PV17} ambiguous_genai: AI is mentioned at this institution but no specific activity can be "
+                f"made out (an agenda item that describes no tool, policy, purchase, deployment or training); "
+                f"SPEC R-016, A-012; {PI_R17} ruling 6 A",
+            )
+        ],
+    ),
+    (
+        "v27-syn-A012-09",
+        ["A-012"],
+        "own tool called AI / machine learning with no generative sign",
+        inst(201, "Thornfield Borough Council"),
+        "Thornfield Borough Council's highways team uses a machine-learning system to decide which roads to "
+        "inspect first. Each month the AI system scores every road in the borough from past repair records, "
+        "traffic counts and weather data, and inspectors visit the highest-scoring roads first.",
+        [
+            exp(
+                "core.page_verdict",
+                "confirms_activity",
+                f"{PV17} confirms_activity: any other tool the page calls AI or machine learning counts "
+                f"(AI analytics or prediction); SPEC A-012; {PI_R17} ruling 6 A",
+            ),
+            exp(
+                "core.genai_mechanism_basis",
+                "no_generative_signal",
+                f"{A01} no_generative_signal: called AI or machine learning, none of the other signs; "
+                f"{PI_R17} ruling 6 A",
+                scope="activity:road inspection scoring system",
+            ),
+            exp(
+                "core.has_genai_activity",
+                "yes",
+                "SPEC R-005 / codebook core.has_genai_activity truth table: >= 1 supported confirms_activity "
+                f"page with a supported activity, generative or not ({R17}); {PI_R17} ruling 6 A (optional: "
+                "institution-level expectation on the no-generative-sign page)",
+                scope="institution",
+            ),
+        ],
+    ),
+    (
+        "v27-syn-A012-10",
+        ["A-012"],
+        "translation the page calls AI translation, no product and no language model",
+        inst(202, "Marshfield Town Council"),
+        "Marshfield Town Council now offers its website in 12 languages using AI translation. The council's "
+        "web team switched the AI translation service on in March. AI translations may contain errors; the "
+        "English text is the official version.",
+        [
+            exp(
+                "core.page_verdict",
+                "confirms_activity",
+                f"{CB17} core.rule.genai_boundary: translation counts as an AI activity when the page calls it "
+                f"AI or machine learning; core.page_verdict confirms_activity (AI translation); {PI_R17} ruling "
+                "6 A (optional page); value derived by the builder",
+                judgement_call="JC-S13",
+            ),
+            exp(
+                "core.genai_mechanism_basis",
+                "no_generative_signal",
+                f"{CB17} core.rule.genai_boundary: translation counts as generative AI only when the page ties "
+                "it to a named generative product or says a language model produces it; neither here, so "
+                "no_generative_signal; value derived by the builder",
+                scope="activity:AI translation of the council website",
+                judgement_call="JC-S13",
+            ),
+        ],
+    ),
+    (
+        "v27-syn-A012-11",
+        ["A-012"],
+        "AI course the council runs for its own employees",
+        inst(203, "Ravensworth District Council"),
+        "Ravensworth District Council is running a four-week course, 'Using AI at work', for its own "
+        "employees. All 300 office staff will attend the sessions, which the council's digital team leads, "
+        "by the end of May. The course is not open to the public.",
+        [
+            exp(
+                "core.page_verdict",
+                "confirms_activity",
+                f"{PV17} confirms_activity: AI training that the institution directs at public-sector staff "
+                f"(its own staff); event_only: such training is not public-facing; {PI_R17} ruling 6 A",
+            ),
+            exp(
+                "core.action_type",
+                "staff_training",
+                f"{ACT} staff_training: the institution trains public-sector staff, its own, to use AI; "
+                f"{PI_R17} ruling 6 A",
+                scope="activity:Using AI at work course",
+            ),
+        ],
+    ),
+    (
+        "v27-syn-A012-12",
+        ["A-012"],
+        "regional body trains the staff of the municipalities it serves",
+        inst(204, "Upper Calder Regional Council", level="regional"),
+        "Upper Calder Regional Council provides training for the staff of the 14 municipalities it serves. "
+        "This autumn the regional council's training unit is delivering workshops on the safe use of AI tools "
+        "to municipal employees in each town hall. Places are for municipal staff only.",
+        [
+            exp(
+                "core.page_verdict",
+                "confirms_activity",
+                f"{PV17} confirms_activity: AI training that the institution directs at public-sector staff "
+                f"(the staff of bodies it serves); {PI_R17} ruling 6 A",
+            )
+        ],
+    ),
+    (
+        "v27-syn-A012-13",
+        ["A-012"],
+        "public talk and staff AI training on one page: the order rule gives confirms_activity",
+        inst(205, "Kestrel Bay Town Council"),
+        "Kestrel Bay Town Council news. Library: residents are invited to a free public talk, 'What is AI?', "
+        "at the town library on 4 May. Staff: the council has started mandatory AI training for all its "
+        "customer service staff, delivered by the council's IT team.",
+        [
+            exp(
+                "core.page_verdict",
+                "confirms_activity",
+                f"{PV17} order rule (first fitting value): staff AI training is a confirmed activity, so the "
+                f"public talk does not make the page event_only; {PI_R17} ruling 6 A (optional page)",
+            )
+        ],
+    ),
+    (
+        "v27-syn-A012-14",
+        ["A-012"],
+        "own content credited as made with AI (image caption) on a page about something else",
+        inst(206, "Holmbrook Parish Council"),
+        FOOTBRIDGE + "Image generated with AI.",
+        [
+            exp(
+                "core.page_verdict",
+                "confirms_activity",
+                f"{PV17} confirms_activity: content the institution publishes on its own page and credits as "
+                f"made with AI is its own use of an AI tool; {PI_R17} ruling 6 A",
+            ),
+            exp(
+                "core.action_type",
+                "deployment",
+                f"{ACT} deployment: publishing its own content credited as made with AI is putting a tool to "
+                f"use; {PI_R17} ruling 6 A",
+                scope="activity:AI-generated image",
+            ),
+            exp(
+                "core.genai_mechanism_basis",
+                "generative_capability_described",
+                f"{A01} generative_capability_described: the page says the tool generates an image, no product "
+                f"named; {PI_R17} ruling 6 C (caption worded 'Image generated with AI')",
+                scope="activity:AI-generated image",
+            ),
+        ],
+    ),
+    (
+        "v27-syn-A012-15",
+        ["A-012"],
+        "the same page with the AI image credited to another body",
+        inst(207, "Holmbrook Parish Council"),
+        FOOTBRIDGE + "Image generated with AI by Carrow County Council's communications team and reproduced "
+        "with its permission.",
+        [
+            exp(
+                "core.page_verdict",
+                "other_body",
+                f"{PV17} confirms_activity does not apply (AI-credited content counts unless the page "
+                f"attributes that content to another body); other_body; {PI_R17} ruling 6 B",
+            )
+        ],
+    ),
+    (
+        "v27-syn-A012-16",
+        ["A-012"],
+        "regulator's rule on AI use by the firms it licenses, nothing on its own staff",
+        inst(208, "Halden Licensing Authority", level="regional"),
+        "The Halden Licensing Authority has issued Rule 12 on the use of artificial intelligence by licensed "
+        "surveyors. From 1 July, every surveying firm the Authority licenses must tell clients when AI tools "
+        "were used to prepare a report, and a qualified surveyor must check the result. Firms that break the "
+        "rule can lose their licence.",
+        [
+            exp(
+                "core.page_verdict",
+                "confirms_activity",
+                f"{PV17} confirms_activity: its own policy or guidance on AI, whether it governs the "
+                f"institution's own staff or others it regulates; {PI_R17} ruling 6 A",
+            ),
+            exp(
+                "core.action_type",
+                "governance",
+                f"{ACT} governance: the institution issues or applies a rule on AI use; {PI_R17} ruling 6 A",
+                scope="activity:Rule 12 on the use of artificial intelligence",
+            ),
+        ],
+    ),
+    (
+        "v27-syn-A012-17",
+        ["A-012"],
+        "supplier's case-study page naming the institution as the client of its AI tool",
+        inst(209, "Dunmere Borough Council"),
+        "Case study: Dunmere Borough Council. Brightpath Systems supplies its AI document-sorting tool to "
+        "Dunmere Borough Council, where the revenues team has used it since 2025 to sort incoming post. 'The "
+        "AI tool saves us two days a week,' says the council's head of revenues. Contact Brightpath Systems "
+        "for a demonstration.",
+        [
+            exp(
+                "core.page_verdict",
+                "confirms_activity",
+                f"{PV17} confirms_activity: a vendor or other third-party page counts when it names this "
+                f"institution as the client or user of the tool; {PI_R17} ruling 6 A, 6 E (no vendor_claim_only "
+                "expectation)",
+            )
+        ],
+    ),
+    (
+        "v27-syn-A012-18",
+        ["A-012"],
+        "named institution is a government; the page is its ministry's AI tool",
+        inst(210, "Government of Norvale", country="Norvale", level="national"),
+        MINISTRY_PAGE,
+        [
+            exp(
+                "core.page_verdict",
+                "confirms_activity",
+                f"{CB17} core.rule.attribution_grain: when the named institution is a government, its "
+                f"ministries and departments are its units; core.page_verdict confirms_activity; {PI_R17} "
+                "ruling 6 A",
+            )
+        ],
+    ),
+    (
+        "v27-syn-A012-19",
+        ["A-012"],
+        "named institution is a ministry; the same page shows a sibling ministry's AI tool",
+        inst(211, "Ministry of Education of Norvale", country="Norvale", level="national"),
+        MINISTRY_PAGE,
+        [
+            exp(
+                "core.page_verdict",
+                "other_body",
+                f"{CB17} core.rule.attribution_grain: an activity of a sibling does not count unless the page "
+                "says the named institution takes part; core.page_verdict other_body (the activity clearly "
+                "belongs to a different body), as v27-syn-A011-04; not ambiguous_attribution, because nothing "
+                f"government-wide is described (v27-real-28); {PI_R17} ruling 6 A; value derived by the builder",
+                judgement_call="JC-S14",
+            )
+        ],
+    ),
+    (
+        "v27-syn-A012-20",
+        ["A-012"],
+        "'smart' sensors and a predictive dashboard never called AI or machine learning",
+        inst(212, "Saltwick Town Council"),
+        "Saltwick Town Council has fitted smart sensors to 60 litter bins on the seafront. The sensors report "
+        "how full each bin is, and a predictive dashboard forecasts which bins will need emptying the next "
+        "day so that crews can plan their rounds.",
+        [
+            exp(
+                "core.page_verdict",
+                "no_genai",
+                f"{PV17} confirms_activity exclusion: 'smart' systems, analytics or prediction that the page "
+                f"does not call AI or machine learning do not count; no AI is mentioned, so no_genai; {PI_R17} "
+                "ruling 6 A (optional page)",
+            )
+        ],
+    ),
+]
+for fid, a_ids, purpose, ins, text, ex in A012_R17:
+    for expected in ex:
+        expected["codebook_rev"] = R17
+        expected["label_date"] = R17_DATE
+    F.append(
+        {
+            "fixture_id": fid,
+            "kind": "synthetic",
+            "mode": "pipeline",
+            "a_ids": a_ids,
+            "purpose": purpose,
+            "institution": ins,
+            "pages": [
+                page("p0", f"https://synthetic.example/{ins['institution_id'].lower()}/p0", text)
+            ],
+            "expected": ex,
+        }
+    )
+
 # ---------------------------------------------------------------- output
 def counts(fixtures):
     by = {}

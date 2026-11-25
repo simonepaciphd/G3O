@@ -582,17 +582,72 @@ def test_qt3_within_page_pair_whose_votes_all_fail_is_unknown_not_held(tmp_path)
 
 def test_r4_confirming_page_with_no_supported_activity_is_unclear_not_held(tmp_path):
     """PI R4 a (2026-11-18, T-041 re-run): c1's verdict confirms_activity passes its check but its only
-    activity's type fails (no quote), so no observation is supported (Y1): INST-0000003 is unclear and
-    written by Stage 6, not held by the RC-D-027 2 a check."""
+    activity's type and action both fail (no quote), so no observation is supported (setting F: type or
+    action): INST-0000003 is unclear and written by Stage 6, not held by the RC-D-027 2 a check."""
     run_dir = tmp_path / "run"
     bound = bind_runtime(run_dir, SETTINGS)
     instrument = load_instrument(run_dir / "final" / "instruments", bound.instrument_id)
-    world = World(run_dir, bound, instrument, _pages(), withhold=WITHHOLD | {("c1", "a1", "core.activity_type", "c1#p3")})
+    world = World(run_dir, bound, instrument, _pages(), withhold=WITHHOLD | {
+        ("c1", "a1", "core.activity_type", "c1#p3"), ("c1", "a1", "core.action_type", "c1#p3")})
     insts = [world.institution("INST-0000001", None), world.institution("INST-0000002"),
              world.institution("INST-0000003")]
     jev, ready, metrics, s6m = _full(run_dir, bound, instrument, world, insts)
     assert not metrics.held and not s6m.held
     assert "INST-0000003" in s6m.written
+    assert not any(o.supported for i in ready if i.institution_id == "INST-0000003" for o in i.observations)
+
+
+def _rollup_run(tmp_path, name, extra_withhold=()):
+    """c1's verdict loses its quote at both answering parts (``downgraded_no_quote``); c2 fails."""
+    run_dir = tmp_path / name
+    bound = bind_runtime(run_dir, SETTINGS)
+    instrument = load_instrument(run_dir / "final" / "instruments", bound.instrument_id)
+    world = World(run_dir, bound, instrument, _pages(), withhold=WITHHOLD | {
+        ("c1", None, jpc.VERDICT, "c1#p2"), ("c1", None, jpc.VERDICT, "c1#p3"), *extra_withhold})
+    insts = [world.institution("INST-0000003")]
+    jev = FakeJev(ANSWERS, RELATIONS, _fail_verdict)
+    ready, metrics = _perpage(run_dir, bound, instrument, world, insts, jev)
+    s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=jev, quote_fn=FakeQuotes(), config=bound.stage6_config(),
+                            instrument=instrument, now=CLOCK, test_only_unbound_quote_fn=True)
+    assert not metrics.held and not s6m.held and s6m.written == ["INST-0000003"]
+    c1 = next(p for i in ready for p in i.pages if p.page_id == "c1")
+    return run_dir, ready, c1
+
+
+def test_rollup_quote_failed_verdict_with_a_supported_activity_gives_yes(tmp_path):
+    """Page-verdict roll-up (RC-D-049; PI rulings 2026-11-22 R1 b, R3, R5): c1's confirms_activity verdict
+    failed its own check on the quote, and its activity is supported, so the page counts: INST-0000003 is
+    ``yes`` with the activity published. What is stored keeps the verdict's failed status and the source
+    row's low confidence; the rescue is the page's separate ``verdict_rollup`` mark."""
+    run_dir, ready, c1 = _rollup_run(tmp_path, "run")
+    assert (c1.page_verdict, c1.support_status, c1.verdict_rollup) == (
+        "confirms_activity", "downgraded_no_quote", True)
+    assert [p.verdict_rollup for i in ready for p in i.pages if p.page_id != "c1"] == [False]
+    assert [o.supported for i in ready for o in i.observations] == [True]
+    stored = _storage(run_dir, "INST-0000003")
+    assert stored["summary"]["values"]["core.has_genai_activity"] == "yes"
+    assert [a["observation_ids"] for a in stored["activities"].values()] == [["c1.a1"]]
+    (source,) = [r for r in stored["sources"].values() if r["observation_ids"] == ["c1.a1"]]
+    assert source["activity_id"] == "A1"
+    verdict_nodes = [n for n in source["item_support"] if n["item_id"] == jpc.VERDICT]
+    assert verdict_nodes and all(n["value_json"] == "confirms_activity"
+                                 and n["support_status"] == "downgraded_no_quote" for n in verdict_nodes)
+    assert source["values"][jpc.VERDICT] == "confirms_activity"
+    assert source["values"]["core.confidence"] == "low"
+    # PI 2026-11-22: no stored or exported mark. The mark lives in memory only; no file the run wrote names it.
+    files = [p for p in run_dir.rglob("*") if p.is_file()]
+    assert any(p.name == "6_storage.json" for p in files) and len(files) > 10
+    assert [str(p.relative_to(run_dir)) for p in files if b"verdict_rollup" in p.read_bytes()] == []
+
+
+def test_rollup_does_not_rescue_a_page_with_no_supported_activity(tmp_path):
+    """The same page with its activity's type and action both unsupported: no rescue, ``unclear``."""
+    run_dir, ready, c1 = _rollup_run(tmp_path, "run", extra_withhold={
+        ("c1", "a1", "core.activity_type", "c1#p3"), ("c1", "a1", "core.action_type", "c1#p3")})
+    assert (c1.support_status, c1.verdict_rollup) == ("downgraded_no_quote", False)
+    assert not any(o.supported for i in ready for o in i.observations)
+    stored = _storage(run_dir, "INST-0000003")
+    assert stored["summary"]["values"]["core.has_genai_activity"] == "unclear" and not stored["activities"]
 
 
 def test_r5_role_part_follows_an_all_not_covered_relationship(tmp_path):
@@ -839,38 +894,69 @@ def test_released_institution_is_not_concluded_on_stale_markers_after_a_resume_s
 
 
 def test_y1_supported_is_derived_from_activity_and_action_type(tmp_path):
-    """Y1 b: supported = final activity_type and action_type both supported (no explicit input)."""
+    """Setting F (replaces Y1 b): supported = final activity_type or action_type supported (no explicit input)."""
     run_dir, bound, instrument, world, insts = _setup(tmp_path)
     ready, _ = _perpage(run_dir, bound, instrument, world, insts[:2], FakeJev(ANSWERS, RELATIONS, _fail_verdict))
     obs = {o.observation_id: o for i in ready for o in i.observations}
     assert obs["p1.a1"].supported and obs["p3.a2"].supported and obs["b2.a1"].supported
-    assert not obs["b1.a1"].supported  # activity_type downgraded (no quote) -> unknown
+    assert obs["b1.a1"].supported  # activity_type downgraded (no quote) -> unknown; its action_type is supported
+    # type and action both downgraded: not supported
+    run2 = tmp_path / "both"
+    bound2 = bind_runtime(run2, SETTINGS)
+    instrument2 = load_instrument(run2 / "final" / "instruments", bound2.instrument_id)
+    world2 = World(run2, bound2, instrument2, _pages(), withhold=WITHHOLD | {("b1", "a1", "core.action_type", "b1#p0")})
+    insts2 = [world2.institution("INST-0000001", None), world2.institution("INST-0000002")]
+    ready2, _ = _perpage(run2, bound2, instrument2, world2, insts2, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    obs2 = {o.observation_id: o for i in ready2 for o in i.observations}
+    assert not obs2["b1.a1"].supported and obs2["b2.a1"].supported and obs2["p1.a1"].supported
     assert "supported" not in {f.name for f in __import__("dataclasses").fields(pp.PageUpstream)}
 
 
 def test_y1_observation_supported_unit():
+    """Setting F truth table: an observation is supported when its final activity_type OR its final
+    action_type is supported (was RC-D-030 Y1 b: both)."""
     from g3o.classify.jev_activity_code import ItemOutcome
     from g3o.common.support_check import SupportResult
+
+    T, A = "core.activity_type", "core.action_type"
+    assert pp.SUPPORTED_ITEMS == (T, A)
 
     def sr(item, status, value):
         return SupportResult(item_id=item, part=None, activity_id="a1", chunk_id="c0", original_value=value,
                              value=value, support_status=status, support_status_second_reason=None,
                              support_rule_name=None, supporting_text="q" if status == "supported" else None,
                              quote_chunk_id="c0", match=None, chosen_answer_probability=0.9, entailment=None)
-    out = {"t": ItemOutcome("t", "core.activity_type", None, "combined", "internal_operational", part_id="c0"),
-           "a": ItemOutcome("a", "core.action_type", None, "combined", "deployment", part_id="c0")}
-    support = {("a1", "core.activity_type", None, "c0", None): sr("core.activity_type", "supported",
-                                                                   "internal_operational"),
-               ("a1", "core.action_type", None, "c0", None): sr("core.action_type", "supported", "deployment")}
-    assert pp.observation_supported("a1", out, support)
-    low = dict(support)
-    low[("a1", "core.action_type", None, "c0", None)] = sr("core.action_type", "downgraded_low_confidence",
-                                                            "deployment")
-    assert not pp.observation_supported("a1", out, low)
-    gated = {**out, "a": ItemOutcome("a", "core.action_type", None, "gated_out", "not_asked")}
-    assert not pp.observation_supported("a1", gated, support)
-    failed = {**out, "t": ItemOutcome("t", "core.activity_type", None, "combined", "unknown", True, part_id="c0")}
-    assert not pp.observation_supported("a1", failed, support)
+
+    out = {"t": ItemOutcome("t", T, None, "combined", "internal_operational", part_id="c0"),
+           "a": ItemOutcome("a", A, None, "combined", "deployment", part_id="c0")}
+    values = {T: "internal_operational", A: "deployment"}
+
+    def support(type_status, action_status):
+        return {("a1", T, None, "c0", None): sr(T, type_status, values[T]),
+                ("a1", A, None, "c0", None): sr(A, action_status, values[A])}
+
+    both = support("supported", "supported")
+    # the truth table over the two support statuses
+    for bad in ("downgraded_low_confidence", "downgraded_quote_not_stating_value", "downgraded_no_quote"):
+        assert pp.observation_supported("a1", out, both)
+        assert pp.observation_supported("a1", out, support("supported", bad))      # type only
+        assert pp.observation_supported("a1", out, support(bad, "supported"))      # action only
+        assert not pp.observation_supported("a1", out, support(bad, bad))          # neither
+    # a value that is gated, failed, missing, or not the supported value does not count; the other one still does
+    gated = {**out, "a": ItemOutcome("a", A, None, "gated_out", "not_asked")}
+    assert pp.observation_supported("a1", gated, both)
+    assert not pp.observation_supported("a1", gated, support("downgraded_no_quote", "supported"))
+    failed = {**out, "t": ItemOutcome("t", T, None, "combined", "unknown", True, part_id="c0")}
+    assert pp.observation_supported("a1", failed, both)
+    assert not pp.observation_supported("a1", failed, support("supported", "downgraded_no_quote"))
+    assert pp.observation_supported("a1", {"a": out["a"]}, both)
+    assert not pp.observation_supported("a1", {}, both)
+    assert pp.observation_supported("a1", out, {k: v for k, v in both.items() if k[1] == T})
+    assert not pp.observation_supported("a1", out, {})
+    other_value = {("a1", T, None, "c0", None): sr(T, "supported", "public_facing"),
+                   ("a1", A, None, "c0", None): sr(A, "supported", "program")}
+    assert not pp.observation_supported("a1", out, other_value)
+    assert not pp.observation_supported("a2", out, both)  # another activity's support rows
 
 
 def test_y5_within_page_decision_rule():

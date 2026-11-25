@@ -1,11 +1,9 @@
 """v2.7 per-code uncertainty flags (T-024 derived field ``core.uncertainty_flags``). No I/O, no calls.
 
-Signed rule (codebook ``core.uncertainty_flags``): "Compute each flag from codes
-...; add ``identity_unresolved`` for Stage 6 relations; drop
-``source_language_barrier``; ``discontinued_uncertain`` becomes a pass-2 jev
-yes/no" (X24); "keep 'identity unresolved' and 'stage ambiguous'" (r2#38);
-"AI-text flags fold into the main list" (r2#39). The v2.7 flag list is
-therefore :data:`SIGNED_FLAGS`.
+Codebook rule (``core.uncertainty_flags``): two flags, ``stage_ambiguous`` and
+``identity_unresolved``; ``discontinuation_uncertain`` is a value of the
+incident question, not a flag; no flag is defined for AI-text evidence. The
+v2.7 flag list is therefore :data:`SIGNED_FLAGS`.
 
 Triggers (PI rulings 2026-11-11, A6.1-A6.4, all option a):
 
@@ -40,8 +38,8 @@ row. Node flags are unchanged (A6.3 a): the relation node keeps
 ``identity_unresolved`` wherever it is stored. Per-page rows hold no cross-page
 relation, so there the value is the plain union.
 
-Still refused: the AI-text flags r2#39 folds into the list have no signed names
-or triggers; :func:`check_pipeline` refuses the ``ai_text`` pipeline.
+No flag is defined for AI-text evidence, so :func:`check_pipeline` refuses the
+``ai_text`` pipeline.
 """
 from __future__ import annotations
 

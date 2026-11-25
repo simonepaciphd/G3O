@@ -27,8 +27,13 @@ R16_CANDIDATE_SHA256 = "381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0
 #: it. Signed when ``planning/t010/signoff-record.md`` holds this SHA256; the name keeps the word candidate.
 R17_CANDIDATE_SHA256 = "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4"
 
+#: UNSIGNED codebook r18 candidate (setting F: the support check's bar per checked item,
+#: ``core.support_entailment.threshold_by_checked_item``; byte edits to the signed r17 file). It keeps every r16
+#: field. Signed only when ``planning/t010/signoff-record.md`` holds this SHA256.
+R18_CANDIDATE_SHA256 = "64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5"
+
 #: The releases that carry the r16 fields: r16 and the revisions built on it.
-R16_FIELD_RELEASES = (R16_CANDIDATE_SHA256, R17_CANDIDATE_SHA256)
+R16_FIELD_RELEASES = (R16_CANDIDATE_SHA256, R17_CANDIDATE_SHA256, R18_CANDIDATE_SHA256)
 
 #: The three ``core.stage_as_of_basis`` step codes of the candidate (``items/core.stage_as_of_basis/values``,
 #: A8.5 a), in candidate order. Equal to the step names of :mod:`g3o.validate.merged_activity_v27`.
@@ -54,10 +59,11 @@ def active_codebook_sha256() -> str:
 
 
 def r16_active() -> bool:
-    """True only when the codebook in use carries the r16 fields (:data:`R16_FIELD_RELEASES`: r16 or the r17
-    candidate built on it). False under r15."""
+    """True only when the codebook in use carries the r16 fields (:data:`R16_FIELD_RELEASES`: r16 or a
+    revision built on it). False under r15."""
     return active_codebook_sha256() in R16_FIELD_RELEASES
 
 
 __all__ = ["DEVELOPER_BASIS_STATED", "R16_CANDIDATE_SHA256", "R16_FIELD_RELEASES", "R17_CANDIDATE_SHA256",
+           "R18_CANDIDATE_SHA256",
            "STAGE_AS_OF_BASIS_CODES", "active_codebook_sha256", "r16_active"]

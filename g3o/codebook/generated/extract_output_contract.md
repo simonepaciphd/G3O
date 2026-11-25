@@ -1,16 +1,16 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extract_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: 71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4 -->
+<!-- codebook release: 2.7 | codebook sha256: 64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5 -->
 
 # G3O output contract (extract), generated from the codebook
 
-Codebook release `2.7`, sha256 `71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4`. 99 items.
+Codebook release `2.7`, sha256 `64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5`. 99 items.
 
 ## `core.page_verdict`
-<!-- item: core.page_verdict sha256: 9df075bee06243aa33703279c998ffefc1413c9aa599b873e23a63fc642654c7 -->
+<!-- item: core.page_verdict sha256: f3224d00890eba351b1b5b696c2d6eacdf7f3863c010e0a99de35216d1fa0bfe -->
 
 | Field | Value |
 |---|---|
-| item hash | `9df075bee06243aa33703279c998ffefc1413c9aa599b873e23a63fc642654c7` |
+| item hash | `f3224d00890eba351b1b5b696c2d6eacdf7f3863c010e0a99de35216d1fa0bfe` |
 | family | `verdict` |
 | name | `page_verdict` |
 | level | `page` |
@@ -131,11 +131,11 @@ A joint activity counts when the page names this institution as a participant.
 All supported verdicts in the signed order first, then failed verdicts in the same order.
 
 ## `core.disclosure_form`
-<!-- item: core.disclosure_form sha256: 6d5ce44a18eea9599e585257ed852f2bf73a412c1de68bd3c8ef7ec1dde80256 -->
+<!-- item: core.disclosure_form sha256: 4c7908f12b580b3e4e8a7be9d770ead29af77e02f08681fc291c854d70394907 -->
 
 | Field | Value |
 |---|---|
-| item hash | `6d5ce44a18eea9599e585257ed852f2bf73a412c1de68bd3c8ef7ec1dde80256` |
+| item hash | `4c7908f12b580b3e4e8a7be9d770ead29af77e02f08681fc291c854d70394907` |
 | family | `disclosure` |
 | name | `disclosure_form` |
 | level | `page` |
@@ -228,11 +228,11 @@ A document produced to meet a reporting obligation that concerns reporting on AI
 The page's kind cannot be determined from its text (e.g. an archived fragment with no header).
 
 ## `core.disclosure_scope`
-<!-- item: core.disclosure_scope sha256: 089514643eaca8c94b06d0d617c2082f6604ef19a8f6c3680be56860fe8143b2 -->
+<!-- item: core.disclosure_scope sha256: bbf20d49f25291065f7e23d8da177e661d18017fb41dcfb7ec2ebcc07a75fe9c -->
 
 | Field | Value |
 |---|---|
-| item hash | `089514643eaca8c94b06d0d617c2082f6604ef19a8f6c3680be56860fe8143b2` |
+| item hash | `bbf20d49f25291065f7e23d8da177e661d18017fb41dcfb7ec2ebcc07a75fe9c` |
 | family | `disclosure` |
 | name | `disclosure_scope` |
 | level | `page` |
@@ -299,11 +299,11 @@ Pages whose `disclosure_form` is `register_cross_institution`, `register_single_
 Coverage cannot be determined from the page.
 
 ## `core.page_complete`
-<!-- item: core.page_complete sha256: 51ca906f401a602a318eafdc8bca73eeabd5de58da3e0cdec44c9c2f7841333a -->
+<!-- item: core.page_complete sha256: 113384334a8758749a57c8b6e25c7f77680c397198b7c4a26d4e40b997c91f5e -->
 
 | Field | Value |
 |---|---|
-| item hash | `51ca906f401a602a318eafdc8bca73eeabd5de58da3e0cdec44c9c2f7841333a` |
+| item hash | `113384334a8758749a57c8b6e25c7f77680c397198b7c4a26d4e40b997c91f5e` |
 | family | `completeness` |
 | name | `page_complete` |
 | level | `page` |
@@ -360,11 +360,11 @@ The first pass also records whether the page holds all available information abo
 Note: `yes` means incomplete (the page refers the reader onward); the name `page_complete` reads the other way.
 
 ## `core.source_type`
-<!-- item: core.source_type sha256: eeec6e92b28743e0e64973fc7847010727a12a4b47d0cefcb38ab7ada9a7e5c0 -->
+<!-- item: core.source_type sha256: 5d2e196e4b10755e018d1d822130b9ce51cd0f21f01b856aae21f6d90610ae3a -->
 
 | Field | Value |
 |---|---|
-| item hash | `eeec6e92b28743e0e64973fc7847010727a12a4b47d0cefcb38ab7ada9a7e5c0` |
+| item hash | `5d2e196e4b10755e018d1d822130b9ce51cd0f21f01b856aae21f6d90610ae3a` |
 | family | `source` |
 | name | `source_type` |
 | level | `source` |
@@ -461,11 +461,11 @@ The same question is used in every pipeline where it applies.
 not_documented: the page is silent.
 
 ## `core.content_contact_named`
-<!-- item: core.content_contact_named sha256: 3e327f7b4ad6a742e2d7d7c655b8b25f50302d223b1df2100286192abd22f138 -->
+<!-- item: core.content_contact_named sha256: c14e3b5271cb6b4e8df73f4dcb77100ec06c3adc4c04a5ebe592f12bbdf28c8f -->
 
 | Field | Value |
 |---|---|
-| item hash | `3e327f7b4ad6a742e2d7d7c655b8b25f50302d223b1df2100286192abd22f138` |
+| item hash | `c14e3b5271cb6b4e8df73f4dcb77100ec06c3adc4c04a5ebe592f12bbdf28c8f` |
 | family | `disclosure` |
 | name | `content_contact_named` |
 | level | `page` |
@@ -518,11 +518,11 @@ Entailment label: not given
 Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any AI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five AI-bearing values; on other pages they are `no`.
 
 ## `core.content_contact_details`
-<!-- item: core.content_contact_details sha256: fc7ef02ed1ceea6bb837c625ea62bf0b83476213e30ff90785b7b89e7391a804 -->
+<!-- item: core.content_contact_details sha256: d28c7a2aee5b9a1370e7049188e8f2f95512a04bb7d0abc40e442c2d0e5b7f53 -->
 
 | Field | Value |
 |---|---|
-| item hash | `fc7ef02ed1ceea6bb837c625ea62bf0b83476213e30ff90785b7b89e7391a804` |
+| item hash | `d28c7a2aee5b9a1370e7049188e8f2f95512a04bb7d0abc40e442c2d0e5b7f53` |
 | family | `disclosure` |
 | name | `content_contact_details` |
 | level | `page` |
@@ -575,11 +575,11 @@ Entailment label: not given
 Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any AI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five AI-bearing values; on other pages they are `no`.
 
 ## `core.content_contact`
-<!-- item: core.content_contact sha256: ad458bdf2737aa21be2ae42b7f2b736e6c005ac31a3e5e046ca8e57b4996728a -->
+<!-- item: core.content_contact sha256: baa275cc015ab1e206c1f64085e88e2ba12272a88b973f8766d52215e8c0784a -->
 
 | Field | Value |
 |---|---|
-| item hash | `ad458bdf2737aa21be2ae42b7f2b736e6c005ac31a3e5e046ca8e57b4996728a` |
+| item hash | `baa275cc015ab1e206c1f64085e88e2ba12272a88b973f8766d52215e8c0784a` |
 | family | `disclosure` |
 | name | `content_contact` |
 | level | `page` |
@@ -610,11 +610,11 @@ Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (p
 Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any AI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five AI-bearing values; on other pages they are `no`.
 
 ## `core.content_contact_emails`
-<!-- item: core.content_contact_emails sha256: e229c2d67499a6832570cedd2b87e320234d274d524be292ae5eb6def04c7e5d -->
+<!-- item: core.content_contact_emails sha256: ed70a76875d9dfc801610a334e226550b3304a9d3f11b88dd7a0811aab76e265 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e229c2d67499a6832570cedd2b87e320234d274d524be292ae5eb6def04c7e5d` |
+| item hash | `ed70a76875d9dfc801610a334e226550b3304a9d3f11b88dd7a0811aab76e265` |
 | family | `disclosure` |
 | name | `content_contact_emails` |
 | level | `page` |
@@ -653,11 +653,11 @@ Published supporting quotes stay verbatim, with no masking. Contact e-mails are 
 When `content_contact` = yes and the search finds no address, the value is `not_documented`.
 
 ## `core.content_purpose`
-<!-- item: core.content_purpose sha256: acc595148082039db0f5a753754fbc7e6fc7a049454760ba0c3b0d0344a8092c -->
+<!-- item: core.content_purpose sha256: 081399c1e5329f2425e24ccbaec6ec3df5503f449e3c51699f28e23a9de257dc -->
 
 | Field | Value |
 |---|---|
-| item hash | `acc595148082039db0f5a753754fbc7e6fc7a049454760ba0c3b0d0344a8092c` |
+| item hash | `081399c1e5329f2425e24ccbaec6ec3df5503f449e3c51699f28e23a9de257dc` |
 | family | `disclosure` |
 | name | `content_purpose` |
 | level | `page` |
@@ -700,11 +700,11 @@ A page item is yes when any activity on the page has a stated value in the match
 purpose: the activity's function items
 
 ## `core.content_tool_or_model`
-<!-- item: core.content_tool_or_model sha256: fc0b0349569b6e4906a71bf367a8600d73fb715249ca2e788a3561582d892fce -->
+<!-- item: core.content_tool_or_model sha256: 5bc83e76db256532a9abed9ed6e20cd4bbe8ff4a203a37963840b45748bb829d -->
 
 | Field | Value |
 |---|---|
-| item hash | `fc0b0349569b6e4906a71bf367a8600d73fb715249ca2e788a3561582d892fce` |
+| item hash | `5bc83e76db256532a9abed9ed6e20cd4bbe8ff4a203a37963840b45748bb829d` |
 | family | `disclosure` |
 | name | `content_tool_or_model` |
 | level | `page` |
@@ -747,11 +747,11 @@ A page item is yes when any activity on the page has a stated value in the match
 tool or model: tool or model name
 
 ## `core.content_vendor`
-<!-- item: core.content_vendor sha256: 98026611bb9f63a839d2fb6490e0da233564254f43a111b45e26244081f88115 -->
+<!-- item: core.content_vendor sha256: 24632fd60cb1d9587dd65fe8e2e922893981d4eafa46035a8f4babd41b2d1d36 -->
 
 | Field | Value |
 |---|---|
-| item hash | `98026611bb9f63a839d2fb6490e0da233564254f43a111b45e26244081f88115` |
+| item hash | `24632fd60cb1d9587dd65fe8e2e922893981d4eafa46035a8f4babd41b2d1d36` |
 | family | `disclosure` |
 | name | `content_vendor` |
 | level | `page` |
@@ -794,11 +794,11 @@ A page item is yes when any activity on the page has a stated value in the match
 vendor: model developer, stated or looked up, or contracting party
 
 ## `core.content_data`
-<!-- item: core.content_data sha256: 861eaa4fb096f613b15b17416a5f16106f231f0cb0015554dcb5de27000cfeb4 -->
+<!-- item: core.content_data sha256: 7c5141d851e5c3912b9b926a4ab4e5d89d8f8df3e931531ef095f47cd28b3434 -->
 
 | Field | Value |
 |---|---|
-| item hash | `861eaa4fb096f613b15b17416a5f16106f231f0cb0015554dcb5de27000cfeb4` |
+| item hash | `7c5141d851e5c3912b9b926a4ab4e5d89d8f8df3e931531ef095f47cd28b3434` |
 | family | `disclosure` |
 | name | `content_data` |
 | level | `page` |
@@ -863,11 +863,11 @@ One page question, asked on AI pages.
 Description items and the data item are also "no" where the verdict shows no AI.
 
 ## `core.content_users`
-<!-- item: core.content_users sha256: a8136f9fe3db7defcbc4b157333c527df84dc6d3e45716aedbccb4ead3ff7f79 -->
+<!-- item: core.content_users sha256: 6e9f2d6c36a680942780706dccd8a1225f64ffe197a81eb335d629d7047ffc5e -->
 
 | Field | Value |
 |---|---|
-| item hash | `a8136f9fe3db7defcbc4b157333c527df84dc6d3e45716aedbccb4ead3ff7f79` |
+| item hash | `6e9f2d6c36a680942780706dccd8a1225f64ffe197a81eb335d629d7047ffc5e` |
 | family | `disclosure` |
 | name | `content_users` |
 | level | `page` |
@@ -910,11 +910,11 @@ A page item is yes when any activity on the page has a stated value in the match
 users: `target_users` or `governed_population`
 
 ## `core.content_status_date`
-<!-- item: core.content_status_date sha256: cb067b618c3bcdab9819d7b7a6d6985e8aeb9af556f4ac57fb7474ecb4bd5974 -->
+<!-- item: core.content_status_date sha256: ddade1c7e26bf62a5c9ed042a695654489de405834c403320f215cb72f713ed7 -->
 
 | Field | Value |
 |---|---|
-| item hash | `cb067b618c3bcdab9819d7b7a6d6985e8aeb9af556f4ac57fb7474ecb4bd5974` |
+| item hash | `ddade1c7e26bf62a5c9ed042a695654489de405834c403320f215cb72f713ed7` |
 | family | `disclosure` |
 | name | `content_status_date` |
 | level | `page` |
@@ -957,11 +957,11 @@ A page item is yes when any activity on the page has a stated value in the match
 status or date: `adoption_stage` or a year field
 
 ## `core.content_human_oversight`
-<!-- item: core.content_human_oversight sha256: 7072e13a851bbdc4444200355b4fb6f55be833beb19fca58e20e505b85840346 -->
+<!-- item: core.content_human_oversight sha256: ecabd6ecbb5ebd89a404faa7aa1053d51895cd09b1feaa6b9333dbd2671f0d73 -->
 
 | Field | Value |
 |---|---|
-| item hash | `7072e13a851bbdc4444200355b4fb6f55be833beb19fca58e20e505b85840346` |
+| item hash | `ecabd6ecbb5ebd89a404faa7aa1053d51895cd09b1feaa6b9333dbd2671f0d73` |
 | family | `safeguard` |
 | name | `content_human_oversight` |
 | level | `page` |
@@ -1000,11 +1000,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 `yes` if any activity on the page is `yes`, otherwise `no`.
 
 ## `core.content_risk_assessment`
-<!-- item: core.content_risk_assessment sha256: a89e8a4095484d704c72f09c3188d641f8b05afcac4e0f40847953588c5a4c25 -->
+<!-- item: core.content_risk_assessment sha256: 3dd5d635c172e6b6fe2825c83638d3cd1b89608a839148cb04e27d04e5ce79d4 -->
 
 | Field | Value |
 |---|---|
-| item hash | `a89e8a4095484d704c72f09c3188d641f8b05afcac4e0f40847953588c5a4c25` |
+| item hash | `3dd5d635c172e6b6fe2825c83638d3cd1b89608a839148cb04e27d04e5ce79d4` |
 | family | `safeguard` |
 | name | `content_risk_assessment` |
 | level | `page` |
@@ -1043,11 +1043,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 `yes` if any activity on the page is `yes`, otherwise `no`.
 
 ## `core.content_user_notification`
-<!-- item: core.content_user_notification sha256: ce48e88e55e70564fd0ff3804b4b7411dbe4ce903d3f40401b7715f3ef7f2312 -->
+<!-- item: core.content_user_notification sha256: 6514048ff7a43362bc01c8ebe6cb247cb61b44a77faa1c603aaa5fb89bf506db -->
 
 | Field | Value |
 |---|---|
-| item hash | `ce48e88e55e70564fd0ff3804b4b7411dbe4ce903d3f40401b7715f3ef7f2312` |
+| item hash | `6514048ff7a43362bc01c8ebe6cb247cb61b44a77faa1c603aaa5fb89bf506db` |
 | family | `safeguard` |
 | name | `content_user_notification` |
 | level | `page` |
@@ -1086,11 +1086,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 `yes` if any activity on the page is `yes`, otherwise `no`.
 
 ## `core.source_url`
-<!-- item: core.source_url sha256: a222772a8fc31fd0fd5deb72eb49c3fd2e436ae879d677ece0f6e2105b783113 -->
+<!-- item: core.source_url sha256: 6e9f3ffb20c3e1e4ebc08f74fb499162e3830cd1306adae0e373a53c90133e0e -->
 
 | Field | Value |
 |---|---|
-| item hash | `a222772a8fc31fd0fd5deb72eb49c3fd2e436ae879d677ece0f6e2105b783113` |
+| item hash | `6e9f3ffb20c3e1e4ebc08f74fb499162e3830cd1306adae0e373a53c90133e0e` |
 | family | `source` |
 | name | `source_url` |
 | level | `source` |
@@ -1125,11 +1125,11 @@ The URL of the supplied page, verbatim from the input. **Never fabricate or alte
 Take `source_title` from RenderedPage.title (fallback: first heading); never from a model. The first heading is looked for in the main content of the page first (its first h1, else its first h2 to h6) and only then in the whole page (again the first h1, else the first h2 to h6). Headings inside navigation, sidebars, footers, forms, embedded frames, graphics and script or style blocks are left out, and so is any heading over 300 characters. For a PDF it is the first non-empty line of the extracted text of 300 characters or fewer; when the first three non-empty lines are all longer, the PDF has no heading. This applies to newly scraped PDFs only. Where no heading was looked for (a file type without one, a failed render, or a record stored before this rule), the fallback is not measured; that is different from a page that was measured and has no heading.
 
 ## `core.source_title`
-<!-- item: core.source_title sha256: 80e0fad0a3c58ea973619ad1cdce567a5850f88032c6077190b21d573a8f3c8a -->
+<!-- item: core.source_title sha256: bffa6f00a89d353ca5b5d4c1044230cb13237862601756f1453566b7b8a45f92 -->
 
 | Field | Value |
 |---|---|
-| item hash | `80e0fad0a3c58ea973619ad1cdce567a5850f88032c6077190b21d573a8f3c8a` |
+| item hash | `bffa6f00a89d353ca5b5d4c1044230cb13237862601756f1453566b7b8a45f92` |
 | family | `source` |
 | name | `source_title` |
 | level | `source` |
@@ -1160,11 +1160,11 @@ Take `source_title` from RenderedPage.title (fallback: first heading); never fro
 Take `source_title` from RenderedPage.title (fallback: first heading); never from a model. The first heading is looked for in the main content of the page first (its first h1, else its first h2 to h6) and only then in the whole page (again the first h1, else the first h2 to h6). Headings inside navigation, sidebars, footers, forms, embedded frames, graphics and script or style blocks are left out, and so is any heading over 300 characters. For a PDF it is the first non-empty line of the extracted text of 300 characters or fewer; when the first three non-empty lines are all longer, the PDF has no heading. This applies to newly scraped PDFs only. Where no heading was looked for (a file type without one, a failed render, or a record stored before this rule), the fallback is not measured; that is different from a page that was measured and has no heading.
 
 ## `core.source_access_date`
-<!-- item: core.source_access_date sha256: ee1cc5dcff850c3596a93ba052aabf201343d8a54faeddcdb0ca0dd51882781b -->
+<!-- item: core.source_access_date sha256: 6dedbfa5c479055d2507e57e5cc291a4b29108ac441b3a5aab26d54fc72feae3 -->
 
 | Field | Value |
 |---|---|
-| item hash | `ee1cc5dcff850c3596a93ba052aabf201343d8a54faeddcdb0ca0dd51882781b` |
+| item hash | `6dedbfa5c479055d2507e57e5cc291a4b29108ac441b3a5aab26d54fc72feae3` |
 | family | `source` |
 | name | `source_access_date` |
 | level | `source` |
@@ -1199,11 +1199,11 @@ Date the supplied page was retrieved (provided in the input metadata as the scra
 Take `source_title` from RenderedPage.title (fallback: first heading); never from a model. The first heading is looked for in the main content of the page first (its first h1, else its first h2 to h6) and only then in the whole page (again the first h1, else the first h2 to h6). Headings inside navigation, sidebars, footers, forms, embedded frames, graphics and script or style blocks are left out, and so is any heading over 300 characters. For a PDF it is the first non-empty line of the extracted text of 300 characters or fewer; when the first three non-empty lines are all longer, the PDF has no heading. This applies to newly scraped PDFs only. Where no heading was looked for (a file type without one, a failed render, or a record stored before this rule), the fallback is not measured; that is different from a page that was measured and has no heading.
 
 ## `core.source_language`
-<!-- item: core.source_language sha256: 6eef15a077d0980bc3b2d9c2ea3e9cb8a04d715167869edf4aa2e0fa659283a8 -->
+<!-- item: core.source_language sha256: 11736d1618fb6297a36945c4cd82b305ccfe9de6d5da43ba421d1bb28c98628a -->
 
 | Field | Value |
 |---|---|
-| item hash | `6eef15a077d0980bc3b2d9c2ea3e9cb8a04d715167869edf4aa2e0fa659283a8` |
+| item hash | `11736d1618fb6297a36945c4cd82b305ccfe9de6d5da43ba421d1bb28c98628a` |
 | family | `source` |
 | name | `source_language` |
 | level | `source` |
@@ -1234,11 +1234,11 @@ Take `source_title` from RenderedPage.title (fallback: first heading); never fro
 Pinned local language-ID library on stored text; same tag grammar as `institution_search_languages`; `mul` when no language exceeds a set share.
 
 ## `core.source_on_official_domain`
-<!-- item: core.source_on_official_domain sha256: 808a40f0391818a73e8620b2812462e3bd34050aaf83ac8a597695765aaf042b -->
+<!-- item: core.source_on_official_domain sha256: 232b102bdb49835791ea8db3e793255ae7b7f0b51374326ad5d41f3c0095e7e7 -->
 
 | Field | Value |
 |---|---|
-| item hash | `808a40f0391818a73e8620b2812462e3bd34050aaf83ac8a597695765aaf042b` |
+| item hash | `232b102bdb49835791ea8db3e793255ae7b7f0b51374326ad5d41f3c0095e7e7` |
 | family | `source` |
 | name | `source_on_official_domain` |
 | level | `source` |
@@ -1269,11 +1269,11 @@ Pinned local language-ID library on stored text; same tag grammar as `institutio
 `own_official` / `other_official` / `not_official` from URL host vs the master official-site overlay.
 
 ## `core.syndication_group`
-<!-- item: core.syndication_group sha256: f3db8eda3ba82dd6282414e91888311b4df2d66902d70551e223cd1e3f23ac97 -->
+<!-- item: core.syndication_group sha256: 1e8ac31aa635119028239a474d8716741d56b9d148ff432c8bfbe248c471d1e6 -->
 
 | Field | Value |
 |---|---|
-| item hash | `f3db8eda3ba82dd6282414e91888311b4df2d66902d70551e223cd1e3f23ac97` |
+| item hash | `1e8ac31aa635119028239a474d8716741d56b9d148ff432c8bfbe248c471d1e6` |
 | family | `source` |
 | name | `syndication_group` |
 | level | `source` |
@@ -1304,11 +1304,11 @@ Pinned local language-ID library on stored text; same tag grammar as `institutio
 Deterministic near-duplicate hash (e.g. shingled MinHash on normalised text) per page; `syndication_group` id; QC flag when codes differ within a group.
 
 ## `core.page_review_state`
-<!-- item: core.page_review_state sha256: 10518a8e804f53b1fe9782c51f9964fb7255d0793872752365c497f3c2c30316 -->
+<!-- item: core.page_review_state sha256: 9b238e3bb7ee2e748e4b62bedb882fcb43cb0f7340f1634b8241e2fce26e77b6 -->
 
 | Field | Value |
 |---|---|
-| item hash | `10518a8e804f53b1fe9782c51f9964fb7255d0793872752365c497f3c2c30316` |
+| item hash | `9b238e3bb7ee2e748e4b62bedb882fcb43cb0f7340f1634b8241e2fce26e77b6` |
 | family | `source` |
 | name | `page_review_state` |
 | level | `source` |
@@ -1343,11 +1343,11 @@ Deterministic near-duplicate hash (e.g. shingled MinHash on normalised text) per
 The approved plan's verdict list grows to nine; the review status keeps only failed downloads and links not followed.
 
 ## `core.discovery_path`
-<!-- item: core.discovery_path sha256: 271c46190676c2361db79e832f2f8625def1d54e988ca4bf3747da320ed12259 -->
+<!-- item: core.discovery_path sha256: 357c1255fd4564a9c6e0f145c723ac10b26223629a465bdeb5ac12462c7858b8 -->
 
 | Field | Value |
 |---|---|
-| item hash | `271c46190676c2361db79e832f2f8625def1d54e988ca4bf3747da320ed12259` |
+| item hash | `357c1255fd4564a9c6e0f145c723ac10b26223629a465bdeb5ac12462c7858b8` |
 | family | `source` |
 | name | `discovery_path` |
 | level | `source` |
@@ -1378,11 +1378,11 @@ The approved plan's verdict list grows to nine; the review status keeps only fai
 Add a deterministic `discovery_path` (searched / followed hop n / back-fill followed) on every source row in all runs, and report prevalence with and without followed pages.
 
 ## `core.text_source`
-<!-- item: core.text_source sha256: 29a736c9fdd33449fe74745c291f9113f4526fb1ffda06effef07c842e65a6a2 -->
+<!-- item: core.text_source sha256: 978a2076564d9a86756e24deff140bc472bf88bdd2aad3d3e524c49a455c0793 -->
 
 | Field | Value |
 |---|---|
-| item hash | `29a736c9fdd33449fe74745c291f9113f4526fb1ffda06effef07c842e65a6a2` |
+| item hash | `978a2076564d9a86756e24deff140bc472bf88bdd2aad3d3e524c49a455c0793` |
 | family | `source` |
 | name | `text_source` |
 | level | `source` |
@@ -1413,11 +1413,11 @@ Add a deterministic `discovery_path` (searched / followed hop n / back-fill foll
 A per-row `text_source` (stored / live re-fetch / new run) records which rows lack chrome text and links.
 
 ## `core.source_publication_date`
-<!-- item: core.source_publication_date sha256: 8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320 -->
+<!-- item: core.source_publication_date sha256: 44eac9838bdb4ff1e4552e1ce3e2fe7f65e4d874149b5b3d1b0cbaaa49589f06 -->
 
 | Field | Value |
 |---|---|
-| item hash | `8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320` |
+| item hash | `44eac9838bdb4ff1e4552e1ce3e2fe7f65e4d874149b5b3d1b0cbaaa49589f06` |
 | family | `source` |
 | name | `source_publication_date` |
 | level | `source` |
@@ -1445,18 +1445,18 @@ A per-row `text_source` (stored / live re-fetch / new run) records which rows la
 
 1. `items/core.source_publication_date/rules/0`
 
-Take dates from HTML metadata / PDF properties / URL patterns deterministically; if absent, the extractor returns a date with its verbatim quote, validated by R-042.
+Take dates from HTML metadata, PDF properties or URL patterns deterministically; if none is found, the extractor returns a date with its verbatim quote, which is checked against the stored page text like any other quote.
 
 2. `items/core.source_publication_date/rules/1`
 
-One shared date of 1 November 2022, with "before" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown; the AI-text code changes.
+One shared date of 1 November 2022, with "before" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown.
 
 ## `core.source_snippet`
-<!-- item: core.source_snippet sha256: a26fef1a984c518461bea85a9771caad96db7347f057ec8e66cf035ba014314e -->
+<!-- item: core.source_snippet sha256: cd81837b81c62d13bd865eb4173c1561fd8eadb2cdbd1f81acca9a9dc297a7a6 -->
 
 | Field | Value |
 |---|---|
-| item hash | `a26fef1a984c518461bea85a9771caad96db7347f057ec8e66cf035ba014314e` |
+| item hash | `cd81837b81c62d13bd865eb4173c1561fd8eadb2cdbd1f81acca9a9dc297a7a6` |
 | family | `source` |
 | name | `source_snippet` |
 | level | `source` |
@@ -1491,11 +1491,11 @@ Define `source_snippet` on v2.7 rows as the verbatim supporting text of the page
 Snippets are verbatim in every pipeline, no translations are stored, and procurement's rule is amended.
 
 ## `core.source_credibility`
-<!-- item: core.source_credibility sha256: c912c76f4ecb296c07dde7ed38e2e81a3512c1cda34dfc1f36315af16e8b1ffa -->
+<!-- item: core.source_credibility sha256: 19f28f187dc610987d2b2166922be7e44dec86054280dd820a52977024d6e945 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c912c76f4ecb296c07dde7ed38e2e81a3512c1cda34dfc1f36315af16e8b1ffa` |
+| item hash | `19f28f187dc610987d2b2166922be7e44dec86054280dd820a52977024d6e945` |
 | family | `source` |
 | name | `source_credibility` |
 | level | `source` |
@@ -1530,11 +1530,11 @@ Snippets are verbatim in every pipeline, no translations are stored, and procure
 Credibility by `source_type`: official domain (typed from the web domain) `high`; `procurement_tender` `high`; `news_major` `medium`; `news_trade` `medium`; `policy_org` `medium`; `vendor` `medium`; `academic` `high`; `social_media` `low`; `other` `medium`; archive address (typed from the address) `medium`; `source_type` missing (`not_documented`, `unknown`, or `not_asked` on an unreadable page) `low`.
 
 ## `core.activity_segment`
-<!-- item: core.activity_segment sha256: e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759 -->
+<!-- item: core.activity_segment sha256: 1b7750af042738acd295133cb4b1a14e0cfb189619952074db0f3607cfef5f17 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759` |
+| item hash | `1b7750af042738acd295133cb4b1a14e0cfb189619952074db0f3607cfef5f17` |
 | family | `activity_identity` |
 | name | `activity_relation_within_page` |
 | level | `activity` |
@@ -1645,11 +1645,11 @@ Components stay separate activities; a governing policy is recorded as governing
 Each pair of passages gets a link.
 
 ## `core.activity_name`
-<!-- item: core.activity_name sha256: 9a9a55c3d066738f911fdc5269670d927e3bee2da8236094fb9e2c68e1069401 -->
+<!-- item: core.activity_name sha256: 69808679d441b3cc10cb66a680689e5e2cd4e9280cdd8c6d867494c3ac71e32f -->
 
 | Field | Value |
 |---|---|
-| item hash | `9a9a55c3d066738f911fdc5269670d927e3bee2da8236094fb9e2c68e1069401` |
+| item hash | `69808679d441b3cc10cb66a680689e5e2cd4e9280cdd8c6d867494c3ac71e32f` |
 | family | `activity_identity` |
 | name | `activity_name` |
 | level | `activity` |
@@ -1678,11 +1678,11 @@ Each pair of passages gets a link.
 Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platform"). Otherwise descriptive (e.g., "Internal Copilot pilot for document drafting").
 
 ## `core.observed_actor_name`
-<!-- item: core.observed_actor_name sha256: d76dc7f2c930b753dd8511068222d56eb0e16384dcefe9064fc860a06e4ef25f -->
+<!-- item: core.observed_actor_name sha256: e75b120e8bce7ce52b35f2469175efedcbcb30fd659a8d187ef206c852aebb05 -->
 
 | Field | Value |
 |---|---|
-| item hash | `d76dc7f2c930b753dd8511068222d56eb0e16384dcefe9064fc860a06e4ef25f` |
+| item hash | `e75b120e8bce7ce52b35f2469175efedcbcb30fd659a8d187ef206c852aebb05` |
 | family | `attribution` |
 | name | `observed_actor_name` |
 | level | `activity` |
@@ -1710,14 +1710,14 @@ Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platf
 
 1. `items/core.observed_actor_name/rules/0`
 
-The extractor returns the verbatim actor name and organisational unit. jev Choice gives the relationship (this institution / unit of it / joint participant / other / unresolved) and the role (as v2.6).
+The extractor returns the verbatim actor name and organisational unit.
 
 ## `core.observed_actor_relationship`
-<!-- item: core.observed_actor_relationship sha256: eb128ea7cd4da3523104479bb645e543c69c729fa6164d14f6cce3607ed271b7 -->
+<!-- item: core.observed_actor_relationship sha256: 4c440a4b3d97d7010e60412db483419f4fc47629fc874a131d8a219524a4bb16 -->
 
 | Field | Value |
 |---|---|
-| item hash | `eb128ea7cd4da3523104479bb645e543c69c729fa6164d14f6cce3607ed271b7` |
+| item hash | `4c440a4b3d97d7010e60412db483419f4fc47629fc874a131d8a219524a4bb16` |
 | family | `attribution` |
 | name | `observed_actor_relationship` |
 | level | `activity` |
@@ -1849,27 +1849,23 @@ The relationship is coded per activity. The role of the searched institution is 
 
 The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution.
 
-3. `items/core.observed_actor_relationship/rules/2`
-
-The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it.
-
-4. `shared_rules/core.rule.attribution_grain/0` (shared rule `core.rule.attribution_grain`)
+3. `shared_rules/core.rule.attribution_grain/0` (shared rule `core.rule.attribution_grain`)
 
 An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. When the named institution is a government (national, state, regional or local), its ministries and departments are such units. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.
 
-5. `shared_rules/core.rule.attribution_grain/1` (shared rule `core.rule.attribution_grain`)
+4. `shared_rules/core.rule.attribution_grain/1` (shared rule `core.rule.attribution_grain`)
 
 A joint activity counts when the page names this institution as a participant.
 
-6. `items/core.observed_actor_relationship/rules/4`
+5. `items/core.observed_actor_relationship/rules/3`
 
 Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.
 
-7. `items/core.observed_actor_relationship/rules/5`
+6. `items/core.observed_actor_relationship/rules/4`
 
 Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint
 
-8. `items/core.observed_actor_relationship/rules/6`
+7. `items/core.observed_actor_relationship/rules/5`
 
 Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.
 
@@ -1880,11 +1876,11 @@ Not documented: the page says nothing on this question. For whose activity this 
 the role part is taken from the same part that produced the relationship
 
 ## `core.activity_type`
-<!-- item: core.activity_type sha256: 9ab6d6db8652f2aa46c2b9652e86594bb411b52cd20b3b41bc338b8e3466abf0 -->
+<!-- item: core.activity_type sha256: 9b0dbf4bdc73d1ea6d60e92fb0ca9c307b114264dfb0ad48aba03e1f48361ee2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `9ab6d6db8652f2aa46c2b9652e86594bb411b52cd20b3b41bc338b8e3466abf0` |
+| item hash | `9b0dbf4bdc73d1ea6d60e92fb0ca9c307b114264dfb0ad48aba03e1f48361ee2` |
 | family | `activity_typing` |
 | name | `activity_type` |
 | level | `activity` |
@@ -1958,24 +1954,16 @@ An AI policy and a pilot at the same institution are two separate activities; co
 
 A national programme counts as this institution's activity only when the page confirms that this institution takes part.
 
-3. `shared_rules/core.rule.allowed_type_action_pairs/0` (shared rule `core.rule.allowed_type_action_pairs`)
-
-List the allowed (type, action) pairs; activities with other pairs are flagged for review
-
-4. `shared_rules/core.rule.allowed_type_action_pairs/1` (shared rule `core.rule.allowed_type_action_pairs`)
-
-a disallowed pair is flagged for review and no label is changed
-
-5. `items/core.activity_type/rules/3`
+3. `items/core.activity_type/rules/2`
 
 `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms an AI activity at this institution but does not let its kind be told; it is never a default.
 
 ## `core.action_type`
-<!-- item: core.action_type sha256: ece42341264b8bebbd0599788bc5dc0606c3d10a7652299c2248acb4785db3b6 -->
+<!-- item: core.action_type sha256: ba678413a7169cb0a7963c2617c0e629f77325545a3d13d991ca5c589d961657 -->
 
 | Field | Value |
 |---|---|
-| item hash | `ece42341264b8bebbd0599788bc5dc0606c3d10a7652299c2248acb4785db3b6` |
+| item hash | `ba678413a7169cb0a7963c2617c0e629f77325545a3d13d991ca5c589d961657` |
 | family | `activity_typing` |
 | name | `action_type` |
 | level | `activity` |
@@ -2039,28 +2027,20 @@ Entailment label: a programme with named components
 
 One answer per activity: deployment, governance, staff training or program. Purchases and proposals are not action types; the purchase status and the stage carry them.
 
-2. `shared_rules/core.rule.allowed_type_action_pairs/0` (shared rule `core.rule.allowed_type_action_pairs`)
-
-List the allowed (type, action) pairs; activities with other pairs are flagged for review
-
-3. `shared_rules/core.rule.allowed_type_action_pairs/1` (shared rule `core.rule.allowed_type_action_pairs`)
-
-a disallowed pair is flagged for review and no label is changed
-
-4. `shared_rules/core.rule.governance_gate/0` (shared rule `core.rule.governance_gate`)
+2. `shared_rules/core.rule.governance_gate/0` (shared rule `core.rule.governance_gate`)
 
 A body that sets or oversees rules gets the governance questions.
 
-5. `items/core.action_type/rules/3`
+3. `items/core.action_type/rules/2`
 
 `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.
 
 ## `core.adoption_stage`
-<!-- item: core.adoption_stage sha256: c2c162b7663483a48c5364418a9887c3f2204fa1d706f9b0b25a6b52865e4bb4 -->
+<!-- item: core.adoption_stage sha256: 7bb0b0e80894be92f16d6bc51778b7de0dc0a09dd13355860518cb03632a0dd6 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c2c162b7663483a48c5364418a9887c3f2204fa1d706f9b0b25a6b52865e4bb4` |
+| item hash | `7bb0b0e80894be92f16d6bc51778b7de0dc0a09dd13355860518cb03632a0dd6` |
 | family | `activity_typing` |
 | name | `adoption_stage` |
 | level | `activity` |
@@ -2139,11 +2119,11 @@ Proposals specific to this institution and explicitly about AI remain a qualifyi
 `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the AI activity but does not let its stage be settled.
 
 ## `core.procurement_status`
-<!-- item: core.procurement_status sha256: 069cac4eae165dba976c259f3d778a07c2a07fe9ff5d88f60f780c501519af39 -->
+<!-- item: core.procurement_status sha256: f861980556dfa3d13157436b45d9fa9acd27c2281a42c350f62498460fad47f6 -->
 
 | Field | Value |
 |---|---|
-| item hash | `069cac4eae165dba976c259f3d778a07c2a07fe9ff5d88f60f780c501519af39` |
+| item hash | `f861980556dfa3d13157436b45d9fa9acd27c2281a42c350f62498460fad47f6` |
 | family | `activity_typing` |
 | name | `procurement_status` |
 | level | `activity` |
@@ -2205,26 +2185,22 @@ Entailment label: a payment or subscription
 
 1. `items/core.procurement_status/rules/0`
 
-Keep adoption_stage for use; add `procurement_status`: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown. Payment-only activities get adoption_stage `unknown` plus procurement_status `payment_or_subscription`.
+Answers: `none_documented`, `tender_or_rfp`, `award_or_contract`, `payment_or_subscription`. Use is coded in the adoption stage. A payment-only activity takes `payment_or_subscription` here and stage `unknown`.
 
 2. `items/core.procurement_status/rules/1`
 
-Purchase records fill the purchase-status field and get an "unknown" adoption stage unless use is shown. The owed contract amendment shrinks to removing purchase language, the procurement rules are amended, and the evidence-tier wording is fixed.
-
-3. `items/core.procurement_status/rules/2`
-
 A page that describes the activity but shows no purchase step takes `none_documented`, which is a real answer; `not_documented` is not used for this item.
 
-4. `items/core.procurement_status/rules/3`
+3. `items/core.procurement_status/rules/2`
 
 The page mentions a purchase of the tool or service but does not let it be settled.
 
 ## `core.model_origin`
-<!-- item: core.model_origin sha256: 604814a8eeb44403f59c7eb1c3dd321e8618344ef2c7492918e0dfb91e38084f -->
+<!-- item: core.model_origin sha256: a8eccc5010f668b465e986fc3fd060716ff41a7ee9dcd25eff4e70100d1262f6 -->
 
 | Field | Value |
 |---|---|
-| item hash | `604814a8eeb44403f59c7eb1c3dd321e8618344ef2c7492918e0dfb91e38084f` |
+| item hash | `a8eccc5010f668b465e986fc3fd060716ff41a7ee9dcd25eff4e70100d1262f6` |
 | family | `tool` |
 | name | `model_origin` |
 | level | `activity` |
@@ -2291,11 +2267,11 @@ The page mentions the model behind the tool but does not let it be settled.
 not_documented: the page is silent.
 
 ## `core.build_arrangement`
-<!-- item: core.build_arrangement sha256: 26747e9b192f65d107fefbb46c7423d785b554a37936e2dd775eee596ecfc205 -->
+<!-- item: core.build_arrangement sha256: 5ad6eb5e066f8167db901e699752996fe8ace4c3bba4c615e77e766e3ebab582 -->
 
 | Field | Value |
 |---|---|
-| item hash | `26747e9b192f65d107fefbb46c7423d785b554a37936e2dd775eee596ecfc205` |
+| item hash | `5ad6eb5e066f8167db901e699752996fe8ace4c3bba4c615e77e766e3ebab582` |
 | family | `tool` |
 | name | `build_arrangement` |
 | level | `activity` |
@@ -2362,11 +2338,11 @@ The page mentions how the tool was built but does not let it be settled.
 not_documented: the page is silent.
 
 ## `core.interface`
-<!-- item: core.interface sha256: 1f6053a45c6b23423f842cf6f7298ebec811773fa4dab7c930493f3dc4ffdb52 -->
+<!-- item: core.interface sha256: 7ff9950b948b59cf784f3303003661c59aa9d0fa285ac9829255eb909c84d8b2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `1f6053a45c6b23423f842cf6f7298ebec811773fa4dab7c930493f3dc4ffdb52` |
+| item hash | `7ff9950b948b59cf784f3303003661c59aa9d0fa285ac9829255eb909c84d8b2` |
 | family | `tool` |
 | name | `interface` |
 | level | `activity` |
@@ -2433,11 +2409,11 @@ The classifier chooses among the real interfaces and the missing-answer labels.
 Not documented: the page does not say how users reach the tool.
 
 ## `core.function_drafting_writing`
-<!-- item: core.function_drafting_writing sha256: a053690516ee898f1bdff22da452ed5f433f2372b5533f9dfbb6b9ea8ad338fe -->
+<!-- item: core.function_drafting_writing sha256: 9d4a44529aa69940a10a092f981ef8aabed9aeb7c82c2de0d32d22757676c481 -->
 
 | Field | Value |
 |---|---|
-| item hash | `a053690516ee898f1bdff22da452ed5f433f2372b5533f9dfbb6b9ea8ad338fe` |
+| item hash | `9d4a44529aa69940a10a092f981ef8aabed9aeb7c82c2de0d32d22757676c481` |
 | family | `tool` |
 | name | `function_drafting_writing` |
 | level | `activity` |
@@ -2490,11 +2466,11 @@ Entailment label: not used for drafting or writing text
 Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_summarization`
-<!-- item: core.function_summarization sha256: edfbd403f224c2df70919e51689a7ec36b3dbb599872860118adb077153dffb4 -->
+<!-- item: core.function_summarization sha256: 134e27de8e50c257d2916e7e5f82c3e9333c1a5469ae6fd582a091fd48581373 -->
 
 | Field | Value |
 |---|---|
-| item hash | `edfbd403f224c2df70919e51689a7ec36b3dbb599872860118adb077153dffb4` |
+| item hash | `134e27de8e50c257d2916e7e5f82c3e9333c1a5469ae6fd582a091fd48581373` |
 | family | `tool` |
 | name | `function_summarization` |
 | level | `activity` |
@@ -2547,11 +2523,11 @@ Entailment label: not used for summarising documents, reports or meetings
 Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_translation`
-<!-- item: core.function_translation sha256: 872277e5bf01ebeae5c7651032d8a86a71c71a8e79373466d23bb3e22ac470ed -->
+<!-- item: core.function_translation sha256: 08bcc42a47982423b900361d535646758863d637d4c8f5b96280dfc232cc7603 -->
 
 | Field | Value |
 |---|---|
-| item hash | `872277e5bf01ebeae5c7651032d8a86a71c71a8e79373466d23bb3e22ac470ed` |
+| item hash | `08bcc42a47982423b900361d535646758863d637d4c8f5b96280dfc232cc7603` |
 | family | `tool` |
 | name | `function_translation` |
 | level | `activity` |
@@ -2604,11 +2580,11 @@ Entailment label: not used for translating between languages
 Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_search_retrieval`
-<!-- item: core.function_search_retrieval sha256: 24d3e6c6e7c999d5ea25cf87318eb9aee07a7300048ebc8a9c027a89f53e285b -->
+<!-- item: core.function_search_retrieval sha256: a9d975c026c25b4ab93cad2a6e6917a394bd2ea42a94bc4e8676c103255c4877 -->
 
 | Field | Value |
 |---|---|
-| item hash | `24d3e6c6e7c999d5ea25cf87318eb9aee07a7300048ebc8a9c027a89f53e285b` |
+| item hash | `a9d975c026c25b4ab93cad2a6e6917a394bd2ea42a94bc4e8676c103255c4877` |
 | family | `tool` |
 | name | `function_search_retrieval` |
 | level | `activity` |
@@ -2661,11 +2637,11 @@ Entailment label: not used for finding information
 Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_code`
-<!-- item: core.function_code sha256: ab11951183a0b10e3b61f8d61d1b0d37e3b3e973fe211d739cffe02798edcc08 -->
+<!-- item: core.function_code sha256: 04ec6ce8f32cb2105118b4f45e56c88be084fb2918dddb5472b0fd20e4b1edfa -->
 
 | Field | Value |
 |---|---|
-| item hash | `ab11951183a0b10e3b61f8d61d1b0d37e3b3e973fe211d739cffe02798edcc08` |
+| item hash | `04ec6ce8f32cb2105118b4f45e56c88be084fb2918dddb5472b0fd20e4b1edfa` |
 | family | `tool` |
 | name | `function_code` |
 | level | `activity` |
@@ -2718,11 +2694,11 @@ Entailment label: not used for writing, reviewing or fixing code
 Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_image_audio_video`
-<!-- item: core.function_image_audio_video sha256: 538dff367d93a589aa7561b3306a2bb3fddded3f6655ae9478ecc57e42b2c242 -->
+<!-- item: core.function_image_audio_video sha256: 31fcf07acca54ccbeca7637feb59496c407059a2e8eafc17e97b8a4f822dda81 -->
 
 | Field | Value |
 |---|---|
-| item hash | `538dff367d93a589aa7561b3306a2bb3fddded3f6655ae9478ecc57e42b2c242` |
+| item hash | `31fcf07acca54ccbeca7637feb59496c407059a2e8eafc17e97b8a4f822dda81` |
 | family | `tool` |
 | name | `function_image_audio_video` |
 | level | `activity` |
@@ -2775,11 +2751,11 @@ Entailment label: not used for creating or editing images, audio or video
 Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_extraction_classification`
-<!-- item: core.function_extraction_classification sha256: c6b8d591da62fc1af2e39bd85f12bc2a27e423a2e24ff8f4441bdeef4c03fc6f -->
+<!-- item: core.function_extraction_classification sha256: 5b6fd7b8062937a905121023bbfe841b4a22936d1f3190e712a36cef331ddbfc -->
 
 | Field | Value |
 |---|---|
-| item hash | `c6b8d591da62fc1af2e39bd85f12bc2a27e423a2e24ff8f4441bdeef4c03fc6f` |
+| item hash | `5b6fd7b8062937a905121023bbfe841b4a22936d1f3190e712a36cef331ddbfc` |
 | family | `tool` |
 | name | `function_extraction_classification` |
 | level | `activity` |
@@ -2832,11 +2808,11 @@ Entailment label: not used for pulling information out of documents or sorting t
 Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_analysis_recommendation`
-<!-- item: core.function_analysis_recommendation sha256: 46e598ead1d140774354594de96cc8e910dc942454798338b0535efc6c39dc4b -->
+<!-- item: core.function_analysis_recommendation sha256: 4a973c2f1e681855c13ae910fc161c7c408dc362ab85015b8b3873c46ac44cb9 -->
 
 | Field | Value |
 |---|---|
-| item hash | `46e598ead1d140774354594de96cc8e910dc942454798338b0535efc6c39dc4b` |
+| item hash | `4a973c2f1e681855c13ae910fc161c7c408dc362ab85015b8b3873c46ac44cb9` |
 | family | `tool` |
 | name | `function_analysis_recommendation` |
 | level | `activity` |
@@ -2889,11 +2865,11 @@ Entailment label: not used for analysis or recommendations that support decision
 Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.tool_name`
-<!-- item: core.tool_name sha256: e606956923481de92a2b4c59bbffa78de57b1fcc574c7b2f5e666a7c000969b1 -->
+<!-- item: core.tool_name sha256: 1e879decc441d08c1b631a1f9440e6ef97606a9d056326e738407db500984350 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e606956923481de92a2b4c59bbffa78de57b1fcc574c7b2f5e666a7c000969b1` |
+| item hash | `1e879decc441d08c1b631a1f9440e6ef97606a9d056326e738407db500984350` |
 | family | `tool` |
 | name | `tool_name` |
 | level | `activity` |
@@ -2932,11 +2908,11 @@ Specific tool, model, or platform name (e.g., "Microsoft 365 Copilot", "ChatGPT"
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.model_name`
-<!-- item: core.model_name sha256: 7dd785b572b3e2c6fb2bec9e18322fd3947632922cf627ddc43a1b3cd53ed834 -->
+<!-- item: core.model_name sha256: 920c2ca82290833327903b8555b400f782cfb9d1af1b42c99b0700ba966b947f -->
 
 | Field | Value |
 |---|---|
-| item hash | `7dd785b572b3e2c6fb2bec9e18322fd3947632922cf627ddc43a1b3cd53ed834` |
+| item hash | `920c2ca82290833327903b8555b400f782cfb9d1af1b42c99b0700ba966b947f` |
 | family | `tool` |
 | name | `model_name` |
 | level | `activity` |
@@ -2971,11 +2947,11 @@ The quote step runs for every activity; skipped items are kept internally and pu
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.contracting_party`
-<!-- item: core.contracting_party sha256: fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2 -->
+<!-- item: core.contracting_party sha256: 08c049166dc9dff75f2da9a369b32e7cb664c615d17f0f09a58e5c75adf1c3cd -->
 
 | Field | Value |
 |---|---|
-| item hash | `fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2` |
+| item hash | `08c049166dc9dff75f2da9a369b32e7cb664c615d17f0f09a58e5c75adf1c3cd` |
 | family | `tool` |
 | name | `contracting_party` |
 | level | `activity` |
@@ -3014,11 +2990,11 @@ Vendor holds what the source names, which in purchase records is the contracting
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.developer`
-<!-- item: core.developer sha256: 947cd93228ce4c32c279ab6fa876967f2cc39e58f925019a4a438bb17de71f36 -->
+<!-- item: core.developer sha256: eaa4b9278a86d5d25d3b8a6de4a4cfdfd66f8b06b5d39a07ebb35e0284bdc6bf -->
 
 | Field | Value |
 |---|---|
-| item hash | `947cd93228ce4c32c279ab6fa876967f2cc39e58f925019a4a438bb17de71f36` |
+| item hash | `eaa4b9278a86d5d25d3b8a6de4a4cfdfd66f8b06b5d39a07ebb35e0284bdc6bf` |
 | family | `tool` |
 | name | `developer` |
 | level | `activity` |
@@ -3061,11 +3037,11 @@ The quote step runs for every activity; skipped items are kept internally and pu
 A developer stated on the page comes from the quote step, with its supporting quote; `developer_basis` = stated.
 
 ## `core.developer_basis`
-<!-- item: core.developer_basis sha256: d76e4097f154eab1ca16fc863f2dc1a11e713a074ae41ac5324b315ebc3d7194 -->
+<!-- item: core.developer_basis sha256: 49985b943e91ec215c6a7919ab4d9db9f68916d7df01be30bf940983017bcc57 -->
 
 | Field | Value |
 |---|---|
-| item hash | `d76e4097f154eab1ca16fc863f2dc1a11e713a074ae41ac5324b315ebc3d7194` |
+| item hash | `49985b943e91ec215c6a7919ab4d9db9f68916d7df01be30bf940983017bcc57` |
 | family | `provenance` |
 | name | `developer_basis` |
 | level | `activity` |
@@ -3108,11 +3084,11 @@ When `developer` is a missing token (`not_asked`, `not_documented`, `unknown` or
 At Stage 6, a merged activity takes its `developer` as it takes `contracting_party`: from the observation with the highest source credibility, ties by pool order, a real value over a missing token. Its `developer_basis` is `stated` when that developer is a real value, else the developer's missing token.
 
 ## `core.deployment_mode`
-<!-- item: core.deployment_mode sha256: 7da7a90e15a99e1ecdfe1290a318e2a76862a48ea53d5d8b79b26865658406b3 -->
+<!-- item: core.deployment_mode sha256: ed5672b2fed226dd6a980bec93b1b15edb9d943ae4d08eeea596d69b8377008c -->
 
 | Field | Value |
 |---|---|
-| item hash | `7da7a90e15a99e1ecdfe1290a318e2a76862a48ea53d5d8b79b26865658406b3` |
+| item hash | `ed5672b2fed226dd6a980bec93b1b15edb9d943ae4d08eeea596d69b8377008c` |
 | family | `tool` |
 | name | `deployment_mode` |
 | level | `activity` |
@@ -3169,11 +3145,11 @@ The page mentions whether the tool is separate or built into existing software b
 not_documented: the page is silent.
 
 ## `core.target_users`
-<!-- item: core.target_users sha256: 8d985ade4cec6acc88a59524a2421739f44f5974d43c091cd810661c8e878675 -->
+<!-- item: core.target_users sha256: fd900391b467a5aade9e8ddba9eb1c3da8247f681ccf54cbe1867015410b4a64 -->
 
 | Field | Value |
 |---|---|
-| item hash | `8d985ade4cec6acc88a59524a2421739f44f5974d43c091cd810661c8e878675` |
+| item hash | `fd900391b467a5aade9e8ddba9eb1c3da8247f681ccf54cbe1867015410b4a64` |
 | family | `tool` |
 | name | `target_users` |
 | level | `activity` |
@@ -3246,11 +3222,11 @@ not_documented: the page is silent.
 Drop 'not covered by this part' and missing labels from the list. 'both' present, or staff and public both present, gives 'both'. One real value gives that value. No real value: not_documented if any part says the page is silent, else unknown. Every part 'not covered' gives not_documented.
 
 ## `core.governed_population`
-<!-- item: core.governed_population sha256: 0e318135188e3d9cad0912b2b6a4982b06c931ce3f329645c9c565bfa7ffb971 -->
+<!-- item: core.governed_population sha256: e57d050167a5cbc640be0588e4e4b1a51d9ce6a1ef81c22ebfbf0bf8714ee7f5 -->
 
 | Field | Value |
 |---|---|
-| item hash | `0e318135188e3d9cad0912b2b6a4982b06c931ce3f329645c9c565bfa7ffb971` |
+| item hash | `e57d050167a5cbc640be0588e4e4b1a51d9ce6a1ef81c22ebfbf0bf8714ee7f5` |
 | family | `governance` |
 | name | `governed_population` |
 | level | `activity` |
@@ -3306,13 +3282,9 @@ Entailment label: both staff and people or bodies outside the institution
 
 1. `items/core.governed_population/rules/0`
 
-jev Choice: internal_personnel / external_users / both / unknown; `not_applicable` for non-governance.
-
-2. `items/core.governed_population/rules/1`
-
 The page mentions whom the rule applies to but does not let it be settled.
 
-3. `items/core.governed_population/rules/2`
+2. `items/core.governed_population/rules/1`
 
 not_documented: the page is silent.
 
@@ -3323,11 +3295,11 @@ not_documented: the page is silent.
 Drop 'not covered by this part' and missing labels from the list. 'both' present, or staff and public both present, gives 'both'. One real value gives that value. No real value: not_documented if any part says the page is silent, else unknown. Every part 'not covered' gives not_documented.
 
 ## `core.governance_form`
-<!-- item: core.governance_form sha256: ae8c86617f21eb2e92365dcaa0a538361f271d3904a56162178c17dfc4bdde44 -->
+<!-- item: core.governance_form sha256: 9b84ef67dcb070a32922917d06ab5a956193261e27e713de958b3f34a14bf93a -->
 
 | Field | Value |
 |---|---|
-| item hash | `ae8c86617f21eb2e92365dcaa0a538361f271d3904a56162178c17dfc4bdde44` |
+| item hash | `9b84ef67dcb070a32922917d06ab5a956193261e27e713de958b3f34a14bf93a` |
 | family | `governance` |
 | name | `governance_form` |
 | level | `activity` |
@@ -3410,11 +3382,11 @@ The page mentions the form of the rule but does not let it be settled.
 not_documented: the page is silent.
 
 ## `core.governance_direction`
-<!-- item: core.governance_direction sha256: a802ccf621f35fa12cac0de1f625aaa4b8ebecf47e1491bc6515c5dbc89816eb -->
+<!-- item: core.governance_direction sha256: f84d7bfb555ec9856b9d13f4b269dfedd31b070fd148dc5a93b30b8c4fd38149 -->
 
 | Field | Value |
 |---|---|
-| item hash | `a802ccf621f35fa12cac0de1f625aaa4b8ebecf47e1491bc6515c5dbc89816eb` |
+| item hash | `f84d7bfb555ec9856b9d13f4b269dfedd31b070fd148dc5a93b30b8c4fd38149` |
 | family | `governance` |
 | name | `governance_direction` |
 | level | `activity` |
@@ -3503,11 +3475,11 @@ A silent page gets "not documented"; a page that mentions the matter but cannot 
 Order: restricts_with_conditions, prohibits, permits, requires, promotes, not_documented, unknown.
 
 ## `core.service_domain`
-<!-- item: core.service_domain sha256: 38acc164fd9dcc80757e5c7edfb714d20cb99448be913a6bb74fb56426302960 -->
+<!-- item: core.service_domain sha256: 123bf211ef3127c9998ee9064714c651171f1a284832af21f9c117c6ecdb8150 -->
 
 | Field | Value |
 |---|---|
-| item hash | `38acc164fd9dcc80757e5c7edfb714d20cb99448be913a6bb74fb56426302960` |
+| item hash | `123bf211ef3127c9998ee9064714c651171f1a284832af21f9c117c6ecdb8150` |
 | family | `activity_typing` |
 | name | `service_domain` |
 | level | `activity` |
@@ -3636,11 +3608,11 @@ No separate value. A rule says the earlier 'general administration' is coded 'ge
 Take every area any part ticks with a supported answer. Each area's quote and certainty come from the part most sure of it. Missing labels only if no part ticks a real area.
 
 ## `core.genai_mechanism_basis`
-<!-- item: core.genai_mechanism_basis sha256: 0f2f4e390483f9d70e2e8ed578a0a71d6ebfcc5b0874d7436e72ad424c9aeb7f -->
+<!-- item: core.genai_mechanism_basis sha256: c23be1bdd952944f28000538057031619e40ec02d05d4445e2a57644a7480cdd -->
 
 | Field | Value |
 |---|---|
-| item hash | `0f2f4e390483f9d70e2e8ed578a0a71d6ebfcc5b0874d7436e72ad424c9aeb7f` |
+| item hash | `c23be1bdd952944f28000538057031619e40ec02d05d4445e2a57644a7480cdd` |
 | family | `verdict` |
 | name | `genai_mechanism_basis` |
 | level | `activity` |
@@ -3719,11 +3691,11 @@ A tool the page calls an "AI chatbot" or "AI assistant" counts as generative AI,
 Translation counts as an AI activity when the page calls it AI or machine learning. It counts as generative AI only when the page ties it to a named generative product or says a language model produces it.
 
 ## `core.year_announced`
-<!-- item: core.year_announced sha256: 18ae4c635eb3fba036a5216a023d3c7f4c0b0d03946e4c9ff845414d5ee7e6ee -->
+<!-- item: core.year_announced sha256: 5012f56b9cc6e875253650faab5901f2dc885bb9b047e2efcd69b53751d88251 -->
 
 | Field | Value |
 |---|---|
-| item hash | `18ae4c635eb3fba036a5216a023d3c7f4c0b0d03946e4c9ff845414d5ee7e6ee` |
+| item hash | `5012f56b9cc6e875253650faab5901f2dc885bb9b047e2efcd69b53751d88251` |
 | family | `dates` |
 | name | `year_announced` |
 | level | `activity` |
@@ -3772,11 +3744,11 @@ Pilot and production years use the same candidate-then-classifier method. Fiscal
 not_documented: the page is silent.
 
 ## `core.year_pilot_start`
-<!-- item: core.year_pilot_start sha256: aa7f390fc73ea6d7539f44677f4d0e88ce6fe439deddf70947b1bafc5720707f -->
+<!-- item: core.year_pilot_start sha256: f1f89ccdbc5ca6c6e7827a9d2db5f32576f58510aa3ebebf96c7bfd14c63cbc7 -->
 
 | Field | Value |
 |---|---|
-| item hash | `aa7f390fc73ea6d7539f44677f4d0e88ce6fe439deddf70947b1bafc5720707f` |
+| item hash | `f1f89ccdbc5ca6c6e7827a9d2db5f32576f58510aa3ebebf96c7bfd14c63cbc7` |
 | family | `dates` |
 | name | `year_pilot_start` |
 | level | `activity` |
@@ -3829,11 +3801,11 @@ Two columns, each stated-only.
 not_documented: the page is silent.
 
 ## `core.year_production_start`
-<!-- item: core.year_production_start sha256: cf8da9ff7b94d785f5ad1ca8477d4542784013e4c56844fbbbe4e38824f6cc2f -->
+<!-- item: core.year_production_start sha256: efe66c3eeb335786bafe62cca5a3d4da7c5b9da1da1ecebffa2c08fb7479a94a -->
 
 | Field | Value |
 |---|---|
-| item hash | `cf8da9ff7b94d785f5ad1ca8477d4542784013e4c56844fbbbe4e38824f6cc2f` |
+| item hash | `efe66c3eeb335786bafe62cca5a3d4da7c5b9da1da1ecebffa2c08fb7479a94a` |
 | family | `dates` |
 | name | `year_production_start` |
 | level | `activity` |
@@ -3886,11 +3858,11 @@ Two columns, each stated-only.
 not_documented: the page is silent.
 
 ## `core.deployment_scale_number`
-<!-- item: core.deployment_scale_number sha256: 732f308184bb60eedf1e67468eb657857b20ce4dcfc76fb97cf16c19454b3686 -->
+<!-- item: core.deployment_scale_number sha256: c3740fb709eb05a98b259f988dc7611e778dfd87abd332d7de982d11ad8b23ae -->
 
 | Field | Value |
 |---|---|
-| item hash | `732f308184bb60eedf1e67468eb657857b20ce4dcfc76fb97cf16c19454b3686` |
+| item hash | `c3740fb709eb05a98b259f988dc7611e778dfd87abd332d7de982d11ad8b23ae` |
 | family | `scale` |
 | name | `deployment_scale_number` |
 | level | `activity` |
@@ -3929,11 +3901,11 @@ the quote step copies the scale number verbatim and the classifier picks the uni
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.deployment_scale_unit`
-<!-- item: core.deployment_scale_unit sha256: c4359e7dd8e604b19a00b999b3d14d2407d5b6c8f398a8f759a417693852e7eb -->
+<!-- item: core.deployment_scale_unit sha256: 87368e214a3f451255e7ecf7d61518e8642043fce8097e9299abcbfc9994d55b -->
 
 | Field | Value |
 |---|---|
-| item hash | `c4359e7dd8e604b19a00b999b3d14d2407d5b6c8f398a8f759a417693852e7eb` |
+| item hash | `87368e214a3f451255e7ecf7d61518e8642043fce8097e9299abcbfc9994d55b` |
 | family | `scale` |
 | name | `deployment_scale_unit` |
 | level | `activity` |
@@ -4008,11 +3980,11 @@ The extractor returns the verbatim number span. jev Choice gives the unit: licen
 not_documented: the page is silent.
 
 ## `core.has_human_oversight`
-<!-- item: core.has_human_oversight sha256: d295f72c1b7d9084ba2aaa7175f0d072bd1847acd66828f5764b3109c9406d40 -->
+<!-- item: core.has_human_oversight sha256: f457c8145acede1568adb8b4935f40c6ec54f1527e86afb4de1fcfb0bbc7e614 -->
 
 | Field | Value |
 |---|---|
-| item hash | `d295f72c1b7d9084ba2aaa7175f0d072bd1847acd66828f5764b3109c9406d40` |
+| item hash | `f457c8145acede1568adb8b4935f40c6ec54f1527e86afb4de1fcfb0bbc7e614` |
 | family | `safeguard` |
 | name | `has_human_oversight` |
 | level | `activity` |
@@ -4083,11 +4055,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.has_transparency_notice`
-<!-- item: core.has_transparency_notice sha256: 8b67314da88223d5cb70d2f9a20264670f1db2aacdc58287238d97c3161b1f0c -->
+<!-- item: core.has_transparency_notice sha256: 1feb9b1b0a856b2230f82f423887235fa54e5e5639cc0fea2e740ea24e31accb -->
 
 | Field | Value |
 |---|---|
-| item hash | `8b67314da88223d5cb70d2f9a20264670f1db2aacdc58287238d97c3161b1f0c` |
+| item hash | `1feb9b1b0a856b2230f82f423887235fa54e5e5639cc0fea2e740ea24e31accb` |
 | family | `safeguard` |
 | name | `has_transparency_notice` |
 | level | `activity` |
@@ -4158,11 +4130,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.has_data_classification`
-<!-- item: core.has_data_classification sha256: c87240d8603e964e338ee2429213041510bf66932774798e63a0063945a4fdfc -->
+<!-- item: core.has_data_classification sha256: 7f4298c0a9d34091bdff171a97ab9d0a143b74439e2a7354c756d7d955111bd2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c87240d8603e964e338ee2429213041510bf66932774798e63a0063945a4fdfc` |
+| item hash | `7f4298c0a9d34091bdff171a97ab9d0a143b74439e2a7354c756d7d955111bd2` |
 | family | `safeguard` |
 | name | `has_data_classification` |
 | level | `activity` |
@@ -4233,11 +4205,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.has_risk_assessment`
-<!-- item: core.has_risk_assessment sha256: 4b340b3af9416bb9713e92e6558919763d64617c523fb4bbc5e633f149358ea4 -->
+<!-- item: core.has_risk_assessment sha256: 6b438e33e59995ecb695bcbde885caee7d2bea00896ac8832eb4342638b0dace -->
 
 | Field | Value |
 |---|---|
-| item hash | `4b340b3af9416bb9713e92e6558919763d64617c523fb4bbc5e633f149358ea4` |
+| item hash | `6b438e33e59995ecb695bcbde885caee7d2bea00896ac8832eb4342638b0dace` |
 | family | `safeguard` |
 | name | `has_risk_assessment` |
 | level | `activity` |
@@ -4308,11 +4280,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.outcome_kind`
-<!-- item: core.outcome_kind sha256: 7215b6b2576b8a967c86362ed2a3d4dbcb740b84a4f23d2de05a4ef817091e12 -->
+<!-- item: core.outcome_kind sha256: 59564af9fc5b525d9472d8ed39d46328708e5f8768eade74b8f57edb7b3aaacc -->
 
 | Field | Value |
 |---|---|
-| item hash | `7215b6b2576b8a967c86362ed2a3d4dbcb740b84a4f23d2de05a4ef817091e12` |
+| item hash | `59564af9fc5b525d9472d8ed39d46328708e5f8768eade74b8f57edb7b3aaacc` |
 | family | `outcomes` |
 | name | `outcome_kind` |
 | level | `activity` |
@@ -4371,11 +4343,11 @@ Entailment label: none reported
 Asked about this activity only, once for results and once for incidents. The answer says both whether the page reports one and what kind; the text of the result or incident is extracted only when the answer is not `none_reported`. The incident question also offers `discontinuation_uncertain`.
 
 ## `core.incident_kind`
-<!-- item: core.incident_kind sha256: 9d7ab9101539f801ee5098e8df2c46e9f0b6fcc27fdf679eaf88cf502f395d32 -->
+<!-- item: core.incident_kind sha256: 0f4afe6e02b0cd70050442ee5f46ecef32fb1aa645bdf3832b2a076deebfed66 -->
 
 | Field | Value |
 |---|---|
-| item hash | `9d7ab9101539f801ee5098e8df2c46e9f0b6fcc27fdf679eaf88cf502f395d32` |
+| item hash | `0f4afe6e02b0cd70050442ee5f46ecef32fb1aa645bdf3832b2a076deebfed66` |
 | family | `outcomes` |
 | name | `incident_kind` |
 | level | `activity` |
@@ -4452,11 +4424,11 @@ Retire flags that just mirror a column; keep 'identity unresolved' and 'stage am
 The incident question ignores stops unless a problem is reported.
 
 ## `core.reported_outcomes`
-<!-- item: core.reported_outcomes sha256: 841fe4e05bdbe08ab94621fc8d47e330ac1a68b3fb8af5875eddf8de74af9554 -->
+<!-- item: core.reported_outcomes sha256: b8966f48a7aaa47f305aa79f349549b07b42f1f878241510f6e3cdc80550e6b4 -->
 
 | Field | Value |
 |---|---|
-| item hash | `841fe4e05bdbe08ab94621fc8d47e330ac1a68b3fb8af5875eddf8de74af9554` |
+| item hash | `b8966f48a7aaa47f305aa79f349549b07b42f1f878241510f6e3cdc80550e6b4` |
 | family | `outcomes` |
 | name | `reported_outcomes` |
 | level | `activity` |
@@ -4484,18 +4456,12 @@ The incident question ignores stops unless a problem is reported.
 
 Documented performance claims. Only record if explicitly stated. Never infer.
 
-### Rules
-
-1. `items/core.reported_outcomes/rules/0`
-
-Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
-
 ## `core.reported_incidents`
-<!-- item: core.reported_incidents sha256: 5965e825e8086c714fe752e1004c91a1c7f839644191a4e2077a3693f744e429 -->
+<!-- item: core.reported_incidents sha256: beed4c12c06a509a8abebfdbfae91d3457c4a9524e3308533f371dc4c0d073d2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `5965e825e8086c714fe752e1004c91a1c7f839644191a4e2077a3693f744e429` |
+| item hash | `beed4c12c06a509a8abebfdbfae91d3457c4a9524e3308533f371dc4c0d073d2` |
 | family | `outcomes` |
 | name | `reported_incidents` |
 | level | `activity` |
@@ -4523,18 +4489,12 @@ Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothin
 
 Documented errors, failures, or controversies. Only record if explicitly stated.
 
-### Rules
-
-1. `items/core.reported_incidents/rules/0`
-
-Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
-
 ## `core.evaluation_documented`
-<!-- item: core.evaluation_documented sha256: 72612246f3249a9de830061aaea503805790864a71a345b04c7cc9cd94afa366 -->
+<!-- item: core.evaluation_documented sha256: 04b649f49a72fd77cbec33e3669e421e7153302044dab5fe06ec6878eff0a0ee -->
 
 | Field | Value |
 |---|---|
-| item hash | `72612246f3249a9de830061aaea503805790864a71a345b04c7cc9cd94afa366` |
+| item hash | `04b649f49a72fd77cbec33e3669e421e7153302044dab5fe06ec6878eff0a0ee` |
 | family | `evaluation` |
 | name | `evaluation_documented` |
 | level | `activity`, `page` |
@@ -4639,11 +4599,11 @@ The page states that an evaluation is required (by a rule) or planned, with no e
 The page has no evaluation statement about this activity.
 
 ## `core.evaluation_type_pre_deployment_testing`
-<!-- item: core.evaluation_type_pre_deployment_testing sha256: 56f266691b0a497adc3ae6c663c7c888f3af1cea40395e6c164da02b6059182a -->
+<!-- item: core.evaluation_type_pre_deployment_testing sha256: c3706c6d9bebdf6e901dc45dce655bbb948818fd9883ad5bf64ea58eaa7076a5 -->
 
 | Field | Value |
 |---|---|
-| item hash | `56f266691b0a497adc3ae6c663c7c888f3af1cea40395e6c164da02b6059182a` |
+| item hash | `c3706c6d9bebdf6e901dc45dce655bbb948818fd9883ad5bf64ea58eaa7076a5` |
 | family | `evaluation` |
 | name | `evaluation_type_pre_deployment_testing` |
 | level | `activity`, `page` |
@@ -4696,11 +4656,11 @@ Entailment label: does not include testing before deployment
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_pilot_evaluation`
-<!-- item: core.evaluation_type_pilot_evaluation sha256: 908c2704cf1af68a2036806c821a047e91bbf3135830238a2e7546037a05f3cd -->
+<!-- item: core.evaluation_type_pilot_evaluation sha256: 1099159d5be8b73c936cf133d62882c92b016ba20959f5eb29a124fbf02f5796 -->
 
 | Field | Value |
 |---|---|
-| item hash | `908c2704cf1af68a2036806c821a047e91bbf3135830238a2e7546037a05f3cd` |
+| item hash | `1099159d5be8b73c936cf133d62882c92b016ba20959f5eb29a124fbf02f5796` |
 | family | `evaluation` |
 | name | `evaluation_type_pilot_evaluation` |
 | level | `activity`, `page` |
@@ -4753,11 +4713,11 @@ Entailment label: does not include evaluation of a pilot or trial
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_independent_audit`
-<!-- item: core.evaluation_type_independent_audit sha256: 1f17899a3484b6ac7bc35b61cf459bd84e0c0cc5efe52a1f33facd11eab0c5b7 -->
+<!-- item: core.evaluation_type_independent_audit sha256: e0766d1413eca8d14e85c1e33b0b6605f3bef4b81795fded86c169ee7a0ceedb -->
 
 | Field | Value |
 |---|---|
-| item hash | `1f17899a3484b6ac7bc35b61cf459bd84e0c0cc5efe52a1f33facd11eab0c5b7` |
+| item hash | `e0766d1413eca8d14e85c1e33b0b6605f3bef4b81795fded86c169ee7a0ceedb` |
 | family | `evaluation` |
 | name | `evaluation_type_independent_audit` |
 | level | `activity`, `page` |
@@ -4810,11 +4770,11 @@ Entailment label: does not include an audit or evaluation by an independent body
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_ongoing_monitoring`
-<!-- item: core.evaluation_type_ongoing_monitoring sha256: 781f24c150accde0fd605d3066e4f8cb79dc91b971b656669a75abc26a9092d8 -->
+<!-- item: core.evaluation_type_ongoing_monitoring sha256: 71286dc8612e46e34aaf558f5927e29a38add37c5720508ac8f122e7d95bf290 -->
 
 | Field | Value |
 |---|---|
-| item hash | `781f24c150accde0fd605d3066e4f8cb79dc91b971b656669a75abc26a9092d8` |
+| item hash | `71286dc8612e46e34aaf558f5927e29a38add37c5720508ac8f122e7d95bf290` |
 | family | `evaluation` |
 | name | `evaluation_type_ongoing_monitoring` |
 | level | `activity`, `page` |
@@ -4867,11 +4827,11 @@ Entailment label: does not include ongoing monitoring of the tool in use
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_user_feedback`
-<!-- item: core.evaluation_type_user_feedback sha256: f6254ba80055d4ba6ff7051f9c1fda8436849aa1abaa9cce14741863912b63b1 -->
+<!-- item: core.evaluation_type_user_feedback sha256: dea28705e59122ac47606e82ec2a32a190ef8ed19a8272c91ed2f8e280f675dc -->
 
 | Field | Value |
 |---|---|
-| item hash | `f6254ba80055d4ba6ff7051f9c1fda8436849aa1abaa9cce14741863912b63b1` |
+| item hash | `dea28705e59122ac47606e82ec2a32a190ef8ed19a8272c91ed2f8e280f675dc` |
 | family | `evaluation` |
 | name | `evaluation_type_user_feedback` |
 | level | `activity`, `page` |
@@ -4924,11 +4884,11 @@ Entailment label: does not include user feedback or satisfaction surveys
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_bias_or_safety_testing`
-<!-- item: core.evaluation_type_bias_or_safety_testing sha256: c0ae0fc3fbd69f6159a885ad4f9638f66cde52f394cd20a36b2ee7ca896a466e -->
+<!-- item: core.evaluation_type_bias_or_safety_testing sha256: b1d0421cf3637b33abd41b5a668afff5cb9352b61c14e809e26aca6c6d877fc2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c0ae0fc3fbd69f6159a885ad4f9638f66cde52f394cd20a36b2ee7ca896a466e` |
+| item hash | `b1d0421cf3637b33abd41b5a668afff5cb9352b61c14e809e26aca6c6d877fc2` |
 | family | `evaluation` |
 | name | `evaluation_type_bias_or_safety_testing` |
 | level | `activity`, `page` |
@@ -4981,11 +4941,11 @@ Entailment label: does not include bias, fairness or safety testing
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.stage_as_of`
-<!-- item: core.stage_as_of sha256: a4cfb8749247a32920ceb3fd6cef7053a6dfc66866687cccf5c030875bc73ca4 -->
+<!-- item: core.stage_as_of sha256: 9bda6a142f0941947e27263b11e1f023f120627db2fc9b3ead3e6b15bb99fa76 -->
 
 | Field | Value |
 |---|---|
-| item hash | `a4cfb8749247a32920ceb3fd6cef7053a6dfc66866687cccf5c030875bc73ca4` |
+| item hash | `9bda6a142f0941947e27263b11e1f023f120627db2fc9b3ead3e6b15bb99fa76` |
 | family | `dates` |
 | name | `stage_as_of` |
 | level | `activity` |
@@ -5016,11 +4976,11 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 stage_as_of = source_publication_date if supported, else the page's latest stated date for the activity, else the access date; plus `stage_as_of_basis`.
 
 ## `core.stage_as_of_basis`
-<!-- item: core.stage_as_of_basis sha256: c40ce46095c40201d4c252d58c6eaa6fa915a8ae19e1a4fe3abe01f314c3c953 -->
+<!-- item: core.stage_as_of_basis sha256: c4b647d7928f513a6a95f9d65e11fd351d23b597e78d12fed5a731cd9783d3d7 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c40ce46095c40201d4c252d58c6eaa6fa915a8ae19e1a4fe3abe01f314c3c953` |
+| item hash | `c4b647d7928f513a6a95f9d65e11fd351d23b597e78d12fed5a731cd9783d3d7` |
 | family | `provenance` |
 | name | `stage_as_of_basis` |
 | level | `activity` |
@@ -5069,11 +5029,11 @@ stage_as_of = source_publication_date if supported, else the page's latest state
 When the observations carrying a merged activity's `stage_as_of` reach that date by different steps, `stage_as_of_basis` takes the first of them in the order `publication`, `stated`, `access`.
 
 ## `core.permanent_pilot`
-<!-- item: core.permanent_pilot sha256: 152bbabb24b057f88773d735097cc0341ee6e95603be4597682f789458beedb2 -->
+<!-- item: core.permanent_pilot sha256: 2c15465e82f9f7f3ea29dfce9ac4cb3f9f0629345bf9880d12dfebfe45a46748 -->
 
 | Field | Value |
 |---|---|
-| item hash | `152bbabb24b057f88773d735097cc0341ee6e95603be4597682f789458beedb2` |
+| item hash | `2c15465e82f9f7f3ea29dfce9ac4cb3f9f0629345bf9880d12dfebfe45a46748` |
 | family | `activity_typing` |
 | name | `permanent_pilot` |
 | level | `activity` |
@@ -5130,11 +5090,11 @@ A supported `yes` sets the final `adoption_stage` to `production` only when the 
 The page does not let this be settled.
 
 ## `core.vendor_claim_only`
-<!-- item: core.vendor_claim_only sha256: 8d2d3e7b7d9864d230056eeab9d9c44d5cf51f4633e7aa5f1ebb7e571c372553 -->
+<!-- item: core.vendor_claim_only sha256: 55b92f0eee7ff1506210ef663c3839c5a4a1d7cd690bd36e3ae5a247ae19b536 -->
 
 | Field | Value |
 |---|---|
-| item hash | `8d2d3e7b7d9864d230056eeab9d9c44d5cf51f4633e7aa5f1ebb7e571c372553` |
+| item hash | `55b92f0eee7ff1506210ef663c3839c5a4a1d7cd690bd36e3ae5a247ae19b536` |
 | family | `quality` |
 | name | `vendor_claim_only` |
 | level | `activity` |
@@ -5162,14 +5122,14 @@ The page does not let this be settled.
 
 1. `items/core.vendor_claim_only/rules/0`
 
-Each item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.
+`yes` when every source supporting the activity has source type `vendor`; `unknown` when any of them has no source type; otherwise `no`. A page typed automatically (official domain or archive address) has a type and is not `vendor`.
 
 ## `core.unit_credit`
-<!-- item: core.unit_credit sha256: 9ba4f21e759c415862d143345631e1e375687d471ac850a58cd020c2605c474a -->
+<!-- item: core.unit_credit sha256: 300296a33913ac5bd7c8163ea1da222da1a176e78591a22447b9d84049b94786 -->
 
 | Field | Value |
 |---|---|
-| item hash | `9ba4f21e759c415862d143345631e1e375687d471ac850a58cd020c2605c474a` |
+| item hash | `300296a33913ac5bd7c8163ea1da222da1a176e78591a22447b9d84049b94786` |
 | family | `attribution` |
 | name | `unit_credit` |
 | level | `activity` |
@@ -5200,11 +5160,11 @@ Each item states its coder (classifier, mechanical, quote step or derived), and 
 Keep your rule and add a yes/no column marking credit received through a unit, so analyses can remove duplicates; the data dictionary explains it.
 
 ## `core.uncertainty_flags`
-<!-- item: core.uncertainty_flags sha256: c4129942fd2c85becde37da31998d5a7599d74917b78b845d2d64259a9f0228e -->
+<!-- item: core.uncertainty_flags sha256: 634a01d4f82fbe62c12870d25ab0de60b094c8cb0c2a26f3a688451d2c2dbd76 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c4129942fd2c85becde37da31998d5a7599d74917b78b845d2d64259a9f0228e` |
+| item hash | `634a01d4f82fbe62c12870d25ab0de60b094c8cb0c2a26f3a688451d2c2dbd76` |
 | family | `quality` |
 | name | `uncertainty_flags` |
 | level | `activity`, `row` |
@@ -5232,22 +5192,14 @@ Keep your rule and add a yes/no column marking credit received through a unit, s
 
 1. `items/core.uncertainty_flags/rules/0`
 
-Compute each flag from codes (table above); add `identity_unresolved` for Stage 6 relations; drop `source_language_barrier`; `discontinued_uncertain` becomes a pass-2 jev yes/no.
-
-2. `items/core.uncertainty_flags/rules/1`
-
-Retire flags that just mirror a column; keep 'identity unresolved' and 'stage ambiguous', and fold 'discontinuation uncertain' into the incident question as a value instead of a separate question.
-
-3. `items/core.uncertainty_flags/rules/2`
-
-AI-text flags fold into the main list, the language-barrier flag is dropped everywhere, and language coverage is carried by the multilingual subproject's item.
+Two flags. `stage_ambiguous`: the stated adoption-stage answers differ across parts or pooled observations before combining; missing answers are ignored. `identity_unresolved`: a Stage 6 cross-page relation is `unresolved`; it is a row flag of the left-hand activity of that relation. A support node carries only its own code's flags; an activity row carries the union. `discontinuation_uncertain` is a value of the incident question, not a flag. No flag is defined for AI-text evidence.
 
 ## `core.support_entailment`
-<!-- item: core.support_entailment sha256: c5b4622acfca3d8d78dffb98f55c0693dc122be59dbe75e77cfaafa7b186af8b -->
+<!-- item: core.support_entailment sha256: 788c0223c3a3d3baa7fca234c08dca065d53d4f6642a71901d8a5f480a539075 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c5b4622acfca3d8d78dffb98f55c0693dc122be59dbe75e77cfaafa7b186af8b` |
+| item hash | `788c0223c3a3d3baa7fca234c08dca065d53d4f6642a71901d8a5f480a539075` |
 | family | `support` |
 | name | `support_entailment` |
 | level | `row` |
@@ -5261,6 +5213,7 @@ AI-text flags fold into the main list, the language-barrier flag is dropped ever
 | support_required | `False` |
 | downgrade_target | `unknown` |
 | threshold | `{"metric": "chosen_answer_probability", "bar": 0.8}` |
+| threshold_by_checked_item | `{"core.page_verdict": 0.6, "core.activity_type": 0.8, "core.action_type": 0.6}` |
 | missing_tokens | `not_asked`, `not_documented`, `unknown` |
 | input_text | `main` |
 | visibility | `internal` |
@@ -5297,14 +5250,14 @@ The quoted text does not state or clearly show that the field has the given valu
 
 1. `items/core.support_entailment/rules/0`
 
-State = quote (plus a short window); question: 'Does this text state or clearly show that the <field label> of the activity "<activity name>" is "<value label>"?' true/false; false or confidence < threshold -> downgrade `no_support`.
+The check sees the quote plus 200 characters on each side, clipped to the producing part, and asks: 'Does this text state or clearly show that the <field label> of the activity "<activity name>" is "<value label>"?' (page-level items use the page form). The answer fails when it is `false`, when there is no answer or no probability, or when its probability is below the checked item's bar (`threshold_by_checked_item`; otherwise the item's `threshold`). A failed answer gives the support status `downgraded_quote_not_stating_value`, and the value takes the checked item's downgrade target.
 
 ## `core.support_status`
-<!-- item: core.support_status sha256: 924b5b6df5f13ea2157170229426c40bc4776b48f93c0769a06cac33c29ab4d2 -->
+<!-- item: core.support_status sha256: 9922a0d04275fadb3ec1f0e76d1c4af19e86bca6b9f7733bf590dbb74fb86154 -->
 
 | Field | Value |
 |---|---|
-| item hash | `924b5b6df5f13ea2157170229426c40bc4776b48f93c0769a06cac33c29ab4d2` |
+| item hash | `9922a0d04275fadb3ec1f0e76d1c4af19e86bca6b9f7733bf590dbb74fb86154` |
 | family | `support` |
 | name | `support_status` |
 | level | `row` |
@@ -5332,22 +5285,22 @@ State = quote (plus a short window); question: 'Does this text state or clearly 
 
 1. `items/core.support_status/rules/0`
 
-Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including "not asked" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.
+Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including "not asked" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity`, `no_generative_signal` and negative page verdicts.
 
 2. `items/core.support_status/rules/1`
 
-`not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.
+`not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity`, `no_generative_signal` and negative page verdicts.
 
 3. `items/core.support_status/rules/2`
 
 A second reason item
 
 ## `core.supporting_text`
-<!-- item: core.supporting_text sha256: 1fb914e4b8a9334e05516a8f1293086df70305fbbcc74541716eab3e0012c3b2 -->
+<!-- item: core.supporting_text sha256: ed7c6f3e92f25fcdd9f5220099088627f3b129dc5cefbe68e94ab2020fdcd517 -->
 
 | Field | Value |
 |---|---|
-| item hash | `1fb914e4b8a9334e05516a8f1293086df70305fbbcc74541716eab3e0012c3b2` |
+| item hash | `ed7c6f3e92f25fcdd9f5220099088627f3b129dc5cefbe68e94ab2020fdcd517` |
 | family | `support` |
 | name | `supporting_text` |
 | level | `row` |
@@ -5375,7 +5328,7 @@ A second reason item
 
 1. `items/core.supporting_text/rules/0`
 
-For every jev code on a page or activity, the extractor (C-001; the quote step) extracts the verbatim supporting text from the page. RC-D-002 row 15 replaces "after jev has coded"; RC-D-017 replaces its blind rule: the quote step sees the chosen answer for the field it quotes and copies the text that supports it, so it is a confirmatory step. It may also see that a gate is not `none`. Each supporting text (a quote, a link passage or a field's supporting text) is at most 200 characters; a longer one is kept whole and flagged. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". A01 and CX-61 get quotes relevant to the field. The scale number is copied verbatim by the quote step and the classifier picks the unit; the publication date is coded by the quote step under the R-042 check. X35 adds an entailment check per (code, quote) with a chosen-answer probability bar.
+For every classifier code on a page or activity, the quote step copies the verbatim supporting text from the page. It sees the chosen answer for the field it quotes and copies the text that supports it; it may also see that a gate is not `none`. Each supporting text (a quote, a link passage or a field's supporting text) is at most 200 characters; a longer one is kept whole and flagged. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". The GenAI mechanism basis and the outcome and incident kinds get quotes relevant to the field. The quote step copies the scale number verbatim and the classifier picks the unit; the quote step codes the publication date, checked against the stored text. A second check asks whether each quote states the coded value (`core.support_entailment`).
 
 2. `items/core.supporting_text/rules/1`
 
@@ -5390,11 +5343,11 @@ Supporting text is published with the code it supports. The API carries the full
 Published supporting quotes stay verbatim, with no masking.
 
 ## `core.confidence`
-<!-- item: core.confidence sha256: e7c3cc4a6ef4f3d0aa4ab7e63a6e700f56f971175415070e02d4fcb3c9e8707b -->
+<!-- item: core.confidence sha256: 02d8f7878e803f3b94926601c37b2b7f8772413b59d2994bfc562699a40c8329 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e7c3cc4a6ef4f3d0aa4ab7e63a6e700f56f971175415070e02d4fcb3c9e8707b` |
+| item hash | `02d8f7878e803f3b94926601c37b2b7f8772413b59d2994bfc562699a40c8329` |
 | family | `quality` |
 | name | `confidence` |
 | level | `source`, `activity` |
@@ -5433,11 +5386,11 @@ When all applicable evidence checks completed and none failed, source confidence
 At consolidation, when an activity's confidence is aggregated from its sources, a source whose confidence is `unknown` counts as `low`.
 
 ## `core.codebook_release`
-<!-- item: core.codebook_release sha256: d19547278ff8587cfdd0f00fb38382c63b2b746d5a1671b44af5f14b0cf9edbc -->
+<!-- item: core.codebook_release sha256: 486c259a39f209960cf2f7e620525a4fa6afd2c55bbb49321a2aece61f866fd9 -->
 
 | Field | Value |
 |---|---|
-| item hash | `d19547278ff8587cfdd0f00fb38382c63b2b746d5a1671b44af5f14b0cf9edbc` |
+| item hash | `486c259a39f209960cf2f7e620525a4fa6afd2c55bbb49321a2aece61f866fd9` |
 | family | `provenance` |
 | name | `codebook_release` |
 | level | `row` |
@@ -5468,11 +5421,11 @@ At consolidation, when an activity's confidence is aggregated from its sources, 
 Every published row carries the contract version that produced it. That is one version label, the codebook release, replacing `contract_version`, plus the setup pointer and `evidence_channel`; the extract and validate contract labels are recorded only in the setup record. C-007 applies to the release. v2.5 rows keep their contract version.
 
 ## `core.setup_pointer`
-<!-- item: core.setup_pointer sha256: 65b098d4b8efc9532ece93367858c8019cfb0434582423ce3ae52c7cbfcf4d3b -->
+<!-- item: core.setup_pointer sha256: 58d0baf502066294c9ce6151b5d7d499789520452ae4b970081da64aa551d979 -->
 
 | Field | Value |
 |---|---|
-| item hash | `65b098d4b8efc9532ece93367858c8019cfb0434582423ce3ae52c7cbfcf4d3b` |
+| item hash | `58d0baf502066294c9ce6151b5d7d499789520452ae4b970081da64aa551d979` |
 | family | `provenance` |
 | name | `setup_pointer` |
 | level | `row` |
@@ -5507,11 +5460,11 @@ A manifest (contract versions, `JEV_QUESTION_SET_VERSION`, jev model, extractor 
 Every jev answer is stored with its probability distribution, confidence, response model id and request id. Every automated coder (classifier, quote step, detector, mechanical rules) stores coder type, model, version and request id; the per-run version record holds the codebook version, and per-code coder details are internal and linked to it; the row carries the codebook version + setup pointer; the classifier record keeps the chosen-answer probability.
 
 ## `core.evidence_channel`
-<!-- item: core.evidence_channel sha256: 3f0aecba911cd3885adec08bce01216562ab796732c3ac5668e937a579ccc518 -->
+<!-- item: core.evidence_channel sha256: d6a78890e3f781cc67a15785c8b81773ad12ebcc5e82c5bf0a94029463de82ff -->
 
 | Field | Value |
 |---|---|
-| item hash | `3f0aecba911cd3885adec08bce01216562ab796732c3ac5668e937a579ccc518` |
+| item hash | `d6a78890e3f781cc67a15785c8b81773ad12ebcc5e82c5bf0a94029463de82ff` |
 | family | `provenance` |
 | name | `evidence_channel` |
 | level | `row` |
@@ -5542,11 +5495,11 @@ Every jev answer is stored with its probability distribution, confidence, respon
 Channel enum (web_extract, procurement, ai_text)
 
 ## `core.coder_record`
-<!-- item: core.coder_record sha256: 213c3c3f241b5081f4f6cbde23e3db0d711564f03a04bede0010b1e9a35fb167 -->
+<!-- item: core.coder_record sha256: 12443b1c740af48ea758a3ce0f785c07cd1ac8d35444e29cc63cac4122269a73 -->
 
 | Field | Value |
 |---|---|
-| item hash | `213c3c3f241b5081f4f6cbde23e3db0d711564f03a04bede0010b1e9a35fb167` |
+| item hash | `12443b1c740af48ea758a3ce0f785c07cd1ac8d35444e29cc63cac4122269a73` |
 | family | `provenance` |
 | name | `coder_record` |
 | level | `row` |
@@ -5581,11 +5534,11 @@ Every jev answer is stored with its probability distribution, confidence, respon
 `coder_type`, `coder_model`, `coder_version`, `request_id` common across channels
 
 ## `core.observed_actor_role`
-<!-- item: core.observed_actor_role sha256: 49db2543e6a85f2373dcd89d14185927a46b9f9eea29ecebb4c686d8d89faf66 -->
+<!-- item: core.observed_actor_role sha256: 810963929241da559892fb090d147f5ce543f0a47569f9503b7bcd4c0a79d208 -->
 
 | Field | Value |
 |---|---|
-| item hash | `49db2543e6a85f2373dcd89d14185927a46b9f9eea29ecebb4c686d8d89faf66` |
+| item hash | `810963929241da559892fb090d147f5ce543f0a47569f9503b7bcd4c0a79d208` |
 | family | `attribution` |
 | name | `observed_actor_role` |
 | level | `activity` |
@@ -5670,11 +5623,11 @@ Only `institutional_actor`, `issuer` and `participant` count as the actor taking
 not_documented: the page is silent.
 
 ## `core.date_upper_bound`
-<!-- item: core.date_upper_bound sha256: 82943a083cbd38b0f4fbc0d8f54b3d5eb273a4ebe3d136a77c32c2613be5f73e -->
+<!-- item: core.date_upper_bound sha256: 227b575cb825948691e2a44a969205daa7339368f4c50df23b10ef61d1339693 -->
 
 | Field | Value |
 |---|---|
-| item hash | `82943a083cbd38b0f4fbc0d8f54b3d5eb273a4ebe3d136a77c32c2613be5f73e` |
+| item hash | `227b575cb825948691e2a44a969205daa7339368f4c50df23b10ef61d1339693` |
 | family | `provenance` |
 | name | `date_upper_bound` |
 | level | `source`, `activity` |
@@ -5705,11 +5658,11 @@ not_documented: the page is silent.
 add a yes/no note "this date is an upper bound".
 
 ## `core.support_rule_name`
-<!-- item: core.support_rule_name sha256: 4906ff346c853e893883241928a250b7eb41abffea48ff7ecf44f34ac2b34d25 -->
+<!-- item: core.support_rule_name sha256: 93a31f186f55ddcc978d2175e796da477de173bfd8df4a980a83e134f7442ac5 -->
 
 | Field | Value |
 |---|---|
-| item hash | `4906ff346c853e893883241928a250b7eb41abffea48ff7ecf44f34ac2b34d25` |
+| item hash | `93a31f186f55ddcc978d2175e796da477de173bfd8df4a980a83e134f7442ac5` |
 | family | `support` |
 | name | `support_rule_name` |
 | level | `row` |
@@ -5740,11 +5693,11 @@ add a yes/no note "this date is an upper bound".
 Add a rule-name item, empty unless the status is "set by rule".
 
 ## `core.support_status_second_reason`
-<!-- item: core.support_status_second_reason sha256: 15278c373296fcd2164444cc29b816e0d773a02d940a21b28f78a49c701fc90d -->
+<!-- item: core.support_status_second_reason sha256: 789e41d0caa0aa77d9911763f463a01683c667b3f7c1cf1e233910eb832938ac -->
 
 | Field | Value |
 |---|---|
-| item hash | `15278c373296fcd2164444cc29b816e0d773a02d940a21b28f78a49c701fc90d` |
+| item hash | `789e41d0caa0aa77d9911763f463a01683c667b3f7c1cf1e233910eb832938ac` |
 | family | `support` |
 | name | `support_status_second_reason` |
 | level | `row` |

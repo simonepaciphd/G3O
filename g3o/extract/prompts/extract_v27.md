@@ -21,7 +21,7 @@ Each quote task names a coding question, the `answer` the coder gave to it and t
 
 ### Follow-up links (`link_task`)
 
-The page refers the reader elsewhere for more information about a generative-AI activity it mentions. The message lists the links stored for this page, each with an id, its address, its link text and the text around it. Choose the links that lead to more information about a generative-AI activity this page mentions. For each one, give its `link_id` and copy the passage of the page that refers to it. Choose only from the listed links, by id; never write an address yourself. If no listed link fits, return an empty list.
+The page refers the reader elsewhere for more information about an AI activity it mentions: generative AI or any other tool or activity the page calls AI, artificial intelligence or machine learning. The message lists the links stored for this page, each with an id, its address, its link text and the text around it. Choose the links that lead to more information about an AI activity this page mentions. For each one, give its `link_id` and copy the passage of the page that refers to it. Choose only from the listed links, by id; never write an address yourself. If no listed link fits, return an empty list.
 
 ### Activities (`activity_task`)
 

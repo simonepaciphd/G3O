@@ -359,12 +359,22 @@ def activity_task_only(page: Pass1Page, rules: Pass1Rules | None = None) -> Requ
 # ---------------------------------------------------------------------------
 
 
+#: The generated file's item-hash marker and "item hash" clause: A-001 linkage for the codebook checks,
+#: never sent to a model (PI 2026-11-23, R1 c).
+_ITEM_MARKER_LINE = re.compile(r"^<!-- item: \S+ sha256: [0-9a-f]{64} -->\n", re.M)
+_ITEM_HASH_CLAUSE = re.compile(r"; item hash `[0-9a-f]{64}`\.")
+
+
 def _generated_sections(path: Path = GENERATED_SECTIONS_PATH) -> dict[str, str]:
-    """Split T-013's generated extractor sections into item id -> section text."""
+    """Split T-013's generated extractor sections into item id -> section text.
+
+    The item-hash marker line and the "item hash" clause are dropped, so a section carries the
+    codebook's texts but no item hash."""
     text = path.read_text(encoding="utf-8")
     out: dict[str, str] = {}
     for m in re.finditer(r"^## `([a-z]+\.[a-z0-9_]+)`\n(.*?)(?=^## `|\Z)", text, re.S | re.M):
-        out[m.group(1)] = f"## `{m.group(1)}`\n{m.group(2)}".rstrip() + "\n"
+        body = _ITEM_HASH_CLAUSE.sub(".", _ITEM_MARKER_LINE.sub("", m.group(2)))
+        out[m.group(1)] = f"## `{m.group(1)}`\n{body}".rstrip() + "\n"
     return out
 
 
@@ -376,7 +386,8 @@ def build_system_prompt(cb: Codebook | None = None, rules: Pass1Rules | None = N
     """Shared system prompt + the pass-1 extraction prompt, with generated sections.
 
     Identical for every request of a release (prompt-cache friendly). The
-    item sections are T-013's generated text, copied as generated.
+    item sections are T-013's generated text, copied as generated without
+    the item-hash lines (R1 c).
     """
     cb = cb or load_codebook()
     rules = rules or rules_from_codebook(cb)

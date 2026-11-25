@@ -28,7 +28,7 @@ from g3o.codebook.cli import main as cli_main
 from g3o.codebook.generators import GENERATED_DIR, generate_all
 from g3o.codebook.loader import REPO_ROOT, Codebook, load_codebook
 
-SIGNED_SHA256 = "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4"  # r17 (signed when signoff-record.md holds it)
+SIGNED_SHA256 = "64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5"  # r18 (signed when signoff-record.md holds it)
 
 
 @pytest.fixture(scope="module")
@@ -714,6 +714,71 @@ def test_labels_absent_leave_the_question_unchanged() -> None:
     d["items"]["core.rel"]["values"] = _parts_item()["values"]
     _, _, q = _entailment_question(_cb(d))
     assert "labels" not in q and "instructions_page" not in q
+
+
+def _bars_mini(bars) -> dict:
+    d = _labelled_mini()
+    d["items"]["core.support_entailment"]["threshold_by_checked_item"] = {"bars": bars, "exception_to": "R-081"}
+    return d
+
+
+def test_support_check_bars_reach_the_question_and_the_dictionary(tmp_path: Path) -> None:
+    """Setting F: the entailment item states its bar per checked item; the generated question carries the
+    bars and the data dictionary prints them. An item without the node generates the same bytes as before."""
+    d = _bars_mini({"core.alpha": 0.6, "core.rel": 0.8})
+    results = _all_pass(d, tmp_path)
+    assert all(s in ("pass", "n/a") for s, _ in results.values()), results
+    files, _, q = _entailment_question(_cb(d))
+    assert q["threshold"] == {"metric": "chosen_answer_probability", "bar": 0.8}
+    assert q["threshold_by_checked_item"] == {"core.alpha": 0.6, "core.rel": 0.8}
+    dictionary = next(f for f in files if f.name == "data_dictionary.md").content
+    assert '| threshold_by_checked_item | `{"core.alpha": 0.6, "core.rel": 0.8}` |' in dictionary
+    files0, _, q0 = _entailment_question(_cb(_labelled_mini()))
+    assert "threshold_by_checked_item" not in q0
+    assert "threshold_by_checked_item" not in next(f for f in files0 if f.name == "data_dictionary.md").content
+
+
+def test_support_check_bars_check_01_seeded_faults() -> None:
+    assert not _run(_bars_mini({"core.alpha": 0.6}), 1).findings
+    for bars, word in (({"core.nope": 0.6}, "no entailment_label"),
+                       ({"core.support_entailment": 0.6}, "no entailment_label"),
+                       ({"core.alpha": 0}, "not a bar"), ({"core.alpha": 1.5}, "not a bar"),
+                       ({"core.alpha": True}, "not a bar"), ({"core.alpha": "0.6"}, "not a bar"),
+                       ({}, "bars"), ("none", "bars")):
+        findings = _run(_bars_mini(bars), 1).findings
+        assert any(word in f for f in findings), (bars, findings)
+    bad = _bars_mini({"core.alpha": 0.6})
+    bad["items"]["core.alpha"]["threshold_by_checked_item"] = {"bars": {"core.alpha": 0.6}}
+    assert any("only core.support_entailment" in f for f in _run(bad, 1).findings)
+    bad = _bars_mini({"core.alpha": 0.6})
+    bad["items"]["core.support_entailment"]["threshold_by_checked_item"] = {"core.alpha": 0.6}
+    assert any("bars" in f for f in _run(bad, 1).findings)
+
+
+def test_signed_codebook_states_the_support_check_bars(cb: Codebook) -> None:
+    node = cb.items["core.support_entailment"]["threshold_by_checked_item"]
+    assert node["bars"] == {"core.page_verdict": 0.6, "core.activity_type": 0.8, "core.action_type": 0.6}
+    assert cb.items["core.support_entailment"]["threshold"] == {"metric": "chosen_answer_probability", "bar": 0.8}
+    assert [k for k, it in cb.items.items() if "threshold_by_checked_item" in it] == ["core.support_entailment"]
+
+
+def test_signed_codebook_states_the_page_verdict_rollup_outside_every_model_text(cb: Codebook) -> None:
+    """RC-D-049 (PI ruling 2026-11-22, R2): the institution rule states the roll-up; no text sent to a
+    model holds it (it is in the reference documents only)."""
+    from g3o.validate.consolidate_v27 import ROLLUP_STATUSES
+
+    rules = cb.items["core.has_genai_activity"]["rules"]
+    # clean-docs (PI 2026-11-23): rules/1 is the roll-up, rules/2 the supported-observation rule (R2, 3 D)
+    assert len(rules) == 3 and [r.get("role") for r in rules[1:]] == ["page-verdict roll-up", "supported activity observation"]
+    text = rules[1]["text"]
+    assert text.startswith("Page-verdict roll-up: ")
+    statuses = set(cb.vocabularies["support_status"]["values"])
+    assert {s for s in statuses if f"`{s}` or" in text or f"or `{s}`" in text} == ROLLUP_STATUSES
+    assert "`downgraded_low_confidence` is never rescued" in text
+    assert [k for k, it in cb.items.items() if "Page-verdict roll-up" in json.dumps(it.get("rules", ""))] == [
+        "core.has_genai_activity"]
+    holders = {f.name for f in generate_all(cb) if "Page-verdict roll-up" in f.content}
+    assert holders == {"data_dictionary.md", "validate_output_contract.md"}
 
 
 #: The RC-D-007 candidate lives outside the repo until signature; set this

@@ -41,6 +41,9 @@ RULES_HEADING = "Rules:"
 ENTAILMENT_ITEM = "core.support_entailment"
 LABEL_KEY = "entailment_label"
 PART_LABELS_KEY = "part_entailment_labels"
+#: On the entailment item only: the bar of the support check per checked item (setting F). A checked item
+#: that ``bars`` does not list keeps the item's own ``threshold``.
+BARS_KEY = "threshold_by_checked_item"
 
 #: Where each generated output is meant to land; the owning card moves it.
 INTENDED_TARGETS: dict[str, str] = {
@@ -229,6 +232,8 @@ def _render_item_reference(cb: Codebook, item_id: str, used: list[tuple[str, str
     lines.append(f"| item hash | `{h}` |")
     for key in _DICT_FIELDS:
         lines.append(f"| {key} | {_scalar(item.get(key))} |")
+        if key == "threshold" and isinstance(item.get(BARS_KEY), dict):
+            lines.append(f"| {BARS_KEY} | {_scalar(item[BARS_KEY].get('bars'))} |")
     for key in ("gate", "long_page_rule", "translation_v25"):
         value = item.get(key)
         lines.append(f"| {key} | {_scalar(value) if not isinstance(value, dict) else _scalar({k: v for k, v in value.items() if not isinstance(v, dict)})} |")
@@ -447,6 +452,8 @@ def _question(cb: Codebook, item_id: str, item: dict[str, Any], question_id: str
     }
     if part is not None:
         q["part"] = part
+    if isinstance(item.get(BARS_KEY), dict):
+        q[BARS_KEY] = item[BARS_KEY].get("bars")
     ctx = item.get("question_context")
     if isinstance(ctx, dict) and ctx.get("shows_value_of"):
         q["shows_value_of"] = ctx["shows_value_of"]

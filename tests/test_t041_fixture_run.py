@@ -65,7 +65,7 @@ def test_selection_never_includes_transfers_and_rejects_unknown_groups():
 
 def test_every_synthetic_fixture_validates():
     synthetic = fr.select_fixtures(fr.load_fixtures(FIX), [fr.GROUP_PIPELINE, fr.GROUP_INJECTED])
-    assert len(synthetic) == 66
+    assert len(synthetic) == 79
     assert {f["fixture_id"]: fr.validate_fixture(f) for f in synthetic if fr.validate_fixture(f)} == {}
 
 
@@ -151,9 +151,9 @@ def test_dry_run_is_the_default_and_makes_no_call(tmp_path, monkeypatch, capsys)
     out = fr.output_paths(tmp_path, fr.MODE_DRY)
     doc = json.loads(out["results"].read_text(encoding="utf-8"))
     assert doc["mode"] == "dry-run" and doc["options"]["extractor_mode"] == "no_batch"
-    assert len(doc["results"]) == 66 and {r["status"] for r in doc["results"]} == {fr.NOT_RUN}
+    assert len(doc["results"]) == 79 and {r["status"] for r in doc["results"]} == {fr.NOT_RUN}
     plan = json.loads(out["plan"].read_text(encoding="utf-8"))
-    assert len(plan["plans"]) == 66 and plan["estimate"]["fixtures_runnable"] == 32
+    assert len(plan["plans"]) == 79 and plan["estimate"]["fixtures_runnable"] == 45
     report = out["report"].read_text(encoding="utf-8")
     assert fr.F6C_LINE in report
     assert fr.existing_live_outputs(tmp_path) == []  # review M2: a dry run never writes live files
@@ -1085,6 +1085,26 @@ def test_materialise_records_a_v27_run_so_record_run_pipeline_accepts_it(tmp_pat
     assert manifest["config"] == {"pipeline_version": PIPELINE_V27}
     assert record_run_pipeline(tmp_path, pipeline_version=PIPELINE_V27, instrument_id="i-1") == {
         "pipeline_version": PIPELINE_V27, "instrument_id": "i-1"}
+
+
+def test_fixture_identity_fields_reach_the_page_input(tmp_path):
+    """o1124 Change 1: a fixture institution's optional ``institution_type`` / ``disambiguation`` reach the
+    sample row, and so the classifier's PageInput; a fixture without them gives none (as before)."""
+    from g3o.run.presweep.perpage_inputs_v27 import page_input
+
+    base = _fixture([])
+    assert "institution_type" not in fr.fixture_institution_row(base)
+    assert "disambiguation" not in fr.fixture_institution_row(base)
+    fixture = {**base, "institution": {**base["institution"], "institution_type": "municipality",
+                                       "disambiguation": "Jiangsu — prefecture-level city"}}
+    row = fr.fixture_institution_row(fixture)
+    assert (row["institution_type"], row["disambiguation"]) == ("municipality", "Jiangsu — prefecture-level city")
+    sample, scraped, _ = fr.materialise(tmp_path, fixture, fr.fixture_pages(fixture),
+                                        searched_policy=fr.SEARCHED_UNLINKED, official_policy=fr.OFFICIAL_NONE,
+                                        access_date="2026-11-17")
+    (inst_id,) = scraped
+    page = page_input(scraped[inst_id][0], sample[0], institution_id=inst_id)
+    assert (page.institution_type, page.disambiguation) == ("municipality", "Jiangsu — prefecture-level city")
 
 
 def test_page_host_warning_is_printed_for_real_fixtures(tmp_path, monkeypatch, capsys):

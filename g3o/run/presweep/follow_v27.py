@@ -255,7 +255,8 @@ class InstitutionLeg:
 
     run_dir: Path
     institution_id: str
-    template: PageInput  # a searched page: institution name, country and level for followed PageInputs
+    template: PageInput  # a searched page: institution name, country, level, type and disambiguation
+    # for followed PageInputs
     state: fl.InstitutionFollow
     fetch: FetchFn
     leg: FollowLeg
@@ -353,7 +354,8 @@ class InstitutionLeg:
         page = RenderedPage.model_validate_json(read_artifact(self._artifact(rec.url)))
         t = self.template
         inp = pin.rendered_page_input(page, institution_id=self.institution_id, institution=t.institution,
-                                      country=t.country, level_of_government=t.level_of_government)
+                                      country=t.country, level_of_government=t.level_of_government,
+                                      institution_type=t.institution_type, disambiguation=t.disambiguation)
         self.rendered[inp.page_id] = page
         self.hop_of_page[inp.page_id] = rec.hop
         return pp.PageSpec(inp, pp.PageUpstream(followed=True, hop=rec.hop))

@@ -18,7 +18,9 @@ Per institution (sample order; pages in the order Stage 4 stored them,
   (:func:`~g3o.run.presweep.records.synth_institution_id`), ``institution``,
   ``country``, ``level_of_government`` the master row's ``institution_name``,
   ``country``, ``government_level`` (through
-  :func:`~g3o.run.presweep.records.institution_record`); ``has_metadata_date``
+  :func:`~g3o.run.presweep.records.institution_record`); ``institution_type``,
+  ``disambiguation`` the master row's cells of the same names, ``None`` when
+  blank or absent (o1124 Change 1, approved 2026-11-24); ``has_metadata_date``
   from A1 (:func:`g3o.common.source_fields.page_has_metadata_date` on
   ``RenderedPage.metadata_dates`` and the URL, with the page's recorded UTC
   ``fetch_metadata.access_date``).
@@ -128,11 +130,19 @@ def page_input(page: Any, row: Mapping[str, Any], *, institution_id: str) -> Pag
     """``PageInput`` of one stored ``RenderedPage``: its fields verbatim, ``page_id = url_hash(url)``."""
     record = institution_record(dict(row))
     return rendered_page_input(page, institution_id=institution_id, institution=record["institution_name"],
-                               country=record["country"], level_of_government=record["level_of_government"])
+                               country=record["country"], level_of_government=record["level_of_government"],
+                               institution_type=_recorded(record["institution_type"]),
+                               disambiguation=_recorded(record["disambiguation"]))
+
+
+def _recorded(value: Any) -> str | None:
+    """A master cell as recorded, or ``None`` when blank or absent (o1124 Change 1)."""
+    return value if isinstance(value, str) and value.strip() else None
 
 
 def rendered_page_input(page: Any, *, institution_id: str, institution: str, country: str | None,
-                        level_of_government: str | None) -> PageInput:
+                        level_of_government: str | None, institution_type: str | None = None,
+                        disambiguation: str | None = None) -> PageInput:
     """``PageInput`` of one ``RenderedPage`` given the master values (D1 a; also the followed pages, T-025)."""
     return PageInput(
         page_id=url_hash(page.url),
@@ -149,6 +159,8 @@ def rendered_page_input(page: Any, *, institution_id: str, institution: str, cou
                                                     access_date=page.fetch_metadata.access_date),
         email_links=None if page.email_links is None else tuple(page.email_links),
         first_heading=getattr(page, "first_heading", None),  # Def7; None on a pre-change record
+        institution_type=institution_type,
+        disambiguation=disambiguation,
     )
 
 

@@ -433,6 +433,8 @@ def test_system_prompt_shared_text_cap_and_generated_field_sections():
     assert system.startswith(cb.shared_slot("system_prompt").text)
     assert "at most 200 characters" in system
     assert "## `core.reported_outcomes`" in system and "## `core.reported_incidents`" in system
+    # item hashes never reach the model (PI 2026-11-23, R1 c)
+    assert "<!-- item: " not in system and "item hash" not in system
     assert "{{" not in system
 
 

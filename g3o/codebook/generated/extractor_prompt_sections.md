@@ -1,24 +1,24 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extractor_prompt_sections. -->
-<!-- codebook release: 2.7 | codebook sha256: 71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4 -->
+<!-- codebook release: 2.7 | codebook sha256: 64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5 -->
 
 # Extractor prompt sections
 
-Codebook release `2.7`, sha256 `71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
+Codebook release `2.7`, sha256 `64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
 
 ## `core.source_publication_date`
-<!-- item: core.source_publication_date sha256: 8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320 -->
+<!-- item: core.source_publication_date sha256: 44eac9838bdb4ff1e4552e1ce3e2fe7f65e4d874149b5b3d1b0cbaaa49589f06 -->
 
-Column `source_publication_date`; item hash `8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320`.
+Column `source_publication_date`; item hash `44eac9838bdb4ff1e4552e1ce3e2fe7f65e4d874149b5b3d1b0cbaaa49589f06`.
 
 ### Rules
 
-1. Take dates from HTML metadata / PDF properties / URL patterns deterministically; if absent, the extractor returns a date with its verbatim quote, validated by R-042.
-2. One shared date of 1 November 2022, with "before" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown; the AI-text code changes.
+1. Take dates from HTML metadata, PDF properties or URL patterns deterministically; if none is found, the extractor returns a date with its verbatim quote, which is checked against the stored page text like any other quote.
+2. One shared date of 1 November 2022, with "before" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown.
 
 ## `core.source_snippet`
-<!-- item: core.source_snippet sha256: a26fef1a984c518461bea85a9771caad96db7347f057ec8e66cf035ba014314e -->
+<!-- item: core.source_snippet sha256: cd81837b81c62d13bd865eb4173c1561fd8eadb2cdbd1f81acca9a9dc297a7a6 -->
 
-Column `source_snippet`; item hash `a26fef1a984c518461bea85a9771caad96db7347f057ec8e66cf035ba014314e`.
+Column `source_snippet`; item hash `cd81837b81c62d13bd865eb4173c1561fd8eadb2cdbd1f81acca9a9dc297a7a6`.
 
 ### Rules
 
@@ -26,9 +26,9 @@ Column `source_snippet`; item hash `a26fef1a984c518461bea85a9771caad96db7347f057
 2. Snippets are verbatim in every pipeline, no translations are stored, and procurement's rule is amended.
 
 ## `core.activity_segment`
-<!-- item: core.activity_segment sha256: e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759 -->
+<!-- item: core.activity_segment sha256: 1b7750af042738acd295133cb4b1a14e0cfb189619952074db0f3607cfef5f17 -->
 
-Column `activity_relation_within_page`; item hash `e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759`.
+Column `activity_relation_within_page`; item hash `1b7750af042738acd295133cb4b1a14e0cfb189619952074db0f3607cfef5f17`.
 
 ### Instruction
 
@@ -145,27 +145,27 @@ Rules:
 5. Each pair of passages gets a link.
 
 ## `core.activity_name`
-<!-- item: core.activity_name sha256: 9a9a55c3d066738f911fdc5269670d927e3bee2da8236094fb9e2c68e1069401 -->
+<!-- item: core.activity_name sha256: 69808679d441b3cc10cb66a680689e5e2cd4e9280cdd8c6d867494c3ac71e32f -->
 
-Column `activity_name`; item hash `9a9a55c3d066738f911fdc5269670d927e3bee2da8236094fb9e2c68e1069401`.
+Column `activity_name`; item hash `69808679d441b3cc10cb66a680689e5e2cd4e9280cdd8c6d867494c3ac71e32f`.
 
 ### Instruction
 
 Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platform"). Otherwise descriptive (e.g., "Internal Copilot pilot for document drafting").
 
 ## `core.observed_actor_name`
-<!-- item: core.observed_actor_name sha256: d76dc7f2c930b753dd8511068222d56eb0e16384dcefe9064fc860a06e4ef25f -->
+<!-- item: core.observed_actor_name sha256: e75b120e8bce7ce52b35f2469175efedcbcb30fd659a8d187ef206c852aebb05 -->
 
-Column `observed_actor_name`; item hash `d76dc7f2c930b753dd8511068222d56eb0e16384dcefe9064fc860a06e4ef25f`.
+Column `observed_actor_name`; item hash `e75b120e8bce7ce52b35f2469175efedcbcb30fd659a8d187ef206c852aebb05`.
 
 ### Rules
 
-1. The extractor returns the verbatim actor name and organisational unit. jev Choice gives the relationship (this institution / unit of it / joint participant / other / unresolved) and the role (as v2.6).
+1. The extractor returns the verbatim actor name and organisational unit.
 
 ## `core.tool_name`
-<!-- item: core.tool_name sha256: e606956923481de92a2b4c59bbffa78de57b1fcc574c7b2f5e666a7c000969b1 -->
+<!-- item: core.tool_name sha256: 1e879decc441d08c1b631a1f9440e6ef97606a9d056326e738407db500984350 -->
 
-Column `tool_name`; item hash `e606956923481de92a2b4c59bbffa78de57b1fcc574c7b2f5e666a7c000969b1`.
+Column `tool_name`; item hash `1e879decc441d08c1b631a1f9440e6ef97606a9d056326e738407db500984350`.
 
 ### Instruction
 
@@ -177,9 +177,9 @@ Specific tool, model, or platform name (e.g., "Microsoft 365 Copilot", "ChatGPT"
 2. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.model_name`
-<!-- item: core.model_name sha256: 7dd785b572b3e2c6fb2bec9e18322fd3947632922cf627ddc43a1b3cd53ed834 -->
+<!-- item: core.model_name sha256: 920c2ca82290833327903b8555b400f782cfb9d1af1b42c99b0700ba966b947f -->
 
-Column `model_name`; item hash `7dd785b572b3e2c6fb2bec9e18322fd3947632922cf627ddc43a1b3cd53ed834`.
+Column `model_name`; item hash `920c2ca82290833327903b8555b400f782cfb9d1af1b42c99b0700ba966b947f`.
 
 ### Rules
 
@@ -187,9 +187,9 @@ Column `model_name`; item hash `7dd785b572b3e2c6fb2bec9e18322fd3947632922cf627dd
 2. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.contracting_party`
-<!-- item: core.contracting_party sha256: fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2 -->
+<!-- item: core.contracting_party sha256: 08c049166dc9dff75f2da9a369b32e7cb664c615d17f0f09a58e5c75adf1c3cd -->
 
-Column `contracting_party`; item hash `fe369db14f8a663f0a0db13d2390583d34f0de9353057c14c179077fffd096f2`.
+Column `contracting_party`; item hash `08c049166dc9dff75f2da9a369b32e7cb664c615d17f0f09a58e5c75adf1c3cd`.
 
 ### Rules
 
@@ -198,9 +198,9 @@ Column `contracting_party`; item hash `fe369db14f8a663f0a0db13d2390583d34f0de935
 3. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.developer`
-<!-- item: core.developer sha256: 947cd93228ce4c32c279ab6fa876967f2cc39e58f925019a4a438bb17de71f36 -->
+<!-- item: core.developer sha256: eaa4b9278a86d5d25d3b8a6de4a4cfdfd66f8b06b5d39a07ebb35e0284bdc6bf -->
 
-Column `developer`; item hash `947cd93228ce4c32c279ab6fa876967f2cc39e58f925019a4a438bb17de71f36`.
+Column `developer`; item hash `eaa4b9278a86d5d25d3b8a6de4a4cfdfd66f8b06b5d39a07ebb35e0284bdc6bf`.
 
 ### Rules
 
@@ -210,9 +210,9 @@ Column `developer`; item hash `947cd93228ce4c32c279ab6fa876967f2cc39e58f925019a4
 4. A developer stated on the page comes from the quote step, with its supporting quote; `developer_basis` = stated.
 
 ## `core.deployment_scale_number`
-<!-- item: core.deployment_scale_number sha256: 732f308184bb60eedf1e67468eb657857b20ce4dcfc76fb97cf16c19454b3686 -->
+<!-- item: core.deployment_scale_number sha256: c3740fb709eb05a98b259f988dc7611e778dfd87abd332d7de982d11ad8b23ae -->
 
-Column `deployment_scale_number`; item hash `732f308184bb60eedf1e67468eb657857b20ce4dcfc76fb97cf16c19454b3686`.
+Column `deployment_scale_number`; item hash `c3740fb709eb05a98b259f988dc7611e778dfd87abd332d7de982d11ad8b23ae`.
 
 ### Rules
 
@@ -221,39 +221,31 @@ Column `deployment_scale_number`; item hash `732f308184bb60eedf1e67468eb657857b2
 3. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.reported_outcomes`
-<!-- item: core.reported_outcomes sha256: 841fe4e05bdbe08ab94621fc8d47e330ac1a68b3fb8af5875eddf8de74af9554 -->
+<!-- item: core.reported_outcomes sha256: b8966f48a7aaa47f305aa79f349549b07b42f1f878241510f6e3cdc80550e6b4 -->
 
-Column `reported_outcomes`; item hash `841fe4e05bdbe08ab94621fc8d47e330ac1a68b3fb8af5875eddf8de74af9554`.
+Column `reported_outcomes`; item hash `b8966f48a7aaa47f305aa79f349549b07b42f1f878241510f6e3cdc80550e6b4`.
 
 ### Instruction
 
 Documented performance claims. Only record if explicitly stated. Never infer.
 
-### Rules
-
-1. Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
-
 ## `core.reported_incidents`
-<!-- item: core.reported_incidents sha256: 5965e825e8086c714fe752e1004c91a1c7f839644191a4e2077a3693f744e429 -->
+<!-- item: core.reported_incidents sha256: beed4c12c06a509a8abebfdbfae91d3457c4a9524e3308533f371dc4c0d073d2 -->
 
-Column `reported_incidents`; item hash `5965e825e8086c714fe752e1004c91a1c7f839644191a4e2077a3693f744e429`.
+Column `reported_incidents`; item hash `beed4c12c06a509a8abebfdbfae91d3457c4a9524e3308533f371dc4c0d073d2`.
 
 ### Instruction
 
 Documented errors, failures, or controversies. Only record if explicitly stated.
 
-### Rules
-
-1. Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
-
 ## `core.supporting_text`
-<!-- item: core.supporting_text sha256: 1fb914e4b8a9334e05516a8f1293086df70305fbbcc74541716eab3e0012c3b2 -->
+<!-- item: core.supporting_text sha256: ed7c6f3e92f25fcdd9f5220099088627f3b129dc5cefbe68e94ab2020fdcd517 -->
 
-Column `supporting_text`; item hash `1fb914e4b8a9334e05516a8f1293086df70305fbbcc74541716eab3e0012c3b2`.
+Column `supporting_text`; item hash `ed7c6f3e92f25fcdd9f5220099088627f3b129dc5cefbe68e94ab2020fdcd517`.
 
 ### Rules
 
-1. For every jev code on a page or activity, the extractor (C-001; the quote step) extracts the verbatim supporting text from the page. RC-D-002 row 15 replaces "after jev has coded"; RC-D-017 replaces its blind rule: the quote step sees the chosen answer for the field it quotes and copies the text that supports it, so it is a confirmatory step. It may also see that a gate is not `none`. Each supporting text (a quote, a link passage or a field's supporting text) is at most 200 characters; a longer one is kept whole and flagged. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". A01 and CX-61 get quotes relevant to the field. The scale number is copied verbatim by the quote step and the classifier picks the unit; the publication date is coded by the quote step under the R-042 check. X35 adds an entailment check per (code, quote) with a chosen-answer probability bar.
+1. For every classifier code on a page or activity, the quote step copies the verbatim supporting text from the page. It sees the chosen answer for the field it quotes and copies the text that supports it; it may also see that a gate is not `none`. Each supporting text (a quote, a link passage or a field's supporting text) is at most 200 characters; a longer one is kept whole and flagged. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". The GenAI mechanism basis and the outcome and incident kinds get quotes relevant to the field. The quote step copies the scale number verbatim and the classifier picks the unit; the quote step codes the publication date, checked against the stored text. A second check asks whether each quote states the coded value (`core.support_entailment`).
 2. Supporting text is checked against the stored page text by fuzzy match; a quote below the match threshold counts as no supporting text.
 3. Supporting text is published with the code it supports. The API carries the full text; the website shows it up to 200 characters, with a marker and access to the full text.
 4. Published supporting quotes stay verbatim, with no masking.

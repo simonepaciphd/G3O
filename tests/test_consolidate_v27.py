@@ -282,3 +282,146 @@ def test_unknown_source_confidence_counts_as_low_in_aggregation():
 def test_unfinished_source_confidence_is_refused():
     with pytest.raises(ConsolidationError, match="unfinished"):
         activity_confidence({"a": "unfinished"}, {"a": "one"})
+
+
+# ---------------------------------------------------------------------------
+# Page-verdict roll-up (RC-D-049; PI rulings 2026-11-22, R1 b and R3 to R6)
+# ---------------------------------------------------------------------------
+
+ROLLUP_STATUSES = ["downgraded_quote_not_stating_value", "downgraded_no_quote"]
+
+
+def failed_verdict(status="downgraded_no_quote", **changes):
+    """A confirms_activity page whose verdict failed its own support check on the quote."""
+    return page("r", "confirms_activity", support_status=status, **changes)
+
+
+@pytest.mark.parametrize("status", ROLLUP_STATUSES)
+def test_rollup_applies_to_a_quote_failure_with_a_supported_observation(status):
+    from g3o.validate import consolidate_v27 as cv
+
+    assert cv.ROLLUP_STATUSES == frozenset(ROLLUP_STATUSES)
+    assert cv.rollup_applies(failed_verdict(status), [observation(page_id="r")]) is True
+
+
+@pytest.mark.parametrize("candidate, observations, why", [
+    (failed_verdict("downgraded_low_confidence"), [observation(page_id="r")], "the classifier bar is never rescued"),
+    (failed_verdict(chosen_probability=.799), [observation(page_id="r")], "under the classifier verdict bar"),
+    (failed_verdict(chosen_probability=None), [observation(page_id="r")], "no probability"),
+    (failed_verdict(), [observation(page_id="r", supported=False)], "no supported observation"),
+    (failed_verdict(), [], "no observation"),
+    (failed_verdict(), [observation(page_id="other")], "the supported observation is on another page"),
+    (failed_verdict("supported"), [observation(page_id="r")], "the verdict is already supported"),
+    (failed_verdict("set_by_rule"), [observation(page_id="r")], "a rule-set verdict"),
+    (failed_verdict("not_required"), [observation(page_id="r")], "no check was required"),
+    (failed_verdict(failed=True, failure_reason="page_failed"), [observation(page_id="r")], "a failed page"),
+    (failed_verdict(reviewed=False, failure_reason="unfollowed_link"), [observation(page_id="r")],
+     "an unreviewed page"),
+    (failed_verdict(pipeline="ai_text"), [observation(page_id="r")], "AI-text evidence never counts"),
+    (failed_verdict(pipeline="procurement"), [observation(page_id="r")],
+     "a procurement page is not a web page (PI ruling 2026-11-22)"),
+    *[(replace(failed_verdict(), page_verdict=v), [observation(page_id="r")], f"verdict {v}")
+      for v in sorted(set(VERDICTS) - {"confirms_activity"})],
+])
+def test_rollup_does_not_apply(candidate, observations, why):
+    from g3o.validate.consolidate_v27 import rollup_applies
+
+    assert rollup_applies(candidate, observations) is False, why
+
+
+def test_rollup_reads_the_bar_in_force_not_a_value_of_its_own(monkeypatch):
+    """R4: the classifier verdict bar is the one the institution rule uses (no setting value in the rule)."""
+    from g3o.validate import consolidate_v27 as cv
+
+    low = failed_verdict(chosen_probability=.72)
+    assert cv.rollup_applies(low, [observation(page_id="r")]) is False
+    monkeypatch.setattr(cv, "_probability", lambda value: value is not None and value >= .7)
+    assert cv.rollup_applies(low, [observation(page_id="r")]) is True
+
+
+@pytest.mark.parametrize("status", ROLLUP_STATUSES)
+def test_rolled_up_page_keeps_its_failed_status_and_gives_yes(status):
+    """R1 b: the verdict keeps its failed support status; the rescue is the separate ``verdict_rollup`` mark.
+    R5: the page counts for the institution outcome and its supported observations are pooled."""
+    from g3o.validate import consolidate_v27 as cv
+    from g3o.validate.stage6_v27 import pool_eligible
+
+    down, obs = failed_verdict(status), [observation(page_id="r")]
+    assert down.verdict_rollup is False
+    assert cv._positive(down) is False and pool_eligible(["a"], obs, [down]) == ()
+    assert summary_values([down], [], published_activity_values=[])["core.has_genai_activity"] == "unclear"
+    rescued = replace(down, verdict_rollup=True)
+    assert rescued.support_status == status and replace(rescued, verdict_rollup=False) == down
+    assert cv._positive(rescued) is True and pool_eligible(["a"], obs, [rescued]) == ("a",)
+    result = summary_values([rescued], obs, published_activity_values=[activity_values()])
+    assert result["core.has_genai_activity"] == "yes"
+    assert result["core.review_depth"]["web_extract"]["n_pages_by_verdict"]["confirms_activity"] == 1
+    with pytest.raises(ConsolidationError, match="presence"):
+        summary_values([rescued], obs, published_activity_values=[])
+
+
+def test_rolled_up_page_pools_its_supported_observations_only():
+    rescued = replace(failed_verdict(), verdict_rollup=True)
+    obs = [observation("a", "r"), observation("b", "r", supported=False)]
+    quotes = [SupportingQuote("a", "s1", "the quote", "c1", "an official government source", None, "2025",
+                              "https://example.gov/r", 0, 0)]
+    assert pool_plan(["a", "b"], obs, [rescued], quotes).observation_ids == ("a",)
+    assert pool_plan(["a", "b"], obs, [replace(rescued, verdict_rollup=False)], []).observation_ids == ()
+
+
+@pytest.mark.parametrize("bad, why", [
+    (failed_verdict("downgraded_low_confidence"), "low confidence is never rescued"),
+    (failed_verdict("supported"), "an already supported verdict is not a rescue"),
+    (failed_verdict("set_by_rule"), "a rule-set verdict is not a rescue"),
+    (failed_verdict(chosen_probability=.5), "under the bar"),
+    (replace(failed_verdict(), page_verdict="ambiguous_genai"), "not a confirming verdict"),
+    (failed_verdict(pipeline="ai_text"), "AI-text"),
+    (failed_verdict(pipeline="procurement"), "a procurement page is not a web page"),
+    (failed_verdict(failed=True, failure_reason="page_failed"), "failed page"),
+    (failed_verdict(reviewed=False, failure_reason="unfollowed_link"), "unreviewed page"),
+])
+def test_roll_up_mark_on_a_page_the_rule_does_not_cover_is_refused(bad, why):
+    with pytest.raises(ConsolidationError, match="roll-up"):
+        summary_values([page(), replace(bad, verdict_rollup=True)], [observation(page_id="r")],
+                       published_activity_values=[activity_values()])
+
+
+def test_roll_up_mark_without_a_supported_observation_on_the_page_is_refused():
+    rescued = replace(failed_verdict(), verdict_rollup=True)
+    for obs in ([], [observation(page_id="r", supported=False)]):
+        with pytest.raises(ConsolidationError, match="roll-up"):
+            summary_values([page(), rescued], obs, published_activity_values=[])
+    other = page("s", "confirms_activity", support_status="supported")
+    with pytest.raises(ConsolidationError, match="roll-up"):
+        summary_values([other, rescued], [observation(page_id="s")], published_activity_values=[activity_values()])
+
+
+def test_rollup_covers_web_pages_only():
+    """PI ruling 2026-11-22: the roll-up names the web page. A procurement page that meets every other
+    condition is never rescued and stays out of the positive set; the same page from the web is rescued."""
+    from g3o.validate import consolidate_v27 as cv
+
+    obs = [observation(page_id="r")]
+    web, purchase = failed_verdict(), failed_verdict(pipeline="procurement")
+    assert web.pipeline == "web_extract" and replace(purchase, pipeline="web_extract") == web
+    assert cv.rollup_applies(web, obs) is True
+    assert cv.rollup_applies(purchase, obs) is False
+    assert summary_values([purchase], [], published_activity_values=[])["core.has_genai_activity"] == "unclear"
+    assert {p for p in cv.CHANNELS if cv.rollup_applies(replace(web, pipeline=p), obs)} == {"web_extract"}
+
+
+@pytest.mark.parametrize("status", ROLLUP_STATUSES)
+def test_a_page_the_roll_up_covers_that_arrives_unmarked_is_refused(status):
+    """Review 2026-11-22: the mark is the rule's result in both directions. A page that meets the rule but
+    carries no mark is refused; it is never read as ``unclear`` in silence."""
+    from g3o.validate import consolidate_v27 as cv
+
+    down, obs = failed_verdict(status), [observation(page_id="r")]
+    assert cv.rollup_applies(down, obs) and not down.verdict_rollup
+    with pytest.raises(ConsolidationError, match="roll-up"):
+        summary_values([down], obs, published_activity_values=[])
+    with pytest.raises(ConsolidationError, match="roll-up"):
+        summary_values([page(), down], obs, published_activity_values=[activity_values()])
+    # the same page with no supported observation does not meet the rule: unmarked and `unclear`, as before
+    for none in ([], [observation(page_id="r", supported=False)]):
+        assert summary_values([down], none, published_activity_values=[])["core.has_genai_activity"] == "unclear"

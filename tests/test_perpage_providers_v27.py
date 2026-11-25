@@ -1374,7 +1374,7 @@ def test_activity_only_request_with_no_activity_downgrades_the_verdict_support_9
     """PI ruling 99.2: the activity-only request succeeds with zero activities: no activity, and the final
     verdict's support at its deciding part is downgraded ``downgraded_no_quote`` (verdict value kept, no
     quote), every other support unchanged, so the page never counts as positive."""
-    from g3o.validate.consolidate_v27 import _positive
+    from g3o.validate.consolidate_v27 import _positive, rollup_applies
 
     run_dir, bound, instrument, world, page = _flip_world(tmp_path)
     result, _, records, page_round_of = _flipped_round(run_dir, bound, page)
@@ -1396,8 +1396,10 @@ def test_activity_only_request_with_no_activity_downgrades_the_verdict_support_9
     assert sr.original_value == sr.value == "confirms_activity"  # tag_only: the verdict is kept (R-041)
     assert down.final == page_round.final and down.result == page_round.result  # not re-combined
     page_doc = SimpleNamespace(pipeline=pp.PIPELINE, reviewed=True, failed=False, page_verdict="confirms_activity",
-                               support_status=sr.support_status, chosen_probability=verdict.probability)
+                               support_status=sr.support_status, chosen_probability=verdict.probability,
+                               page_id=page.page_id, verdict_rollup=False)
     assert not _positive(page_doc)  # consolidate_v27: never positive; and not an "open positive" (downgraded_)
+    assert not rollup_applies(page_doc, [])  # RC-D-049: the page has no activity, so the roll-up never rescues it
     assert sr.support_status.startswith("downgraded_")
 
 
@@ -1410,7 +1412,7 @@ def test_confirms_page_whose_first_plan_gave_no_activity_is_downgraded_109a(tmp_
     request gave zero activity spans gets the 99.2 downgrade (FIRST_PLAN_NO_ACTIVITY): no activity-only
     request (ruling 100 b), the verdict support at its deciding part downgraded_no_quote, never positive. With
     spans, nothing is downgraded."""
-    from g3o.validate.consolidate_v27 import _positive
+    from g3o.validate.consolidate_v27 import _positive, rollup_applies
 
     run_dir, bound, instrument, world, page = _flip_world(tmp_path)
     result, _, records, page_round_of = _flipped_round(run_dir, bound, page, first_verdict=first_verdict,
@@ -1427,8 +1429,10 @@ def test_confirms_page_whose_first_plan_gave_no_activity_is_downgraded_109a(tmp_
     (sr,) = [s for s in down.support if pp._support_key(s) == (None, jpc.VERDICT, None, verdict.part_id, None)]
     assert sr.support_status == support_check.NO_QUOTE and sr.value == "confirms_activity"
     page_doc = SimpleNamespace(pipeline=pp.PIPELINE, reviewed=True, failed=False, page_verdict="confirms_activity",
-                               support_status=sr.support_status, chosen_probability=verdict.probability)
+                               support_status=sr.support_status, chosen_probability=verdict.probability,
+                               page_id=page.page_id, verdict_rollup=False)
     assert not _positive(page_doc)
+    assert not rollup_applies(page_doc, [])  # RC-D-049: zero activity spans, nothing for the roll-up to stand on
 
     spans = FakeExtractor(world)  # the first request returns the page's activity: no downgrade
     with_spans = _providers(run_dir, bound, instrument, spans, FakeEntail())

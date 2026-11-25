@@ -30,7 +30,9 @@ import typesafe_sdk as ts
 from g3o.common.jev_client import JevAnswer, JevResult
 
 # Question-set version (jev-integration-plan.md §3). Pin in goldens.
-JEV_QUESTION_SET_VERSION = "g3o.classify.url_triage.jev.v1"
+# v2 (o1124 Change 2, wording approved by the PI 2026-11-24, chat "approve all"): the keep instruction names the
+# codebook r17/r18 any-AI construct; v1 said "generative AI adoption" and "GenAI signal".
+JEV_QUESTION_SET_VERSION = "g3o.classify.url_triage.jev.v2"
 
 # Keep threshold (jev-integration-plan.md §3). Default 0.5 (symmetric); the
 # inclusive margin argues for 0.4 — decide from the replay eval. Named
@@ -97,14 +99,16 @@ def build_triage_questions(
             instructions=(
                 f"Should the URL '{url}' be kept for further analysis? "
                 f"Keep if the URL is likely to contain or link to evidence of "
-                f"generative AI adoption, pilots, policies, procurement, or "
-                f"deployment at THIS specific institution. Examples: pages on "
+                f"AI adoption, pilots, policies, procurement, or "
+                f"deployment at THIS specific institution: generative AI or any "
+                f"other tool or activity the source calls AI, artificial intelligence or "
+                f"machine learning. Examples: pages on "
                 f"the institution's official domain mentioning AI, news/press "
                 f"releases, procurement notices, official statements, vendor "
                 f"case studies that name the institution, parliamentary records "
                 f"about the institution. Drop if the URL is clearly off-topic "
                 f"for this institution: pages about a different entity, generic "
-                f"encyclopedia entries that lack institution-specific GenAI "
+                f"encyclopedia entries that lack institution-specific AI "
                 f"signal, social-media profile pages, login pages, search-results "
                 f"pages, URL shorteners, and pages whose URL pattern indicates "
                 f"non-content (sitemaps, robots.txt, login/auth, calendar feeds). "

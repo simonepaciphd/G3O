@@ -1,8 +1,9 @@
 """Deterministic publication-date signals (P15 A1; T-014 capture scope).
 
-Codebook r15 ``core.source_publication_date`` rules/0: "Take dates from HTML
-metadata / PDF properties / URL patterns deterministically; if absent, the
-extractor returns a date with its verbatim quote, validated by R-042."
+Codebook ``core.source_publication_date`` rules/0: "Take dates from HTML
+metadata, PDF properties or URL patterns deterministically; if none is found,
+the extractor returns a date with its verbatim quote, which is checked against
+the stored page text like any other quote."
 
 PI rulings 2026-11-11 (A1 build questions, rulings A1.1-A1.3):
 

@@ -1067,12 +1067,18 @@ def force_sync(dispatch: Any) -> Any:
 
 
 def fixture_institution_row(fixture: Mapping[str, Any]) -> dict[str, Any]:
-    """The master-row shape of a fixture institution (``records.institution_record`` reads it)."""
+    """The master-row shape of a fixture institution (``records.institution_record`` reads it).
+
+    o1124 Change 1: a fixture's optional ``institution_type`` / ``disambiguation`` (the master cells of the
+    same names) are carried when present, so the page classifier receives them; absent keys stay absent.
+    """
     inst = fixture["institution"]
     raw = str(inst["institution_id"])
     master = raw[len("INST-"):] if raw.startswith("INST-") else raw
-    return {"master_row_id": master, "institution_name": inst.get("name", ""), "country": inst.get("country", ""),
-            "government_level": inst.get("level", ""), "branch": inst.get("branch", "")}
+    row = {"master_row_id": master, "institution_name": inst.get("name", ""), "country": inst.get("country", ""),
+           "government_level": inst.get("level", ""), "branch": inst.get("branch", "")}
+    row.update({k: inst[k] for k in ("institution_type", "disambiguation") if k in inst})
+    return row
 
 
 def fixture_uid(institution_id: str) -> str:

@@ -72,9 +72,12 @@ def test_version_stamp_and_packet_wording() -> None:
         assert doc["non_verbatim"], name
         for nv in doc["non_verbatim"]:
             assert nv["approval"] in ("pending", "approved")
-            assert nv["approval_record"] == PACKET_RULINGS[nv["packet_item"]]
+            if nv["approval"] == "approved":
+                assert nv["approval_record"] == PACKET_RULINGS[nv["packet_item"]]
+            else:  # a packet item with an open point: pending, no record yet
+                assert "approval_record" not in nv and nv["packet_item"] not in PACKET_RULINGS
         states[name] = {nv["packet_item"]: nv["approval"] for nv in doc["non_verbatim"]}
-    assert states["page"] == {"W-01": "approved", "W-02": "approved", "B-Q4": "approved"}
+    assert states["page"] == {"W-01": "approved", "W-02": "approved", "B-Q4": "approved", "W-09": "approved"}
     assert states["activity"] == {"W-01": "approved", "W-02": "approved", "W-03": "approved",
                                   "W-04": "approved", "W-05": "approved", "W-06": "approved"}
     assert states["institution"] == {"W-02": "approved", "W-07": "approved", "W-08": "approved"}
@@ -118,10 +121,24 @@ def test_source_type_left_to_t015_and_chrome_field_approved() -> None:
     assert "core.source_type" not in [q["question_id"] for q in page["questions"]]
     assert "core.source_type" in [e["question_id"] for e in page["excluded"]]
     state = page["state"]
-    assert state["approval"] == "approved" and state["open"] == []
     chrome = state["fields"][-1]
     assert chrome["name"] == "chrome_text" and "verbatim" in chrome["shown_text"]
     assert "content_contact_named" in chrome["value"] and "content_contact_details" in chrome["value"]
+
+
+def test_identity_fields_declared_approved_w09() -> None:
+    """o1124 Change 1: the page state declares the master identity fields after the level of
+    government, left out when missing; packet item W-09 approved by the PI on 2026-11-24."""
+    from g3o.classify import jev_page_code as jpc
+
+    state = load_set("page")["state"]
+    names = [f["name"] for f in state["fields"]]
+    assert names[:6] == ["coder_instructions", "institution", "country", "level_of_government",
+                         jpc.INSTITUTION_TYPE_FIELD, jpc.DISAMBIGUATION_FIELD]
+    for f in state["fields"][4:6]:
+        assert "left out" in f["shown_text"]
+    assert "W-09" in state["packet_items"] and "approve all" in PACKET_RULINGS["W-09"]
+    assert state["approval"] == "approved" and "open" not in state
 
 
 def test_approved_slot_with_undeclared_value_is_caught(tmp_path: Path, cb: Codebook) -> None:

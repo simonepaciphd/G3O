@@ -158,9 +158,9 @@ Rules carried here, not decided here:
   upstream source values and codes keyed :data:`NO_ACTIVITY`, and ``_NA_``
   set by rule (``vocabularies/missing/na_label``) on the activity-question
   items the sources table holds.
-- **Supported observation (RC-D-030 Y1 b).** ``ActivityObservation.supported`` is
+- **Supported observation (setting F; replaces RC-D-030 Y1 b).** ``ActivityObservation.supported`` is
   derived here (:func:`observation_supported`): the observation's final
-  ``core.activity_type`` and ``core.action_type`` are both supported (support
+  ``core.activity_type`` or its final ``core.action_type`` is supported (support
   status ``supported`` at the deciding part).
 - **Within-page decisions (RC-D-030 Y5 a).** A finalized T-023 pair whose
   combined value is one relation decides that relation, with the lowest
@@ -266,6 +266,7 @@ from g3o.validate.consolidate_v27 import (
     RelationDecision,
     ReviewedPage,
     outcome_values,
+    rollup_applies,
 )
 from g3o.validate.stage6_v27 import InputQuote, ObservationRecord, Stage6QuoteNotApproved
 
@@ -294,7 +295,7 @@ SOURCE_ROW_ITEMS = SOURCE_ITEMS - set(srow.STAGE6_SOURCE_ITEMS)
 PRODUCED_CODERS = frozenset({"classifier"})
 T015_CLASSIFIER = "core.source_type"  # a classifier item T-015 owns: an upstream value and code
 
-#: RC-D-030 Y1 b: an observation is supported when both of these final values are supported.
+#: Setting F (replaces RC-D-030 Y1 b): an observation is supported when either of these final values is supported.
 SUPPORTED_ITEMS = ("core.activity_type", "core.action_type")
 #: RC-D-030 Y2 a: upstream key (source values, codes) of a no-activity page's page-level source row.
 NO_ACTIVITY = "_NA_"
@@ -722,7 +723,7 @@ class PageUpstream:
     the activities / sources table rows; ``codes`` the support results and
     coder records of the quote-step values among them. A page with no activity
     keys its page-level source row's values and codes :data:`NO_ACTIVITY`. ``ActivityObservation.supported``
-    is derived by the producer (RC-D-030 Y1 b), not an input.
+    is derived by the producer (setting F; replaces RC-D-030 Y1 b), not an input.
 
     ``page_fields`` (T-030, PI ruling D1 a): the page-level source values the
     stored page fixes before coding
@@ -936,20 +937,20 @@ def _passage_order(artifact: PageArtifact, sr: SupportResult) -> int:
 
 def observation_supported(aid: str, outcomes: Mapping[str, Any],
                           support: Mapping[tuple[Any, ...], SupportResult]) -> bool:
-    """RC-D-030 Y1 b: the final ``activity_type`` and ``action_type`` are both supported.
+    """Setting F (replaces RC-D-030 Y1 b): the final ``activity_type`` or ``action_type`` is supported.
 
     A value is supported when its final outcome was combined from the parts without
     failing and the support result at its deciding part has status ``supported``; a
     gated, rule-set, failed (downgraded) or missing value is not.
     """
-    for item in SUPPORTED_ITEMS:
+    def value_supported(item: str) -> bool:
         o = next((o for o in outcomes.values() if o.item_id == item and o.part is None), None)
         if o is None or o.state != "combined" or o.failed or o.part_id is None:
             return False
         sr = support.get((aid, item, None, o.part_id, None))
-        if sr is None or sr.support_status != "supported" or sr.value != o.value:
-            return False
-    return True
+        return not (sr is None or sr.support_status != "supported" or sr.value != o.value)
+
+    return any(value_supported(item) for item in SUPPORTED_ITEMS)
 
 
 def within_page_decision(pair: PairResult, answered: Sequence[tuple[CoderRecord, SupportResult]]
@@ -1318,6 +1319,10 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
             oid, page.page_id, finals[aid].outcomes, nano_values(spans[aid]),
             observation_supported(aid, finals[aid].outcomes, act_support),
             tuple(frag["coder_records"]), tuple(frag["item_support"])))
+    # Page-verdict roll-up (RC-D-049; PI ruling 2026-11-22, R1 b): once the page's observations exist.
+    # Only the mark is set: the verdict, its support status and every stored node stay as checked.
+    if rollup_applies(out.page, out.observations):
+        out.page = replace(out.page, verdict_rollup=True)
     return out
 
 

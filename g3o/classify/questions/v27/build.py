@@ -42,9 +42,9 @@ from g3o.codebook.loader import REPO_ROOT, Codebook, load_codebook
 #: Version stamp for the three sets (pinned in goldens and stored with answers).
 JEV_QUESTION_SET_VERSION = "g3o.classify.questions.v27.jev.1"
 
-#: Codebook r17 (calibration rulings 2026-11-21), signed when planning/t010/signoff-record.md holds this sha256 (A-001).
+#: Codebook r18 (setting F bars per checked item; the page-verdict roll-up; RC-D-048, RC-D-049), signed when planning/t010/signoff-record.md holds this sha256 (A-001).
 #: A different codebook is refused.
-SIGNED_CODEBOOK_SHA256 = "71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4"
+SIGNED_CODEBOOK_SHA256 = "64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5"
 
 SET_DIR = Path(__file__).resolve().parent
 SET_FILES = {"page": "page.json", "activity": "activity.json", "institution": "institution.json"}
@@ -91,6 +91,8 @@ PACKET_RULINGS = {
             'PI chat "all recs accepted" (RULINGS.md item 4, to be recorded as RC-D-022): W8 (i)-(iv) a pool_note, quote_text, source_publication_date, page_part; '
             'PI 2026-11-08 chat "accept all" (2026-11-08 RULINGS.md item 2.11-12): lane A 5 a source_type as its signed label, 6 a no date = field left out',
     "B-Q4": 'PI 2026-11-07 recovery reply "1a": chrome_text verbatim then emails in the same chrome_text field; full chrome, not footer-only',
+    "W-09": 'PI 2026-11-24 chat "approve all" (RULINGS-1124 section 37: wording 1, choice a): institution_type and '
+            'institution_disambiguation, the master cells verbatim, after level_of_government; a blank cell is left out',
 }
 
 # --------------------------------------------------------------------------- state declarations
@@ -99,15 +101,20 @@ PACKET_RULINGS = {
 # kept (W-01 a). A value still None is a point the PI rulings do not settle (see "open").
 
 PAGE_STATE = {
-    "packet_items": ["W-01", "W-02", "B-Q4"],
+    "packet_items": ["W-01", "W-02", "B-Q4", "W-09"],
+    # o1124 Change 1: the two master identity fields are packet item W-09, approved by the PI on
+    # 2026-11-24 (field names, value form and place in the state; PACKET_RULINGS["W-09"]).
     "approval": APPROVED,
-    "open": [],
     "form_source": "T-016 re-pilot state (scripts/spikes/t016/repilot_v27.py page_units)",
     "fields": [
         {"name": "coder_instructions", "value": "signed slot shared/system_prompt, verbatim"},
         {"name": "institution", "value": "institution name from the master"},
         {"name": "country", "value": "country from the master"},
         {"name": "level_of_government", "value": "level of government from the master"},
+        {"name": "institution_type", "value": "institution_type from the master, verbatim",   # W-09
+         "shown_text": "the master code as recorded (e.g. municipality); left out when blank"},
+        {"name": "institution_disambiguation", "value": "disambiguation from the master, verbatim",  # W-09
+         "shown_text": "the master text as recorded; left out when blank (most rows have none)"},
         {"name": "page_url", "value": "stored page URL"},
         {"name": "page_title", "value": "stored page title"},
         {"name": "page_part", "value": "chunk marker '{i} of {n}' (always present)"},

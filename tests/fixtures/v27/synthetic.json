@@ -43,7 +43,7 @@
    "a_ids": [
     "A-011"
    ],
-   "purpose": "page verdict ambiguous_genai",
+   "purpose": "page verdict confirms_activity: a specific institution-issued AI strategy (the ambiguous_genai page of this group until r17)",
    "institution": {
     "institution_id": "SYN-0002",
     "name": "Eastmoor District Council",
@@ -65,9 +65,20 @@
     {
      "item": "core.page_verdict",
      "scope": "page:p0",
-     "value": "ambiguous_genai",
-     "rule": "codebook 2.7 core.page_verdict ambiguous_genai: generic 'AI strategy' / 'AI tools' (example in the definition); SPEC R-016",
-     "codebook_rev": "r11"
+     "value": "confirms_activity",
+     "rule": "codebook 2.7 r17 core.page_verdict confirms_activity: the institution's own policy or guidance on AI; SPEC R-016 (a specific institution-issued AI strategy is a confirmed activity); PI 2026-11-22 ruling 5 row 1",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22",
+     "label_version": 2,
+     "label_history": [
+      {
+       "label_version": 1,
+       "value": "ambiguous_genai",
+       "rule": "codebook 2.7 core.page_verdict ambiguous_genai: generic 'AI strategy' / 'AI tools' (example in the definition); SPEC R-016",
+       "codebook_rev": "r11",
+       "superseded_by": "PI 2026-11-22 ruling 5 row 1 (r17 relabel)"
+      }
+     ]
     }
    ]
   },
@@ -233,7 +244,7 @@
      "fetch_status": "ok",
      "chrome_text": "",
      "links": [],
-     "text": "Freedom of information response: Hollowmere Town Council does not use generative AI tools such as ChatGPT or Copilot, and has no plans to introduce them."
+     "text": "Freedom of information response: Hollowmere Town Council does not use artificial intelligence (AI) tools of any kind, including generative AI tools such as ChatGPT or Copilot, and has no plans to introduce them."
     }
    ],
    "expected": [
@@ -241,8 +252,20 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "confirms_absence",
-     "rule": "codebook 2.7 core.page_verdict confirms_absence: page states this institution has no GenAI activity (C01 commits_to, SPEC A-011)",
-     "codebook_rev": "r11"
+     "rule": "codebook 2.7 r17 core.page_verdict confirms_absence: the page states that this institution has no AI activity (it does not use AI tools); PI 2026-11-22 ruling 5 row 13 (value kept; page text reworded to deny AI, not only generative AI)",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22",
+     "label_version": 2,
+     "label_history": [
+      {
+       "label_version": 1,
+       "value": "confirms_absence",
+       "rule": "codebook 2.7 core.page_verdict confirms_absence: page states this institution has no GenAI activity (C01 commits_to, SPEC A-011)",
+       "codebook_rev": "r11",
+       "superseded_by": "PI 2026-11-22 ruling 5 row 13 (value kept; page text reworded to deny AI, not only generative AI)",
+       "page_text": "Freedom of information response: Hollowmere Town Council does not use generative AI tools such as ChatGPT or Copilot, and has no plans to introduce them."
+      }
+     ]
     }
    ]
   },
@@ -416,7 +439,7 @@
    "a_ids": [
     "A-012"
    ],
-   "purpose": "generic AI strategy stays ambiguous",
+   "purpose": "a specific institution-issued AI strategy is a confirmed activity",
    "institution": {
     "institution_id": "SYN-0012",
     "name": "Calder Borough Council",
@@ -438,9 +461,20 @@
     {
      "item": "core.page_verdict",
      "scope": "page:p0",
-     "value": "ambiguous_genai",
-     "rule": "codebook 2.7 core.page_verdict ambiguous_genai (generic 'AI strategy', 'AI tools'); SPEC R-016 (contract §4.1 stays unclear)",
-     "codebook_rev": "r11"
+     "value": "confirms_activity",
+     "rule": "codebook 2.7 r17 core.page_verdict confirms_activity: the institution's own policy or guidance on AI; SPEC R-016 (a specific institution-issued AI strategy is a confirmed activity); PI 2026-11-22 ruling 5 row 2",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22",
+     "label_version": 2,
+     "label_history": [
+      {
+       "label_version": 1,
+       "value": "ambiguous_genai",
+       "rule": "codebook 2.7 core.page_verdict ambiguous_genai (generic 'AI strategy', 'AI tools'); SPEC R-016 (contract §4.1 stays unclear)",
+       "codebook_rev": "r11",
+       "superseded_by": "PI 2026-11-22 ruling 5 row 2 (r17 relabel)"
+      }
+     ]
     }
    ]
   },
@@ -4241,6 +4275,534 @@
      "rule": "RC-D-023 C-Q1b/C-Q2a/C-Q3b(i)/C-Q4a/C-Q5b/C-1a",
      "codebook_rev": "r13",
      "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-08",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012",
+    "A-011"
+   ],
+   "purpose": "bare mention of AI (an agenda item title only): no specific activity",
+   "institution": {
+    "institution_id": "SYN-0200",
+    "name": "Pendlebury Parish Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0200/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Pendlebury Parish Council. Agenda for the meeting of 9 June. 1. Apologies for absence. 2. Minutes of the previous meeting. 3. Artificial intelligence. 4. Play area repairs. 5. Date of the next meeting."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "ambiguous_genai",
+     "rule": "codebook 2.7 r17 core.page_verdict ambiguous_genai: AI is mentioned at this institution but no specific activity can be made out (an agenda item that describes no tool, policy, purchase, deployment or training); SPEC R-016, A-012; PI 2026-11-22 ruling 6 A",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-09",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012"
+   ],
+   "purpose": "own tool called AI / machine learning with no generative sign",
+   "institution": {
+    "institution_id": "SYN-0201",
+    "name": "Thornfield Borough Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0201/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Thornfield Borough Council's highways team uses a machine-learning system to decide which roads to inspect first. Each month the AI system scores every road in the borough from past repair records, traffic counts and weather data, and inspectors visit the highest-scoring roads first."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "confirms_activity",
+     "rule": "codebook 2.7 r17 core.page_verdict confirms_activity: any other tool the page calls AI or machine learning counts (AI analytics or prediction); SPEC A-012; PI 2026-11-22 ruling 6 A",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    },
+    {
+     "item": "core.genai_mechanism_basis",
+     "scope": "activity:road inspection scoring system",
+     "value": "no_generative_signal",
+     "rule": "codebook 2.7 r17 core.genai_mechanism_basis no_generative_signal: called AI or machine learning, none of the other signs; PI 2026-11-22 ruling 6 A",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    },
+    {
+     "item": "core.has_genai_activity",
+     "scope": "institution",
+     "value": "yes",
+     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: >= 1 supported confirms_activity page with a supported activity, generative or not (r17); PI 2026-11-22 ruling 6 A (optional: institution-level expectation on the no-generative-sign page)",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-10",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012"
+   ],
+   "purpose": "translation the page calls AI translation, no product and no language model",
+   "institution": {
+    "institution_id": "SYN-0202",
+    "name": "Marshfield Town Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0202/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Marshfield Town Council now offers its website in 12 languages using AI translation. The council's web team switched the AI translation service on in March. AI translations may contain errors; the English text is the official version."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "confirms_activity",
+     "rule": "codebook 2.7 r17 core.rule.genai_boundary: translation counts as an AI activity when the page calls it AI or machine learning; core.page_verdict confirms_activity (AI translation); PI 2026-11-22 ruling 6 A (optional page); value derived by the builder",
+     "judgement_call": "JC-S13",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    },
+    {
+     "item": "core.genai_mechanism_basis",
+     "scope": "activity:AI translation of the council website",
+     "value": "no_generative_signal",
+     "rule": "codebook 2.7 r17 core.rule.genai_boundary: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it; neither here, so no_generative_signal; value derived by the builder",
+     "judgement_call": "JC-S13",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-11",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012"
+   ],
+   "purpose": "AI course the council runs for its own employees",
+   "institution": {
+    "institution_id": "SYN-0203",
+    "name": "Ravensworth District Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0203/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Ravensworth District Council is running a four-week course, 'Using AI at work', for its own employees. All 300 office staff will attend the sessions, which the council's digital team leads, by the end of May. The course is not open to the public."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "confirms_activity",
+     "rule": "codebook 2.7 r17 core.page_verdict confirms_activity: AI training that the institution directs at public-sector staff (its own staff); event_only: such training is not public-facing; PI 2026-11-22 ruling 6 A",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    },
+    {
+     "item": "core.action_type",
+     "scope": "activity:Using AI at work course",
+     "value": "staff_training",
+     "rule": "codebook 2.7 r17 core.action_type staff_training: the institution trains public-sector staff, its own, to use AI; PI 2026-11-22 ruling 6 A",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-12",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012"
+   ],
+   "purpose": "regional body trains the staff of the municipalities it serves",
+   "institution": {
+    "institution_id": "SYN-0204",
+    "name": "Upper Calder Regional Council",
+    "country": "United Kingdom",
+    "level": "regional"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0204/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Upper Calder Regional Council provides training for the staff of the 14 municipalities it serves. This autumn the regional council's training unit is delivering workshops on the safe use of AI tools to municipal employees in each town hall. Places are for municipal staff only."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "confirms_activity",
+     "rule": "codebook 2.7 r17 core.page_verdict confirms_activity: AI training that the institution directs at public-sector staff (the staff of bodies it serves); PI 2026-11-22 ruling 6 A",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-13",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012"
+   ],
+   "purpose": "public talk and staff AI training on one page: the order rule gives confirms_activity",
+   "institution": {
+    "institution_id": "SYN-0205",
+    "name": "Kestrel Bay Town Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0205/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Kestrel Bay Town Council news. Library: residents are invited to a free public talk, 'What is AI?', at the town library on 4 May. Staff: the council has started mandatory AI training for all its customer service staff, delivered by the council's IT team."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "confirms_activity",
+     "rule": "codebook 2.7 r17 core.page_verdict order rule (first fitting value): staff AI training is a confirmed activity, so the public talk does not make the page event_only; PI 2026-11-22 ruling 6 A (optional page)",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-14",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012"
+   ],
+   "purpose": "own content credited as made with AI (image caption) on a page about something else",
+   "institution": {
+    "institution_id": "SYN-0206",
+    "name": "Holmbrook Parish Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0206/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Holmbrook Parish Council news, 3 April. The footbridge over Mill Stream has reopened after repairs to the handrail. The bridge had been closed since January. Image caption: the repaired footbridge. Image generated with AI."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "confirms_activity",
+     "rule": "codebook 2.7 r17 core.page_verdict confirms_activity: content the institution publishes on its own page and credits as made with AI is its own use of an AI tool; PI 2026-11-22 ruling 6 A",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    },
+    {
+     "item": "core.action_type",
+     "scope": "activity:AI-generated image",
+     "value": "deployment",
+     "rule": "codebook 2.7 r17 core.action_type deployment: publishing its own content credited as made with AI is putting a tool to use; PI 2026-11-22 ruling 6 A",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    },
+    {
+     "item": "core.genai_mechanism_basis",
+     "scope": "activity:AI-generated image",
+     "value": "generative_capability_described",
+     "rule": "codebook 2.7 r17 core.genai_mechanism_basis generative_capability_described: the page says the tool generates an image, no product named; PI 2026-11-22 ruling 6 C (caption worded 'Image generated with AI')",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-15",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012"
+   ],
+   "purpose": "the same page with the AI image credited to another body",
+   "institution": {
+    "institution_id": "SYN-0207",
+    "name": "Holmbrook Parish Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0207/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Holmbrook Parish Council news, 3 April. The footbridge over Mill Stream has reopened after repairs to the handrail. The bridge had been closed since January. Image caption: the repaired footbridge. Image generated with AI by Carrow County Council's communications team and reproduced with its permission."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "other_body",
+     "rule": "codebook 2.7 r17 core.page_verdict confirms_activity does not apply (AI-credited content counts unless the page attributes that content to another body); other_body; PI 2026-11-22 ruling 6 B",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-16",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012"
+   ],
+   "purpose": "regulator's rule on AI use by the firms it licenses, nothing on its own staff",
+   "institution": {
+    "institution_id": "SYN-0208",
+    "name": "Halden Licensing Authority",
+    "country": "United Kingdom",
+    "level": "regional"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0208/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "The Halden Licensing Authority has issued Rule 12 on the use of artificial intelligence by licensed surveyors. From 1 July, every surveying firm the Authority licenses must tell clients when AI tools were used to prepare a report, and a qualified surveyor must check the result. Firms that break the rule can lose their licence."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "confirms_activity",
+     "rule": "codebook 2.7 r17 core.page_verdict confirms_activity: its own policy or guidance on AI, whether it governs the institution's own staff or others it regulates; PI 2026-11-22 ruling 6 A",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    },
+    {
+     "item": "core.action_type",
+     "scope": "activity:Rule 12 on the use of artificial intelligence",
+     "value": "governance",
+     "rule": "codebook 2.7 r17 core.action_type governance: the institution issues or applies a rule on AI use; PI 2026-11-22 ruling 6 A",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-17",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012"
+   ],
+   "purpose": "supplier's case-study page naming the institution as the client of its AI tool",
+   "institution": {
+    "institution_id": "SYN-0209",
+    "name": "Dunmere Borough Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0209/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Case study: Dunmere Borough Council. Brightpath Systems supplies its AI document-sorting tool to Dunmere Borough Council, where the revenues team has used it since 2025 to sort incoming post. 'The AI tool saves us two days a week,' says the council's head of revenues. Contact Brightpath Systems for a demonstration."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "confirms_activity",
+     "rule": "codebook 2.7 r17 core.page_verdict confirms_activity: a vendor or other third-party page counts when it names this institution as the client or user of the tool; PI 2026-11-22 ruling 6 A, 6 E (no vendor_claim_only expectation)",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-18",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012"
+   ],
+   "purpose": "named institution is a government; the page is its ministry's AI tool",
+   "institution": {
+    "institution_id": "SYN-0210",
+    "name": "Government of Norvale",
+    "country": "Norvale",
+    "level": "national"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0210/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Ministry of Transport of Norvale. The Ministry of Transport, a ministry of the Government of Norvale, uses an AI system to check driving-licence applications for missing documents. The ministry's own licensing office introduced the system in February, and only its staff use it."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "confirms_activity",
+     "rule": "codebook 2.7 r17 core.rule.attribution_grain: when the named institution is a government, its ministries and departments are its units; core.page_verdict confirms_activity; PI 2026-11-22 ruling 6 A",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-19",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012"
+   ],
+   "purpose": "named institution is a ministry; the same page shows a sibling ministry's AI tool",
+   "institution": {
+    "institution_id": "SYN-0211",
+    "name": "Ministry of Education of Norvale",
+    "country": "Norvale",
+    "level": "national"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0211/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Ministry of Transport of Norvale. The Ministry of Transport, a ministry of the Government of Norvale, uses an AI system to check driving-licence applications for missing documents. The ministry's own licensing office introduced the system in February, and only its staff use it."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "other_body",
+     "rule": "codebook 2.7 r17 core.rule.attribution_grain: an activity of a sibling does not count unless the page says the named institution takes part; core.page_verdict other_body (the activity clearly belongs to a different body), as v27-syn-A011-04; not ambiguous_attribution, because nothing government-wide is described (v27-real-28); PI 2026-11-22 ruling 6 A; value derived by the builder",
+     "judgement_call": "JC-S14",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A012-20",
+   "kind": "synthetic",
+   "mode": "pipeline",
+   "a_ids": [
+    "A-012"
+   ],
+   "purpose": "'smart' sensors and a predictive dashboard never called AI or machine learning",
+   "institution": {
+    "institution_id": "SYN-0212",
+    "name": "Saltwick Town Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0212/p0",
+     "title": "Synthetic page p0",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Saltwick Town Council has fitted smart sensors to 60 litter bins on the seafront. The sensors report how full each bin is, and a predictive dashboard forecasts which bins will need emptying the next day so that crews can plan their rounds."
+    }
+   ],
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "no_genai",
+     "rule": "codebook 2.7 r17 core.page_verdict confirms_activity exclusion: 'smart' systems, analytics or prediction that the page does not call AI or machine learning do not count; no AI is mentioned, so no_genai; PI 2026-11-22 ruling 6 A (optional page)",
+     "codebook_rev": "r17",
+     "label_date": "2026-11-22"
     }
    ]
   }

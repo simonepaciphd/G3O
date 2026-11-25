@@ -17,8 +17,8 @@ Two gates, each a single constant; ``v27_entry.x35_entail_fn`` returns the refus
 
 - :data:`X35_PROBABILITY_SOURCE`: RULED ``"stated"`` (PI ruling Q159 a, 2026-11-16).
   Claude returns no token probabilities, so the X35 request's structured output is
-  ``{"answer": "true"|"false", "probability": <0..1>}`` and the 0.8 bar of SPEC R-081 /
-  R-040 applies to that stated number; one call per (code, quote).
+  ``{"answer": "true"|"false", "probability": <0..1>}`` and the X35 bar of SPEC R-081 /
+  R-040 (per checked item, ``support_check.SupportRules.x35_bar``) applies to that stated number; one call per (code, quote).
 - :data:`X35_SYSTEM_DRAFT` / :data:`X35_USER_TEMPLATE_DRAFT`: the instrument wording,
   APPROVED (PI Q160, 2026-11-16; the names are kept). Pinned by SHA256 (review O2 M2,
   as the Stage 6 quote step pins its approved wording) in
@@ -41,7 +41,7 @@ from g3o.common.support_check import Entailment
 from g3o.extract.anthropic_client import build_params, result_from_message
 
 #: RULED (PI ruling Q159 a, 2026-11-16): ``"stated"``, the probability the model states in
-#: its structured output (:data:`X35_OUTPUT_SCHEMA`); R-081's 0.8 bar applies to it. None
+#: its structured output (:data:`X35_OUTPUT_SCHEMA`); R-081's X35 bar applies to it. None
 #: would wire no X35 call (``v27_entry.x35_entail_fn`` returns the refusing stub).
 X35_PROBABILITY_SOURCE: str | None = "stated"
 #: The probability sources this module implements.

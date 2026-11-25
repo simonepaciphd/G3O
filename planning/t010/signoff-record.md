@@ -1,6 +1,25 @@
-# T-010 signature record: release 2.7, r17 (RC-D-045)
+# T-010 signature record: release 2.7, r18 (RC-D-048, RC-D-049; clean-docs rulings of 2026-11-23)
 
 ## Current signature authorization
+
+| | |
+|---|---|
+| sha256 | `64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5` |
+| File | `codebook/codebook.yaml` |
+| Branch, commit | `reclass/o1123-codebook-clean`, `16bc4be` (committed blob `99b5b3d37e6956d985a5b73ce1349bbc51503a78`; CRLF, `codebook/.gitattributes` `-text`; 10,681 lines); this record is on the same branch |
+| Release | `2.7` |
+| Approver | Simone Paci |
+| Date | 2026-11-24, in chat |
+| Recorder | Integrator session 20261124-claude-v2-9de68a0541729325 (Claude Code; claude-opus-5-5; engineer persona) |
+
+- **Words, verbatim:** "ok i sign the codebook r18", in reply to the signature request naming codebook r18 sha256 64a8a2d8…e7dc5 on reclass/o1123-codebook-clean at 16bc4be, after the c2clean result was put to the PI
+- **What was put to the PI:** Put to the PI in chat, 2026-11-24, by the integrator session 20261124-claude-v2-9de68a0541729325 (Claude Code; claude-opus-5-5), after reporting the main paid check (c2clean) result (cleaned R0 FN 80, FP 9, J 89 on 686 confirmatory units; recall 52.7%, precision 90.8%; Level 2 vs C2 F_r dJ +2, 95% -4 to 8; read descriptively, D5 (a)): signature request for the cleaned codebook r18, file codebook/codebook.yaml, sha256 64a8a2d8…e7dc5, on branch reclass/o1123-codebook-clean at commit 16bc4be; the signature record is clean-docs-audit/sign/signoff-r18-clean-block.TEMPLATE.md (what r18 changes from r17, the release note citing PREREG A34 and A38, known limits, and the corrected frozen-items line stating that core.reported_outcomes and core.reported_incidents no longer carry a rule text after the PI's P6 deletion of 2026-11-23); the PI's words in chat are the signature.
+- **What r18 changes from r17:** r18 is the cleaned candidate (PI 2026-11-23, `RULINGS-1123.md` section 24, 1 (c)); the earlier r18 candidate `0cd68ed0…655e` was not signed. (1) Setting F, support-check half (RC-D-048): `core.support_entailment` gains `threshold_by_checked_item`; the bar of the support check is 0.6 when the checked item is `core.page_verdict` or `core.action_type`, and 0.8 for `core.activity_type` and every other checked item. (2) `core.has_genai_activity`: `rules/0` is the "AI purchase record" text (C-17 A) with the roll-up exception clause; `rules/1` is the page-verdict roll-up (RC-D-049, web pages only); `rules/2` is the supported-activity-observation rule (an activity observation is supported when its `activity_type` or its `action_type` is supported; PI 2026-11-23, 3 D). (3) Clean-docs layer 1: superseded slot texts and the release history moved out of the file to `planning/t010/codebook-history.json` (header lines 1-3 rewritten; `release.status` stays `signed`, R9). (4) Clean-docs layer 2: slot texts replaced, deleted or renumbered as the PI ruled on 2026-11-23 (`RULINGS-1123.md` sections 24-25: P1-P7, B1, B5, B6, B8, B11-B14, R2, R3, R9), each previous text in `codebook-history.json` `layer2`. Text sent to a model changes: pass 1 `e2a6b491691635f6af3f75de8d84b745d0113670404ab96dc2d0ca8d9d948277` and pass 2 `fbb438f572b33ffe159edcda04afc3f85cadd2e8d35da7508b4e2462e59ce197` (pins approved by the PI 2026-11-23, section 28), the jev activity criteria and the Stage 6 pooled requests that reuse them; item-hash lines no longer reach the model (R1 (c)); the Stage 6 quote instruction and the X35 instruction are unchanged. No value list changes (check 12 against r17 passes). Provenance: `planning/t010/codebook-history.json` (`0cd68ed0…` -> `dd3cc7e9…` -> this file).
+- **Release note:** r18 adopts setting F (RC-D-048) and the page-verdict roll-up (RC-D-049) after the second confirmation run of the calibration study (study log: PREREG A34, the C2 pre-registration; PREREG A38, the C2 result).
+- **Known limits recorded with the signature:** the other half of setting F is now codebook text (`core.has_genai_activity` `rules/2`), so a change of it is a codebook change and needs a new signature; the limits recorded with r17 stand.
+- Frozen CX items remain covered by the existing batch-signature form (RC-D-004); the list below is unchanged. Two items on it, `core.reported_outcomes` and `core.reported_incidents`, no longer carry a rule text: the PI deleted their `rules/0` slots on 2026-11-23 (clean-docs P6, C-10 a); the previous texts are in `codebook-history.json` `layer2`.
+
+## Superseded signature authorization (r17, `71f3576e…`)
 
 | | |
 |---|---|
