@@ -30,7 +30,7 @@ import typesafe_sdk as ts
 from g3o.common.jev_client import JevAnswer, JevResult
 
 # Question-set version (jev-integration-plan.md §3). Pin in goldens.
-# v2 (o1124 Change 2, DRAFT pending PI approval of the wording): the keep instruction names the
+# v2 (o1124 Change 2, wording approved by the PI 2026-11-24, chat "approve all"): the keep instruction names the
 # codebook r17/r18 any-AI construct; v1 said "generative AI adoption" and "GenAI signal".
 JEV_QUESTION_SET_VERSION = "g3o.classify.url_triage.jev.v2"
 

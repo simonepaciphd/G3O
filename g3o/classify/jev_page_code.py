@@ -82,7 +82,7 @@ CHROME_INPUT = "main_plus_chrome"
 GROUP_MAIN = "main"
 GROUP_CHROME = "chrome"
 
-#: o1124 Change 1 (DRAFT, packet item W-09 pending PI approval): the master row's
+#: o1124 Change 1 (packet item W-09, approved by the PI 2026-11-24, chat "approve all"): the master row's
 #: ``institution_type`` and ``disambiguation``, sent after the level of government.
 #: A missing or blank value gives no field (as W3-2 a), never an empty string.
 INSTITUTION_TYPE_FIELD = "institution_type"

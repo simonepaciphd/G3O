@@ -20,7 +20,7 @@ Per institution (sample order; pages in the order Stage 4 stored them,
   ``country``, ``government_level`` (through
   :func:`~g3o.run.presweep.records.institution_record`); ``institution_type``,
   ``disambiguation`` the master row's cells of the same names, ``None`` when
-  blank or absent (o1124 Change 1, draft); ``has_metadata_date``
+  blank or absent (o1124 Change 1, approved 2026-11-24); ``has_metadata_date``
   from A1 (:func:`g3o.common.source_fields.page_has_metadata_date` on
   ``RenderedPage.metadata_dates`` and the URL, with the page's recorded UTC
   ``fetch_metadata.access_date``).

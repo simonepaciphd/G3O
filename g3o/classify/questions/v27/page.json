@@ -28,10 +28,7 @@
       "B-Q4",
       "W-09"
     ],
-    "approval": "pending",
-    "open": [
-      "W-09: names, value form (master code verbatim) and place of the fields institution_type and institution_disambiguation await PI approval"
-    ],
+    "approval": "approved",
     "form_source": "T-016 re-pilot state (scripts/spikes/t016/repilot_v27.py page_units)",
     "fields": [
       {
@@ -105,7 +102,8 @@
     },
     {
       "packet_item": "W-09",
-      "approval": "pending"
+      "approval": "approved",
+      "approval_record": "PI 2026-11-24 chat \"approve all\" (RULINGS-1124 section 37: wording 1, choice a): institution_type and institution_disambiguation, the master cells verbatim, after level_of_government; a blank cell is left out"
     }
   ],
   "questions": [
