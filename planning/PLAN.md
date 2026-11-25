@@ -1,5 +1,7 @@
 # PLAN: G3O pipeline reclassification
 
+Current ruling overlay (2026-11-25, RC-D-047 to RC-D-051, APPROVED 2026-11-25 chat "047 a 048 a 049 a 050 a 051 a; runtime ok; lock"; texts `planning/deltas/RC-D-047.md` to `RC-D-051.md`; SPEC v001.34): after the second confirmation run (C2; PREREG A38) setting F is adopted (X35 bar 0.6 on the page verdict and on `action_type`; an activity observation is supported when its type or its action is supported) and the page-verdict roll-up is adopted for web pages (a rescued page keeps its failed status and low confidence; nothing marks the rescue). Codebook r18 cleaned and signed (`64a8a2d8…e7dc5`); text sent to a model: the two extractor system prompts (item-hash lines out; P6, P7) and 12 activity classifier requests, reused by Stage 6 pooling (P1 to P5); X35, Stage 6 quote, page and institution texts unchanged. Two passage-matcher defect fixes land with them; they are not confirmed by C2, five C2 units change; their result is shown only inside the totals of the paid recording on the cleaned codebook. RC-D-051: the page classifier is given the institution's type and, where recorded, its disambiguation from the master; URL triage and the extractor's follow-link task ask about any AI, not generative AI only (non-goal N-004 amended; threshold and link limits unchanged); the triage change is not measured, because the accuracy checks start after triage. The fixture run of the r17 fixture set is card T-044; T-041 is closed as the r16 record (not passed). T-044 runs once, on the new instrument, after the one landing is deployed, by the PI's own paid line (cap USD 5); the T-075 smoke waits for its report.
+
 Current ruling overlay (2026-11-21, RC-D-046, APPROVED 2026-11-21 chat "a"; text `planning/deltas/RC-D-046.md`; SPEC v001.33): setting F and the page-verdict roll-up are registered as candidates for the second confirmation run (C2); neither is in production and no requirement changes. C2 tests F against the signed bars, then the roll-up on top of F; the r17 wording is not tested there.
 
 Current ruling overlay (2026-11-21, RC-D-044 and RC-D-045; RC-D-044 APPROVED 2026-11-21 chat "a"; RC-D-045 APPROVED 2026-11-21 chat "a"; texts `planning/deltas/RC-D-044.md` and `planning/deltas/RC-D-045.md`; SPEC v001.32): recall-fix candidate 3c441e6 recorded (equal-start tie-break; verbatim quotes; heading fallback for `source_title`; C189 hold and terminal failure; one extractor cap; D-007 pair field). Codebook r17 signed (`71f3576e…8b0d4`): the measured construct is AI adoption (any activity the institution's own page calls AI or machine learning), and generative AI is an attribute (`core.genai_mechanism_basis` gains `no_generative_signal`); pass-1 and pass-2 prompt pins and the residual question-set hash moved. Discovery and triage still search for generative AI (decided after C2).
@@ -83,7 +85,7 @@ PI rulings (Stage 5, 2026-10-28; verbatim answers in `Stage5-Rulings.md`):
 - DEC-011 a + item 27: 400 = 100 per stratum; Sonnet 100 = 25 per stratum, fixed seed; overall figures weighted.
 - DEC-012 a: integrator = a researcher session acting for the PI, started by Simone; sole writer of SPEC / RESOURCES / PLAN / CHANGELOG / delta log.
 - DEC-013 a: labels extract v2.7 + validate v1.5. Amended by RC-D-002 C3 a (N24): the two labels are recorded only in the setup record; each row carries one codebook release label.
-- DEC-014 b: procurement delta after T-041 passes, before deployment. RC-D-038 138 a: T-060 is not blocking for T-071 (post-hoc), accepted before T-095 (Q210 b); RC-D-040 P5 a keeps it after the narrowed T-041.
+- DEC-014 b: procurement delta after the fixture run passes (T-041; T-044 since RC-D-047), before deployment. RC-D-038 138 a: T-060 is not blocking for T-071 (post-hoc), accepted before T-095 (Q210 b); RC-D-040 P5 a keeps it after the narrowed T-041.
 - DEC-015 a: API default most recent row; older rows via history parameter / endpoint.
 - DEC-016 c: full supporting text in API; website display cap (value set by PI after T-003). Unchanged (RC-D-002 N24, r2#17).
 - DEC-017 b: agent read compares institution verdict + page verdicts; agents read blind.
@@ -93,7 +95,7 @@ PI rulings (Stage 5, 2026-10-28; verbatim answers in `Stage5-Rulings.md`):
 
 Mechanical (unchanged from Plan-Draft §1): DEC-019 freeze record from public API `meta.coverage`; DEC-020 one feature branch per card into `reclass/v2.7`† (integration branch since 2026-11-16: `reclass/o1116-night`, successor of `reclass/o1112-combined`; RC-D-041); DEC-021 pins are regenerated once, at the final integration step (T-035, moved from T-030 after the second review); DEC-022 agent-read model ids recorded at T-081 launch.
 
-Global red line added 2026-10-28 (Simone, `~/.claude/CLAUDE.md` red line 4): agents never run anything that costs money. Every paid step (jev, extractor Batch/sync, VM compute) is prepared by the card's agent with the exact command and a cost estimate and run by Simone as a one-line `! <command>`. Applies to T-002, T-016 (RC-D-002 N28), T-041, T-072, T-073, T-096; T-081 carries a decision point on whether the Claude subagent swarm counts.
+Global red line added 2026-10-28 (Simone, `~/.claude/CLAUDE.md` red line 4): agents never run anything that costs money. Every paid step (jev, extractor Batch/sync, VM compute) is prepared by the card's agent with the exact command and a cost estimate and run by Simone as a one-line `! <command>`. Applies to T-002, T-016 (RC-D-002 N28), T-041, T-044, T-072, T-073, T-096; T-081 carries a decision point on whether the Claude subagent swarm counts.
 
 Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; sole integrator per shared surface; T-096 / Stage 8 reconciliation; complete gate list for paid / SSH / DB / push / deploy / external; T-072 smoke never touches the live DB; the plan proposes spec fixes without editing; R-083 / C-006 guarded.
 
@@ -142,6 +144,8 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | RV2-L1..L7 | ACCEPT | Chunker path mismatch; T-061 RS-016→RS-033; T-021 input vs hard edge; DP-005 vs signed-contract inputs; #175 README repo; transfer stratum weighting; stale line in Stage5-Rulings.md | Fixed in the named cards and files; transfer stratum reported separately, excluded from weighted figures | none |
 
 ## Requirement traceability
+
+Reading rule (RC-D-047): in the producer and verifier columns below, and in the card lines "Acceptance tests: … (via T-041)" and "(run in T-041)", T-041 means the fixture run. From RC-D-047 the run that counts is T-044 (the r17 fixture set); T-041 holds the r16 runs.
 
 | Spec ID | Producer task/output | Verifier/review evidence | Status |
 |---|---|---|---|
@@ -235,7 +239,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | A-021 | T-040, T-041 | agent | mapped |
 | A-022 | T-034, T-074 | PI | mapped |
 | C-001 | T-022, T-023 (spans only, DEC-010 a); T-022, T-032 (named selections, RC-D-002 row 33) | T-031 (incl. the named selections, RC-D-002 N30) | enforced by review |
-| C-002 | Simone-run paid steps: T-002, T-016, T-041, T-043, T-072, T-073, T-096; T-081 per DP | integrator | gate |
+| C-002 | Simone-run paid steps: T-002, T-016, T-041, T-043, T-044, T-072, T-073, T-096; T-081 per DP | integrator | gate |
 | C-003 | all cards | integrator | gate |
 | C-004 | T-020; T-026 (pooled Stage 6 split, RC-D-002 row 34) | T-041 (A-021, A-010) | enforced by test |
 | C-005 | T-034, T-051, T-074 | T-074 denominator check | enforced by check |
@@ -283,35 +287,36 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-022 | eng-c | W3 | complete | T-010, T-012, T-013, T-014, T-020 | none | T-015, T-023, T-024, T-025, T-032 | RS-015 | none | the listed extract files; install of the generated `g3o/extract/prompts/system_prompt.md` and `g3o/extract/prompts/output_contract.md` (RC-D-008) | PI approves the nano prompt text; push gate | A-003, A-021 |
 | T-023 | eng-a | W5 | in-progress | T-011, T-020, T-021, T-022, T-027 | none | T-026, T-032 | RS-012 | none | the new modules and tests | none beyond push | A-003 |
 | T-032 | eng-c | W6 | complete | T-013, T-022, T-023 | none | T-024, T-030 | RS-015 | none | `g3o/extract/pass2_support.py`† and its tests | PI approves the pass-2 nano prompt text; push gate | A-003, A-021 |
-| T-024 | eng-c | W7 | complete | T-003, T-012, T-022, T-032, T-064 | none | T-026, T-028, T-041, T-043 | none | none | `g3o/common/support_check.py`† and its tests | push of the branch | A-002, A-016 |
+| T-024 | eng-c | W7 | complete | T-003, T-012, T-022, T-032, T-064 | none | T-026, T-028, T-041, T-043, T-044 | none | none | `g3o/common/support_check.py`† and its tests | push of the branch | A-002, A-016 |
 | T-025 | eng-b | W5 | pending | T-002, T-014, T-021, T-022 | none | T-029, T-030 | RS-016 | none | new modules `g3o/scrape/follow.py`†, `g3o/run/presweep/stage_follow.py`† and their tests | URL cap = 10 per institution (PI, RC-D-014 S4); push of the branch | A-004, A-014 |
 | T-026 | eng-a | W8 | in-progress | T-011, T-012, T-015, T-023, T-024, T-027 | none | T-028 | RS-011, RS-014 | none | the listed Stage 6 files and tests; retirement of the OpenAI Stage 6 path: the import hunk of `g3o/validate/stage_validate.py`, `g3o/validate/{client,qc,salvage}.py`, `tests/test_validate.py`, `tests/test_validate_salvage.py` (archived, PI A a), `scripts/verify_jev_validate_live.py`; install of the generated `g3o/validate/prompts/system_prompt.md` and `g3o/validate/prompts/output_contract.md` (RC-D-008) | push of the branch | A-010 |
 | T-027 | eng-b | W3 | verified (local library; downstream acceptance retained) | T-012 | none | T-015, T-021, T-023, T-026, T-028, T-050 | RS-012, RS-013, RS-014 | none | new module `g3o/common/jev_record.py`† and its tests | push of the branch | A-013 |
 | T-028 | eng-a | W9 | pending | T-012, T-015, T-024, T-026, T-027, T-050 | none | T-030, T-052, T-090 | RS-018 | none | `g3o/persist/writer.py` and its tests; `g3o/persist/integrity.py`, `tests/test_integrity.py` (RC-D-008); RC-D-025 P6/P7: `g3o/common/storage.py` quote-check hunks, the mechanical-final hunk of `g3o/common/jev_record.py`, new `g3o/persist/stage6_adapters.py` and its tests; internal `6_support_provenance.json` (B5 b) | push of the branch | A-007, A-017 |
-| T-030 | eng-b | W10 | in-progress | T-021, T-025, T-028, T-032 | none | T-029, T-041 | none | none | instrument-binding hunks of presweep/planning.py and run manifest; the listed orchestrator, config, telemetry and e2e files; `g3o/common/credentials.py` and `g3o/common/cost_monitor.py` hunks (RC-D-021); merges of the new-run card branches into `reclass/v2.7`†; `g3o/run/presweep/v27_entry.py` and `config.v27_runtime` (RC-D-038 132 a) | push of the integration branch | none |
+| T-030 | eng-b | W10 | in-progress | T-021, T-025, T-028, T-032 | none | T-029, T-041, T-044 | none | none | instrument-binding hunks of presweep/planning.py and run manifest; the listed orchestrator, config, telemetry and e2e files; `g3o/common/credentials.py` and `g3o/common/cost_monitor.py` hunks (RC-D-021); merges of the new-run card branches into `reclass/v2.7`†; `g3o/run/presweep/v27_entry.py` and `config.v27_runtime` (RC-D-038 132 a) | push of the integration branch | none |
 | T-029 | eng-a | W11 | pending | T-001, T-025, T-030 | none | T-034, T-035 | RS-017 | none | new package `g3o/run/backfill/`† and its tests | push of the branch | A-005, A-015 |
 | T-034 | eng-a | W12 | pending | T-029 | none | T-035 | RS-026 | none | `g3o/run/backfill/transfers.py`† and its tests | push of the branch | A-022 |
 | T-035 | eng-b | W13 | pending | T-029, T-034 | none | T-031, T-043 | none | D-002 | `g3o/cli.py` hunks, the two pin files, e2e test additions; merges of T-029 and T-034 into `reclass/v2.7`†; `g3o/common/contract_pin.py`, `tests/fixtures/run_contract/{FIELDS.md,manifest.json}`, the contract H1 template line of the T-013 generator (version token for `parse_version()`) (RC-D-008) | push of the integration branch | none |
 | T-031 | berivox | W14 | pending | T-035 | none | T-072 | none | none | the review file only | none | none |
-| T-040 | integrator | W2 | complete (new-run scope, Q191 a) | T-010 | none | T-041, T-043, T-042 | RS-005, RS-008, RS-009, RS-011, RS-024 | none | `tests/fixtures/v27/`† and the label sheet | an agent labels expected values for real-page fixtures and jev scores them (RC-D-014 P4; replaces PI labelling) | A-003, A-004, A-010, A-011, A-012, A-020, A-021 |
-| T-041 | eng-b | W11 | blocked | T-024, T-030, T-040, T-065 | none | T-043, T-054, T-060, T-075 | RS-031 | none | the fixture-run folder | PI approves the cost estimate and runs the paid fixture run via `! <command>`; PI rules on fixture failures; PI posts the g3o_validation#3 notice before this first paid v2.7 run | A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021 |
-| T-043 | eng-b | W14 | blocked | T-024, T-035, T-040, T-041, T-065 | none | T-072, T-074 | RS-031 | none | the fixture-run folder (`backfill/`†, `real-id-subset/`†) | PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures | A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, A-022 |
-| T-042 | eng-b | W11 | pending | T-040 | T-041 | none | none | none | the injected-fixture adapters and their tests†; `injected/`† results | push of the branch; tests on Cloud Build | A-004, A-010, A-011, A-021 |
+| T-040 | integrator | W2 | complete (new-run scope, Q191 a) | T-010 | none | T-041, T-044, T-043, T-042 | RS-005, RS-008, RS-009, RS-011, RS-024 | none | `tests/fixtures/v27/`† and the label sheet | an agent labels expected values for real-page fixtures and jev scores them (RC-D-014 P4; replaces PI labelling) | A-003, A-004, A-010, A-011, A-012, A-020, A-021 |
+| T-041 | eng-b | W11 | superseded | T-024, T-030, T-040, T-065 | none | none | RS-031 | none | the fixture-run folder | PI approves the cost estimate and runs the paid fixture run via `! <command>`; PI rules on fixture failures; PI posts the g3o_validation#3 notice before this first paid v2.7 run | A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021 |
+| T-044 | eng-b | W11 | blocked | T-024, T-030, T-040, T-065 | T-071 | T-043, T-054, T-060, T-075 | RS-031 | none | the fixture-run folder, `r17/`† | PI approves RC-D-048 to RC-D-051 (r18 signed 2026-11-24); owner lands and deploys; PI approves the dry estimate and runs the paid fixture run via `! <command>` (cap USD 5); PI rules on fixture failures | A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021 |
+| T-043 | eng-b | W14 | blocked | T-024, T-035, T-040, T-044, T-065 | none | T-072, T-074 | RS-031 | none | the fixture-run folder (`backfill/`†, `real-id-subset/`†) | PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures | A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, A-022 |
+| T-042 | eng-b | W11 | pending | T-040 | T-044 | none | none | none | the injected-fixture adapters and their tests†; `injected/`† results | push of the branch; tests on Cloud Build | A-004, A-010, A-011, A-021 |
 | T-050 | integrator | W4 | in-progress | T-010, T-012, T-027 | none | T-028, T-051 | RS-020, RS-023 | D-007 | `C:/Users/spaci/repos/G3O/planning/handoffs/D-007-interface-spec.md`† | A approved; B implementation conformance and Colin acceptance; PI authorizes send; posting the GitHub issues is an external message | none |
 | T-051 | eng-c | W5 | pending | T-050 | none | T-052, T-054 | RS-020 | none | `sql/028*`, `sql/down/028*`, `scripts/load_corrections.py`† | PI authorises creation of and writes to the disposable branch used by this card's self-check; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; live apply is the T-055 gate; push on Colin's branch | none |
 | T-052 | eng-c | W10 | pending | T-028, T-051 | none | T-053, T-054, T-055, T-074 | RS-023 | none | the files listed in Outputs (eng-c: Ingest, API worker; Colin: Aggregates, Bulk export, contract doc; RC-D-038 147 a) | deploy to staging only (production deploy is T-055); push of the g3o-api branches | none |
 | T-053 | colin | W11 | pending | T-052 | none | T-095 | RS-022 | none | Colin's files listed in Outputs | PI approves public copy and the display cap value; deploy gate | none |
-| T-054 | eng-b | W15 | blocked | T-041, T-051, T-052 | T-043 | T-055, T-074 | none | none | the disposable Neon branch; rehearsal folder† | PI authorises creation of and writes to the disposable branch; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed | none |
+| T-054 | eng-b | W15 | blocked | T-044, T-051, T-052 | T-043 | T-055, T-074 | none | none | the disposable Neon branch; rehearsal folder† | PI authorises creation of and writes to the disposable branch; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed | none |
 | T-055 | eng-c | W16 | blocked | T-052, T-054 | none | T-074 | none | none | live DB schema (migration 028); production worker; golive folder† | PI authorises the live DB write (snapshot + apply) and the production deploy; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed | none |
-| T-060 | integrator | W15 | pending | T-010, T-012, T-041 | none | T-095 | RS-029 | D-008 | `planning/handoffs/D-008-procurement-delta.md`† | PI approves delta text; posting and email are external | none |
+| T-060 | integrator | W15 | pending | T-010, T-012, T-044 | none | T-095 | RS-029 | D-008 | `planning/handoffs/D-008-procurement-delta.md`† | PI approves delta text; posting and email are external | none |
 | T-061 | integrator | W2 | complete | T-010 | none | T-071 | RS-033 | none | `planning/handoffs/validation-notice.md`†; GitHub issue `simonepaciphd/g3o_validation#3` plus Simone's e-mail (DP-063; RC-D-006) | PI approves the notice text | none |
 | T-062 | integrator | W18 | pending | T-071 | none | none | RS-038 | D-009 | `planning/handoffs/D-009-ai-text-delta.md`† | PI approves delta text; sending is external | none |
 | T-063 | integrator | W2 | superseded | T-010 | none | none | RS-040 | D-010 | `planning/handoffs/D-010-multilingual-heads-up.md`† | PI approves the text; sending is external | none |
 | T-064 | eng-c | W3 | complete | T-010 | none | T-024 | RS-008, RS-009 | none | `g3o/extract/years.py`†, `tests/test_years_v27.py`†, spikes folder `SPIKE-T064*` | push of the branch | none |
-| T-065 | eng-a | W3 | complete | T-014 | none | T-041, T-043 | none | none | `g3o/scrape/fetcher.py` (routing block only), `g3o/scrape/docx.py`†, `g3o/scrape/readability.py`†, `tests/test_scrape_binary_route.py`† | push of the branch (DP-065a/b ruled, RC-D-018) | none |
+| T-065 | eng-a | W3 | complete | T-014 | none | T-041, T-043, T-044 | none | none | `g3o/scrape/fetcher.py` (routing block only), `g3o/scrape/docx.py`†, `g3o/scrape/readability.py`†, `tests/test_scrape_binary_route.py`† | push of the branch (DP-065a/b ruled, RC-D-018) | none |
 | T-066 | eng-a | W16 | complete | none | none | T-071 | RS-016 | none | `g3o/scrape/unlocker.py`, `tests/test_unlocker.py`, the mock hunk of `tests/test_spend_all_apis.py` | push of the branch | none |
 | T-071 | eng-a | W17 | complete | T-061, T-066 | T-031, T-060 | T-062, T-070, T-075 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
-| T-075 | eng-a | W18 | blocked | T-041, T-071 | none | T-076 | RS-026, RS-030 | none | wave-6 frame, run dir and archive; re-pinned wave scripts† | PI approves the cost estimate (own 20-institution smoke projected to 92k, inside the $3,500 envelope; wave-5 resume spend recorded first) and runs the paid command via `! <command>` (red line 4); SSH authorisation; Serper balance; T-097 confirms an open wave window | none |
+| T-075 | eng-a | W18 | blocked | T-044, T-071 | none | T-076 | RS-026, RS-030 | none | wave-6 frame, run dir and archive; re-pinned wave scripts† | PI approves the cost estimate (own 20-institution smoke projected to 92k, inside the $3,500 envelope; wave-5 resume spend recorded first) and runs the paid command via `! <command>` (red line 4); SSH authorisation; Serper balance; T-097 confirms an open wave window | none |
 | T-076 | eng-a | W19 | blocked | T-075 | none | T-070 | RS-026, RS-030 | none | wave-7 frame, run dir and archive† | as T-075; the T-072 per-92k figure gates T-076 if T-072 has run, else T-075 actuals; stop at the $3,500 envelope | none |
 | T-070 | eng-a | W20 | blocked | T-071, T-076 | none | T-072 | RS-026, RS-030 | none | freeze folder† | PI confirms the freeze date | none |
 | T-072 | eng-a | W21 | blocked | T-001, T-031, T-043, T-070 | none | T-073 | none | none | smoke run dir; smoke folder† | paid run — the agent prepares the exact command and cost estimate and Simone runs it via `! <command>` (red line 4, 2026-10-28); SSH authorisation; PI reviews the smoke report | none |
@@ -342,14 +347,14 @@ Approved milestone expansion: T-050A (satisfied artifact) -> T-012 -> T-027 -> T
 | W8 | after W7 | verified: T-011, T-012, T-023, T-024, T-027 | eng-a: T-026 | disjoint claims (one writer per path) | T-026: push of the branch |
 | W9 | after W8 | verified: T-012, T-024, T-026, T-027, T-050 | eng-a: T-028 | disjoint claims (one writer per path) | T-028: push of the branch |
 | W10 | after W9 | verified: T-010, T-012, T-021, T-025, T-028, T-032, T-051 | eng-b: T-030, eng-c: T-052, integrator: T-090 | disjoint claims (one writer per path) | T-030: push of the integration branch; T-052: deploy to staging only (production deploy is T-055); push of the g3o-api branches (by output, RC-D-038 147 a); T-090: PI approves public prose; push |
-| W11 | after W10 | verified: T-001, T-025, T-030, T-052 | eng-a: T-029, colin: T-053, eng-b: T-041 (needs T-030 Cloud Build green, not verified; RC-D-040), eng-b: T-042 | disjoint claims (one writer per path) | T-029: push of the branch; T-053: PI approves public copy and the display cap value; deploy gate; T-041: PI approves the cost estimate and runs the paid fixture run via `! <command>`, PI rules on fixture failures, PI posts the g3o_validation#3 notice before this first paid v2.7 run (Q213 a); T-042: push of the branch, tests on Cloud Build |
+| W11 | after W10 | verified: T-001, T-025, T-030, T-052 | eng-a: T-029, colin: T-053, eng-b: T-041 (needs T-030 Cloud Build green, not verified; RC-D-040), eng-b: T-044 (RC-D-047; successor of T-041; runs after the T-071 deploy, a soft edge), eng-b: T-042 | disjoint claims (one writer per path) | T-029: push of the branch; T-053: PI approves public copy and the display cap value; deploy gate; T-041: PI approves the cost estimate and runs the paid fixture run via `! <command>`, PI rules on fixture failures, PI posts the g3o_validation#3 notice before this first paid v2.7 run (Q213 a); T-042: push of the branch, tests on Cloud Build; T-044: PI approves RC-D-048 to RC-D-051 (r18 signed 2026-11-24); owner lands and deploys; PI approves the dry estimate and runs the paid fixture run via `! <command>` (cap USD 5); PI rules on fixture failures |
 | W12 | after W11 | verified: T-029 | eng-a: T-034 | disjoint claims (one writer per path) | T-034: push of the branch |
 | W13 | after W12 | verified: T-029, T-034 | eng-b: T-035 | disjoint claims (one writer per path) | T-035: push of the integration branch |
 | W14 | after W13 | verified: T-024, T-035, T-040 | berivox: T-031, eng-b: T-043 | disjoint claims (one writer per path) | T-031: none; T-043: PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures |
-| W15 | after W14 | verified: T-010, T-012, T-041, T-051, T-052 | eng-b: T-054, integrator: T-060 | disjoint claims (one writer per path) | T-054: PI authorises creation of and writes to the disposable branch; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; T-060: PI approves delta text; posting and email are external |
+| W15 | after W14 | verified: T-010, T-012, T-044, T-051, T-052 | eng-b: T-054, integrator: T-060 | disjoint claims (one writer per path) | T-054: PI authorises creation of and writes to the disposable branch; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; T-060: PI approves delta text; posting and email are external |
 | W16 | after W15 | verified: T-052, T-054 | eng-c: T-055, eng-a: T-066 | disjoint claims (one writer per path) | T-055: PI authorises the live DB write (snapshot + apply) and the production deploy; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; T-066: push of the branch |
-| W17 | after W16 | verified: T-061, T-066 (T-031, T-060 post-hoc; T-055 not an input; T-041 before the T-075 smoke) | eng-a: T-071 | disjoint claims (one writer per path) | T-071: PI approves merge and deploy; SSH authorisation; external gate — wave 5 published |
-| W18 | after W17 | verified: T-071; T-041 report filed (Q209 a) | eng-a: T-075, integrator: T-062 | disjoint claims (one writer per path) | T-075: PI approves the cost estimate and runs the paid command via `! <command>`; SSH authorisation; wave window open (T-097); T-062: PI approves delta text; sending is external |
+| W17 | after W16 | verified: T-061, T-066 (T-031, T-060 post-hoc; T-055 not an input; T-044 before the T-075 smoke) | eng-a: T-071 | disjoint claims (one writer per path) | T-071: PI approves merge and deploy; SSH authorisation; external gate — wave 5 published |
+| W18 | after W17 | verified: T-071; T-044 report filed (Q209 a; RC-D-047) | eng-a: T-075, integrator: T-062 | disjoint claims (one writer per path) | T-075: PI approves the cost estimate and runs the paid command via `! <command>`; SSH authorisation; wave window open (T-097); T-062: PI approves delta text; sending is external |
 | W19 | after W18 | verified: T-075 | eng-a: T-076 | disjoint claims (one writer per path) | T-076: PI approves the cost estimate and runs the paid command via `! <command>`; SSH authorisation; stop at the $3,500 envelope |
 | W20 | after W19 | verified: T-071, T-076 | eng-a: T-070 | disjoint claims (one writer per path) | T-070: PI confirms the freeze date |
 | W21 | after W20 | verified: T-001, T-031, T-043, T-070 | eng-a: T-072 | disjoint claims (one writer per path) | T-072: paid run — the agent prepares the exact command and cost estimate and Simone runs it via `! <command>` (red line 4, 2026-10-28); SSH authorisation; PI reviews the smoke report |
@@ -622,6 +627,7 @@ RC-D-025 signature (2026-11-10): r14 signed, SHA256 7972b8c1989af5e182c19d9d73c4
 RC-D-026 signature (2026-11-10): r15 signed, SHA256 ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a (chat "signed & lock"; record t010/signoff-record.md, branch codebook/r15-20261110 6748fa0). T-010 stays complete. Follow-up: T-015 on r15.
 RC-D-041 signature (2026-11-17): r16 signed, SHA256 381e41f8144bb68066c50fcf0241327943a9840f90a6239b9d8eabc0de881b8a (chat "1 i sign the codebook & approve the rest of the work as proposed -- use up to 5 subagents as needed"; record t010/signoff-record.md, branch codebook/r16-20261116 41695e7; checks without `--previous`, Q204 a). T-010 stays complete. Follow-ups: generated files and v2.7 question sets regenerated on reclass/o1117-r16sign (34e9659); D-007 field map under r16 (Q200 a, 02b8ab3; governance copy synced by RC-D-041); `MAP_SOURCE_SHA256` re-pin; pass-1 prompt pin (Q203 b).
 RC-D-045 signature (2026-11-21): r17 signed, SHA256 71f3576ecf96e47733f63849423e744f884e9876fc3669a1e1a87be7da08b0d4 (chat "signed, go ahead"; record t010/signoff-record.md and t010/r17-provenance.json, branch codebook/r17-20261121, cb4ecce; checks without `--previous`; with `--previous` r16, check 12 flags `core.genai_mechanism_basis`, the C-007 record of RC-D-045). T-010 stays complete. Follow-ups: generated files and v2.7 question sets on the r17 code line; D-007 field map under r17 (governance copy changed by RC-D-045) and the `MAP_SOURCE_SHA256` re-pin; pass-1 and pass-2 prompt pins (ruling P).
+Progress (2026-11-25, integrator; RC-D-048, RC-D-049): r18 cleaned before signature (PI 2026-11-23, 1 c) and signed 2026-11-24 (chat "ok i sign the codebook r18"), SHA256 `64a8a2d8…e7dc5`, record `t010/signoff-record.md` and the provenance file on `reclass/o1123-codebook-clean` (provenance file `planning/t010/codebook-history.json`; the signature commit re-aimed its one r18 pointer to `t010/signoff-record.md` and wrote no `r18-provenance.json`, RULINGS-1124 s31 A4) `e84a5bc`; check 12 against r17: PASS on `16bc4be`; prompt pins: pass 1 and pass 2 moved (`e2a6b491…8277`, `fbb438f5…e197`; "pins approved", `RULINGS-1123.md` section 28); pass 1 moved again by RC-D-051 on `fb98d00` (`2c702f9f…b9f4`, s37); X35, Stage 6 quote and P-2c unchanged; the redrafts (R1 (c), P1 to P7) ruled "procedural all accepted" and "all as rec" (section 25); field map and `MAP_SOURCE_SHA256` moved by the signature commit; the supported-observation rule is a codebook slot (`core.has_genai_activity/rules/2`, 3 D).
 
 RC-D-027..030 (2026-11-10): T-012/T-023/T-026/T-028/T-030 implementation rulings (deltas/RC-D-027.md to RC-D-030.md); RC-D-028 1 a Stage 6 quote step with wording approved and SHA256-pinned (RC-D-029 O3 b, Q3 a); RC-D-030 Z1 b adds one R-044 sentence (pooled Stage 6 failed requests held), SPEC v001.29, joint re-lock chat "28 LOCK". Builds: local branch reclass/t030-runtime-20261110 (integrated T-012, T-015, T-023, T-026, T-028, T-030, T-066 line). T-026 card note: override re-applied after combining (RC-D-027 6 a) and RC-D-028 items built there. 2026-11-16 (141, PI "all as rec"): RC-D-029 O3 b closes RC-D-028 1 a; no new wording; paid-run gate 4 closed.
 Progress (2026-11-05, integrator; RC-D-019): codebook r13 signed by the PI, SHA256 07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527 (chat 2026-11-05, the hash sent as the signature); candidate and pins on `orch1106/f-r13`; SPEC pins v001.22.
@@ -820,6 +826,7 @@ RC-D-025 P9: fix the legacy `ConsolidatedInstitutionResponse` check that require
 RC-D-011 execution update (2026-11-02): Bounded email slice independently verified at 36d88bc7; full-address internal normalization, domain counts, map provenance and roundtrips pass. Preserve other qualified local evidence; this is not runtime acceptance. See handoffs/RC-D-011-local-verification.json.
 
 Status: verified (local verification; not complete)
+Progress (2026-11-25, integrator; RC-D-049): RC-D-027 2 a (as widened by RC-D-043 R4 a) and RC-D-029 O2 b are amended for the page-verdict roll-up (SPEC section RC-D-049, contract bullet); the contract model's internal field has no producer (review F4).
 Progress (2026-11-17, integrator; RC-D-037): 119 b (contract change under RC-D-028 4 a): the v2.7 `6_validate.json` metadata model `ConsolidationMetadataV27` keeps `n_input_rows` as a count of observations and accepts 0; the v2.5 `ConsolidationMetadata` is unchanged. 95 a: the instrument builder and storage validator accept the second question-set version `source_type_residual`.
 Progress (2026-11-05, integrator; RC-D-021): R-5 a: the full-suite CI run on Linux on `main` counts as the full run, and the test-invocation qualification is dropped. The 11-01 Windows `run_state.py` failure has no owner. Inventory addendum §11 (grep re-run on `4e956ad`) merged as PR #183. `test_contract_version_pin` stays `xfail(strict=True)` for T-035.
 Type: build
@@ -1321,6 +1328,7 @@ none
 RC-D-024 recovery update (2026-11-07; supersedes conflicting older progress notes): Local recovery implements >=75% failed verdict-request parts by current leaf COUNT, successful votes below threshold, full chrome then emails, signed priority restoration and per-institution timing. Reopened gates and descendants are pending until T030 executes their new rounds. Source_type stays T015. Local tests do not establish runtime integration.
 
 Status: in-progress
+Progress (2026-11-25, integrator; RC-D-051 wording 1, choices a and d): every page request carries the master's `institution_type` and, where not blank, `disambiguation` as `institution_type` and `institution_disambiguation`, after `level_of_government`; a blank cell is left out; followed pages carry the searched page's values (`jev_page_code.py`, `perpage_inputs_v27.py`, `follow_v27.py`; packet item W-09 in `questions/v27/page.json`; commit 6fef4fe on `reclass/o1124-next`).
 Progress (2026-11-21, integrator; RC-D-044 C189 detail): the PageFailed error detail is kept (`g3o/classify/jev_page_code.py`; test aa0eb6c, fix 7dfc35d) on `reclass/o1120-candidate` 3c441e6 (local, not landed).
 Progress (2026-11-17, integrator; RC-D-036 83 b, RC-D-037 95 a): the page's first pass-1 extractor request carries the residual `source_type` quote task; the RC-D-024 note "Source_type stays T015" and the 2026-11-08 "no `source_type` (B-Q3 a)" are superseded on that point.
 Progress (2026-11-17, integrator; RC-D-038 134): the `all_batch` and `mix` modes restructure the per-page stage logic; see T-022 and SPEC C-009.
@@ -1406,6 +1414,8 @@ More than 1 week → split CX fields from the verdict.
 RC-D-014 (2026-11-04; rulings by Simone, approved): S3 b: the pass-1 prompt text is approved later, in the single wording packet before the T-030 merge (see T-011). P5 a: span offsets count from the start of the whole page (DP-008).
 
 Status: complete
+Progress (2026-11-25, integrator; RC-D-051 wording 3): the follow-link task of `extract_v27.md` names any AI activity the page mentions (generative AI or any other tool or activity the page calls AI, artificial intelligence or machine learning); the PI approved the text (chat "approve all", 2026-11-24), and `PASS1_SYSTEM_SHA256` moves from e2a6b491… to 2c702f9f3190cc540929ec56418c811a58e0e7bcfbbd181975c80f1d3e19b9f4 (commit fb98d00).
+Progress (2026-11-25, integrator; RC-D-050): the passage matcher of `g3o/extract/parser_v27.py` (named on no card; recorded on this card as the nearest, write claim `g3o/extract/{batch,client,parser,salvage}.py`) takes the two defect fixes of SPEC section RC-D-050.
 Progress (2026-11-21, integrator; RC-D-045 ruling P): under codebook r17 the assembled pass-1 and pass-2 system prompts change (the opening line; the translation rule; one "GenAI" in the vendor rule; `agent-workspace/2026-11-21-integrator/r17-rebuild/PROMPT-DIFF.md`); the PI approved the diff together with the signature (chat "signed, go ahead"), and the pins move: `PASS1_SYSTEM_SHA256` 48f7c2ed… -> 2024c61dc6c1600c1f9b20b9acd4ff5fd3c02627f47579269b5ddd08055a6d2b, `PASS2_SYSTEM_SHA256` fdcd47f2… -> b96e903420aca2eb8b342da2128c9e44237fec533ba5be88d05046bcc3174bb9. The X35 instruction, the Stage 6 quote instruction and the P-2c question are unchanged. Status unchanged.
 Progress (2026-11-21, integrator; RC-D-044 Def6, Q2 a, Q3 a): one cap covers every extractor call (pass 1, pass 2 and the Stage 6 quote step); the value 21,000 lives in the runtime file (`extractor_max_tokens`), outside the repo, and the repo adds only the guard `SYNC_MAX_TOKENS = 21_333`, which refuses a higher cap (`g3o/extract/anthropic_client.py`, `g3o/run/presweep/instrument_binding.py`; tests 4cc4b26, guard eaa0a2c on `reclass/o1120-candidate` 3c441e6 (local, not landed)). Revises ruling 4 a. No rule exists for a response cut on every retry (known gap). SPEC section RC-D-044. Status unchanged.
 Progress (2026-11-17, integrator; RC-D-038 134, 137 b, 143 a; Q152 a, Q174 a, Q175 a, Q178 a): the extractor's Message Batches use is a per-run option (SPEC C-009): `all_batch`, `mix` (first-round page requests batched, follow-ups live) or `no_batch`, default `mix`, spelled as built (`config.py`, `v27_extractor_mode`); the operator sees an estimated cost and time per mode before each run; the first paid run may go `no_batch`. A batch whose id was never journaled is recovered by the operator with `record_submit_outcome`, and the stage stops until then (Q174 a); after a short results stream the operator step `record_batch_abandoned` marks the batch collected and the missing requests queue again (Q175 a); a batched response's request id is `batch:<batch_id>/<message_id>` (Q178 a). Built on the integration line: a4e9655 (merge 3865fa9), 9e0d824, f60bcb4, 310c97f; chunked submit bcf72bc.
@@ -1666,6 +1676,7 @@ RC-D-014 (2026-11-04; rulings by Simone, approved): The support check applies th
 RC-D-011 execution update (2026-11-02): Consume the verified RC-D-011 local normalizer under existing input gates. Actual main/header/footer extraction and contact-gate runtime remain unverified; no task launch.
 
 Status: complete
+Progress (2026-11-25, integrator; RC-D-048): the support check reads a bar per checked item from the codebook (`core.support_entailment`, `threshold_by_checked_item`): 0.6 on the page verdict and `action_type`, 0.8 on every other checked item (`g3o/common/support_check.py`).
 Progress (2026-11-21, integrator; RC-D-044 Def1, Q10 b): a quote that occurs verbatim in the source, with each edge at a space, the text's end or a character of an unsegmented script, counts as having every word present (SPEC R-042); matcher, threshold and the 0.80 cutoff unchanged. `g3o/common/support_check.py`; tests 5126721, fix 267aef6 on `reclass/o1120-candidate` 3c441e6 (local, not landed). Status unchanged.
 Progress (2026-11-08, integrator; status sync): complete. Done condition met: library and follow-ups merged (PRs #175, #178; fixes #187, #189), return reports filed with the integrator (2026-11-06 PR bodies e-t024, e2-t024), `test_support_check` 45 pass on `main` `3f077de`, signed r13 pinned. The X35 entailment call stays a `SupportGateError` stub until T-030/T-035 wire jev; T-031 review open.
 Progress (2026-11-05, integrator; RC-D-021): D-3 a amends "It runs between rounds (r2#41)" and O4 below: the extractor makes one call per page after all pass-1 rounds, and the support check runs once, after them (SPEC R-008 v001.24). P-2 a and P-2b a approved; F1, F4, F5 fixes on branches `orch1107/g-pass2` and `orch1107/f-years`; E3 (b) context window for quotes with missing words on `orch1107/f-years`.
@@ -1702,7 +1713,7 @@ RC-D-002 row 45 adds: X35 entailment per (code, quote) with the chosen-answer pr
 
 #### Dependencies
 - Requires: T-003, T-012, T-022, T-032, T-064 (RC-D-017)
-- Enables: T-026, T-028, T-041, T-043
+- Enables: T-026, T-028, T-041, T-043, T-044
 - Can run with: none (W7)
 - Researcher gates: push of the branch
 
@@ -1748,6 +1759,7 @@ none
 RC-D-014 (2026-11-04; rulings by Simone, approved): S4 a: the per-institution followed-URL cap is 10. The cap gate is met; the build sets 10 as the configured value.
 
 Status: pending
+Progress (2026-11-25, integrator; RC-D-051 wording 3): links are chosen for any AI activity the page mentions (T-022 line of the same date); the cap of 10 followed URLs and the 3-hop limit are unchanged.
 Progress (2026-11-17, integrator; RC-D-036, RC-D-037): the follow provenance reaches the source row as `discovery_path` = `searched`, `followed_hop_<n>` or `backfill_followed` (61 a); unread follow rows keep `discovery_path` = `not_asked` (116 a). Follow attempts not reviewed enter Stage 6 as failed unreviewed pages with a source row per URL (79 b, built by 96 a / 102 a); followed pages are fetched with the run's searched-page settings (80 a); pages complete only in an extra round are not followed (82 c). Rules: SPEC sections RC-D-036 and RC-D-037.
 Progress (2026-11-08, integrator; RC-D-023): built on `orch1108/c-t025` `d721dac` with open rules injected; rulings C-1 a, C-Q1 b, C-Q2 a, C-Q3 b (i), C-Q4 a, C-Q5 b, readings 1-5 and Q6 to be bound in the same lane.
 Progress (2026-11-04, integrator; RC-D-017 item 10): R-032 nearness is character distance in the stored page text between the link and the nearest supporting quote; ties to page order ("10a").
@@ -1826,6 +1838,7 @@ Split back-fill tagging into its own chunk.
 ### T-026 — Rewrite v2.6 consolidation against jev Stage 6
 
 Status: in-progress (built on the integration line; P12 per RC-D-038 140, Q162 b)
+Progress (2026-11-25, integrator; RC-D-049): `consolidate_v27` applies the page-verdict roll-up rule and its refusals, including the reverse refusal (a page that meets the rule and arrives unmarked is refused).
 Progress (2026-11-21, integrator; RC-D-044 Def5a, Def5b): a one-value combined list of a single-answer item is stored as that value, and distinct units are not collapsed (`g3o/validate/consolidate_v27.py`; tests 5e5c0de, fix 6d3f5ce); new Stage 6 hold `scale_unit_conflict` for `core.deployment_scale_unit`, with no recorded case yet (`g3o/run/presweep/stage_validate_v27.py`; tests 3f5b713, fix 942e7dd). On `reclass/o1120-candidate` 3c441e6 (local, not landed).
 Progress (2026-11-17, integrator; RC-D-038 140, Q161 a, Q162 b): P12 (gate 3): Stage 6 is the only producer of the source row's `core.confidence` (SPEC section RC-D-025, R-026 bullet); a pre-filled value is refused per page; Stage 6 always computes it (a pre-filled reviewed-row value stops the stage, as built, 2112589); a within-page pair record (`core.activity_segment`) is left out of every source claim's records. Built: 99f1a79, 91ab11b, 2112589 (merge 130bf7d), d9ef3d6.
 RC-D-025 A1: consumes T-015 source confidence; activity aggregation unchanged.
@@ -2064,6 +2077,9 @@ RC-D-024 recovery update (2026-11-07; supersedes conflicting older progress note
 Preparation update (2026-11-02): source-only r11/LABELS assembly is available at 2812ca22253adfa1f70f81d08f377fa15a8619f9; this closes the r8-source preparation gap only. Actual upstream stage assembly, executed configuration and immutable instrument binding remain gated. Separate T-020 branch is not part of this source candidate. T-035 final pins/six exceptions and T-031 integrated-candidate requirement remain unchanged.
 
 Status: in-progress (code on the integration line; T-041 needs it green, RC-D-040)
+Progress (2026-11-25, integrator; RC-D-048, RC-D-049): the runtime binds r18 and the pins of the v001.34 record; the package hash, instrument id and every journal key move at the landing; the runtime file's `approval_reference` is the text the PI confirmed on 2026-11-25 (chat "runtime ok"; lock record `runtime_file`); the supported-observation rule is "type or action" (RC-D-048; stated in the codebook, applied in `stage_perpage_v27.py`); the roll-up is applied at the end of the per-page producer (RC-D-049).
+Progress (2026-11-25, integrator; RC-D-048): from RC-D-048 the X35 bar is 0.6 when the checked item is the page verdict or `action_type`, 0.8 otherwise; the line below stands for every other item.
+Progress (2026-11-25, integrator; RC-D-051 wording 2, choice e): URL triage asks the any-AI question (N-004 amended); threshold 0.5 and criteria unchanged; `stage_classify` writes the version constant `g3o.classify.url_triage.jev.v2` into `3_triage.json` (commit 6b40ca0). The fixture row builder passes optional `institution_type` and `disambiguation` keys through (commit c9c5012).
 Progress (2026-11-21, integrator; RC-D-045): the runtime binds codebook r17 (`71f3576e…8b0d4`) and the pins of the v001.32 lock record once the r17 code line lands; the package hash, the instrument id and every journal key move and are recorded at landing; the runtime file's `approval_reference` names RC-D-044 and RC-D-045. Landing is owner-run.
 Progress (2026-11-21, integrator; RC-D-044 C189, Q4 a, Q5 a, Q13 b, Q14 a): an institution whose every attempted page failed, with no unread follow row, is held as pending (`no_page_coded`; tests bdbc1f5, c85481d; fix e0c6dd4); after a failed halved retry it is not held and is reported PROCESSING_FAILED (SPEC section RC-D-035, 52 a exception; test 331ada1, fix 762b800), and that failure stays on the report after a later recode (known limit); new run-summary key `n_perpage_failed` (test 93aa619, 91a183f); ruling E2 a recorded (SPEC section RC-D-044). On `reclass/o1120-candidate` 3c441e6 (local, not landed). Evidence before landing: targeted tests and GitHub required checks, plus one full-suite run on the final combined head (candidate plus r17) on cloud compute, as a PI line with its cost stated first. Landing is owner-run.
 Progress (2026-11-17, integrator; RC-D-034): 14 and Q150 a: an injected `independence_groups` mapping wins over the producer for now (D1 a); only tests may inject it, through an injected per-page builder or upstream; every production entry (`v27_entry.py`, the default per-page builder) produces the groups in Stage 6; when T-030 removes the injected path, the producer is mandatory everywhere. ON-1 a: on a v2.7 run `budget_usd` stays enforced on Stages 1-4; only the v2.7-stage budget figures are refused until v2.7 stage pricing exists (narrows QA4 M1; see RC-D-036 60 a). B1 a: in the Stage 6 executor `MissingUpstreamError` stops the stage, as RC-D-033 C2 a does per page; the per-institution `ENVELOPE_FAILED` hold of `build_envelope` stays. D1 a: the injected per-page seam stays until the A-section producers exist; T-030 then builds `PageInput` from the stored scrape artifact, with fields copied verbatim from `RenderedPage` and the master row, and `page_id = url_hash(url)`.
@@ -2103,7 +2119,7 @@ Integrate the new-run path only: wire the new stages (T-021 to T-028, T-032) int
 #### Dependencies
 - Requires: T-021, T-025, T-028, T-032
 - Note: the other integrated branches reach this card transitively through T-028 and T-032.
-- Enables: T-029, T-041
+- Enables: T-029, T-041, T-044
 - Can run with: T-052, T-090 (W10)
 - Researcher gates: push of the integration branch
 
@@ -2453,6 +2469,7 @@ RC-D-014 (2026-11-04; rulings by Simone, approved): P4 a ("skip") + follow-up ("
 
 Status: complete for the narrowed T-041 scope (RC-D-040, Q191 a: the 94 fixtures of `synthetic.json` and `real.json`, 160 label rows, approved as they stand); `transfers.json` (3 fixtures, 12 label rows) goes with T-043, its approval open
 Progress (2026-11-21, integrator; RC-D-045): the A-012 boundary fixtures and their expected values were written under the generative-only construct; they are reviewed against SPEC R-016 and A-012 as amended (a specific AI strategy; a bare mention of AI; a tool called AI with no generative sign; the A01 basis `no_generative_signal`) before the next fixture run. Status unchanged.
+Progress (2026-11-25, integrator; RC-D-047): the review named at RC-D-045 is done (`fixture-review/FIXTURE-EXPECTATIONS-r17.md`). PI rulings 2026-11-22 (chat "a -- go ahead with the 13 values", "all as rec", "all as rec", "as rec, approved"): 7 expected values relabelled with label history, 1 page reworded, 13 new synthetic fixtures (v27-syn-A012-08 to -20), 2 new expectations. The set is 79 synthetic (45 pipeline, 34 injected) and 28 real, 194 label rows, on `reclass/o1122-fixtures-r17` at d050c55, merged into the landing branch of RC-D-048 to RC-D-050 (not landed). This approval replaces Q191 a for the run of T-044. Relabelled real pages carry no new jev score (ruling 6 F), which departs from RC-D-014 P4 for those values by PI ruling. `transfers.json` is unchanged.
 Type: build
 Priority: required
 Spec refs: A-003, A-004, A-010, A-011, A-012, A-020, A-021, A-022, R-084, C-006
@@ -2477,7 +2494,7 @@ Real ones are labelled by an agent and scored by jev (RC-D-014 P4); the PI appro
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
 |---|---|---|---|
-| Fixture set + label sheet | `tests/fixtures/v27/`† + label sheet; branch `reclass/t040-fixtures`† | T-041, T-043, T-042 | each fixture: expected value + label ref (agent label, jev score; RC-D-014 P4); synthetic/real marked |
+| Fixture set + label sheet | `tests/fixtures/v27/`† + label sheet; branch `reclass/t040-fixtures`† | T-044 (T-041 for the r16 runs), T-043, T-042 | each fixture: expected value + label ref (agent label, jev score; RC-D-014 P4); synthetic/real marked |
 
 #### Execution resources
 - Persona/role: researcher session (lane integrator) with engineer support; agent labelling and jev scoring (RC-D-014 P4)
@@ -2487,7 +2504,7 @@ Real ones are labelled by an agent and scored by jev (RC-D-014 P4); the PI appro
 
 #### Dependencies
 - Requires: T-010
-- Enables: T-041
+- Enables: T-041 (r16 runs), T-044
 - Can run with: T-002, T-012, T-014, T-016, T-061, T-063 (W2)
 - Researcher gates: none for labels (RC-D-014 P4: an agent labels expected values for real-page fixtures and jev scores them)
 
@@ -2533,13 +2550,15 @@ Split per A-ID.
 
 RC-D-014 (2026-11-04; rulings by Simone, approved): Fixture expected values come from agent labels plus jev scores (RC-D-014 P4). The PI still approves the cost estimate, runs the paid run via `!` and rules on fixture failures.
 
-Status: blocked
+Status: superseded
 Progress (2026-11-05, integrator; RC-D-021): R-6 a: the report names two known limits of the calibrated quote match: a curly apostrophe on the page against a straight one in the quote, and a quote cut inside an unspaced CJK/Thai run (RC-D-017 1a).
 Progress (2026-11-17, integrator; RC-D-040: Q183 a, Q184 a, Q191 a-Q197 a, Q202 c, Q205 a-Q207 b): narrowed to the new-run entry point plus the X35 agreement check (Q184 a); the back-fill entry point, the transfer path and the real-id subset move to T-043, after T-035. T-041 runs first and the T-075 20-institution smoke right after (138 a, Q183 a). Fixture set for this scope: `synthetic.json` (66: 32 `pipeline`, 34 `injected`) and `real.json` (28), 94 fixtures and 160 label rows, approved as they stand (Q191 a); only the 60 pipeline-mode fixtures make paid calls; the 34 injected fixtures run at $0 in T-042, and the paid run does not wait for it (Q192 a). Runner: `scripts/t041_fixture_run.py` on the integration line (merged 17c34eb; readers merged b05a868, d286feb). Its rules: an A-ID passes only if every value of every fixture listed under it passes, is `partial` if some pass and the rest are unread, and fails if any value fails (Q195 a); run-telemetry values (`followed_urls`, `event_order`, `extractor_calls`, `cap_reached`, pair relations) are read from follow records, request journals and `activity_relations` (Q194 c); `extractor_calls` counts the page request only (Q205 a); a reversed pair is read through the storage inverse table (Q206 b); when the run produced exactly one activity for a fixture its activity values are compared with that activity whatever its name, with several activities by exact name only, and not by the single-activity fallback when the fixture names two or more distinct activities; the expected activity name is reported separately and not counted (Q202 c, Q207 b); pages no other fixture page links to count as searched and the searched page's host as the official site, so a source-type failure on a real fixture on a third-party host is read as caused by this default (Q196 a).
 Progress (2026-11-18, integrator; RC-D-042): first paid run 2026-11-18 on main 1001194, $0.48, 60/60 fixtures: pass 21, partial 4, fail 4, unresolved 31 (21 per-page holds, 2 Stage 6 holds, 8 not located). Fixes Q-T1 a, Q-T2 b, Q-T3 a, a on reclass/o1117-t041-fixes 3b77dfb (build 15 green); re-run of the affected fixtures after landing. Q-T4 a open. Not passed.
 Progress (2026-11-18, integrator; RC-D-043): re-run of the 21 affected fixtures on 50af700 ($0.24) stopped at v27-real-04 (crash on the unformatted date; 8 real fixtures not run); 5 Stage 6 holds (confirming page with no supported activity) and A021-02 (role part) found. Fixes R1 a, R4 a, R5 a on reclass/o1118-t041-fixes2 6aedb9a. Not passed.
 Progress (2026-11-21, integrator; RC-D-045): the fixture results recorded so far (RC-D-042, RC-D-043) were produced under codebook r16. No r17 wording has been measured on new pages; the r17 development check (PREREG A32) re-codes already-read pages and is a check, not evidence. Not passed.
 Progress (2026-11-21, integrator; RC-D-046): the calibration study that grew out of this run registers setting F and the page-verdict roll-up as candidates for its second confirmation run (C2), which follows the landing of the signed r17 code line: all 704 fresh units relabelled against signed r17; H-F (F against the signed bars), then H-R (the roll-up on top of F). H-F confirmed and robust: F comes to the PI in a delta; otherwise production starts at the signed bars. Status unchanged.
+Progress (2026-11-25, integrator; RC-D-048, RC-D-049): C2 read out 2026-11-22 (PREREG A38): H-F and H-R confirmed, robust; adopted by RC-D-048 and RC-D-049 (the calibration study has no card of its own; RC-D-046 put its line here).
+Note (2026-11-25, integrator; RC-D-047): superseded by T-044 under this card's chunking trigger (three paid cycles on record, all under codebook r16; total $0.95). Not passed: the done condition was not met and no failure of the r16 runs is ruled here. The lines above stay as the r16 record. The PI chose option (a) on 2026-11-22 (chat "a -- go ahead with the 13 values"): the fixtures were relabelled and extended for r17 and the run is repeated by T-044. The edges this card had to T-043, T-054, T-060 and T-075, and the soft edge from T-042, now belong to T-044; the "Enables" line below is the r16 record. The runner keeps its name (`scripts/t041_fixture_run.py`) and its rules (Q194 c, Q195 a, Q196 a, Q202 c, Q205 a, Q206 b, Q207 b).
 Type: verify
 Priority: critical-path
 Spec refs: A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, R-084 (A-022 moves to T-043, RC-D-040)
@@ -2611,6 +2630,98 @@ All fixtures pass, or each failure is PI-ruled; report filed with the integrator
 #### Chunking trigger
 More than one rerun cycle → new card.
 
+### T-044 — Run the r17 fixture set on the v2.7 new-run path (paid, small)
+
+Origin: RC-D-047; successor of T-041 (PI 2026-11-22, option (a) of the T-041 re-run options).
+Status: blocked (gate: RC-D-048 to RC-D-051 approved (codebook r18 signed 2026-11-24); the one landing deployed; paid run)
+Type: verify
+Priority: critical-path
+Spec refs: A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, R-016, R-084
+Decision refs: DEC-014; RC-D-047; RC-D-048, RC-D-049, RC-D-050 (the instrument)
+
+#### Objective
+A real run (jev classifier; Claude Haiku 5.5 extractor and X35) of the r17 fixture set through the v2.7 new-run entry point on the deployed instrument that the waves will use, with pass/fail per A-ID, and the X35 agreement check on those fixtures (RC-D-038 139 a). That instrument is the one of RC-D-048 (setting F), RC-D-049 (page-verdict roll-up) and RC-D-050 (passage-matcher defect fixes) under signed codebook r18; the run is made once, on it, and not on the r17 instrument deployed at `1f2451e` (PI 2026-11-22, 1 a). The set is `synthetic.json` (79: 45 `pipeline`, 34 `injected`) and `real.json` (28) as approved by the PI on 2026-11-22: 73 fixtures make paid calls; the 34 injected fixtures run at $0 in T-042 and the paid run does not wait for it. A failure is the instrument disagreeing with a label the PI ruled under r17. The run is paid, so the agent prepares the exact command and a cost estimate, and Simone runs it (red line 4). T-041 holds the r16 runs and is not re-read as evidence for r17.
+
+#### Inputs
+| Input | Location/producer | Required state/version | Missing-input behavior |
+|---|---|---|---|
+| Instrument | RC-D-048, RC-D-049, RC-D-050 | all three approved by the PI; codebook r18 signed by the PI; the build landed and deployed, so the run is made once, on the final instrument (1 a) | stop |
+| r17 fixture set and label sheet | T-040; branch `reclass/o1122-fixtures-r17` at d050c55 (PI-approved 2026-11-22, chat "as rec, approved"), merged into the one landing | landed on `main` by the owner in the same landing as the instrument (F4); the landed `synthetic.json`, `real.json` and label sheet have the hashes recorded in `FIXTURE-CHANGES-FOR-PI.md` section 5, checked on the head that is landed and again on the deployed checkout; the fixture test's codebook pin is the signed r18 hash; any later change to an expected value is a new PI approval | stop |
+| Tests on the landed head | GitHub required checks plus the two fixture test files; one full-suite run on cloud compute on the final head, the PI's own line with its cost stated first (2 a; F4) | green | stop |
+| Deployed v2.7 | T-071 route; droplet `g3o-run-01` | droplet checkout equals landed `main` and is clean; `DEPLOYED.json` names that sha; the paid run reads the fixtures from this checkout (3 a) | stop |
+| Runtime file | droplet; `approval_reference` text confirmed by the PI | the file of the final instrument; its sha256 and the bound instrument id are recorded before the run and equal those of the joint lock record | stop |
+| Real-page stores | `/home/g3o/t041-drive` on the droplet | every real page's `text_sha256` re-checked (the real page texts are unchanged on d050c55) | stop |
+| Support check | T-024 | on `main` | stop |
+| jev and Anthropic keys (extractor, X35) | RS-031, environment | valid | stop |
+| Fixture runner (`scripts/t041_fixture_run.py`; `pipeline` and `real` groups) | `main` | as landed; rules of T-041 unchanged | stop |
+| Dry estimate | the runner without `--live`, on the deployed head with the final runtime file (free, no call) | filed with the integrator; shown to the PI with the paid line. Basis so far, on the fixture branch: seed-scale $0.4964, with the Stage 6 quote step and X35 unpriced | stop |
+
+#### Outputs
+| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
+|---|---|---|---|
+| Fixture-run results and report | `agent-workspace/2026-10-27-reclass-plan/fixture-run/`, sub-folder `r17/`† (the runner's own file names) | T-043, T-054, T-060, T-075, PI | per-fixture expected vs got and per-A-ID status; the instrument id, main sha, runtime file sha256 and codebook sha256 of the run; X35 agreement and the spread of stated probabilities; cost estimate vs actual; the known limits below, stated in the report |
+| List for the PI | in the report, section "Failures for the PI" | PI | every fixture that ends `fail` or `unresolved`, and every `partial` not caused only by a reader gap named in this card, one row each, with cause where known. A `partial` caused only by a named reader gap is listed apart as "passed, value untested" with the unread value (5 a) |
+
+#### Execution resources
+- Persona/role: engineer (lane eng-b)
+- Tools/connectors: Python; command prepared for Simone to run as `! <command>`
+- Skills/protocols: none beyond this plan
+- Working directory/environment: the droplet g3o-run-01 on the deployed main, as T-041 (PI 2026-11-17 "lets run on droplet"); the PI runs the paid command
+
+#### Dependencies
+- Requires: T-024, T-030, T-040, T-065
+- Soft: T-071 (complete; the run uses the deployed checkout)
+- Enables: T-043, T-054, T-060, T-075 (the 20-institution smoke of T-075 comes after this card's report; Q183 a, Q209 a)
+- Can run with: T-042
+- Researcher gates: PI approves RC-D-048 to RC-D-051 (r18 signed 2026-11-24); PI runs the full-suite cloud line on the final head; owner lands and deploys; PI confirms the runtime file's `approval_reference`; PI approves the dry estimate and runs the paid fixture run via `! <command>` with `--max-usd 5` (unless the dry estimate on the final instrument says otherwise) and `--continue-on-error` (4 a); PI rules on fixture failures one by one (option (a))
+
+#### Ownership and collision control
+- Read scope: `main`, fixtures, the droplet where named
+- Write claim: the fixture-run folder, sub-folder `r17/`†
+- Shared surfaces: none
+
+#### Procedure boundary
+- Included, in this order (PI 2026-11-22: 1 a to 4 a; F4): (1) one landing carries setting F, the roll-up, the two passage-matcher fixes and the fixture branch; before it, re-check that no expected value of the set depends on a bar F moves, on the roll-up, on the matcher fixes or on a codebook rule text the r18 cleaning changes, and report any that does to the integrator; (2) one full-suite cloud run on the final head, as the PI's own line; (3) owner-run landing and deploy; the droplet's instrument id is compared with the lock record's; (4) dry estimate on the deployed head with the final runtime file (free, no call); (5) the paid line goes to the PI with the estimate, cap USD 5, `--continue-on-error`; the PI runs it; (6) report filed; (7) each failure goes to the PI
+- Excluded: running any paid call itself; landing, pushing or deploying; changing a fixture or a label (each is a new PI approval); fixing failures (sent back to the owning cards); a second paid cycle without a new PI line
+- Fixed decisions: red line 4; option (a) (PI 2026-11-22); rulings 5, 6 A to H, 7 and 8 (1 a to 4 a, 5 a, 6 a, 7 a) of `RULINGS-1122.md`; the T-041 runner rules (Q194 c, Q195 a, Q196 a, Q202 c, Q205 a, Q206 b, Q207 b)
+- Cost: the cap is USD 5 and is soft (checked between fixtures). This card's spend is outside the $3,500 wave envelope (PI 2026-11-22: "nothing we do here counts, just the waves themselves"; that the fixture run is part of "here" is the integrator's reading). The dry figure is a seed-scale proxy, not an estimate for this instrument: the Stage 6 quote step and X35 are unpriced, and under setting F, the roll-up and the matcher fixes more passages resolve and more observations count as supported, so more pass-2, relation, pooling, quote-step and X35 requests are sent per fixture than under r17 (inferred from the code, not measured)
+- Known limits, stated in the report: (i) the runner has no reader for `n_activities`, so v27-real-20 (expected 4), v27-real-01 and v27-real-31 cannot end `pass` on that value; the page-level counts on `core.activity_segment` and `event_order` have no reader either; by ruling 5 a these count as passed and the values are reported as untested, so the v27-real-20 count of 4 is not checked by this run; (ii) activity-scope values need the exact activity name when a run finds several activities; (iii) the new synthetic pages test the written rules, not recall on real pages (ruling 6 G); (iv) relabelled real pages were accepted on the PI's ruling, with no new jev score (ruling 6 F); (v) the 34 injected fixtures are not run here, so the A-IDs that rest on them (A-004, A-010, A-011 incl. `not_assessable`, A-021) are not complete until T-042 reports; (vi) the two quote-match limits (RC-D-021 R-6 a) and the F6 c line stay; (vii) the labels were ruled under r17 and the run is on the r18 instrument: a fixture whose outcome differs only because of setting F, the roll-up, a matcher fix or a rule text changed by the r18 cleaning is reported with that cause
+
+#### Spec-change reporting
+- Spec version: the current locked SPEC
+- Report to: integrator
+- Report when: systematic failures trace to codebook or contract wording; an expected value has no defined answer under the final instrument
+- Stop boundary: the T-075 smoke
+- Safe continuation: T-042, T-090
+- Forbidden: editing `SPEC.md`, `RESOURCES.md`, `PLAN.md` or `CHANGELOG.md` directly
+
+#### Verification and review
+- Self-check: the run's main sha, runtime file sha256, codebook sha256 and instrument id are recorded and equal those of the deployed instrument
+- Self-check: every listed A-ID reported for the new-run entry point (pass / partial / fail, Q195 a), with the injected fixtures shown as not run
+- Self-check: the A-012 cases are each reported by name (named chatbot or assistant; a specific AI strategy; a bare mention of AI; a tool called AI with no generative sign; rule-based chatbot; translation; each A01 basis including `no_generative_signal`)
+- Self-check: X35 (`claude-haiku-5-5`) agreement recorded as in T-041 (Q193 a), with the count below the bar in force for each item (0.6 on the page verdict and `action_type`, 0.8 elsewhere, once RC-D-048 is in force)
+- Self-check: actual spend against the dry estimate and the cap
+- Independent review: PI reads the report before approving the T-075 smoke's paid command (Q209 a), and rules each failure
+- Acceptance tests: A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021
+- Failure/rollback: n/a (no live state changed)
+
+#### Decision points
+- DP-069: Whether a fixture failure the PI has ruled on (for example on an A-012 case) can still let the T-075 smoke go ahead, or holds it (`RULINGS-1122.md` section 8, last line: not ruled)
+  - Default: the T-075 gate reads as written: report filed and read by the PI before the smoke's paid command is approved (Q209 a)
+  - Recommendation: none given — a substantive choice of the PI (it decides whether wave 6 may run with a known boundary error)
+- DP-070: Whether ruling 5 a, which speaks of `partial` only, also covers an `unresolved` fixture
+  - Default: no: every `unresolved` goes to the PI as a failure (the integrator's reading of 5 a)
+  - Recommendation: none given — a substantive choice of the PI (it sets what "passed" means for this run)
+
+#### Return report
+Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
+
+#### Done condition
+All fixtures pass, or each failure is PI-ruled; report filed with the integrator. A `partial` caused only by a reader gap named in this card counts as passed, with the unread value listed as untested (PI 2026-11-22, 5 a). Every other `partial`, and every `unresolved`, is a failure for this condition (for `unresolved`: the integrator's reading, DP-070).
+
+#### Chunking trigger
+More than one rerun cycle → new card.
+
 ### T-043 — Run the fixtures on the back-fill and transfer paths, plus the real-id back-fill subset (paid, small)
 
 Origin: RC-D-040 (Q184 a), the parts of T-041 that need T-035.
@@ -2630,7 +2741,7 @@ A real run of the T-040 fixtures through the back-fill entry point (all A-IDs of
 | Support check | T-024 | merged | stop |
 | Integrated pipeline (back-fill, transfer paths) | T-035 | green | stop |
 | Fixture set incl. `transfers.json` | T-040 | PI-approved | stop |
-| New-run fixture report and runner | T-041 | filed | stop |
+| New-run fixture report (r17) and runner | T-044 | filed | stop |
 | ≤5 real back-fill institutions with their original observation ids | chosen from the T-001 counts; stored pages on the droplet | listed in the report | stop the real-id subset; fixtures continue |
 | jev and Anthropic keys (extractor, X35) | RS-031, environment | valid | stop |
 
@@ -2647,7 +2758,7 @@ A real run of the T-040 fixtures through the back-fill entry point (all A-IDs of
 - Working directory/environment: a lane worktree on the integration line (never the shared checkout)
 
 #### Dependencies
-- Requires: T-024, T-035, T-040, T-041, T-065
+- Requires: T-024, T-035, T-040, T-044, T-065
 - Enables: T-072, T-074 (the T-054 real-id step)
 - Can run with: T-031
 - Researcher gates: PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures
@@ -2696,24 +2807,24 @@ Origin: RC-D-040 (Q192 a).
 Status: pending
 Type: build
 Priority: required
-Priority reason: free; the paid T-041 run does not wait for it
+Priority reason: free; the paid T-044 run does not wait for it
 Spec refs: A-004, A-010, A-011, A-021
 Decision refs: DEC-006
 
 #### Objective
-One adapter per payload shape of the 34 `injected` fixtures in `synthetic.json` ("page- or part-level answers are given and only deterministic code runs"), feeding part combining, the Stage 6 truth table and the follow leg, so these fixtures get a pass/fail at $0 under the T-041 runner's rules. Results are added to the T-041 report.
+One adapter per payload shape of the 34 `injected` fixtures in `synthetic.json` ("page- or part-level answers are given and only deterministic code runs"), feeding part combining, the Stage 6 truth table and the follow leg, so these fixtures get a pass/fail at $0 under the T-041 runner's rules. Results are added to the T-044 report.
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
 |---|---|---|---|
-| Fixture set | T-040 | approved (Q191 a) | stop |
+| Fixture set | T-040 | the r17 set, approved 2026-11-22 and landed (RC-D-047); its 34 injected fixtures are unchanged from the Q191 a set | stop |
 | Fixture runner | T-041 runner on the integration line | merged | stop |
 
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
 |---|---|---|---|
-| Adapters and offline tests | beside `scripts/t041_fixture_run.py`† | T-041 report | one adapter per payload shape; no paid call |
-| Injected-fixture results | the T-041 fixture-run folder, sub-folder `injected/`† | PI, T-041 report | per fixture expected vs got, per A-ID status |
+| Adapters and offline tests | beside `scripts/t041_fixture_run.py`† | T-044 report | one adapter per payload shape; no paid call |
+| Injected-fixture results | the T-041 fixture-run folder, sub-folder `injected/`† | PI, T-044 report | per fixture expected vs got, per A-ID status |
 
 #### Execution resources
 - Persona/role: engineer (lane eng-b)
@@ -2723,8 +2834,8 @@ One adapter per payload shape of the 34 `injected` fixtures in `synthetic.json` 
 
 #### Dependencies
 - Requires: T-040
-- Enables: none (results join the T-041 report)
-- Can run with: T-041
+- Enables: none (results join the T-044 report)
+- Can run with: T-044
 - Researcher gates: push of the branch; tests on Cloud Build (ruling 51)
 
 #### Ownership and collision control
@@ -2758,7 +2869,7 @@ none
 Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
 
 #### Done condition
-All 34 injected fixtures reported; results added to the T-041 report.
+All 34 injected fixtures reported; results added to the T-044 report.
 
 #### Chunking trigger
 Split per payload shape.
@@ -3079,14 +3190,14 @@ Spec refs: A-006, R-055, R-056, R-073, C-005
 Decision refs: DEC-001
 
 #### Objective
-On a disposable Neon branch cut from live `br-wave1-cutover` (PF-004), apply T-051, ingest T-041 output (new-run fixtures) and, in a real-id step once T-043 lands and before T-074, its real-id back-fill subset (≤5 institutions keyed to real original observation ids, so correction-to-original links are exercised: A-006, DEC-001 a; Q211 b), show no original value changed (A-006), verify hidden-until-release, the history parameter (R-051), correction rows visible regardless of wave windows (R-055) and refresh/watermark behaviour, roll back by release id and down migration, and record timings.
+On a disposable Neon branch cut from live `br-wave1-cutover` (PF-004), apply T-051, ingest T-044 output (new-run fixtures under r17) and, in a real-id step once T-043 lands and before T-074, its real-id back-fill subset (≤5 institutions keyed to real original observation ids, so correction-to-original links are exercised: A-006, DEC-001 a; Q211 b), show no original value changed (A-006), verify hidden-until-release, the history parameter (R-051), correction rows visible regardless of wave windows (R-055) and refresh/watermark behaviour, roll back by release id and down migration, and record timings.
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
 |---|---|---|---|
 | Migration + loader | T-051 | reviewed | stop |
 | Ingest + endpoints | T-052 | reviewed | stop |
-| Fixture-run outputs | T-041 | done | stop |
+| Fixture-run outputs | T-044 | done | stop |
 | Real-id back-fill subset (≤5 institutions, real original observation ids) | T-043 | done | stop the real-id step; the rest of the rehearsal continues (Q211 b) |
 | Neon access | memory g3o-access-surfaces | PI-authorised | stop |
 
@@ -3102,7 +3213,7 @@ On a disposable Neon branch cut from live `br-wave1-cutover` (PF-004), apply T-0
 - Working directory/environment: disposable Neon branch only; any G3O code from `C:/Users/spaci/worktrees/G3O-eng-b/`†
 
 #### Dependencies
-- Requires: T-041, T-051, T-052
+- Requires: T-044, T-051, T-052
 - Enables: T-055, T-074
 - Can run with: T-060
 - Researcher gates: PI authorises creation of and writes to the disposable branch; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed
@@ -3229,6 +3340,7 @@ Split the live apply from the production deploy if either needs a separate maint
 ### T-060 — Send the D-008 delta to the procurement integrator
 
 Status: pending
+Progress (2026-11-25, integrator; RC-D-048, RC-D-049): the D-008 delta pins r18 (supersedes "pins codebook r17"); items on procurement's list whose hash moves from r17 to r18: re-run on `16bc4be`: 22 of the 27 items on procurement's list move; 4 of them change slot text (`core.procurement_status`, `core.source_publication_date`, `core.support_status`, `core.supporting_text`), the others lose history keys only (layer 1); `proc.contract_period`, `proc.contract_terms`, `proc.contract_value`, `proc.notice_stage`, `proc.procedure_type` do not move. Hashes in the lock record's `item_hashes_moved` (RULINGS-1124 s31, flag 10). On the v2 candidate none moved (`notices-and-s1c/PROVENANCE.md`, on `cd183f0`); the roll-up applies to web pages only.
 Progress (2026-11-21, integrator; RC-D-045 C-007): the D-008 delta pins codebook r17 (supersedes "pins codebook r16" in the line below) and lists the three items on procurement's list that changed in wording only (`core.source_url`, `core.source_title`, `core.source_access_date`: the title rule; R-085); no value list on procurement's list changes. Draft notice: `agent-workspace/2026-11-21-integrator/landing-prep/PROPOSED-procurement-notice-r17.md`; sent only on the PI's approval.
 Progress (2026-11-17, integrator; RC-D-038 138 a, Q210 b; RC-D-040 P5 a): not blocking for T-071; runs post-hoc after the narrowed T-041, and the procurement acceptance is recorded before T-095 (SPEC section RC-D-038, R-085 bullet). The delta pins codebook r16 (RC-D-041, C-007 step).
 Type: integrate
@@ -3237,14 +3349,14 @@ Spec refs: D-008, R-085, R-087, C-007, A-018
 Decision refs: DEC-013, DEC-014
 
 #### Objective
-After T-041 passes and before deployment (DEC-014 b), the procurement integrator accepts a delta listing the old→new enum mapping (4-value `genai_evidence` → 8-value page verdict; 9 values under R-015 v001.6), version pins (extract v2.7, validate v1.5; per C3 a, a pinned codebook release) and the §4.3 amendment status (R-087) (PF-022). RC-D-002 row 51: the delta content is SPEC D-008 v001.6 (schedule row 27). A heads-up draft (not sent) is prepared once the codebook is settled (Q1, Q4: procurement's stale documents). Procurement's plan change and migration are ruled by the PI in that plan (r2#12); acceptance stays before deploy (DEC-014 b).
+After the fixture run passes (T-044 since RC-D-047; T-041 before) and before deployment (DEC-014 b), the procurement integrator accepts a delta listing the old→new enum mapping (4-value `genai_evidence` → 8-value page verdict; 9 values under R-015 v001.6), version pins (extract v2.7, validate v1.5; per C3 a, a pinned codebook release) and the §4.3 amendment status (R-087) (PF-022). RC-D-002 row 51: the delta content is SPEC D-008 v001.6 (schedule row 27). A heads-up draft (not sent) is prepared once the codebook is settled (Q1, Q4: procurement's stale documents). Procurement's plan change and migration are ruled by the PI in that plan (r2#12); acceptance stays before deploy (DEC-014 b).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
 |---|---|---|---|
 | Contract v2.7 | T-010 | PI-signed | stop |
 | Enum surfaces | T-012 | merged | stop |
-| Fixture pass | T-041 | passed | stop |
+| Fixture pass | T-044 | passed | stop |
 | Procurement plan | RS-029, `C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/` | read-only | stop |
 
 #### Outputs
@@ -3260,7 +3372,7 @@ After T-041 passes and before deployment (DEC-014 b), the procurement integrator
 - Working directory/environment: `C:/Users/spaci/repos/G3O/planning/`
 
 #### Dependencies
-- Requires: T-010, T-012, T-041
+- Requires: T-010, T-012, T-044
 - Enables: T-095 (Q210 b; post-hoc for T-071, RC-D-038 138 a)
 - Can run with: T-054
 - Researcher gates: PI approves delta text; posting and email are external
@@ -3381,6 +3493,7 @@ none
 ### T-062 — Send the D-009 delta to the AI-text-detection lane (RC-D-002 C, N29)
 
 Status: pending
+Progress (2026-11-25, integrator; RC-D-048, RC-D-049): items on the AI-text list whose hash moves from r17 to r18: re-run on `16bc4be`: 22 of the 27 items on the AI-text list move; 3 of them change slot text (`core.source_publication_date`, `core.support_status`, `core.supporting_text`), the others lose history keys only (layer 1); `text.ai_text_score`, `text.detector_provenance`, `text.document_classification`, `text.genai_era_cutoff`, `text.sampling_design` do not move. Hashes in the lock record's `item_hashes_moved` (RULINGS-1124 s31, flag 10). On the v2 candidate none moved (`notices-and-s1c/PROVENANCE.md`, on `cd183f0`).
 Progress (2026-11-21, integrator; RC-D-045 D6 a): `text.published_text_ai_use/rules/1` changes by one phrase in r17 ("the main GenAI verdict" becomes "the main AI verdict"), and the three title-rule items are on the AI-text list; the text-detection plan's integrator is notified by GitHub issue plus the PI's e-mail, after signature.
 Type: integrate
 Priority: required
@@ -3633,7 +3746,7 @@ Stop storing PDF and DOCX files as garbled "HTML" text. Today the scraper routes
 
 #### Dependencies
 - Requires: T-014 (complete)
-- Enables: T-041, T-043 (fewer `not_assessable` pages on new fetches)
+- Enables: T-041, T-043, T-044 (fewer `not_assessable` pages on new fetches)
 - Can run with: T-022, T-024, T-064
 - Researcher gates: DP-065a/b; push gate
 
@@ -3740,6 +3853,7 @@ RC-D-025: also requires T-066 (unlocker cap); enables T-075 (wave 6), which runs
 Progress (2026-11-17, integrator; RC-D-038 138 a, Q153 a, Q182 a): T-031 (code review) and T-060 (D-008) are not blocking for T-071; they run post-hoc (T-031 before T-072, T-060 before T-095; Q210 b). T-055 is not an input: T-071 can deploy before T-055 and waves 6/7 run unloaded; T-055 gates only the ingest of wave 6/7 results and T-074. Before the merge the PI changes main's required checks to `test (3.12)`, `coverage`, `wheel-install` (`strict` unchanged).
 Progress (2026-11-18, integrator; RC-D-042): main 1001194 (PR #198; g3o-api PR #66 0566e43) deployed to g3o-run-01 2026-11-18T00:24Z; post-deploy RESULT: ALL PASS. Record: agent-workspace/2026-10-27-reclass-plan/deploy/DEPLOY.md.
 Progress (2026-11-21, integrator; RC-D-045): a later deploy of the combined head (recall-fix candidate 3c441e6 plus the r17 code line) moves the package hash, the instrument id and every journal key; landing and deploy are owner-run and are not granted by the lock. Status unchanged.
+Progress (2026-11-25, integrator; RC-D-047 to RC-D-051): a further deploy of the landing head of RC-D-047 to RC-D-051; owner-run, not granted by the lock.
 Type: operate
 Priority: critical-path
 Spec refs: D-002, R-070 (freeze = deploy date)
@@ -3815,13 +3929,16 @@ none
 
 ### T-075 — Run first-sweep wave 6 under v2.7
 
-Status: blocked (BLOCKED-INPUT: T-071)
+Status: blocked (BLOCKED-INPUT: T-044)
 RC-D-025 (approved 2026-11-10; text `planning/deltas/RC-D-025.md`): new card.
+Progress (2026-11-25, integrator; RC-D-048, RC-D-049, RC-D-050, RC-D-051): a wave-6 run binds codebook r18 (`64a8a2d808a3eb6c4583d7c65d1a9068e557785fdb17ed11e7ffd99e4ebe7dc5`) and the instrument of the v001.34 lock record (instrument id `1657cfad3d6416fde3b7da5d78bb479c04ad0f33538bb3098f464ae0505952b7`); this supersedes "codebook r17 and the v001.32 instrument pins" in the line below. The runtime file is the one whose `approval_reference` the PI confirmed for that lock (sha256 `8e49b2f7452e9ef079fec4d504754d4bbb4d9babc0a855525559185fde7ffe3f`); the operator states that sha256 at prep, and prep must not accept the r17 or r16 file. The wave scripts are re-pinned to the merge sha [AFTER-LANDING: merge commit]. The smoke projection comes from a smoke on this instrument: more passages resolve and more observations count as supported, so more requests per institution are expected than any earlier figure shows (review L2; reasoned, not measured); the cleaned codebook also changes request texts (the two extractor system prompts (item-hash lines out; P6, P7) and 12 activity classifier requests, reused by Stage 6 pooling (P1 to P5); X35, Stage 6 quote, page and institution texts unchanged). A run started under r17 cannot resume under this instrument (L3). The wave-6 and wave-7 smokes count against the $3,500 envelope (integrator's note of 2026-11-22, section 11 (ii), confirmed by the PI's "all confirmed", section 12); the fixture runs, the calibration study, C2, the re-draw recording, the main paid check (c2clean) and the overnight check c2o1124 do not (the re-draw and c2clean named by RULINGS-1124 s32 A5; c2o1124 the integrator's reading under the same rule) (PI, section 9 item 4, "nothing we do here counts, just the waves themselves"; the list is the integrator's reading).
+Progress (2026-11-25, integrator; RC-D-051): from v001.34 URL triage keeps pages likely to hold evidence of any AI at the institution, not generative AI only; discovery, the official-site prompt and the eligibility screen are unchanged (still worded for generative AI). This supersedes "URL triage" in the RC-D-045 line below. More pages per institution are expected to pass triage (size not measured; estimate in `deltas/RC-D-051.md`), so the smoke projection on this instrument is the first cost figure for it.
+Progress (2026-11-25, integrator; RC-D-047): the fixture evidence the PI reads before the smoke is the T-044 report (the r17 fixture set on the deployed instrument), not T-041's (r16). T-044 runs after the landing of RC-D-048 to RC-D-051 is deployed, so the smoke and the fixture run share one instrument.` RC-D-048 to RC-D-051 add lines at the same place (`LOCK-AND-NOTICES.md` section 3). Order, top to bottom: the line of `LOCK-AND-NOTICES.md
 Progress (2026-11-21, integrator; RC-D-045 S1 c): a wave-6 run binds codebook r17 and the v001.32 instrument pins. Discovery, URL triage, the official-site prompt and the eligibility screen still search for generative AI (decided after C2), so results describe AI adoption among pages found by a generative-AI search.
 Progress (2026-11-17, integrator; RC-D-041 Q199.1 a, Q199.2 a): batch results stay in memory, and the batch journal size is measured on the first `mix` batch of the wave-6 main run (Q212 a; the smoke runs live under 143 a); X35 stays unpriced in the seed-only projection and is taken from the smoke telemetry projection.
 Type: operate
 Priority: critical-path
-Spec refs: R-055, R-056, R-070; RC-D-001 C; RC-D-025 A3, A4, B1
+Spec refs: R-055, R-056, R-070; RC-D-001 C; RC-D-025 A3, A4, B1; RC-D-048, RC-D-049, RC-D-050, RC-D-051
 Decision refs: RC-D-025
 
 #### Objective
@@ -3831,7 +3948,9 @@ Wave 6 of the first sweep runs as an ordinary v2.7 run right after T-071 and bef
 | Input | Location/producer | Required state/version | Missing-input behavior |
 |---|---|---|---|
 | Deployed v2.7 | T-071 | sha verified on the droplet | stop |
-| T-041 fixture run (new-run path, X35 agreement) | T-041 | run done and report filed; the PI reads it before approving the smoke's paid command (Q183 a, Q209 a) | stop before the smoke |
+| T-044 fixture run (r17 set, new-run path, X35 agreement; RC-D-047) | T-044 | run done on the instrument the smoke will use and report filed; the PI reads it before approving the smoke's paid command (Q183 a, Q209 a) | stop before the smoke |
+| Instrument | joint lock record of RC-D-047 to RC-D-051 | the droplet's bound instrument id equals the record's | stop |
+| Runtime file | droplet; text confirmed by the PI | sha256 equals the record's; copied under the name the wave scripts read | stop |
 | Never-run pool | sweeps + attempts + every run manifest + prior frames (memory previously-sampled-needs-manifests) | complete union | stop |
 | Wave-5 resume spend | Simone (owed) | recorded | stop before the cost gate |
 | Wave window | T-097 | open for the start date | wait |
@@ -3851,7 +3970,7 @@ Wave 6 of the first sweep runs as an ordinary v2.7 run right after T-071 and bef
 - Working directory/environment: droplet; scripts `agent-workspace/2026-10-17-final-push/{prep,submit,verify,resume}-wave.sh` re-pinned to the T-071 merge sha; projection seeds read from a Drive-side JSON via `G3O_DRIVE_ROOT`, the public repo holds the model only (Q177 a)
 
 #### Dependencies
-- Requires: T-041, T-071 (T-041 runs first, the 20-institution smoke right after; 138 a, Q183 a)
+- Requires: T-044, T-071 (T-044 runs first, the 20-institution smoke right after; 138 a, Q183 a; RC-D-047)
 - Enables: T-076
 - Can run with: none
 - Researcher gates: PI approves the cost estimate and runs the paid command via `! <command>` (red line 4); SSH authorisation; Serper balance check; T-097 wave-window check
@@ -3897,6 +4016,7 @@ none
 
 Status: blocked (BLOCKED-INPUT: T-075)
 RC-D-025 (approved 2026-11-10; text `planning/deltas/RC-D-025.md`): new card.
+Progress (2026-11-25, integrator; RC-D-048 to RC-D-051): wave 7 binds the instrument in force at its start and records its id; unless a later delta changes it, that is the instrument of wave 6.
 Type: operate
 Priority: critical-path
 Spec refs: R-055, R-056, R-070; RC-D-001 C; RC-D-025 A3, A4, B1
@@ -4885,8 +5005,8 @@ Gate list (researcher gates; none passes by lock alone):
 | Gate | Cards |
 |---|---|
 | PI coding-rule wording / contract hash | T-010 (incl. the item template and the item-by-item CX signature, CX-01.3†), T-013 (item template, r2#59), T-011 (non-verbatim questions), T-022 / T-032 (nano prompts) |
-| PI labels / thresholds / caps | T-003 (match threshold, website cap), T-025 (URL cap value after T-002), T-040, T-041 and T-043 failures |
-| Paid calls (Simone runs `! <command>`) | T-002, T-016, T-041, T-043, T-072, T-073, T-096; T-081 per its DP |
+| PI labels / thresholds / caps | T-003 (match threshold, website cap), T-025 (URL cap value after T-002), T-040, T-041, T-043 and T-044 failures |
+| Paid calls (Simone runs `! <command>`) | T-002, T-016, T-041, T-043, T-044, T-072, T-073, T-096; T-081 per its DP |
 | SSH / droplet | T-001, T-071, T-072, T-073, T-081 (page pull), T-096 |
 | DB writes (Neon branches / snapshots free; PI gate still required) | T-051 (disposable self-check), T-054 (disposable branch), T-055 (live schema), T-074 (live load) |
 | Push / merge / deploy | every build card push; T-030 / T-035 integration branch; T-071; T-052 staging; T-055 production ingest; T-053 / T-095 deploy |

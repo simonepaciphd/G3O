@@ -4,11 +4,11 @@
     "harness": "claude-code",
     "model": "claude-opus-5-5"
   },
-  "date": "2026-11-21",
+  "date": "2026-11-25",
   "sources": {
-    "SPEC.md": "4cb69ef822e457628bbc689a72926e7bda3871f691ace4021099669227a52c15",
+    "SPEC.md": "00b539dc79729d3b2eba58ca612f3a6c1d071b78de83f2cdd97eaf7b2d4fe402",
     "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
-    "PLAN.md": "6d327f8074dde21b171ec98317ad24748ec28ba12a216be0c77486f032807dd7"
+    "PLAN.md": "17857500b0786cdeff321fd14ee2a31a569a37d4fd3d8e274e15fc924a6aca52"
   },
   "labels": {
     "T-001": {
@@ -118,6 +118,10 @@
     "T-041": {
       "label": "Run paid fixture checks (new-run path)",
       "plain": "Run the labelled cases through the new-run path and record how the X35 support check answers. Simone runs the paid command and rules on failures."
+    },
+    "T-044": {
+      "label": "Run the r17 fixture set (new-run path)",
+      "plain": "Run the relabelled and new test cases through the new-run path on the instrument the waves will use. Simone runs the paid command and rules on each failure."
     },
     "T-043": {
       "label": "Run back-fill fixture checks",

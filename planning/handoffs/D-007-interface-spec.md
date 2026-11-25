@@ -63,7 +63,7 @@ coder_records_json is internal. Records reference support/observation/item/part 
 - Classifier probabilities missing from a provider response remain missing. No 0, 1, inferred distribution or generic confidence is substituted.
 - Mechanical coders have no provider model/request by construction: typed null plus coder_not_applicable, with actual rule/version instead of fabricated IDs.
 - RC-D-010 (PI reply 2026-11-01): if the chosen-answer probability is unavailable, preserve the returned code and missing probability in provenance, apply the existing downgrade rules to the affected code and record the unavailable-probability cause. Page verdicts retain the verdict with a downgrade tag. Mechanical/rule-set typed-not-applicable records are unchanged. Do not substitute generic confidence or a fabricated probability.
-- Code values, support states and confidence are separate facts. The 0.8 chosen-answer bar and signed page-downgrade rule are unchanged.
+- Code values, support states and confidence are separate facts. The classifier's chosen-answer bar is 0.8. In the X35 check the bar is 0.6 when the checked item is the page verdict or `action_type` and 0.8 for every other checked item (SPEC R-081). A page verdict that fails its support check or the classifier bar is kept, not rewritten, and tagged as downgraded (SPEC R-041, R-081). A downgraded `confirms_activity` web page counts for the institution's `yes` when the page-verdict roll-up applies (SPEC R-041); its stored support status and confidence are kept and no field marks it.
 
 ## 4. Pairwise relations and observations
 
